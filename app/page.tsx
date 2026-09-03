@@ -22,7 +22,7 @@ export default function Home() {
   const [showAdd, setShowAdd] = useState(false);
   const expenses = useMemo(() => movements.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0), [movements]);
   const income = useMemo(() => movements.filter((item) => item.kind === 'income').reduce((sum, item) => sum + item.amount, 0), [movements]);
-  const progress = Math.round((expenses / budget) * 100);
+  const progress = budget > 0 ? Math.round((expenses / budget) * 100) : 0;
   const chartData = useMemo(() => {
     const grouped = new Map<string, number>();
     movements.filter((item) => item.kind === 'expense').forEach((item) => grouped.set(item.category, (grouped.get(item.category) ?? 0) + item.amount));
@@ -33,16 +33,44 @@ export default function Home() {
   useEffect(() => {
     const supabase = createBrowserSupabase();
     if (!supabase) return;
+    let active = true;
+    let refreshInProgress = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let interval: number | undefined;
+    let refreshWhenVisible: (() => void) | undefined;
+
     supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return;
+      if (!data.user || !active) return;
       const monthStart = '2026-09-01';
-      const [transactions, budgets] = await Promise.all([
-        supabase.from('transactions').select('id,description,amount_ars,occurred_on,kind,status,categories(name)').eq('user_id', data.user.id).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', '2026-10-01').order('occurred_on', { ascending: false }),
-        supabase.from('budgets').select('amount_ars').eq('user_id', data.user.id).eq('month', monthStart).maybeSingle(),
-      ]);
-      if (transactions.data?.length) setMovements(transactions.data.map((row: Record<string, unknown>) => ({ id: String(row.id), title: String(row.description), category: String((row.categories as { name?: string } | null)?.name ?? 'Otros'), amount: Number(row.amount_ars), date: String(row.occurred_on), kind: row.kind as 'expense' | 'income', icon: row.kind === 'income' ? '↗' : '•' })));
-      if (budgets.data?.amount_ars) setBudget(Number(budgets.data.amount_ars));
+      const loadDashboard = async () => {
+        if (refreshInProgress) return;
+        refreshInProgress = true;
+        const [transactions, budgets] = await Promise.all([
+          supabase.from('transactions').select('id,description,amount_ars,occurred_on,kind,status,categories(name)').eq('user_id', data.user.id).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', '2026-10-01').order('occurred_on', { ascending: false }),
+          supabase.from('budgets').select('amount_ars').eq('user_id', data.user.id).eq('month', monthStart).maybeSingle(),
+        ]);
+        refreshInProgress = false;
+        if (!active) return;
+        if (!transactions.error) setMovements((transactions.data ?? []).map((row: Record<string, unknown>) => ({ id: String(row.id), title: String(row.description), category: String((row.categories as { name?: string } | null)?.name ?? 'Otros'), amount: Number(row.amount_ars), date: String(row.occurred_on), kind: row.kind as 'expense' | 'income', icon: row.kind === 'income' ? '↗' : '•' })));
+        if (!budgets.error) setBudget(budgets.data?.amount_ars ? Number(budgets.data.amount_ars) : 0);
+      };
+
+      await loadDashboard();
+      if (!active) return;
+      channel = supabase.channel(`dashboard-${data.user.id}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${data.user.id}` }, loadDashboard)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets', filter: `user_id=eq.${data.user.id}` }, loadDashboard)
+        .subscribe();
+      interval = window.setInterval(loadDashboard, 5000);
+      refreshWhenVisible = () => { if (document.visibilityState === 'visible') void loadDashboard(); };
+      document.addEventListener('visibilitychange', refreshWhenVisible);
     });
+    return () => {
+      active = false;
+      if (interval !== undefined) window.clearInterval(interval);
+      if (refreshWhenVisible) document.removeEventListener('visibilitychange', refreshWhenVisible);
+      if (channel) void supabase.removeChannel(channel);
+    };
   }, []);
 
   async function editBudget() {
