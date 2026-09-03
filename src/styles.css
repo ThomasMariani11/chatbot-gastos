@@ -427,13 +427,15 @@
   appearance: none !important;
   background-color: #fff !important;
   color: var(--ink) !important;
+  text-align: center !important;
 }
 
 .movement-form input[type="date"]::-webkit-date-and-time-value {
-  text-align: left !important;
-  margin: 0 !important;
+  text-align: center !important;
+  margin: 0 auto !important;
   padding: 0 !important;
 }
+
 
 
 
