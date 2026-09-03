@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 
-type Props = { userId: string; onBack: () => void };
+type Props = { userId: string; onBack: () => void; onSignOut?: () => void };
 
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export function Settings({ userId, onBack }: Props) {
+export function Settings({ userId, onBack, onSignOut }: Props) {
   const [code, setCode] = useState<string>();
   const [enabled, setEnabled] = useState(true);
   const [paid, setPaid] = useState(false);
@@ -42,5 +42,45 @@ export function Settings({ userId, onBack }: Props) {
     setStatus('Código generado. Enviá el mensaje desde tu WhatsApp.');
   }
 
-  return <main className="settings-page"><button className="back-link button-link" type="button" onClick={onBack}>← Volver al resumen</button><header><p className="eyebrow">CONFIGURACIÓN</p><h1>WhatsApp y costos</h1><p>Controlá la conexión y evitá cargos inesperados.</p></header><section className="settings-panel warning"><strong>Corte automático programado</strong><p>Las respuestas se bloquearán el 30 de septiembre de 2026 a las 23:50 si no autorizás mensajes pagos.</p></section><section className="settings-panel"><h2>Estado del bot</h2><label className="switch-row"><span><strong>Responder por WhatsApp</strong><small>Podés pausarlo en cualquier momento.</small></span><input type="checkbox" checked={enabled} onChange={(event) => void update(event.target.checked, paid)} /></label><label className="switch-row"><span><strong>Autorizar mensajes pagos</strong><small>Solo se usa después del 1 de octubre.</small></span><input type="checkbox" checked={paid} onChange={(event) => void update(enabled, event.target.checked)} /></label></section><section className="settings-panel"><h2>Vincular tu número</h2><p>Generá un código y enviá <b>VINCULAR código</b> al número del bot. Vence en 10 minutos.</p><button className="primary-button" onClick={() => void generateCode()}>Generar código</button>{code && <div className="link-code">VINCULAR {code}</div>}</section><p className="settings-status" role="status">{status}</p></main>;
+  return (
+    <main className="settings-page">
+      <button className="back-link button-link" type="button" onClick={onBack}>← Volver al resumen</button>
+      <header>
+        <p className="eyebrow">CONFIGURACIÓN</p>
+        <h1>WhatsApp y costos</h1>
+        <p>Controlá la conexión y evitá cargos inesperados.</p>
+      </header>
+      <section className="settings-panel warning">
+        <strong>Corte automático programado</strong>
+        <p>Las respuestas se bloquearán el 30 de septiembre de 2026 a las 23:50 si no autorizás mensajes pagos.</p>
+      </section>
+      <section className="settings-panel">
+        <h2>Estado del bot</h2>
+        <label className="switch-row">
+          <span><strong>Responder por WhatsApp</strong><small>Podés pausarlo en cualquier momento.</small></span>
+          <input type="checkbox" checked={enabled} onChange={(event) => void update(event.target.checked, paid)} />
+        </label>
+        <label className="switch-row">
+          <span><strong>Autorizar mensajes pagos</strong><small>Solo se usa después del 1 de octubre.</small></span>
+          <input type="checkbox" checked={paid} onChange={(event) => void update(enabled, event.target.checked)} />
+        </label>
+      </section>
+      <section className="settings-panel">
+        <h2>Vincular tu número</h2>
+        <p>Generá un código y enviá <b>VINCULAR código</b> al número del bot. Vence en 10 minutos.</p>
+        <button className="primary-button" onClick={() => void generateCode()}>Generar código</button>
+        {code && <div className="link-code">VINCULAR {code}</div>}
+      </section>
+      {onSignOut && (
+        <section className="settings-panel">
+          <h2>Sesión</h2>
+          <p>Tu sesión permanece activa en este dispositivo hasta que decidas salir.</p>
+          <button className="danger-button" type="button" onClick={onSignOut}>
+            Cerrar sesión
+          </button>
+        </section>
+      )}
+      <p className="settings-status" role="status">{status}</p>
+    </main>
+  );
 }

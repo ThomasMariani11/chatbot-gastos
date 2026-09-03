@@ -19,6 +19,6 @@ export function App() {
 
   if (session === undefined) return <main className="auth-page"><p className="loading-copy">Abriendo Pesito…</p></main>;
   if (!session) return <Login />;
-  if (view === 'settings') return <Settings userId={session.user.id} onBack={() => setView('dashboard')} />;
+  if (view === 'settings') return <Settings userId={session.user.id} onBack={() => setView('dashboard')} onSignOut={() => supabase.auth.signOut()} />;
   return <Dashboard userId={session.user.id} onOpenSettings={() => setView('settings')} onSignOut={() => supabase.auth.signOut()} />;
 }

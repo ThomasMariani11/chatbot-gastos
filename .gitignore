@@ -35,5 +35,6 @@ next-env.d.ts
 /dist/
 /.npm-cache/
 /.wrangler/
-/outputs/
 /work/
+.temp/
+supabase/.temp/
