@@ -101,6 +101,12 @@ const responseJsonSchema = {
 async function extractFinancialProposal(input: { text?: string; mediaBase64?: string; mimeType?: string }): Promise<FinancialProposal> {
   const apiKey = Deno.env.get('GEMINI_API_KEY');
   if (!apiKey) throw new Error('Gemini no está configurado.');
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
   const prompt = `Fecha local: ${today}. Extraé una sola operación financiera argentina. Interpretá “lucas” y “k” como miles de ARS. Si la fecha no está expresada, usá la fecha local. Categorías de gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros. Categorías de ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros. Si es una compra en cuotas y el usuario menciona que ya pagó N cuotas (ej. "en 6 cuotas y ya pagué 2"), calculá firstInstallmentMonth restando N meses a la fecha actual para que la primera cuota comience en el mes histórico correspondiente. ${input.text ?? ''}`;
   const parts: Array<Record<string, unknown>> = [{ text: prompt }];
   if (input.mediaBase64 && input.mimeType) parts.push({ inlineData: { mimeType: input.mimeType, data: input.mediaBase64 } });
