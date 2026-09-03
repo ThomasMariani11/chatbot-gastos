@@ -128,12 +128,12 @@ export default function Home() {
           <a className="nav-item" href="/configuracion"><span>⚙</span>Configuración</a>
         </nav>
         <div className="bot-status"><span className="status-dot"/><div><strong>Bot conectado</strong><small>WhatsApp activo</small></div></div>
-        <button className="profile" type="button"><span>TS</span><div><strong>Tomás</strong><small>Mi cuenta</small></div><b>›</b></button>
+        <button className="profile" type="button"><span>TS</span><div><strong>Thomas</strong><small>Mi cuenta</small></div><b>›</b></button>
       </aside>
 
       <section className="content" id="resumen">
         <header className="topbar">
-          <div><p className="eyebrow">TU RESUMEN</p><h1>Hola, Tomás <span>👋</span></h1><p>Así vienen tus finanzas este mes.</p></div>
+          <div><p className="eyebrow">TU RESUMEN</p><h1>Hola, Thomas <span>👋</span></h1><p>Así vienen tus finanzas este mes.</p></div>
           <div className="top-actions"><select aria-label="Mes" value={month} onChange={(event) => setMonth(event.target.value)}><option>Septiembre 2026</option><option>Agosto 2026</option></select><button aria-label="Notificaciones" className="icon-button">♢</button></div>
         </header>
 
@@ -165,10 +165,8 @@ export default function Home() {
           </article>
 
           <article className="panel installments-card" id="cuotas">
-            <div className="panel-title"><div><h2>Próximas cuotas</h2><p>Compromisos para octubre</p></div><span className="pill">3 activas</span></div>
-            <div className="installment"><span>▤</span><div><strong>Notebook</strong><small>Cuota 3 de 12</small></div><b>{money.format(82500)}</b></div>
-            <div className="installment"><span>▤</span><div><strong>Zapatillas</strong><small>Cuota 2 de 3</small></div><b>{money.format(28400)}</b></div>
-            <div className="future-total"><span>Total comprometido</span><strong>{money.format(110900)}</strong></div>
+            <div className="panel-title"><div><h2>Próximas cuotas</h2><p>Compromisos para octubre</p></div><span className="pill">0 activas</span></div>
+            <div className="installments-empty"><span>✓</span><strong>No tenés cuotas pendientes</strong><small>Cuando registres una compra en cuotas, aparecerá acá.</small></div>
           </article>
         </section>
       </section>
