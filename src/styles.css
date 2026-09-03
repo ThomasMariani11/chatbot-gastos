@@ -1,0 +1,68 @@
+:root {
+  --font-manrope: 'Manrope';
+}
+
+.loading-copy {
+  color: var(--mint-dark);
+  font-weight: 800;
+}
+
+.login-icon {
+  width: 58px;
+  height: 58px;
+  margin-bottom: 22px;
+  border-radius: 17px;
+}
+
+.auth-card button:disabled,
+.primary-button:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.nav-button {
+  width: 100%;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.empty-movements {
+  padding: 30px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.logout-button {
+  cursor: pointer;
+}
+
+.button-link {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mobile-nav button:last-child {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  justify-self: stretch;
+  width: auto;
+  height: auto;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #87938f;
+  font-size: 17px;
+  line-height: normal;
+  box-shadow: none;
+}
+
+.mobile-nav button:last-child span {
+  font-size: 8px;
+  font-weight: 700;
+}
