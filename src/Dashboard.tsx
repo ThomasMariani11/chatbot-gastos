@@ -28,6 +28,41 @@ function todayKey() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date());
 }
 
+function IconHome({ className = 'nav-icon' }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1V9.5z" />
+    </svg>
+  );
+}
+
+function IconMovements({ className = 'nav-icon' }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M7 4v16M7 4L3 8M7 4l4 4M17 20V4M17 20l-4-4M17 20l4-4" />
+    </svg>
+  );
+}
+
+function IconInstallments({ className = 'nav-icon' }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <line x1="2" y1="10" x2="22" y2="10" />
+    </svg>
+  );
+}
+
+function IconSettings({ className = 'nav-icon' }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+
 export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const currentMonth = monthKey(new Date());
   const [month, setMonth] = useState(currentMonth);
@@ -132,10 +167,10 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">P</span><span>Pesito</span></div>
       <nav aria-label="Navegación principal">
-        <a className="nav-item active" href="#resumen"><span>⌂</span>Resumen</a>
-        <a className="nav-item" href="#movimientos"><span>↕</span>Movimientos</a>
-        <a className="nav-item" href="#cuotas"><span>▣</span>Cuotas</a>
-        <button className="nav-item nav-button" type="button" onClick={onOpenSettings}><span>⚙</span>Configuración</button>
+        <a className="nav-item active" href="#resumen"><span><IconHome /></span>Resumen</a>
+        <a className="nav-item" href="#movimientos"><span><IconMovements /></span>Movimientos</a>
+        <a className="nav-item" href="#cuotas"><span><IconInstallments /></span>Cuotas</a>
+        <button className="nav-item nav-button" type="button" onClick={onOpenSettings}><span><IconSettings /></span>Configuración</button>
       </nav>
       <div className="bot-status"><span className="status-dot"/><div><strong>Bot conectado</strong><small>WhatsApp activo</small></div></div>
       <button className="profile logout-button" type="button" onClick={onSignOut}><span>TS</span><div><strong>Thomas</strong><small>Cerrar sesión</small></div><b>›</b></button>
@@ -211,7 +246,30 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         <article className="panel installments-card" id="cuotas"><div className="panel-title"><div><h2>Próximas cuotas</h2><p>Compromisos futuros</p></div><span className="pill">0 activas</span></div><div className="installments-empty"><span>✓</span><strong>No tenés cuotas pendientes</strong><small>Cuando registres una compra en cuotas, aparecerá acá.</small></div></article>
       </section>
     </section>
-    <nav className="mobile-nav" aria-label="Navegación móvil"><a className="active" href="#resumen">⌂<span>Inicio</span></a><a href="#movimientos">↕<span>Movimientos</span></a><button aria-label="Agregar movimiento" onClick={() => setShowAdd(true)}>＋</button><a href="#cuotas">▣<span>Cuotas</span></a><button aria-label="Ajustes" onClick={onOpenSettings}>⚙<span>Ajustes</span></button></nav>
+    <nav className="mobile-nav" aria-label="Navegación móvil">
+      <a className="active" href="#resumen">
+        <IconHome />
+        <span>Inicio</span>
+      </a>
+      <a href="#movimientos">
+        <IconMovements />
+        <span>Movimientos</span>
+      </a>
+      <button aria-label="Agregar movimiento" onClick={() => setShowAdd(true)}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+      <a href="#cuotas">
+        <IconInstallments />
+        <span>Cuotas</span>
+      </a>
+      <button aria-label="Ajustes" onClick={onOpenSettings}>
+        <IconSettings />
+        <span>Ajustes</span>
+      </button>
+    </nav>
     <button className="desktop-add" onClick={() => setShowAdd(true)}>＋ Agregar movimiento</button>
     {showAdd && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowAdd(false)}><form className="movement-form" onSubmit={addMovement} onMouseDown={(event) => event.stopPropagation()}><div><p className="eyebrow">NUEVO MOVIMIENTO</p><h2>Registrá una operación</h2></div><label>Descripción<input name="description" required placeholder="Ej. Verdulería" /></label><div className="form-grid"><label>Monto ARS<input name="amount" required min="0.01" step="0.01" type="number" /></label><label>Tipo<select name="kind"><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label></div><div className="form-grid"><label>Categoría<input name="category" required placeholder="Alimentación" /></label><label>Fecha<input name="date" required type="date" defaultValue={todayKey()} /></label></div><div className="form-actions"><button type="button" onClick={() => setShowAdd(false)}>Cancelar</button><button className="primary-button" type="submit">Guardar</button></div></form></div>}
   </main>;

@@ -44,28 +44,61 @@
   cursor: pointer;
 }
 
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  stroke: currentColor;
+  flex-shrink: 0;
+}
+
+.nav-item span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-nav a,
 .mobile-nav button:last-child {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  justify-self: stretch;
+  justify-content: center;
+  gap: 3px;
+  text-decoration: none;
+  color: #87938f;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  cursor: pointer;
+  padding: 4px 0;
   width: auto;
   height: auto;
   margin: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: #87938f;
-  font-size: 17px;
-  line-height: normal;
-  box-shadow: none;
+  transition: color 0.15s ease;
 }
 
-.mobile-nav button:last-child span {
-  font-size: 8px;
-  font-weight: 700;
+.mobile-nav a.active {
+  color: var(--mint-dark);
 }
+
+.mobile-nav a.active .nav-icon {
+  stroke: var(--mint-dark);
+}
+
+.mobile-nav a span,
+.mobile-nav button:last-child span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+}
+
+.mobile-nav button[aria-label="Agregar movimiento"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 
 .danger-button {
   width: 100%;
