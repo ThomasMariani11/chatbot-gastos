@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   title: 'Pesito — Finanzas personales',
   description: 'Registrá tus gastos por WhatsApp y entendé mejor tu dinero.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
+  icons: {
+    icon: [{ url: '/icon-192.png', type: 'image/png', sizes: '192x192' }],
+    apple: [{ url: '/apple-touch-icon.png', type: 'image/png', sizes: '180x180' }],
+  },
   openGraph: {
     title: 'Pesito',
     description: 'Tus gastos, claros.',
