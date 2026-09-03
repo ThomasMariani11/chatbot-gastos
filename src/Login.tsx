@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react';
 import { supabase } from './supabase';
 
 export function Login() {
-  const [email, setEmail] = useState('thomi_mariani@hotmail.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
@@ -135,4 +135,3 @@ export function Login() {
     </main>
   );
 }
-
