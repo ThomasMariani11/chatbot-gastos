@@ -32,8 +32,24 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const currentMonth = monthKey(new Date());
   const [month, setMonth] = useState(currentMonth);
   const availableMonths = useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => shiftMonth(currentMonth, i));
+    const startYear = 2026;
+    const startMonth = 9; // Inicio de Pesito: Septiembre 2026
+    const [currYear, currMonthNum] = currentMonth.split('-').map(Number);
+    const list: string[] = [];
+    let y = startYear;
+    let m = startMonth;
+    while (y < currYear || (y === currYear && m <= currMonthNum)) {
+      list.push(`${y}-${String(m).padStart(2, '0')}`);
+      m++;
+      if (m > 12) {
+        m = 1;
+        y++;
+      }
+    }
+    if (!list.includes(currentMonth)) list.push(currentMonth);
+    return list;
   }, [currentMonth]);
+
   const [movements, setMovements] = useState<Movement[]>([]);
   const [budget, setBudget] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
