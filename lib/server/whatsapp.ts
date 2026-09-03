@@ -5,11 +5,16 @@ export async function sendWhatsAppText(to: string, body: string) {
   const token = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
   if (!token || !phoneNumberId) throw new Error('WhatsApp no está configurado.');
-  const response = await fetch(`${graphApiBase}/${phoneNumberId}/messages`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to, type: 'text', text: { preview_url: false, body } }),
-  });
+  const send = (recipient: string) => fetch(`${graphApiBase}/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to: recipient, type: 'text', text: { preview_url: false, body } }),
+    });
+  let response = await send(to);
+  if (!response.ok && to.startsWith('549')) {
+    const failure = await response.clone().json().catch(() => null) as { error?: { code?: number } } | null;
+    if (failure?.error?.code === 131030) response = await send(to.replace(/^549/, '54'));
+  }
   if (!response.ok) throw new Error(`WhatsApp respondió ${response.status}.`);
 }
 
