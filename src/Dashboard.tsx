@@ -20,6 +20,8 @@ type CategoryOption = {
   kind: 'expense' | 'income';
 };
 
+type BotState = 'active' | 'paused' | 'unlinked' | 'cost-blocked' | 'loading' | 'unknown';
+
 type InstallmentPlan = {
   groupId: string;
   description: string;
@@ -128,6 +130,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const [installmentPlans, setInstallmentPlans] = useState<InstallmentPlan[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [budget, setBudget] = useState(0);
+  const [botState, setBotState] = useState<BotState>('loading');
   const [showAdd, setShowAdd] = useState(false);
   const [manualKind, setManualKind] = useState<'expense' | 'income'>('expense');
   const [categoryId, setCategoryId] = useState('');
@@ -142,6 +145,14 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     return Array.from(grouped, ([name, value]) => ({ name, value }));
   }, [movements]);
   const chartColors = ['#20b984', '#655ad8', '#f4b44d', '#ea7172', '#4f9bd8'];
+  const botStatus = {
+    active: { title: 'Bot habilitado', detail: 'WhatsApp activo' },
+    paused: { title: 'Bot pausado', detail: 'Respuestas desactivadas' },
+    unlinked: { title: 'Sin vincular', detail: 'Conectá tu WhatsApp' },
+    'cost-blocked': { title: 'Bot bloqueado', detail: 'Mensajes pagos no autorizados' },
+    loading: { title: 'Comprobando bot', detail: 'Consultando configuración' },
+    unknown: { title: 'Estado no disponible', detail: 'Revisá la configuración' },
+  }[botState];
 
   useEffect(() => {
     let active = true;
@@ -176,10 +187,12 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     const loadDashboard = async () => {
       if (loading) return;
       loading = true;
-      const [transactions, budgets, allInstallments] = await Promise.all([
+      const [transactions, budgets, allInstallments, whatsappLink, appSettings] = await Promise.all([
         supabase.from('transactions').select('id,description,amount_ars,occurred_on,kind,categories(name),installment_number,installment_count').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
         supabase.from('budgets').select('amount_ars').eq('user_id', userId).eq('month', monthStart).maybeSingle(),
         supabase.from('transactions').select('id,description,amount_ars,occurred_on,installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
+        supabase.from('whatsapp_links').select('status').eq('user_id', userId).maybeSingle(),
+        supabase.from('app_settings').select('whatsapp_responses_enabled,paid_service_messages_authorized,cost_guard_date').eq('user_id', userId).maybeSingle(),
       ]);
       loading = false;
       if (!active) return;
@@ -197,6 +210,20 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         })));
       }
       if (!budgets.error) setBudget(budgets.data?.amount_ars ? Number(budgets.data.amount_ars) : 0);
+      if (whatsappLink.error || appSettings.error || !appSettings.data) {
+        setBotState('unknown');
+      } else if (whatsappLink.data?.status !== 'active') {
+        setBotState('unlinked');
+      } else if (!appSettings.data.whatsapp_responses_enabled) {
+        setBotState('paused');
+      } else if (
+        !appSettings.data.paid_service_messages_authorized
+        && Date.now() >= new Date(appSettings.data.cost_guard_date).getTime()
+      ) {
+        setBotState('cost-blocked');
+      } else {
+        setBotState('active');
+      }
       if (!allInstallments.error && allInstallments.data) {
         const groups = new Map<string, Array<Record<string, unknown>>>();
         allInstallments.data.forEach((row: Record<string, unknown>) => {
@@ -246,6 +273,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     const channel = supabase.channel(`dashboard-${userId}-${month}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${userId}` }, loadDashboard)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets', filter: `user_id=eq.${userId}` }, loadDashboard)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'whatsapp_links', filter: `user_id=eq.${userId}` }, loadDashboard)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings', filter: `user_id=eq.${userId}` }, loadDashboard)
       .subscribe();
     const interval = window.setInterval(loadDashboard, 5000);
     const refreshWhenVisible = () => { if (document.visibilityState === 'visible') void loadDashboard(); };
@@ -300,7 +329,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         <a className="nav-item" href="#cuotas"><span><IconInstallments /></span>Cuotas</a>
         <button className="nav-item nav-button" type="button" onClick={onOpenSettings}><span><IconSettings /></span>Configuración</button>
       </nav>
-      <div className="bot-status"><span className="status-dot"/><div><strong>Bot conectado</strong><small>WhatsApp activo</small></div></div>
+      <div className={`bot-status bot-status-${botState}`}><span className="status-dot"/><div><strong>{botStatus.title}</strong><small>{botStatus.detail}</small></div></div>
       <button className="profile logout-button" type="button" onClick={onSignOut}><span>TS</span><div><strong>Thomas</strong><small>Cerrar sesión</small></div><b>›</b></button>
     </aside>
     <section className="content" id="resumen">

@@ -451,3 +451,33 @@
 
 
 
+.bot-status-paused {
+  background: #fff8e8;
+}
+
+.bot-status-paused .status-dot {
+  background: #d99a18;
+  box-shadow: 0 0 0 4px #f8e8bf;
+}
+
+.bot-status-unlinked,
+.bot-status-loading,
+.bot-status-unknown {
+  background: #f3f5f4;
+}
+
+.bot-status-unlinked .status-dot,
+.bot-status-loading .status-dot,
+.bot-status-unknown .status-dot {
+  background: #8a9792;
+  box-shadow: 0 0 0 4px #e2e7e4;
+}
+
+.bot-status-cost-blocked {
+  background: #fff0ef;
+}
+
+.bot-status-cost-blocked .status-dot {
+  background: #e05f5c;
+  box-shadow: 0 0 0 4px #f7d8d6;
+}
