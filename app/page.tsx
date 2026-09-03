@@ -20,6 +20,7 @@ export default function Home() {
   const [movements, setMovements] = useState(initialMovements);
   const [budget, setBudget] = useState(900000);
   const [showAdd, setShowAdd] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const expenses = useMemo(() => movements.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0), [movements]);
   const income = useMemo(() => movements.filter((item) => item.kind === 'income').reduce((sum, item) => sum + item.amount, 0), [movements]);
   const progress = budget > 0 ? Math.round((expenses / budget) * 100) : 0;
@@ -97,6 +98,27 @@ export default function Home() {
     if (data.user) await supabase.from('transactions').insert({ user_id: data.user.id, kind, description: next.title, amount_ars: next.amount, occurred_on: next.date, status: 'confirmed', source: 'pwa' });
   }
 
+  async function deleteMovement(item: Movement) {
+    if (!window.confirm(`¿Eliminar "${item.title}"? Esta acción no se puede deshacer.`)) return;
+    const previous = movements;
+    setDeletingId(item.id);
+    setMovements((current) => current.filter((movement) => movement.id !== item.id));
+    const supabase = createBrowserSupabase();
+    if (!supabase) {
+      setDeletingId(null);
+      return;
+    }
+    const { data } = await supabase.auth.getUser();
+    const { error } = data.user
+      ? await supabase.from('transactions').delete().eq('id', item.id).eq('user_id', data.user.id)
+      : { error: new Error('No hay una sesión activa.') };
+    if (error) {
+      setMovements(previous);
+      window.alert('No pudimos eliminar el movimiento. Intentá nuevamente.');
+    }
+    setDeletingId(null);
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -142,7 +164,7 @@ export default function Home() {
 
           <article className="panel movements-card" id="movimientos">
             <div className="panel-title"><div><h2>Últimos movimientos</h2><p>Tus operaciones más recientes</p></div><button className="text-button">Ver todos →</button></div>
-            <div className="movement-list">{movements.map((item) => <div className="movement" key={item.id}><span className={`movement-icon ${item.kind}`}>{item.icon}</span><div><strong>{item.title}</strong><small>{item.category} · {item.date}</small></div><b className={item.kind}>{item.kind === 'expense' ? '−' : '+'}{money.format(item.amount)}</b></div>)}</div>
+            <div className="movement-list">{movements.map((item) => <div className="movement" key={item.id}><span className={`movement-icon ${item.kind}`}>{item.icon}</span><div><strong>{item.title}</strong><small>{item.category} · {item.date}</small></div><b className={item.kind}>{item.kind === 'expense' ? '−' : '+'}{money.format(item.amount)}</b><button className="movement-delete" type="button" disabled={deletingId === item.id} onClick={() => void deleteMovement(item)} aria-label={`Eliminar ${item.title}`}>{deletingId === item.id ? '…' : 'Eliminar'}</button></div>)}</div>
           </article>
 
           <article className="panel installments-card" id="cuotas">

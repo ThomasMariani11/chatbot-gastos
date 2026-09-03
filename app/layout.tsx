@@ -4,6 +4,7 @@ import { ServiceWorkerRegister } from '../components/sw-register';
 import './globals.css';
 import './forms.css';
 import './interactions.css';
+import './movements.css';
 
 const manrope = Manrope({ variable: '--font-manrope', subsets: ['latin'] });
 
