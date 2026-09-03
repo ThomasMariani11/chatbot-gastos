@@ -106,3 +106,122 @@
   border: 1px solid #ffd5d5;
 }
 
+/* Category chart & donut improvements */
+.category-card .chart-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.donut-chart {
+  position: relative;
+  width: 126px;
+  height: 126px;
+  flex: 0 0 126px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-chart svg {
+  overflow: visible !important;
+}
+
+.donut-chart > div:last-child {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  text-align: center;
+}
+
+.donut-chart strong {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.donut-chart span {
+  font-size: 9px;
+  color: #8a9792;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  flex: 1;
+  min-width: 110px;
+}
+
+.legend li {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #53615c;
+}
+
+.legend li i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend li strong {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+@media (max-width: 560px) {
+  .category-card .chart-row {
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 14px;
+  }
+
+  .donut-chart {
+    width: 120px;
+    height: 120px;
+    flex: 0 0 120px;
+  }
+
+  .donut-chart strong {
+    font-size: 12px;
+  }
+
+  .legend {
+    gap: 7px;
+  }
+
+  .legend li {
+    font-size: 10px;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 360px) {
+  .category-card .chart-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .legend {
+    width: 100%;
+  }
+}
+
+

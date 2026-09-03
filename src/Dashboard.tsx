@@ -129,7 +129,48 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       </section>
       <section className="main-grid">
         <article className="panel budget-card"><div className="panel-title"><div><h2>Presupuesto mensual</h2><p>Tu límite de gastos para {labelForMonth(month).toLowerCase()}</p></div><button className="text-button" onClick={editBudget}>Editar</button></div><div className="budget-numbers"><div><span>Gastado</span><strong>{money.format(expenses)}</strong></div><div className="align-right"><span>Presupuesto</span><strong>{money.format(budget)}</strong></div></div><div className="progress-track"><span style={{ width: `${Math.min(progress, 100)}%` }}/></div><div className="progress-copy"><span>{progress}% utilizado</span><span>Te quedan <strong>{money.format(budget - expenses)}</strong></span></div></article>
-        <article className="panel category-card"><div className="panel-title"><div><h2>Gastos por categoría</h2><p>Distribución del mes</p></div></div><div className="chart-row"><div className="donut-chart" role="img" aria-label="Gráfico de gastos por categoría"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={chartData} dataKey="value" nameKey="name" innerRadius={37} outerRadius={58} stroke="none">{chartData.map((entry, index) => <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />)}</Pie></PieChart></ResponsiveContainer><div><strong>{money.format(expenses)}</strong><span>Total</span></div></div><ul className="legend">{chartData.slice(0, 4).map((entry, index) => <li key={entry.name}><i style={{ background: chartColors[index % chartColors.length] }}/>{entry.name}<strong>{expenses ? Math.round(entry.value / expenses * 100) : 0}%</strong></li>)}</ul></div></article>
+        <article className="panel category-card">
+          <div className="panel-title">
+            <div>
+              <h2>Gastos por categoría</h2>
+              <p>Distribución del mes</p>
+            </div>
+          </div>
+          <div className="chart-row">
+            <div className="donut-chart" role="img" aria-label="Gráfico de gastos por categoría">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                  <Pie
+                    data={chartData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius="60%"
+                    outerRadius="85%"
+                    paddingAngle={chartData.length > 1 ? 2 : 0}
+                    stroke="none"
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div>
+                <strong>{money.format(expenses)}</strong>
+                <span>Total</span>
+              </div>
+            </div>
+            <ul className="legend">
+              {chartData.slice(0, 4).map((entry, index) => (
+                <li key={entry.name}>
+                  <i style={{ background: chartColors[index % chartColors.length] }} />
+                  {entry.name}
+                  <strong>{expenses ? Math.round((entry.value / expenses) * 100) : 0}%</strong>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </article>
         <article className="panel movements-card" id="movimientos"><div className="panel-title"><div><h2>Últimos movimientos</h2><p>Tus operaciones más recientes</p></div></div><div className="movement-list">{movements.length === 0 ? <p className="empty-movements">Todavía no hay movimientos en este mes.</p> : movements.map((item) => <div className="movement" key={item.id}><span className={`movement-icon ${item.kind}`}>{item.icon}</span><div><strong>{item.title}</strong><small>{item.category} · {item.date}</small></div><b className={item.kind}>{item.kind === 'expense' ? '−' : '+'}{money.format(item.amount)}</b><button className="movement-delete" type="button" disabled={deletingId === item.id} onClick={() => void deleteMovement(item)} aria-label={`Eliminar ${item.title}`}>{deletingId === item.id ? '…' : 'Eliminar'}</button></div>)}</div></article>
         <article className="panel installments-card" id="cuotas"><div className="panel-title"><div><h2>Próximas cuotas</h2><p>Compromisos futuros</p></div><span className="pill">0 activas</span></div><div className="installments-empty"><span>✓</span><strong>No tenés cuotas pendientes</strong><small>Cuando registres una compra en cuotas, aparecerá acá.</small></div></article>
       </section>
