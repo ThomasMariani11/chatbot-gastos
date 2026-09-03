@@ -14,6 +14,12 @@ type Movement = {
   installmentCount?: number | null;
 };
 
+type CategoryOption = {
+  id: string;
+  name: string;
+  kind: 'expense' | 'income';
+};
+
 type InstallmentPlan = {
   groupId: string;
   description: string;
@@ -30,7 +36,6 @@ type InstallmentPlan = {
 type Props = { userId: string; onOpenSettings: () => void; onSignOut: () => void };
 
 const money = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
-const monthLabel = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
 
 function formatShortDate(dateStr: string) {
   if (!dateStr) return '';
@@ -121,9 +126,13 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
 
   const [movements, setMovements] = useState<Movement[]>([]);
   const [installmentPlans, setInstallmentPlans] = useState<InstallmentPlan[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [budget, setBudget] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
+  const [manualKind, setManualKind] = useState<'expense' | 'income'>('expense');
+  const [categoryId, setCategoryId] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const availableCategories = useMemo(() => categories.filter((category) => category.kind === manualKind), [categories, manualKind]);
   const expenses = useMemo(() => movements.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0), [movements]);
   const income = useMemo(() => movements.filter((item) => item.kind === 'income').reduce((sum, item) => sum + item.amount, 0), [movements]);
   const progress = budget > 0 ? Math.round((expenses / budget) * 100) : 0;
@@ -133,6 +142,31 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     return Array.from(grouped, ([name, value]) => ({ name, value }));
   }, [movements]);
   const chartColors = ['#20b984', '#655ad8', '#f4b44d', '#ea7172', '#4f9bd8'];
+
+  useEffect(() => {
+    let active = true;
+    supabase
+      .from('categories')
+      .select('id,name,kind')
+      .eq('user_id', userId)
+      .eq('active', true)
+      .order('name')
+      .then(({ data }) => {
+        if (!active) return;
+        setCategories((data ?? []).map((category) => ({
+          id: String(category.id),
+          name: String(category.name),
+          kind: category.kind as 'expense' | 'income',
+        })));
+      });
+    return () => { active = false; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!availableCategories.some((category) => category.id === categoryId)) {
+      setCategoryId(availableCategories[0]?.id ?? '');
+    }
+  }, [availableCategories, categoryId]);
 
   useEffect(() => {
     let active = true;
@@ -237,7 +271,9 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const kind = form.get('kind') as 'expense' | 'income';
-    const { error } = await supabase.from('transactions').insert({ user_id: userId, kind, description: String(form.get('description')), amount_ars: Number(form.get('amount')), occurred_on: String(form.get('date')), status: 'confirmed', source: 'pwa' });
+    const selectedCategory = categories.find((category) => category.id === categoryId && category.kind === kind);
+    if (!selectedCategory) return window.alert('Seleccioná una categoría válida.');
+    const { error } = await supabase.from('transactions').insert({ user_id: userId, kind, description: String(form.get('description')), amount_ars: Number(form.get('amount')), occurred_on: String(form.get('date')), category_id: selectedCategory.id, status: 'confirmed', source: 'pwa' });
     if (error) return window.alert('No pudimos guardar el movimiento.');
     setShowAdd(false);
   }
@@ -437,6 +473,6 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       </button>
     </nav>
     <button className="desktop-add" onClick={() => setShowAdd(true)}>＋ Agregar movimiento</button>
-    {showAdd && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowAdd(false)}><form className="movement-form" onSubmit={addMovement} onMouseDown={(event) => event.stopPropagation()}><div><p className="eyebrow">NUEVO MOVIMIENTO</p><h2>Registrá una operación</h2></div><label>Descripción<input name="description" required placeholder="Ej. Verdulería" /></label><div className="form-grid"><label>Monto ARS<input name="amount" required min="0.01" step="0.01" type="number" /></label><label>Tipo<select name="kind"><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label></div><div className="form-grid"><label>Categoría<input name="category" required placeholder="Alimentación" /></label><label>Fecha<input name="date" required type="date" defaultValue={todayKey()} /></label></div><div className="form-actions"><button type="button" onClick={() => setShowAdd(false)}>Cancelar</button><button className="primary-button" type="submit">Guardar</button></div></form></div>}
+    {showAdd && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowAdd(false)}><form className="movement-form" onSubmit={addMovement} onMouseDown={(event) => event.stopPropagation()}><div><p className="eyebrow">NUEVO MOVIMIENTO</p><h2>Registrá una operación</h2></div><label>Descripción<input name="description" required placeholder="Ej. Verdulería" /></label><div className="form-grid"><label>Monto ARS<input name="amount" required min="0.01" step="0.01" type="number" /></label><label>Tipo<select name="kind" value={manualKind} onChange={(event) => setManualKind(event.target.value as 'expense' | 'income')}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label></div><div className="form-grid"><label>Categoría<select name="categoryId" required value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="" disabled>Seleccioná una categoría</option>{availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Fecha<input name="date" required type="date" defaultValue={todayKey()} /></label></div><div className="form-actions"><button type="button" onClick={() => setShowAdd(false)}>Cancelar</button><button className="primary-button" type="submit" disabled={!categoryId}>Guardar</button></div></form></div>}
   </main>;
 }
