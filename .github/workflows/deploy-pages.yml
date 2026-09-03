@@ -25,6 +25,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Identificar versión de la PWA
+        run: sed -i "s/__BUILD_VERSION__/${GITHUB_SHA}/g" dist/sw.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
