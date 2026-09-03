@@ -421,6 +421,8 @@
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
+  height: 43px !important;
+  line-height: 43px !important;
   box-sizing: border-box !important;
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
@@ -428,13 +430,21 @@
   background-color: #fff !important;
   color: var(--ink) !important;
   text-align: center !important;
+  padding: 0 12px !important;
 }
 
 .movement-form input[type="date"]::-webkit-date-and-time-value {
   text-align: center !important;
   margin: 0 auto !important;
   padding: 0 !important;
+  min-height: 41px !important;
+  height: 41px !important;
+  line-height: 41px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
+
 
 
 
