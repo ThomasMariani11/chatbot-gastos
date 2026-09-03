@@ -308,35 +308,57 @@
   gap: 12px;
 }
 
-.installment-header strong {
-  font-size: 14px;
-  color: var(--ink);
-  display: block;
-  line-height: 1.3;
+.installment-info-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
 }
 
-.installment-header small {
+.installment-date {
+  font-size: 10px;
+  font-weight: 700;
+  color: #8a9792;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.installment-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.installment-subtitle {
   font-size: 11px;
   color: #6d7d77;
-  display: block;
   margin-top: 2px;
 }
 
 .installment-amount-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   text-align: right;
   flex-shrink: 0;
 }
 
-.installment-amount-col strong {
-  font-size: 14px;
+.installment-amount {
+  font-size: 15px;
+  font-weight: 800;
   color: var(--ink);
+  line-height: 1.2;
 }
 
-.installment-amount-col small {
-  font-size: 10px;
-  color: #8a9792;
-  margin-left: 2px;
+.installment-cuota-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6d7d77;
+  margin-top: 3px;
 }
+
 
 .installment-progress-bar {
   width: 100%;

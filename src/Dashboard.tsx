@@ -24,16 +24,25 @@ type InstallmentPlan = {
   quedanCount: number;
   quedanTotal: number;
   progressPercent: number;
+  currentDateStr: string;
 };
 
-
 type Props = { userId: string; onOpenSettings: () => void; onSignOut: () => void };
-
 
 const money = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const monthLabel = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
 
+function formatShortDate(dateStr: string) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+  const monthAbbr = months[(m - 1) % 12];
+  const shortYear = String(y).slice(-2);
+  return `${d}/${monthAbbr}/${shortYear}`;
+}
+
 function monthKey(date: Date) {
+
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
@@ -177,6 +186,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           const quedanCount = Math.max(totalCount - vanCount, 0);
           const quedanTotal = quedanCount * monthlyAmount;
           const progressPercent = Math.round((vanCount / totalCount) * 100);
+          const currentDateStr = currentRow ? String(currentRow.occurred_on) : String(remainingRows[0]?.occurred_on ?? '');
 
           if (remainingRows.length > 0) {
             computedPlans.push({
@@ -189,9 +199,11 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               quedanCount,
               quedanTotal,
               progressPercent,
+              currentDateStr,
             });
           }
         });
+
 
         setInstallmentPlans(computedPlans);
       }
@@ -369,13 +381,16 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               {installmentPlans.map((plan) => (
                 <div className="installment-item" key={plan.groupId}>
                   <div className="installment-header">
-                    <div>
-                      <strong>{plan.description}</strong>
-                      <small>Cuota {plan.vanCount} de {plan.installmentCount}</small>
+                    <div className="installment-info-col">
+                      {plan.currentDateStr && (
+                        <span className="installment-date">{formatShortDate(plan.currentDateStr)}</span>
+                      )}
+                      <strong className="installment-title">{plan.description}</strong>
+                      <small className="installment-subtitle">Total compra: {money.format(plan.totalAmount)}</small>
                     </div>
                     <div className="installment-amount-col">
-                      <strong>{money.format(plan.monthlyAmount)}</strong>
-                      <small>/ cuota</small>
+                      <strong className="installment-amount">{money.format(plan.monthlyAmount)}</strong>
+                      <span className="installment-cuota-badge">Cuota {plan.vanCount}/{plan.installmentCount}</span>
                     </div>
                   </div>
                   <div className="installment-progress-bar">
@@ -388,8 +403,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                     <span>Van {plan.vanCount} de {plan.installmentCount} cuotas</span>
                     <span>{plan.quedanCount > 0 ? `Quedan ${plan.quedanCount} cuotas (${money.format(plan.quedanTotal)})` : '¡Última cuota este mes!'}</span>
                   </div>
-
                 </div>
+
               ))}
             </div>
           )}
