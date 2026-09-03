@@ -6,19 +6,12 @@ import { createBrowserSupabase } from '../lib/supabase/client';
 
 type Movement = { id: string; title: string; category: string; amount: number; date: string; kind: 'expense' | 'income'; icon: string };
 
-const initialMovements: Movement[] = [
-  { id: '1', title: 'Supermercado Coto', category: 'Alimentación', amount: 48320, date: 'Hoy, 18:42', kind: 'expense', icon: '🛒' },
-  { id: '2', title: 'Carga SUBE', category: 'Transporte', amount: 12000, date: 'Hoy, 09:15', kind: 'expense', icon: '🚌' },
-  { id: '3', title: 'Sueldo', category: 'Ingresos', amount: 1250000, date: '1 sep', kind: 'income', icon: '↗' },
-  { id: '4', title: 'Internet', category: 'Servicios', amount: 28900, date: '31 ago', kind: 'expense', icon: '⌁' },
-];
-
 const money = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
 export default function Home() {
   const [month, setMonth] = useState('Septiembre 2026');
-  const [movements, setMovements] = useState(initialMovements);
-  const [budget, setBudget] = useState(900000);
+  const [movements, setMovements] = useState<Movement[]>([]);
+  const [budget, setBudget] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const expenses = useMemo(() => movements.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0), [movements]);
@@ -41,7 +34,11 @@ export default function Home() {
     let refreshWhenVisible: (() => void) | undefined;
 
     supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user || !active) return;
+      if (!active) return;
+      if (!data.user) {
+        window.location.replace('/login');
+        return;
+      }
       const monthStart = '2026-09-01';
       const loadDashboard = async () => {
         if (refreshInProgress) return;
