@@ -19,13 +19,13 @@ type InstallmentPlan = {
   description: string;
   totalAmount: number;
   installmentCount: number;
-  paidCount: number;
-  currentNumber: number;
+  vanCount: number;
   monthlyAmount: number;
-  remainingCount: number;
-  remainingTotal: number;
+  quedanCount: number;
+  quedanTotal: number;
   progressPercent: number;
 };
+
 
 type Props = { userId: string; onOpenSettings: () => void; onSignOut: () => void };
 
@@ -173,25 +173,26 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
 
           const paidCount = paidRows.length;
           const currentNumber = currentRow?.installment_number ? Number(currentRow.installment_number) : Math.min(paidCount + 1, totalCount);
-          const remainingCount = remainingRows.length;
-          const remainingTotal = remainingRows.reduce((sum, r) => sum + Number(r.amount_ars), 0);
-          const progressPercent = Math.round((paidCount / totalCount) * 100);
+          const vanCount = currentNumber;
+          const quedanCount = Math.max(totalCount - vanCount, 0);
+          const quedanTotal = quedanCount * monthlyAmount;
+          const progressPercent = Math.round((vanCount / totalCount) * 100);
 
-          if (remainingCount > 0) {
+          if (remainingRows.length > 0) {
             computedPlans.push({
               groupId,
               description: desc,
               totalAmount: rows.reduce((sum, r) => sum + Number(r.amount_ars), 0),
               installmentCount: totalCount,
-              paidCount,
-              currentNumber,
+              vanCount,
               monthlyAmount,
-              remainingCount,
-              remainingTotal,
+              quedanCount,
+              quedanTotal,
               progressPercent,
             });
           }
         });
+
         setInstallmentPlans(computedPlans);
       }
     };
@@ -370,9 +371,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                   <div className="installment-header">
                     <div>
                       <strong>{plan.description}</strong>
-                      <small>
-                        Cuota {plan.currentNumber} de {plan.installmentCount} este mes · {plan.paidCount} pagada{plan.paidCount === 1 ? '' : 's'}
-                      </small>
+                      <small>Cuota {plan.vanCount} de {plan.installmentCount}</small>
                     </div>
                     <div className="installment-amount-col">
                       <strong>{money.format(plan.monthlyAmount)}</strong>
@@ -386,9 +385,10 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                     />
                   </div>
                   <div className="installment-footer">
-                    <span>{plan.paidCount} de {plan.installmentCount} pagadas ({plan.progressPercent}%)</span>
-                    <span>Restan {plan.remainingCount} cuotas (<strong>{money.format(plan.remainingTotal)}</strong>)</span>
+                    <span>Van {plan.vanCount} de {plan.installmentCount} cuotas</span>
+                    <span>{plan.quedanCount > 0 ? `Quedan ${plan.quedanCount} cuotas (${money.format(plan.quedanTotal)})` : '¡Última cuota este mes!'}</span>
                   </div>
+
                 </div>
               ))}
             </div>
