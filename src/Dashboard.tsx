@@ -2,8 +2,33 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { supabase } from './supabase';
 
-type Movement = { id: string; title: string; category: string; amount: number; date: string; kind: 'expense' | 'income'; icon: string };
+type Movement = {
+  id: string;
+  title: string;
+  category: string;
+  amount: number;
+  date: string;
+  kind: 'expense' | 'income';
+  icon: string;
+  installmentNumber?: number | null;
+  installmentCount?: number | null;
+};
+
+type InstallmentPlan = {
+  groupId: string;
+  description: string;
+  totalAmount: number;
+  installmentCount: number;
+  paidCount: number;
+  currentNumber: number;
+  monthlyAmount: number;
+  remainingCount: number;
+  remainingTotal: number;
+  progressPercent: number;
+};
+
 type Props = { userId: string; onOpenSettings: () => void; onSignOut: () => void };
+
 
 const money = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const monthLabel = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
@@ -86,6 +111,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   }, [currentMonth]);
 
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [installmentPlans, setInstallmentPlans] = useState<InstallmentPlan[]>([]);
   const [budget, setBudget] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -107,14 +133,67 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     const loadDashboard = async () => {
       if (loading) return;
       loading = true;
-      const [transactions, budgets] = await Promise.all([
-        supabase.from('transactions').select('id,description,amount_ars,occurred_on,kind,categories(name)').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
+      const [transactions, budgets, allInstallments] = await Promise.all([
+        supabase.from('transactions').select('id,description,amount_ars,occurred_on,kind,categories(name),installment_number,installment_count').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
         supabase.from('budgets').select('amount_ars').eq('user_id', userId).eq('month', monthStart).maybeSingle(),
+        supabase.from('transactions').select('id,description,amount_ars,occurred_on,installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
       ]);
       loading = false;
       if (!active) return;
-      if (!transactions.error) setMovements((transactions.data ?? []).map((row: Record<string, unknown>) => ({ id: String(row.id), title: String(row.description), category: String((row.categories as { name?: string } | null)?.name ?? 'Otros'), amount: Number(row.amount_ars), date: String(row.occurred_on), kind: row.kind as 'expense' | 'income', icon: row.kind === 'income' ? '↗' : '•' })));
+      if (!transactions.error) {
+        setMovements((transactions.data ?? []).map((row: Record<string, unknown>) => ({
+          id: String(row.id),
+          title: String(row.description),
+          category: String((row.categories as { name?: string } | null)?.name ?? 'Otros'),
+          amount: Number(row.amount_ars),
+          date: String(row.occurred_on),
+          kind: row.kind as 'expense' | 'income',
+          icon: row.kind === 'income' ? '↗' : '•',
+          installmentNumber: row.installment_number ? Number(row.installment_number) : null,
+          installmentCount: row.installment_count ? Number(row.installment_count) : null,
+        })));
+      }
       if (!budgets.error) setBudget(budgets.data?.amount_ars ? Number(budgets.data.amount_ars) : 0);
+      if (!allInstallments.error && allInstallments.data) {
+        const groups = new Map<string, Array<Record<string, unknown>>>();
+        allInstallments.data.forEach((row: Record<string, unknown>) => {
+          const key = String(row.installment_group_id || row.description);
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key)!.push(row);
+        });
+        const currentKey = monthKey(new Date());
+        const computedPlans: InstallmentPlan[] = [];
+        groups.forEach((rows, groupId) => {
+          const totalCount = Number(rows[0]?.installment_count ?? rows.length);
+          const desc = String(rows[0]?.description ?? 'Compra en cuotas');
+          const monthlyAmount = Number(rows[0]?.amount_ars ?? 0);
+          const paidRows = rows.filter((r) => String(r.occurred_on).slice(0, 7) < currentKey);
+          const remainingRows = rows.filter((r) => String(r.occurred_on).slice(0, 7) >= currentKey);
+          const currentRow = rows.find((r) => String(r.occurred_on).slice(0, 7) === currentKey);
+
+          const paidCount = paidRows.length;
+          const currentNumber = currentRow?.installment_number ? Number(currentRow.installment_number) : Math.min(paidCount + 1, totalCount);
+          const remainingCount = remainingRows.length;
+          const remainingTotal = remainingRows.reduce((sum, r) => sum + Number(r.amount_ars), 0);
+          const progressPercent = Math.round((paidCount / totalCount) * 100);
+
+          if (remainingCount > 0) {
+            computedPlans.push({
+              groupId,
+              description: desc,
+              totalAmount: rows.reduce((sum, r) => sum + Number(r.amount_ars), 0),
+              installmentCount: totalCount,
+              paidCount,
+              currentNumber,
+              monthlyAmount,
+              remainingCount,
+              remainingTotal,
+              progressPercent,
+            });
+          }
+        });
+        setInstallmentPlans(computedPlans);
+      }
     };
     void loadDashboard();
     const channel = supabase.channel(`dashboard-${userId}-${month}`)
@@ -242,8 +321,80 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             </ul>
           </div>
         </article>
-        <article className="panel movements-card" id="movimientos"><div className="panel-title"><div><h2>Últimos movimientos</h2><p>Tus operaciones más recientes</p></div></div><div className="movement-list">{movements.length === 0 ? <p className="empty-movements">Todavía no hay movimientos en este mes.</p> : movements.map((item) => <div className="movement" key={item.id}><span className={`movement-icon ${item.kind}`}>{item.icon}</span><div><strong>{item.title}</strong><small>{item.category} · {item.date}</small></div><b className={item.kind}>{item.kind === 'expense' ? '−' : '+'}{money.format(item.amount)}</b><button className="movement-delete" type="button" disabled={deletingId === item.id} onClick={() => void deleteMovement(item)} aria-label={`Eliminar ${item.title}`}>{deletingId === item.id ? '…' : 'Eliminar'}</button></div>)}</div></article>
-        <article className="panel installments-card" id="cuotas"><div className="panel-title"><div><h2>Próximas cuotas</h2><p>Compromisos futuros</p></div><span className="pill">0 activas</span></div><div className="installments-empty"><span>✓</span><strong>No tenés cuotas pendientes</strong><small>Cuando registres una compra en cuotas, aparecerá acá.</small></div></article>
+        <article className="panel movements-card" id="movimientos">
+          <div className="panel-title">
+            <div>
+              <h2>Últimos movimientos</h2>
+              <p>Tus operaciones más recientes</p>
+            </div>
+          </div>
+          <div className="movement-list">
+            {movements.length === 0 ? (
+              <p className="empty-movements">Todavía no hay movimientos en este mes.</p>
+            ) : (
+              movements.map((item) => (
+                <div className="movement" key={item.id}>
+                  <span className={`movement-icon ${item.kind}`}>{item.icon}</span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <small>
+                      {item.category} · {item.date}
+                      {item.installmentCount && item.installmentCount > 1 ? ` · Cuota ${item.installmentNumber ?? 1}/${item.installmentCount}` : ''}
+                    </small>
+                  </div>
+                  <b className={item.kind}>{item.kind === 'expense' ? '−' : '+'}{money.format(item.amount)}</b>
+                  <button className="movement-delete" type="button" disabled={deletingId === item.id} onClick={() => void deleteMovement(item)} aria-label={`Eliminar ${item.title}`}>{deletingId === item.id ? '…' : 'Eliminar'}</button>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
+        <article className="panel installments-card" id="cuotas">
+          <div className="panel-title">
+            <div>
+              <h2>Próximas cuotas</h2>
+              <p>Compromisos futuros</p>
+            </div>
+            <span className="pill">{installmentPlans.length} {installmentPlans.length === 1 ? 'activa' : 'activas'}</span>
+          </div>
+          {installmentPlans.length === 0 ? (
+            <div className="installments-empty">
+              <span>✓</span>
+              <strong>No tenés cuotas pendientes</strong>
+              <small>Cuando registres una compra en cuotas, aparecerá acá.</small>
+            </div>
+          ) : (
+            <div className="installments-list">
+              {installmentPlans.map((plan) => (
+                <div className="installment-item" key={plan.groupId}>
+                  <div className="installment-header">
+                    <div>
+                      <strong>{plan.description}</strong>
+                      <small>
+                        Cuota {plan.currentNumber} de {plan.installmentCount} este mes · {plan.paidCount} pagada{plan.paidCount === 1 ? '' : 's'}
+                      </small>
+                    </div>
+                    <div className="installment-amount-col">
+                      <strong>{money.format(plan.monthlyAmount)}</strong>
+                      <small>/ cuota</small>
+                    </div>
+                  </div>
+                  <div className="installment-progress-bar">
+                    <div
+                      className="installment-progress-fill"
+                      style={{ width: `${Math.min(plan.progressPercent, 100)}%` }}
+                    />
+                  </div>
+                  <div className="installment-footer">
+                    <span>{plan.paidCount} de {plan.installmentCount} pagadas ({plan.progressPercent}%)</span>
+                    <span>Restan {plan.remainingCount} cuotas (<strong>{money.format(plan.remainingTotal)}</strong>)</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+
       </section>
     </section>
     <nav className="mobile-nav" aria-label="Navegación móvil">

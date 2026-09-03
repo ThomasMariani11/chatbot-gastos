@@ -101,8 +101,7 @@ const responseJsonSchema = {
 async function extractFinancialProposal(input: { text?: string; mediaBase64?: string; mimeType?: string }): Promise<FinancialProposal> {
   const apiKey = Deno.env.get('GEMINI_API_KEY');
   if (!apiKey) throw new Error('Gemini no está configurado.');
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
-  const prompt = `Fecha local: ${today}. Extraé una sola operación financiera argentina. Interpretá “lucas” y “k” como miles de ARS. Si la fecha no está expresada, usá la fecha local. Categorías de gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros. Categorías de ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros. ${input.text ?? ''}`;
+  const prompt = `Fecha local: ${today}. Extraé una sola operación financiera argentina. Interpretá “lucas” y “k” como miles de ARS. Si la fecha no está expresada, usá la fecha local. Categorías de gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros. Categorías de ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros. Si es una compra en cuotas y el usuario menciona que ya pagó N cuotas (ej. "en 6 cuotas y ya pagué 2"), calculá firstInstallmentMonth restando N meses a la fecha actual para que la primera cuota comience en el mes histórico correspondiente. ${input.text ?? ''}`;
   const parts: Array<Record<string, unknown>> = [{ text: prompt }];
   if (input.mediaBase64 && input.mimeType) parts.push({ inlineData: { mimeType: input.mimeType, data: input.mediaBase64 } });
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
