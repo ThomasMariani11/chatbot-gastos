@@ -388,6 +388,54 @@
   font-weight: 700;
 }
 
+/* Form modal & date input fixes for iOS Safari */
+.modal-backdrop {
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.movement-form {
+  width: min(470px, 100%) !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.movement-form label,
+.form-grid,
+.form-grid > label {
+  min-width: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.movement-form input,
+.movement-form select {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.movement-form input[type="date"] {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-color: #fff !important;
+  color: var(--ink) !important;
+}
+
+.movement-form input[type="date"]::-webkit-date-and-time-value {
+  text-align: left !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+
 
 
 
