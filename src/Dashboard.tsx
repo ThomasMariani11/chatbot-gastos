@@ -19,8 +19,9 @@ function shiftMonth(key: string, offset: number) {
 
 function labelForMonth(key: string) {
   const [year, month] = key.split('-').map(Number);
-  const label = monthLabel.format(new Date(year, month - 1, 1));
-  return label.charAt(0).toUpperCase() + label.slice(1);
+  const date = new Date(year, month - 1, 1);
+  const monthName = new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(date);
+  return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
 }
 
 function todayKey() {
@@ -30,6 +31,9 @@ function todayKey() {
 export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const currentMonth = monthKey(new Date());
   const [month, setMonth] = useState(currentMonth);
+  const availableMonths = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => shiftMonth(currentMonth, i));
+  }, [currentMonth]);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [budget, setBudget] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
@@ -121,7 +125,23 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       <button className="profile logout-button" type="button" onClick={onSignOut}><span>TS</span><div><strong>Thomas</strong><small>Cerrar sesión</small></div><b>›</b></button>
     </aside>
     <section className="content" id="resumen">
-      <header className="topbar"><div><p className="eyebrow">TU RESUMEN</p><h1>Hola, Thomas <span>👋</span></h1><p>Así vienen tus finanzas este mes.</p></div><div className="top-actions"><select aria-label="Mes" value={month} onChange={(event) => setMonth(event.target.value)}><option value={currentMonth}>{labelForMonth(currentMonth)}</option><option value={shiftMonth(currentMonth, -1)}>{labelForMonth(shiftMonth(currentMonth, -1))}</option></select><button aria-label="Notificaciones" className="icon-button">♢</button></div></header>
+      <header className="topbar">
+        <div>
+          <p className="eyebrow">TU RESUMEN</p>
+          <h1>Hola, Thomas <span>👋</span></h1>
+          <p>Así vienen tus finanzas este mes.</p>
+        </div>
+        <div className="top-actions">
+          <select aria-label="Mes" value={month} onChange={(event) => setMonth(event.target.value)}>
+            {availableMonths.map((m) => (
+              <option key={m} value={m}>
+                {labelForMonth(m)}
+              </option>
+            ))}
+          </select>
+          <button aria-label="Notificaciones" className="icon-button">♢</button>
+        </div>
+      </header>
       <section className="summary-grid" aria-label="Resumen mensual">
         <article className="summary-card expense"><div className="card-heading"><span className="metric-icon">↘</span><small>GASTOS DEL MES</small></div><strong>{money.format(expenses)}</strong><p>Actualizado automáticamente</p></article>
         <article className="summary-card income"><div className="card-heading"><span className="metric-icon">↗</span><small>INGRESOS DEL MES</small></div><strong>{money.format(income)}</strong><p>Actualizado automáticamente</p></article>
