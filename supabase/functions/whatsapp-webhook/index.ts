@@ -135,8 +135,15 @@ function addMonths(month: string, offset: number) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function serviceMessagesAllowed(override: boolean) {
-  return new Date() < new Date('2026-09-30T23:50:00-03:00') || override;
+const DEFAULT_COST_GUARD_DATE = '2026-09-30T23:50:00-03:00';
+
+function serviceMessagesAllowed(costGuardDate: string | null | undefined, override: boolean) {
+  if (override) return true;
+  const configuredDate = new Date(costGuardDate ?? DEFAULT_COST_GUARD_DATE);
+  const cutoff = Number.isNaN(configuredDate.getTime())
+    ? new Date(DEFAULT_COST_GUARD_DATE)
+    : configuredDate;
+  return new Date() < cutoff;
 }
 
 function formatProposal(proposal: FinancialProposal) {
@@ -180,8 +187,12 @@ Deno.serve(async (request) => {
       }
     }
     if (!link) throw new Error('Número no vinculado.');
-    const { data: settings } = await supabase.from('app_settings').select('whatsapp_responses_enabled,paid_service_messages_authorized').eq('user_id', link.user_id).maybeSingle();
-    if (!(settings?.whatsapp_responses_enabled ?? true) || !serviceMessagesAllowed(settings?.paid_service_messages_authorized ?? false)) {
+    const { data: settings } = await supabase.from('app_settings').select('whatsapp_responses_enabled,paid_service_messages_authorized,cost_guard_date').eq('user_id', link.user_id).maybeSingle();
+    if (!(settings?.whatsapp_responses_enabled ?? true)) {
+      await supabase.from('inbound_events').update({ status: 'blocked_paused', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+      return json({ received: true, blocked: true });
+    }
+    if (!serviceMessagesAllowed(settings?.cost_guard_date, settings?.paid_service_messages_authorized ?? false)) {
       await supabase.from('inbound_events').update({ status: 'blocked_cost_guard', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
       return json({ received: true, blocked: true });
     }
