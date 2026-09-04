@@ -194,11 +194,15 @@ Deno.serve(async (request) => {
     }
     if (!serviceMessagesAllowed(settings?.cost_guard_date, settings?.paid_service_messages_authorized ?? false)) {
       await supabase.from('inbound_events').update({ status: 'blocked_cost_guard', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+      await sendWhatsAppText(message.from, 'Pesito: Se activó el corte de seguridad programado para evitar costos extras. Si querés seguir usándolo, podés autorizar los mensajes desde la app en Configuración.');
       return json({ received: true, blocked: true });
     }
 
     const text = message.text?.body?.trim() ?? message.image?.caption?.trim() ?? '';
-    if (/^(confirmar|si|sí)$/i.test(text)) {
+    const isConfirm = /^(confirmar|confirmado|confirmo|si|sí|ok|dale|listo|de una|va|sisi|perfecto|👍)$/i.test(text);
+    const isCancel = /^(cancelar|cancelalo|cancela|cancel|no|borralo|borrar|borra|anular|rechazar)$/i.test(text);
+
+    if (isConfirm) {
       const { data: pending } = await supabase.from('transactions').select('*').eq('user_id', link.user_id).eq('status', 'pending').order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (!pending) await sendWhatsAppText(message.from, 'No tenés ninguna operación pendiente.');
       else if ((pending.installment_count ?? 1) > 1) {
@@ -211,7 +215,7 @@ Deno.serve(async (request) => {
         await supabase.from('transactions').update({ status: 'confirmed', confirmed_at: new Date().toISOString() }).eq('id', pending.id);
         await sendWhatsAppText(message.from, 'Listo, quedó registrado ✅');
       }
-    } else if (/^cancelar$/i.test(text)) {
+    } else if (isCancel) {
       await supabase.from('transactions').update({ status: 'cancelled' }).eq('user_id', link.user_id).eq('status', 'pending');
       await sendWhatsAppText(message.from, 'Operación cancelada.');
     } else {
@@ -221,12 +225,26 @@ Deno.serve(async (request) => {
       if (!text && !media) throw new Error('Tipo de mensaje no compatible.');
       const proposal = await extractFinancialProposal({ text, mediaBase64: media?.base64, mimeType: media?.mimeType });
       const { data: category } = await supabase.from('categories').select('id').eq('user_id', link.user_id).eq('kind', proposal.kind).ilike('name', proposal.category ?? 'Otros').maybeSingle();
+      // Cancelar cualquier propuesta previa que haya quedado pendiente
+      await supabase.from('transactions').update({ status: 'cancelled' }).eq('user_id', link.user_id).eq('status', 'pending');
       await supabase.from('transactions').insert({ user_id: link.user_id, kind: proposal.kind, description: proposal.description, amount_ars: proposal.totalAmountArs, occurred_on: proposal.occurredOn, category_id: category?.id ?? null, status: 'pending', source: message.type, confidence: proposal.confidence, installment_count: proposal.installments, first_installment_month: proposal.firstInstallmentMonth ?? proposal.occurredOn?.slice(0, 7), wa_message_id: message.id });
       await sendWhatsAppText(message.from, formatProposal(proposal));
     }
     await supabase.from('inbound_events').update({ status: 'processed', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
   } catch (error) {
-    await supabase.from('inbound_events').update({ status: 'failed', error_code: error instanceof Error ? error.message.slice(0, 160) : 'unknown', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+    const errorMsg = error instanceof Error ? error.message : 'unknown';
+    await supabase.from('inbound_events').update({ status: 'failed', error_code: errorMsg.slice(0, 160), processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+    if (message?.from) {
+      try {
+        const userNotice = errorMsg.includes('Número no vinculado')
+          ? 'Tu número no está vinculado a Pesito. Podés vincularlo generando un código desde la app.'
+          : 'No pude interpretar el mensaje o comprobante 😕. Probá escribiendo el gasto (ej: "Gasté 15000 en súper") o reenviando el audio.';
+        await sendWhatsAppText(message.from, userNotice);
+      } catch {
+        // Ignorar silenciosamente errores secundarios al enviar aviso por WhatsApp
+      }
+    }
   }
+
   return json({ received: true });
 });
