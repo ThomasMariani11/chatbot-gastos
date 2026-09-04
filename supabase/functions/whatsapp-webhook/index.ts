@@ -107,7 +107,8 @@ async function extractFinancialProposal(input: { text?: string; mediaBase64?: st
     month: '2-digit',
     day: '2-digit',
   }).format(new Date());
-  const prompt = `Fecha local: ${today}. Extraé una sola operación financiera argentina. Interpretá “lucas” y “k” como miles de ARS. Si la fecha no está expresada, usá la fecha local. Categorías de gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros. Categorías de ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros. Si es una compra en cuotas y el usuario menciona que ya pagó N cuotas (ej. "en 6 cuotas y ya pagué 2"), calculá firstInstallmentMonth restando N meses a la fecha actual para que la primera cuota comience en el mes histórico correspondiente. ${input.text ?? ''}`;
+  const prompt = `Fecha local: ${today}. Extraé una sola operación financiera argentina. Interpretá “lucas” y “k” como miles de ARS. Si la fecha no está expresada, usá la fecha local. Categorías de gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros. Categorías de ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros. Si es una compra en cuotas y el usuario menciona que ya pagó N cuotas (ej. "en 6 cuotas y ya pagué 2"), calculá firstInstallmentMonth restando N meses a la fecha actual para que la primera cuota comience en el mes histórico correspondiente. Si el mensaje o audio no contiene una operación financiera clara, o es solo ruido de fondo, murmullo o incomprensible, devolvé totalAmountArs null y confidence 0. ${input.text ?? ''}`;
+
   const parts: Array<Record<string, unknown>> = [{ text: prompt }];
   if (input.mediaBase64 && input.mimeType) parts.push({ inlineData: { mimeType: input.mimeType, data: input.mediaBase64 } });
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
@@ -224,6 +225,9 @@ Deno.serve(async (request) => {
       if (mediaId) media = await downloadWhatsAppMedia(mediaId);
       if (!text && !media) throw new Error('Tipo de mensaje no compatible.');
       const proposal = await extractFinancialProposal({ text, mediaBase64: media?.base64, mimeType: media?.mimeType });
+      if (!proposal.totalAmountArs || (proposal.confidence ?? 0) < 0.5) {
+        throw new Error('No se pudo identificar un monto o gasto válido en el mensaje/audio.');
+      }
       const { data: category } = await supabase.from('categories').select('id').eq('user_id', link.user_id).eq('kind', proposal.kind).ilike('name', proposal.category ?? 'Otros').maybeSingle();
       // Cancelar cualquier propuesta previa que haya quedado pendiente
       await supabase.from('transactions').update({ status: 'cancelled' }).eq('user_id', link.user_id).eq('status', 'pending');
