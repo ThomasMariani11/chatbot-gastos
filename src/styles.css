@@ -573,3 +573,33 @@
   background: #fff0f0;
 }
 
+.installment-calc-preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #f4f8f5;
+  border: 1px solid #dce8e1;
+  border-radius: 10px;
+  padding: 6px 12px;
+  height: 43px;
+  box-sizing: border-box;
+}
+
+.installment-calc-preview small {
+  font-size: 9px;
+  font-weight: 700;
+  color: #6d7d77;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  line-height: 1;
+}
+
+.installment-calc-preview strong {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--mint-dark);
+  margin-top: 2px;
+  line-height: 1.1;
+}
+
+

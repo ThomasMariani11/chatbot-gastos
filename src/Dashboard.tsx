@@ -60,6 +60,14 @@ function shiftMonth(key: string, offset: number) {
   return monthKey(new Date(year, month - 1 + offset, 1));
 }
 
+function splitInstallments(total: number, count: number) {
+  const totalCents = Math.round(total * 100);
+  const base = Math.floor(totalCents / count);
+  const remainder = totalCents - base * count;
+  return Array.from({ length: count }, (_, index) => (base + (index === count - 1 ? remainder : 0)) / 100);
+}
+
+
 function labelForMonth(key: string) {
   const [year, month] = key.split('-').map(Number);
   const date = new Date(year, month - 1, 1);
@@ -136,9 +144,13 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const [showAdd, setShowAdd] = useState(false);
   const [manualKind, setManualKind] = useState<'expense' | 'income'>('expense');
   const [categoryId, setCategoryId] = useState('');
+  const [isInstallments, setIsInstallments] = useState(false);
+  const [installmentCount, setInstallmentCount] = useState(3);
+  const [formAmount, setFormAmount] = useState<number | ''>('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [installmentDeletePrompt, setInstallmentDeletePrompt] = useState<{ movement?: Movement; plan?: InstallmentPlan } | null>(null);
   const availableCategories = useMemo(() => categories.filter((category) => category.kind === manualKind), [categories, manualKind]);
+
 
   const expenses = useMemo(() => movements.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0), [movements]);
   const income = useMemo(() => movements.filter((item) => item.kind === 'income').reduce((sum, item) => sum + item.amount, 0), [movements]);
@@ -308,10 +320,74 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     const kind = form.get('kind') as 'expense' | 'income';
     const selectedCategory = categories.find((category) => category.id === categoryId && category.kind === kind);
     if (!selectedCategory) return window.alert('Seleccioná una categoría válida.');
-    const { error } = await supabase.from('transactions').insert({ user_id: userId, kind, description: String(form.get('description')), amount_ars: Number(form.get('amount')), occurred_on: String(form.get('date')), category_id: selectedCategory.id, status: 'confirmed', source: 'pwa' });
-    if (error) return window.alert('No pudimos guardar el movimiento.');
+    const description = String(form.get('description')).trim();
+    const totalAmount = Number(form.get('amount'));
+    const dateStr = String(form.get('date'));
+    if (!description || !totalAmount || totalAmount <= 0) return;
+
+    if (kind === 'expense' && isInstallments && installmentCount > 1) {
+      const { data: parent, error: parentError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: userId,
+          kind: 'expense',
+          description,
+          amount_ars: totalAmount,
+          occurred_on: dateStr,
+          category_id: selectedCategory.id,
+          status: 'cancelled',
+          source: 'pwa',
+          installment_count: installmentCount,
+          first_installment_month: dateStr.slice(0, 7),
+        })
+        .select('id')
+        .single();
+
+      if (parentError || !parent) {
+        return window.alert('No pudimos registrar la compra en cuotas. Intentá nuevamente.');
+      }
+
+      const values = splitInstallments(totalAmount, installmentCount);
+      const startMonth = dateStr.slice(0, 7);
+      const day = dateStr.slice(8, 10);
+      const rows = values.map((amount, index) => ({
+        user_id: userId,
+        kind: 'expense',
+        description,
+        amount_ars: amount,
+        occurred_on: `${shiftMonth(startMonth, index)}-${day}`,
+        category_id: selectedCategory.id,
+        status: 'confirmed',
+        source: 'pwa',
+        installment_group_id: parent.id,
+        installment_number: index + 1,
+        installment_count: installmentCount,
+      }));
+
+      const { error: batchError } = await supabase.from('transactions').insert(rows);
+      if (batchError) {
+        return window.alert('Hubo un error guardando las cuotas. Intentá nuevamente.');
+      }
+    } else {
+      const { error } = await supabase.from('transactions').insert({
+        user_id: userId,
+        kind,
+        description,
+        amount_ars: totalAmount,
+        occurred_on: dateStr,
+        category_id: selectedCategory.id,
+        status: 'confirmed',
+        source: 'pwa',
+      });
+      if (error) return window.alert('No pudimos guardar el movimiento.');
+    }
+
     setShowAdd(false);
+    setIsInstallments(false);
+    setInstallmentCount(3);
+    setFormAmount('');
   }
+
 
   async function executeDeleteSingleMovement(item: Movement) {
     const previous = movements;
@@ -556,7 +632,130 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       </button>
     </nav>
     <button className="desktop-add" onClick={() => setShowAdd(true)}>＋ Agregar movimiento</button>
-    {showAdd && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowAdd(false)}><form className="movement-form" onSubmit={addMovement} onMouseDown={(event) => event.stopPropagation()}><div><p className="eyebrow">NUEVO MOVIMIENTO</p><h2>Registrá una operación</h2></div><label>Descripción<input name="description" required placeholder="Ej. Verdulería" /></label><div className="form-grid"><label>Monto ARS<input name="amount" required min="0.01" step="0.01" type="number" /></label><label>Tipo<select name="kind" value={manualKind} onChange={(event) => setManualKind(event.target.value as 'expense' | 'income')}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label></div><div className="form-grid"><label>Categoría<select name="categoryId" required value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="" disabled>Seleccioná una categoría</option>{availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Fecha<input name="date" required type="date" defaultValue={todayKey()} /></label></div><div className="form-actions"><button type="button" onClick={() => setShowAdd(false)}>Cancelar</button><button className="primary-button" type="submit" disabled={!categoryId}>Guardar</button></div></form></div>}
+    {showAdd && (
+
+      <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowAdd(false)}>
+        <form className="movement-form" onSubmit={addMovement} onMouseDown={(event) => event.stopPropagation()}>
+          <div>
+            <p className="eyebrow">NUEVO MOVIMIENTO</p>
+            <h2>Registrá una operación</h2>
+          </div>
+          <label>
+            Descripción
+            <input name="description" required placeholder="Ej. Verdulería o Compra en cuotas" />
+          </label>
+          <div className="form-grid">
+            <label>
+              {isInstallments && manualKind === 'expense' ? 'Monto total compra (ARS)' : 'Monto ARS'}
+              <input
+                name="amount"
+                required
+                min="0.01"
+                step="0.01"
+                type="number"
+                inputMode="decimal"
+                placeholder="0.00"
+                value={formAmount}
+                onChange={(e) => setFormAmount(e.target.value === '' ? '' : Number(e.target.value))}
+              />
+            </label>
+            <label>
+              Tipo
+              <select
+                name="kind"
+                value={manualKind}
+                onChange={(event) => {
+                  const k = event.target.value as 'expense' | 'income';
+                  setManualKind(k);
+                  if (k === 'income') setIsInstallments(false);
+                }}
+              >
+                <option value="expense">Gasto</option>
+                <option value="income">Ingreso</option>
+              </select>
+            </label>
+          </div>
+          {manualKind === 'expense' && (
+            <label className="switch-row" style={{ marginTop: '2px', padding: '6px 0' }}>
+              <span>
+                <strong style={{ fontSize: '13px' }}>¿Es una compra en cuotas?</strong>
+                <small style={{ fontSize: '11px', color: '#71807b' }}>Se crearán las cuotas para los próximos meses.</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={isInstallments}
+                onChange={(e) => setIsInstallments(e.target.checked)}
+              />
+            </label>
+          )}
+          {manualKind === 'expense' && isInstallments && (
+            <div className="form-grid" style={{ alignItems: 'flex-end' }}>
+              <label>
+                Cantidad de cuotas
+                <select
+                  name="installmentCount"
+                  value={installmentCount}
+                  onChange={(e) => setInstallmentCount(Number(e.target.value))}
+                >
+                  <option value={2}>2 cuotas</option>
+                  <option value={3}>3 cuotas</option>
+                  <option value={6}>6 cuotas</option>
+                  <option value={9}>9 cuotas</option>
+                  <option value={12}>12 cuotas</option>
+                  <option value={18}>18 cuotas</option>
+                  <option value={24}>24 cuotas</option>
+                </select>
+              </label>
+              <div className="installment-calc-preview">
+                <small>Valor por cuota:</small>
+                <strong>
+                  {typeof formAmount === 'number' && formAmount > 0
+                    ? `${money.format(Math.round(formAmount / installmentCount))} / mes`
+                    : 'Ingresá el total'}
+                </strong>
+              </div>
+            </div>
+          )}
+          <div className="form-grid">
+            <label>
+              Categoría
+              <select
+                name="categoryId"
+                required
+                value={categoryId}
+                onChange={(event) => setCategoryId(event.target.value)}
+              >
+                <option value="" disabled>Seleccioná una categoría</option>
+                {availableCategories.map((category) => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {isInstallments && manualKind === 'expense' ? 'Fecha 1° cuota' : 'Fecha'}
+              <input name="date" required type="date" defaultValue={todayKey()} />
+            </label>
+          </div>
+          <div className="form-actions">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAdd(false);
+                setIsInstallments(false);
+                setInstallmentCount(3);
+                setFormAmount('');
+              }}
+            >
+              Cancelar
+            </button>
+            <button className="primary-button" type="submit" disabled={!categoryId}>
+              Guardar
+            </button>
+          </div>
+        </form>
+      </div>
+    )}
+
     {installmentDeletePrompt && (
       <div className="modal-backdrop" role="presentation" onMouseDown={() => setInstallmentDeletePrompt(null)}>
         <div className="movement-form delete-plan-modal" onMouseDown={(e) => e.stopPropagation()}>
