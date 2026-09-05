@@ -126,24 +126,25 @@ function IconSettings({ className = 'nav-icon' }: { className?: string }) {
 export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const currentMonth = monthKey(new Date());
   const [month, setMonth] = useState(currentMonth);
+  const [knownMonths, setKnownMonths] = useState<string[]>([]);
   const availableMonths = useMemo(() => {
-    const startYear = 2026;
-    const startMonth = 9; // Inicio de Pesito: Septiembre 2026
-    const [currYear, currMonthNum] = currentMonth.split('-').map(Number);
-    const list: string[] = [];
-    let y = startYear;
-    let m = startMonth;
-    while (y < currYear || (y === currYear && m <= currMonthNum)) {
-      list.push(`${y}-${String(m).padStart(2, '0')}`);
-      m++;
-      if (m > 12) {
-        m = 1;
-        y++;
-      }
+    const monthsSet = new Set<string>();
+
+    // Generamos un rango amplio: 12 meses atrás y 18 meses hacia adelante
+    for (let i = -12; i <= 18; i++) {
+      monthsSet.add(shiftMonth(currentMonth, i));
     }
-    if (!list.includes(currentMonth)) list.push(currentMonth);
-    return list;
-  }, [currentMonth]);
+
+    // Incluimos siempre el mes que el usuario está consultando
+    if (month) monthsSet.add(month);
+
+    // Incluimos cualquier mes con movimientos o cuotas conocidas
+    knownMonths.forEach((m) => {
+      if (m && /^\d{4}-\d{2}$/.test(m)) monthsSet.add(m);
+    });
+
+    return Array.from(monthsSet).sort();
+  }, [currentMonth, month, knownMonths]);
 
   const [movements, setMovements] = useState<Movement[]>([]);
   const [installmentPlans, setInstallmentPlans] = useState<InstallmentPlan[]>([]);
@@ -261,6 +262,17 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       } else {
         setBotState('active');
       }
+      const monthsFound = new Set<string>();
+      (transactions.data ?? []).forEach((row: Record<string, unknown>) => {
+        if (row.occurred_on) monthsFound.add(String(row.occurred_on).slice(0, 7));
+      });
+      (allInstallments.data ?? []).forEach((row: Record<string, unknown>) => {
+        if (row.occurred_on) monthsFound.add(String(row.occurred_on).slice(0, 7));
+      });
+      if (monthsFound.size > 0) {
+        setKnownMonths((prev) => Array.from(new Set([...prev, ...monthsFound])));
+      }
+
       if (!allInstallments.error && allInstallments.data) {
         const groups = new Map<string, Array<Record<string, unknown>>>();
         allInstallments.data.forEach((row: Record<string, unknown>) => {
@@ -268,7 +280,34 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           if (!groups.has(key)) groups.set(key, []);
           groups.get(key)!.push(row);
         });
-        const currentKey = monthKey(new Date());
+
+        // Auto-alineación de cuotas: Si las cuotas perdieron correlatividad mensual (ej. se editó la cuota 1 a julio pero la 2 quedó descolgada),
+        // las sincronizamos automáticamente en meses consecutivos.
+        groups.forEach((rows) => {
+          if (rows.length > 1) {
+            rows.sort((a, b) => Number(a.installment_number ?? 1) - Number(b.installment_number ?? 1));
+            const first = rows[0];
+            const firstDateStr = String(first.occurred_on);
+            const baseMonth = firstDateStr.slice(0, 7);
+            const day = firstDateStr.slice(8, 10);
+
+            rows.forEach((r) => {
+              const num = Number(r.installment_number ?? 1);
+              const expectedMonth = shiftMonth(baseMonth, num - 1);
+              const expectedDate = `${expectedMonth}-${day}`;
+              if (String(r.occurred_on) !== expectedDate) {
+                r.occurred_on = expectedDate;
+                void supabase
+                  .from('transactions')
+                  .update({ occurred_on: expectedDate })
+                  .eq('id', r.id)
+                  .eq('user_id', userId);
+              }
+            });
+          }
+        });
+
+        const currentKey = month; // Evaluamos las cuotas relativas al mes que el usuario está viendo en pantalla
         const computedPlans: InstallmentPlan[] = [];
         groups.forEach((rows, groupId) => {
           const totalCount = Number(rows[0]?.installment_count ?? rows.length);
@@ -286,6 +325,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           const progressPercent = Math.round((vanCount / totalCount) * 100);
           const currentDateStr = currentRow ? String(currentRow.occurred_on) : String(remainingRows[0]?.occurred_on ?? '');
 
+          // Cuando ya se acabaron las cuotas (es decir, no quedan cuotas pendientes en o después de este mes),
+          // el cuadro de esa compra desaparece por completo del resumen de cuotas
           if (remainingRows.length > 0) {
             computedPlans.push({
               groupId,
@@ -301,7 +342,6 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             });
           }
         });
-
 
         setInstallmentPlans(computedPlans);
       }
@@ -415,7 +455,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     const matchingCatId = item.categoryId ?? categories.find((c) => c.name === item.category && c.kind === item.kind)?.id ?? '';
     setEditCategoryId(matchingCatId);
     setEditDate(item.date);
-    setEditApplyToAll(false);
+    setEditApplyToAll(Boolean(item.installmentCount && item.installmentCount > 1));
   }
 
   async function saveMovementEdit(event: FormEvent<HTMLFormElement>) {
@@ -432,30 +472,62 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     setIsSavingEdit(true);
 
     const isInstallmentPlan = Boolean(editingMovement.installmentCount && editingMovement.installmentCount > 1 && editingMovement.installmentGroupId);
+    const targetMonth = dateStr.slice(0, 7);
+    const targetDay = dateStr.slice(8, 10);
 
     if (isInstallmentPlan && editApplyToAll) {
       const groupId = editingMovement.installmentGroupId!;
-      const { error: batchError } = await supabase
+      const currentCuotaNum = editingMovement.installmentNumber ?? 1;
+      const newStartMonth = shiftMonth(targetMonth, -(currentCuotaNum - 1));
+
+      // 1. Buscamos todas las cuotas de este plan
+      const { data: groupRows, error: fetchErr } = await supabase
+        .from('transactions')
+        .select('id, installment_number, installment_count')
+        .eq('user_id', userId)
+        .eq('installment_group_id', groupId)
+        .eq('status', 'confirmed');
+
+      if (fetchErr) {
+        setIsSavingEdit(false);
+        return window.alert('No pudimos consultar las cuotas del plan.');
+      }
+
+      // 2. Actualizamos cada cuota consecutiva en la base de datos
+      const updatePromises = (groupRows ?? []).map((row) => {
+        const num = Number(row.installment_number ?? 1);
+        const cuotaMonth = shiftMonth(newStartMonth, num - 1);
+        const cuotaDate = `${cuotaMonth}-${targetDay}`;
+        return supabase
+          .from('transactions')
+          .update({
+            description,
+            category_id: selectedCategory.id,
+            occurred_on: cuotaDate,
+            amount_ars: amount,
+          })
+          .eq('id', row.id)
+          .eq('user_id', userId);
+      });
+
+      // 3. Actualizamos también el registro padre
+      const parentPromise = supabase
         .from('transactions')
         .update({
           description,
           category_id: selectedCategory.id,
+          first_installment_month: newStartMonth,
+          occurred_on: `${newStartMonth}-${targetDay}`,
+          amount_ars: amount * (editingMovement.installmentCount ?? 1),
         })
-        .eq('user_id', userId)
-        .or(`installment_group_id.eq.${groupId},id.eq.${groupId}`);
-
-      const { error: singleError } = await supabase
-        .from('transactions')
-        .update({
-          amount_ars: amount,
-          occurred_on: dateStr,
-        })
-        .eq('id', editingMovement.id)
+        .eq('id', groupId)
         .eq('user_id', userId);
 
-      if (batchError || singleError) {
+      const results = await Promise.all([...updatePromises, parentPromise]);
+      const hasError = results.some((r) => r.error);
+      if (hasError) {
         setIsSavingEdit(false);
-        return window.alert('No pudimos guardar los cambios en las cuotas. Intentá nuevamente.');
+        return window.alert('No pudimos actualizar todas las cuotas del plan.');
       }
     } else {
       const { error } = await supabase
@@ -504,6 +576,11 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
 
     setIsSavingEdit(false);
     setEditingMovement(null);
+
+    // Navegación automática: si el movimiento fue asignado a otro mes (ej. Julio), cargamos ese mes para verlo
+    if (targetMonth !== month) {
+      setMonth(targetMonth);
+    }
   }
 
   async function executeDeleteSingleMovement(item: Movement) {
@@ -970,7 +1047,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             <label className="switch-row" style={{ marginTop: '2px', padding: '6px 0' }}>
               <span>
                 <strong style={{ fontSize: '13px' }}>¿Aplicar cambios a todo el plan?</strong>
-                <small style={{ fontSize: '11px', color: '#71807b' }}>Actualiza el nombre y categoría en todas las cuotas.</small>
+                <small style={{ fontSize: '11px', color: '#71807b' }}>Actualiza el nombre, categoría y recalcula las fechas de todas las cuotas consecutivas.</small>
               </span>
               <input
                 type="checkbox"
