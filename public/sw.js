@@ -33,7 +33,7 @@ self.addEventListener('activate', (event) => {
     caches.keys()
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then(() => self.clients.matchAll({ includeUncontrolled: true, type: 'window' }))
       .then((clients) => {
         for (const client of clients) {
           client.postMessage({ type: 'SW_ACTIVATED', version: BUILD_VERSION });
@@ -53,8 +53,14 @@ self.addEventListener('fetch', (event) => {
   // Nunca interceptar ni guardar llamadas a Supabase u otros servicios externos.
   if (event.request.method !== 'GET' || url.origin !== self.location.origin || !url.href.startsWith(base)) return;
 
+  // version.json siempre debe solicitarse fresco directamente a la red
+  if (url.pathname.endsWith('/version.json') || url.pathname.endsWith('version.json')) {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }));
+    return;
+  }
+
   const fetchPromise = (event.request.mode === 'navigate')
-    ? fetch(event.request, { cache: 'no-cache' }).catch(() => fetch(event.request))
+    ? fetch(event.request, { cache: 'no-store' }).catch(() => fetch(event.request))
     : fetch(event.request);
 
   event.respondWith(

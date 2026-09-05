@@ -51,6 +51,14 @@ function formatShortDate(dateStr: string) {
   return `${d}/${monthAbbr}/${shortYear}`;
 }
 
+function formatMovementDate(dateStr: string) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  const monthAbbr = months[(m - 1) % 12];
+  return `${d} ${monthAbbr}`;
+}
+
 function monthKey(date: Date) {
 
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -640,19 +648,26 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               <p className="empty-movements">Todavía no hay movimientos en este mes.</p>
             ) : (
               movements.map((item) => (
-                <div className="movement" key={item.id}>
+                <div
+                  className="movement"
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => startEditMovement(item)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') startEditMovement(item); }}
+                  aria-label={`Ver o editar ${item.title}`}
+                >
                   <span className={`movement-icon ${item.kind}`}>{item.icon}</span>
-                  <div>
+                  <div className="movement-info">
                     <strong>{item.title}</strong>
                     <small>
-                      {item.category} · {item.date}
+                      {item.category} · {formatMovementDate(item.date)}
                       {item.installmentCount && item.installmentCount > 1 ? ` · Cuota ${item.installmentNumber ?? 1}/${item.installmentCount}` : ''}
                     </small>
                   </div>
-                  <b className={item.kind}>{item.kind === 'expense' ? '−' : '+'}{money.format(item.amount)}</b>
-                  <div className="movement-actions">
-                    <button className="movement-edit" type="button" onClick={() => startEditMovement(item)} aria-label={`Editar ${item.title}`}>Editar</button>
-                    <button className="movement-delete" type="button" disabled={deletingId === item.id} onClick={() => void deleteMovement(item)} aria-label={`Eliminar ${item.title}`}>{deletingId === item.id ? '…' : 'Eliminar'}</button>
+                  <div className="movement-right">
+                    <b className={item.kind}>{item.kind === 'expense' ? '−' : '+'}{money.format(item.amount)}</b>
+                    <span className="movement-chevron" aria-hidden="true">›</span>
                   </div>
                 </div>
               ))
@@ -964,17 +979,36 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             </label>
           )}
 
-          <div className="form-actions">
+          <div className="movement-modal-actions">
             <button
               type="button"
+              className="delete-action-btn"
               disabled={isSavingEdit}
-              onClick={() => setEditingMovement(null)}
+              onClick={() => {
+                const target = editingMovement;
+                setEditingMovement(null);
+                deleteMovement(target);
+              }}
+              aria-label="Eliminar movimiento"
             >
-              Cancelar
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              <span>Eliminar</span>
             </button>
-            <button className="primary-button" type="submit" disabled={isSavingEdit || !editCategoryId}>
-              {isSavingEdit ? 'Guardando…' : 'Guardar cambios'}
-            </button>
+            <div className="movement-modal-right-actions">
+              <button
+                type="button"
+                disabled={isSavingEdit}
+                onClick={() => setEditingMovement(null)}
+              >
+                Cancelar
+              </button>
+              <button className="primary-button" type="submit" disabled={isSavingEdit || !editCategoryId}>
+                {isSavingEdit ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

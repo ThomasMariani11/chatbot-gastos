@@ -1,64 +1,127 @@
 .movement {
-  grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px;
+  margin: 0 -10px;
+  border-radius: 12px;
+  border-top: 1px solid #eff2f0;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.movement div {
+.movement:first-child {
+  border-top: 0;
+}
+
+.movement:hover {
+  background: #f7faf8;
+}
+
+.movement:active {
+  background: #edf5f1;
+}
+
+.movement-info {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.movement div strong,
-.movement div small {
+.movement-info strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.movement-actions {
+.movement-info small {
+  font-size: 11px;
+  color: #87938f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.movement-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  justify-self: end;
 }
 
-.movement-edit {
-  border: 0;
-  border-radius: 8px;
-  background: #f0f4f2;
-  color: #265946;
-  padding: 7px 9px;
-  font-size: 9px;
+.movement-right b {
+  font-size: 13px;
   font-weight: 800;
-  cursor: pointer;
-  transition: background 0.15s ease;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
 }
 
-.movement-edit:hover {
-  background: #dfece6;
+.movement-right b.expense {
+  color: #24322d;
 }
 
-.movement-edit:disabled {
-  cursor: wait;
-  opacity: .55;
+.movement-right b.income {
+  color: #129d6f;
 }
 
-.movement-delete {
-  border: 0;
-  border-radius: 8px;
+.movement-chevron {
+  font-size: 18px;
+  color: #b0bcba;
+  font-weight: 400;
+  transition: transform 0.15s ease, color 0.15s ease;
+  padding-left: 2px;
+  line-height: 1;
+}
+
+.movement:hover .movement-chevron {
+  color: var(--mint-dark);
+  transform: translateX(2px);
+}
+
+.movement-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.movement-modal-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.delete-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #ffdcd9;
   background: #fff0ef;
   color: #c94f4c;
-  padding: 7px 9px;
-  font-size: 9px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.movement-delete:hover {
+.delete-action-btn:hover {
   background: #ffe1df;
+  border-color: #f7b8b4;
 }
 
-.movement-delete:disabled {
+.delete-action-btn:disabled {
+  opacity: 0.5;
   cursor: wait;
-  opacity: .55;
 }
 
 .installments-empty {
@@ -96,14 +159,3 @@
   font-size: 9px;
 }
 
-@media (max-width: 560px) {
-  .movement {
-    grid-template-columns: 38px minmax(0, 1fr) auto;
-  }
-
-  .movement-actions {
-    grid-column: 2 / 4;
-    justify-self: end;
-    margin-top: -3px;
-  }
-}
