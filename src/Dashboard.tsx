@@ -863,9 +863,10 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               <input name="date" required type="date" defaultValue={todayKey()} />
             </label>
           </div>
-          <div className="form-actions">
+          <div className="modal-primary-actions" style={{ marginTop: '8px' }}>
             <button
               type="button"
+              className="modal-btn-cancel"
               onClick={() => {
                 setShowAdd(false);
                 setIsInstallments(false);
@@ -875,7 +876,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             >
               Cancelar
             </button>
-            <button className="primary-button" type="submit" disabled={!categoryId}>
+            <button className="modal-btn-save" type="submit" disabled={!categoryId}>
               Guardar
             </button>
           </div>
@@ -979,10 +980,28 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             </label>
           )}
 
-          <div className="movement-modal-actions">
+          <div className="movement-modal-footer">
+            <div className="modal-primary-actions">
+              <button
+                type="button"
+                className="modal-btn-cancel"
+                disabled={isSavingEdit}
+                onClick={() => setEditingMovement(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                className="modal-btn-save"
+                type="submit"
+                disabled={isSavingEdit || !editCategoryId}
+              >
+                {isSavingEdit ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+            </div>
+
             <button
               type="button"
-              className="delete-action-btn"
+              className="modal-btn-delete"
               disabled={isSavingEdit}
               onClick={() => {
                 const target = editingMovement;
@@ -995,20 +1014,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                 <polyline points="3 6 5 6 21 6" />
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
               </svg>
-              <span>Eliminar</span>
+              <span>Eliminar movimiento</span>
             </button>
-            <div className="movement-modal-right-actions">
-              <button
-                type="button"
-                disabled={isSavingEdit}
-                onClick={() => setEditingMovement(null)}
-              >
-                Cancelar
-              </button>
-              <button className="primary-button" type="submit" disabled={isSavingEdit || !editCategoryId}>
-                {isSavingEdit ? 'Guardando…' : 'Guardar cambios'}
-              </button>
-            </div>
           </div>
         </form>
       </div>
