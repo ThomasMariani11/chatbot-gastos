@@ -400,7 +400,7 @@
   box-sizing: border-box !important;
 }
 
-.movement-form label,
+.movement-form label:not(.switch-row),
 .form-grid,
 .form-grid > label {
   min-width: 0 !important;
@@ -408,13 +408,50 @@
   box-sizing: border-box !important;
 }
 
-.movement-form input,
+.movement-form input:not([type="checkbox"]):not([type="radio"]),
 .movement-form select {
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
   box-sizing: border-box !important;
 }
+
+.movement-form label.switch-row,
+.movement-form .switch-row {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 16px !important;
+  width: 100% !important;
+  cursor: pointer;
+  padding: 10px 0 !important;
+  border-top: 1px solid #e8ece9;
+  margin-top: 4px;
+}
+
+.movement-form label.switch-row > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+}
+
+.movement-form input[type="checkbox"],
+.switch-row input[type="checkbox"] {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  flex-shrink: 0 !important;
+  cursor: pointer;
+  accent-color: var(--mint) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+
 
 .movement-form input[type="date"] {
   display: block !important;
