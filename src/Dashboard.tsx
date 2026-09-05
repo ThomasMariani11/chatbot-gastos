@@ -12,7 +12,9 @@ type Movement = {
   icon: string;
   installmentNumber?: number | null;
   installmentCount?: number | null;
+  installmentGroupId?: string | null;
 };
+
 
 type CategoryOption = {
   id: string;
@@ -135,7 +137,9 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const [manualKind, setManualKind] = useState<'expense' | 'income'>('expense');
   const [categoryId, setCategoryId] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [installmentDeletePrompt, setInstallmentDeletePrompt] = useState<{ movement?: Movement; plan?: InstallmentPlan } | null>(null);
   const availableCategories = useMemo(() => categories.filter((category) => category.kind === manualKind), [categories, manualKind]);
+
   const expenses = useMemo(() => movements.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0), [movements]);
   const income = useMemo(() => movements.filter((item) => item.kind === 'income').reduce((sum, item) => sum + item.amount, 0), [movements]);
   const progress = budget > 0 ? Math.round((expenses / budget) * 100) : 0;
@@ -188,7 +192,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       if (loading) return;
       loading = true;
       const [transactions, budgets, allInstallments, whatsappLink, appSettings] = await Promise.all([
-        supabase.from('transactions').select('id,description,amount_ars,occurred_on,kind,categories(name),installment_number,installment_count').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
+        supabase.from('transactions').select('id,description,amount_ars,occurred_on,kind,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
         supabase.from('budgets').select('amount_ars').eq('user_id', userId).eq('month', monthStart).maybeSingle(),
         supabase.from('transactions').select('id,description,amount_ars,occurred_on,installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
         supabase.from('whatsapp_links').select('status').eq('user_id', userId).maybeSingle(),
@@ -207,8 +211,10 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           icon: row.kind === 'income' ? '↗' : '•',
           installmentNumber: row.installment_number ? Number(row.installment_number) : null,
           installmentCount: row.installment_count ? Number(row.installment_count) : null,
+          installmentGroupId: row.installment_group_id ? String(row.installment_group_id) : null,
         })));
       }
+
       if (!budgets.error) setBudget(budgets.data?.amount_ars ? Number(budgets.data.amount_ars) : 0);
       if (whatsappLink.error || appSettings.error || !appSettings.data) {
         setBotState('unknown');
@@ -307,8 +313,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     setShowAdd(false);
   }
 
-  async function deleteMovement(item: Movement) {
-    if (!window.confirm(`¿Eliminar "${item.title}"? Esta acción no se puede deshacer.`)) return;
+  async function executeDeleteSingleMovement(item: Movement) {
     const previous = movements;
     setDeletingId(item.id);
     setMovements((current) => current.filter((movement) => movement.id !== item.id));
@@ -319,6 +324,45 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     }
     setDeletingId(null);
   }
+
+  function deleteMovement(item: Movement) {
+    if (item.installmentCount && item.installmentCount > 1) {
+      setInstallmentDeletePrompt({ movement: item });
+      return;
+    }
+    if (!window.confirm(`¿Eliminar "${item.title}"? Esta acción no se puede deshacer.`)) return;
+    void executeDeleteSingleMovement(item);
+  }
+
+  async function executeDeleteSingleInstallment(item: Movement) {
+    setInstallmentDeletePrompt(null);
+    await executeDeleteSingleMovement(item);
+  }
+
+  async function executeDeleteFullPlan(target: Movement | InstallmentPlan) {
+    setInstallmentDeletePrompt(null);
+    const groupId = 'groupId' in target ? target.groupId : (target.installmentGroupId || target.id);
+    const targetDesc = 'title' in target ? target.title : target.description;
+
+    const previousMovements = movements;
+    const previousPlans = installmentPlans;
+
+    setMovements((current) => current.filter((m) => m.installmentGroupId !== groupId && m.id !== groupId && m.title !== targetDesc));
+    setInstallmentPlans((current) => current.filter((p) => p.groupId !== groupId && p.description !== targetDesc));
+
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('user_id', userId)
+      .or(`installment_group_id.eq.${groupId},id.eq.${groupId}`);
+
+    if (error) {
+      setMovements(previousMovements);
+      setInstallmentPlans(previousPlans);
+      window.alert('No pudimos eliminar el plan de cuotas. Intentá nuevamente.');
+    }
+  }
+
 
   return <main className="app-shell">
     <aside className="sidebar">
@@ -468,6 +512,16 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                     <span>Van {plan.vanCount} de {plan.installmentCount} cuotas</span>
                     <span>{plan.quedanCount > 0 ? `Quedan ${plan.quedanCount} cuotas (${money.format(plan.quedanTotal)})` : '¡Última cuota este mes!'}</span>
                   </div>
+                  <div className="installment-footer-actions">
+                    <button
+                      type="button"
+                      className="installment-delete-plan-btn"
+                      onClick={() => setInstallmentDeletePrompt({ plan })}
+                      aria-label={`Eliminar plan ${plan.description}`}
+                    >
+                      🗑️ Eliminar compra completa
+                    </button>
+                  </div>
                 </div>
 
               ))}
@@ -503,5 +557,58 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     </nav>
     <button className="desktop-add" onClick={() => setShowAdd(true)}>＋ Agregar movimiento</button>
     {showAdd && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowAdd(false)}><form className="movement-form" onSubmit={addMovement} onMouseDown={(event) => event.stopPropagation()}><div><p className="eyebrow">NUEVO MOVIMIENTO</p><h2>Registrá una operación</h2></div><label>Descripción<input name="description" required placeholder="Ej. Verdulería" /></label><div className="form-grid"><label>Monto ARS<input name="amount" required min="0.01" step="0.01" type="number" /></label><label>Tipo<select name="kind" value={manualKind} onChange={(event) => setManualKind(event.target.value as 'expense' | 'income')}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label></div><div className="form-grid"><label>Categoría<select name="categoryId" required value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="" disabled>Seleccioná una categoría</option>{availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Fecha<input name="date" required type="date" defaultValue={todayKey()} /></label></div><div className="form-actions"><button type="button" onClick={() => setShowAdd(false)}>Cancelar</button><button className="primary-button" type="submit" disabled={!categoryId}>Guardar</button></div></form></div>}
+    {installmentDeletePrompt && (
+      <div className="modal-backdrop" role="presentation" onMouseDown={() => setInstallmentDeletePrompt(null)}>
+        <div className="movement-form delete-plan-modal" onMouseDown={(e) => e.stopPropagation()}>
+          <div>
+            <p className="eyebrow" style={{ color: '#ea7172' }}>ELIMINAR CUOTAS</p>
+            <h2>{installmentDeletePrompt.movement ? '¿Cómo querés eliminar este movimiento?' : '¿Eliminar compra en cuotas?'}</h2>
+            <p style={{ fontSize: '13px', color: '#71807b', margin: '8px 0 0' }}>
+              <strong>{installmentDeletePrompt.movement?.title ?? installmentDeletePrompt.plan?.description}</strong>
+              {installmentDeletePrompt.movement && installmentDeletePrompt.movement.installmentCount ? (
+                <span> · Cuota {installmentDeletePrompt.movement.installmentNumber ?? 1} de {installmentDeletePrompt.movement.installmentCount}</span>
+              ) : (
+                <span> · Plan de {installmentDeletePrompt.plan?.installmentCount} cuotas</span>
+              )}
+            </p>
+          </div>
+
+          <div className="delete-options-list">
+            {installmentDeletePrompt.movement && (
+              <button
+                type="button"
+                className="delete-option-btn"
+                onClick={() => void executeDeleteSingleInstallment(installmentDeletePrompt.movement!)}
+              >
+                <div>
+                  <strong>Eliminar solo esta cuota</strong>
+                  <small>Borra únicamente el pago de este mes ({money.format(installmentDeletePrompt.movement.amount)})</small>
+                </div>
+                <span>›</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="delete-option-btn danger"
+              onClick={() => void executeDeleteFullPlan(installmentDeletePrompt.movement ?? installmentDeletePrompt.plan!)}
+            >
+              <div>
+                <strong>Eliminar todo el plan de cuotas</strong>
+                <small>Borra todas las cuotas de esta compra ({installmentDeletePrompt.movement?.installmentCount ?? installmentDeletePrompt.plan?.installmentCount} cuotas en total)</small>
+              </div>
+              <span>›</span>
+            </button>
+          </div>
+
+          <div className="form-actions" style={{ marginTop: '6px' }}>
+            <button type="button" onClick={() => setInstallmentDeletePrompt(null)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
   </main>;
 }

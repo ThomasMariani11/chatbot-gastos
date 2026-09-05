@@ -481,3 +481,95 @@
   background: #e05f5c;
   box-shadow: 0 0 0 4px #f7d8d6;
 }
+
+/* Installment delete options modal */
+.delete-plan-modal {
+  max-width: 420px !important;
+}
+
+.delete-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.delete-option-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9fbf9;
+  border: 1px solid #dce4df;
+  border-radius: 12px;
+  padding: 13px 15px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.delete-option-btn:hover {
+  background: #f0f5f2;
+  border-color: #cbd8d1;
+}
+
+.delete-option-btn strong {
+  display: block;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.delete-option-btn small {
+  display: block;
+  font-size: 11px;
+  color: #71807b;
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+.delete-option-btn.danger {
+  border-color: #ffdada;
+  background: #fff8f8;
+}
+
+.delete-option-btn.danger:hover {
+  background: #ffebeb;
+  border-color: #fca5a5;
+}
+
+.delete-option-btn.danger strong {
+  color: #d32f2f;
+}
+
+.delete-option-btn > span {
+  font-size: 18px;
+  color: #9aa5a1;
+  font-weight: 700;
+  margin-left: 10px;
+}
+
+.installment-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #e8ece9;
+}
+
+.installment-delete-plan-btn {
+  background: none;
+  border: none;
+  color: #8a9792;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.installment-delete-plan-btn:hover {
+  color: #d32f2f;
+  background: #fff0f0;
+}
+
