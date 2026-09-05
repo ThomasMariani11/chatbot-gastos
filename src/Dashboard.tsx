@@ -6,6 +6,7 @@ type Movement = {
   id: string;
   title: string;
   category: string;
+  categoryId?: string;
   amount: number;
   date: string;
   kind: 'expense' | 'income';
@@ -149,7 +150,16 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const [formAmount, setFormAmount] = useState<number | ''>('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [installmentDeletePrompt, setInstallmentDeletePrompt] = useState<{ movement?: Movement; plan?: InstallmentPlan } | null>(null);
+  const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
+  const [editDescription, setEditDescription] = useState('');
+  const [editAmount, setEditAmount] = useState<number | ''>('');
+  const [editKind, setEditKind] = useState<'expense' | 'income'>('expense');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editApplyToAll, setEditApplyToAll] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const availableCategories = useMemo(() => categories.filter((category) => category.kind === manualKind), [categories, manualKind]);
+  const availableEditCategories = useMemo(() => categories.filter((category) => category.kind === editKind), [categories, editKind]);
 
 
   const expenses = useMemo(() => movements.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0), [movements]);
@@ -204,7 +214,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       if (loading) return;
       loading = true;
       const [transactions, budgets, allInstallments, whatsappLink, appSettings] = await Promise.all([
-        supabase.from('transactions').select('id,description,amount_ars,occurred_on,kind,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
+        supabase.from('transactions').select('id,description,amount_ars,occurred_on,kind,category_id,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
         supabase.from('budgets').select('amount_ars').eq('user_id', userId).eq('month', monthStart).maybeSingle(),
         supabase.from('transactions').select('id,description,amount_ars,occurred_on,installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
         supabase.from('whatsapp_links').select('status').eq('user_id', userId).maybeSingle(),
@@ -217,6 +227,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           id: String(row.id),
           title: String(row.description),
           category: String((row.categories as { name?: string } | null)?.name ?? 'Otros'),
+          categoryId: row.category_id ? String(row.category_id) : undefined,
           amount: Number(row.amount_ars),
           date: String(row.occurred_on),
           kind: row.kind as 'expense' | 'income',
@@ -388,6 +399,104 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     setFormAmount('');
   }
 
+  function startEditMovement(item: Movement) {
+    setEditingMovement(item);
+    setEditDescription(item.title);
+    setEditAmount(item.amount);
+    setEditKind(item.kind);
+    const matchingCatId = item.categoryId ?? categories.find((c) => c.name === item.category && c.kind === item.kind)?.id ?? '';
+    setEditCategoryId(matchingCatId);
+    setEditDate(item.date);
+    setEditApplyToAll(false);
+  }
+
+  async function saveMovementEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingMovement) return;
+    const description = editDescription.trim();
+    const amount = Number(editAmount);
+    const dateStr = editDate;
+    if (!description || !amount || amount <= 0 || !dateStr) return;
+
+    const selectedCategory = categories.find((c) => c.id === editCategoryId && c.kind === editKind);
+    if (!selectedCategory) return window.alert('Seleccioná una categoría válida.');
+
+    setIsSavingEdit(true);
+
+    const isInstallmentPlan = Boolean(editingMovement.installmentCount && editingMovement.installmentCount > 1 && editingMovement.installmentGroupId);
+
+    if (isInstallmentPlan && editApplyToAll) {
+      const groupId = editingMovement.installmentGroupId!;
+      const { error: batchError } = await supabase
+        .from('transactions')
+        .update({
+          description,
+          category_id: selectedCategory.id,
+        })
+        .eq('user_id', userId)
+        .or(`installment_group_id.eq.${groupId},id.eq.${groupId}`);
+
+      const { error: singleError } = await supabase
+        .from('transactions')
+        .update({
+          amount_ars: amount,
+          occurred_on: dateStr,
+        })
+        .eq('id', editingMovement.id)
+        .eq('user_id', userId);
+
+      if (batchError || singleError) {
+        setIsSavingEdit(false);
+        return window.alert('No pudimos guardar los cambios en las cuotas. Intentá nuevamente.');
+      }
+    } else {
+      const { error } = await supabase
+        .from('transactions')
+        .update({
+          description,
+          amount_ars: amount,
+          kind: editKind,
+          category_id: selectedCategory.id,
+          occurred_on: dateStr,
+        })
+        .eq('id', editingMovement.id)
+        .eq('user_id', userId);
+
+      if (error) {
+        setIsSavingEdit(false);
+        return window.alert('No pudimos actualizar el movimiento. Intentá nuevamente.');
+      }
+    }
+
+    setMovements((current) =>
+      current.map((m) => {
+        if (m.id === editingMovement.id) {
+          return {
+            ...m,
+            title: description,
+            amount,
+            kind: editKind,
+            category: selectedCategory.name,
+            categoryId: selectedCategory.id,
+            date: dateStr,
+            icon: editKind === 'income' ? '↗' : '•',
+          };
+        }
+        if (isInstallmentPlan && editApplyToAll && m.installmentGroupId === editingMovement.installmentGroupId) {
+          return {
+            ...m,
+            title: description,
+            category: selectedCategory.name,
+            categoryId: selectedCategory.id,
+          };
+        }
+        return m;
+      })
+    );
+
+    setIsSavingEdit(false);
+    setEditingMovement(null);
+  }
 
   async function executeDeleteSingleMovement(item: Movement) {
     const previous = movements;
@@ -541,7 +650,10 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                     </small>
                   </div>
                   <b className={item.kind}>{item.kind === 'expense' ? '−' : '+'}{money.format(item.amount)}</b>
-                  <button className="movement-delete" type="button" disabled={deletingId === item.id} onClick={() => void deleteMovement(item)} aria-label={`Eliminar ${item.title}`}>{deletingId === item.id ? '…' : 'Eliminar'}</button>
+                  <div className="movement-actions">
+                    <button className="movement-edit" type="button" onClick={() => startEditMovement(item)} aria-label={`Editar ${item.title}`}>Editar</button>
+                    <button className="movement-delete" type="button" disabled={deletingId === item.id} onClick={() => void deleteMovement(item)} aria-label={`Eliminar ${item.title}`}>{deletingId === item.id ? '…' : 'Eliminar'}</button>
+                  </div>
                 </div>
               ))
             )}
@@ -750,6 +862,118 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             </button>
             <button className="primary-button" type="submit" disabled={!categoryId}>
               Guardar
+            </button>
+          </div>
+        </form>
+      </div>
+    )}
+
+    {editingMovement && (
+      <div className="modal-backdrop" role="presentation" onMouseDown={() => setEditingMovement(null)}>
+        <form className="movement-form" onSubmit={saveMovementEdit} onMouseDown={(event) => event.stopPropagation()}>
+          <div>
+            <p className="eyebrow">MODIFICAR MOVIMIENTO</p>
+            <h2>Editar operación</h2>
+            {editingMovement.installmentCount && editingMovement.installmentCount > 1 && (
+              <span className="installment-cuota-badge" style={{ marginTop: '6px', display: 'inline-block' }}>
+                Cuota {editingMovement.installmentNumber ?? 1} de {editingMovement.installmentCount}
+              </span>
+            )}
+          </div>
+          <label>
+            Descripción
+            <input
+              name="description"
+              required
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              placeholder="Ej. Verdulería o Compra"
+            />
+          </label>
+          <div className="form-grid">
+            <label>
+              Monto ARS
+              <input
+                name="amount"
+                required
+                min="0.01"
+                step="0.01"
+                type="number"
+                inputMode="decimal"
+                placeholder="0.00"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value === '' ? '' : Number(e.target.value))}
+              />
+            </label>
+            <label>
+              Tipo
+              <select
+                name="kind"
+                value={editKind}
+                disabled={Boolean(editingMovement.installmentCount && editingMovement.installmentCount > 1)}
+                onChange={(event) => {
+                  const k = event.target.value as 'expense' | 'income';
+                  setEditKind(k);
+                  const firstCat = categories.find((c) => c.kind === k);
+                  if (firstCat) setEditCategoryId(firstCat.id);
+                }}
+              >
+                <option value="expense">Gasto</option>
+                <option value="income">Ingreso</option>
+              </select>
+            </label>
+          </div>
+          <div className="form-grid">
+            <label>
+              Categoría
+              <select
+                name="categoryId"
+                required
+                value={editCategoryId}
+                onChange={(event) => setEditCategoryId(event.target.value)}
+              >
+                <option value="" disabled>Seleccioná una categoría</option>
+                {availableEditCategories.map((category) => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Fecha
+              <input
+                name="date"
+                required
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+              />
+            </label>
+          </div>
+
+          {editingMovement.installmentCount && editingMovement.installmentCount > 1 && editingMovement.installmentGroupId && (
+            <label className="switch-row" style={{ marginTop: '2px', padding: '6px 0' }}>
+              <span>
+                <strong style={{ fontSize: '13px' }}>¿Aplicar cambios a todo el plan?</strong>
+                <small style={{ fontSize: '11px', color: '#71807b' }}>Actualiza el nombre y categoría en todas las cuotas.</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={editApplyToAll}
+                onChange={(e) => setEditApplyToAll(e.target.checked)}
+              />
+            </label>
+          )}
+
+          <div className="form-actions">
+            <button
+              type="button"
+              disabled={isSavingEdit}
+              onClick={() => setEditingMovement(null)}
+            >
+              Cancelar
+            </button>
+            <button className="primary-button" type="submit" disabled={isSavingEdit || !editCategoryId}>
+              {isSavingEdit ? 'Guardando…' : 'Guardar cambios'}
             </button>
           </div>
         </form>

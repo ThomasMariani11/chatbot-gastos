@@ -13,6 +13,33 @@
   white-space: nowrap;
 }
 
+.movement-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.movement-edit {
+  border: 0;
+  border-radius: 8px;
+  background: #f0f4f2;
+  color: #265946;
+  padding: 7px 9px;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.movement-edit:hover {
+  background: #dfece6;
+}
+
+.movement-edit:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
 .movement-delete {
   border: 0;
   border-radius: 8px;
@@ -22,6 +49,7 @@
   font-size: 9px;
   font-weight: 800;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 
 .movement-delete:hover {
@@ -73,7 +101,7 @@
     grid-template-columns: 38px minmax(0, 1fr) auto;
   }
 
-  .movement-delete {
+  .movement-actions {
     grid-column: 2 / 4;
     justify-self: end;
     margin-top: -3px;
