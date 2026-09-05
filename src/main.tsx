@@ -1,11 +1,14 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { initZoomLock } from './disableZoom';
 import '../app/globals.css';
 import '../app/forms.css';
 import '../app/interactions.css';
 import '../app/movements.css';
 import './styles.css';
+
+initZoomLock();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

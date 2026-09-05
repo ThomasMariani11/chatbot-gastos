@@ -277,9 +277,9 @@
   .top-actions select {
     max-width: none !important;
     min-width: 145px;
-    height: 38px;
-    padding: 0 10px;
-    font-size: 12px;
+    height: 40px;
+    padding: 0 12px;
+    font-size: 16px !important; /* 16px evita auto-zoom en iOS */
   }
 }
 
@@ -414,6 +414,7 @@
   max-width: 100% !important;
   min-width: 0 !important;
   box-sizing: border-box !important;
+  font-size: 16px !important; /* Previene auto-zoom de iOS al enfocar */
 }
 
 .movement-form label.switch-row,
@@ -638,5 +639,43 @@
   margin-top: 2px;
   line-height: 1.1;
 }
+
+/* ==========================================================================
+   AUTOBLOQUEO DE ZOOM & EXPERIENCIA NATIVA PWA
+   ========================================================================== */
+html,
+body {
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior-y: contain;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+[role="button"],
+.movement,
+.icon-button,
+.mobile-nav a,
+.mobile-nav button {
+  touch-action: manipulation;
+}
+
+/* En dispositivos móviles, inputs con tamaño de fuente >= 16px anulan el zoom automático de WebKit/iOS */
+@media screen and (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea,
+  .movement-form input,
+  .movement-form select,
+  .top-actions select,
+  .auth-card input {
+    font-size: 16px !important;
+  }
+}
+
 
 
