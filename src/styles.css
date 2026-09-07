@@ -589,8 +589,8 @@
 .installment-footer-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 6px;
-  padding-top: 6px;
+  margin-top: 2px;
+  padding-top: 8px;
   border-top: 1px dashed #e8ece9;
 }
 

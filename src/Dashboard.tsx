@@ -809,10 +809,6 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                       style={{ width: `${Math.min(plan.progressPercent, 100)}%` }}
                     />
                   </div>
-                  <div className="installment-footer">
-                    <span>Van {plan.vanCount} de {plan.installmentCount} cuotas</span>
-                    <span>{plan.quedanCount > 0 ? `Quedan ${plan.quedanCount} cuotas (${money.format(plan.quedanTotal)})` : '¡Última cuota este mes!'}</span>
-                  </div>
                   <div className="installment-footer-actions">
                     <button
                       type="button"
