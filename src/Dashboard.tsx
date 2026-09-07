@@ -150,6 +150,9 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const [installmentPlans, setInstallmentPlans] = useState<InstallmentPlan[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [budget, setBudget] = useState(0);
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [budgetInput, setBudgetInput] = useState<number | ''>('');
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [botState, setBotState] = useState<BotState>('loading');
   const [showAdd, setShowAdd] = useState(false);
   const [manualKind, setManualKind] = useState<'expense' | 'income'>('expense');
@@ -364,13 +367,31 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     };
   }, [month, userId]);
 
-  async function editBudget() {
-    const raw = window.prompt('Presupuesto mensual en pesos argentinos', String(budget));
-    const next = Number(raw);
-    if (!Number.isFinite(next) || next <= 0) return;
-    const { error } = await supabase.from('budgets').upsert({ user_id: userId, month: `${month}-01`, amount_ars: next }, { onConflict: 'user_id,month' });
-    if (error) return window.alert('No pudimos guardar el presupuesto.');
+  function openBudgetModal() {
+    setBudgetInput(budget > 0 ? budget : '');
+    setShowBudgetModal(true);
+  }
+
+  async function saveBudget(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const next = Number(budgetInput);
+    if (!Number.isFinite(next) || next <= 0) {
+      window.alert('Ingresá un monto de presupuesto válido mayor a 0.');
+      return;
+    }
+    setIsSavingBudget(true);
+    const { error } = await supabase
+      .from('budgets')
+      .upsert(
+        { user_id: userId, month: `${month}-01`, amount_ars: next },
+        { onConflict: 'user_id,month' }
+      );
+    setIsSavingBudget(false);
+    if (error) {
+      return window.alert('No pudimos guardar el presupuesto. Intentá nuevamente.');
+    }
     setBudget(next);
+    setShowBudgetModal(false);
   }
 
   async function addMovement(event: FormEvent<HTMLFormElement>) {
@@ -670,7 +691,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         <article className="summary-card balance"><div className="card-heading"><span className="metric-icon">◎</span><small>BALANCE</small></div><strong>{money.format(income - expenses)}</strong><p>Disponible este mes</p></article>
       </section>
       <section className="main-grid">
-        <article className="panel budget-card"><div className="panel-title"><div><h2>Presupuesto mensual</h2><p>Tu límite de gastos para {labelForMonth(month).toLowerCase()}</p></div><button className="text-button" onClick={editBudget}>Editar</button></div><div className="budget-numbers"><div><span>Gastado</span><strong>{money.format(expenses)}</strong></div><div className="align-right"><span>Presupuesto</span><strong>{money.format(budget)}</strong></div></div><div className="progress-track"><span style={{ width: `${Math.min(progress, 100)}%` }}/></div><div className="progress-copy"><span>{progress}% utilizado</span><span>Te quedan <strong>{money.format(budget - expenses)}</strong></span></div></article>
+        <article className="panel budget-card"><div className="panel-title"><div><h2>Presupuesto mensual</h2><p>Tu límite de gastos para {labelForMonth(month).toLowerCase()}</p></div><button className="text-button" onClick={openBudgetModal}>Editar</button></div><div className="budget-numbers"><div><span>Gastado</span><strong>{money.format(expenses)}</strong></div><div className="align-right"><span>Presupuesto</span><strong>{money.format(budget)}</strong></div></div><div className="progress-track"><span style={{ width: `${Math.min(progress, 100)}%` }}/></div><div className="progress-copy"><span>{progress}% utilizado</span><span>Te quedan <strong>{money.format(budget - expenses)}</strong></span></div></article>
         <article className="panel category-card">
           <div className="panel-title">
             <div>
@@ -1146,6 +1167,69 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             </button>
           </div>
         </div>
+      </div>
+    )}
+
+    {showBudgetModal && (
+      <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowBudgetModal(false)}>
+        <form className="movement-form" onSubmit={saveBudget} onMouseDown={(event) => event.stopPropagation()}>
+          <div>
+            <p className="eyebrow">PRESUPUESTO MENSUAL</p>
+            <h2>Presupuesto de {labelForMonth(month)}</h2>
+            <p style={{ color: 'var(--muted)', fontSize: '12px', margin: '4px 0 0' }}>
+              Definí tu límite de gastos para este mes.
+            </p>
+          </div>
+
+          <label>
+            Monto límite mensual (ARS)
+            <input
+              name="budgetAmount"
+              type="number"
+              min="1"
+              step="any"
+              inputMode="decimal"
+              required
+              autoFocus
+              placeholder="Ej. 150000"
+              value={budgetInput}
+              onChange={(e) => setBudgetInput(e.target.value === '' ? '' : Number(e.target.value))}
+            />
+          </label>
+
+          {typeof budgetInput === 'number' && budgetInput > 0 && (
+            <div className="installment-calc-preview" style={{ height: 'auto', padding: '10px 14px', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#6d7d77' }}>
+                <span>Gastado en {labelForMonth(month)}:</span>
+                <strong style={{ color: 'var(--ink)' }}>{money.format(expenses)}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #dce8e1' }}>
+                <span>Disponible con este límite:</span>
+                <strong style={{ color: budgetInput - expenses >= 0 ? 'var(--mint-dark)' : '#d32f2f' }}>
+                  {money.format(budgetInput - expenses)}
+                </strong>
+              </div>
+            </div>
+          )}
+
+          <div className="modal-actions-grid-2">
+            <button
+              type="button"
+              className="modal-btn-cancel"
+              disabled={isSavingBudget}
+              onClick={() => setShowBudgetModal(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              className="modal-btn-save"
+              type="submit"
+              disabled={isSavingBudget || !budgetInput || Number(budgetInput) <= 0}
+            >
+              {isSavingBudget ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+        </form>
       </div>
     )}
 
