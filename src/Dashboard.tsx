@@ -179,10 +179,23 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const progress = budget > 0 ? Math.round((expenses / budget) * 100) : 0;
   const chartData = useMemo(() => {
     const grouped = new Map<string, number>();
-    movements.filter((item) => item.kind === 'expense').forEach((item) => grouped.set(item.category, (grouped.get(item.category) ?? 0) + item.amount));
-    return Array.from(grouped, ([name, value]) => ({ name, value }));
+    movements
+      .filter((item) => item.kind === 'expense')
+      .forEach((item) => grouped.set(item.category, (grouped.get(item.category) ?? 0) + item.amount));
+    return Array.from(grouped, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [movements]);
-  const chartColors = ['#20b984', '#655ad8', '#f4b44d', '#ea7172', '#4f9bd8'];
+  const chartColors = [
+    '#655ad8', // violeta
+    '#20b984', // menta / verde
+    '#f4b44d', // naranja / ámbar
+    '#ea7172', // salmón / coral
+    '#3b82f6', // azul
+    '#0ea5e9', // celeste / cian
+    '#ec4899', // rosa
+    '#8b5cf6', // púrpura
+    '#10b981', // esmeralda
+    '#64748b', // pizarra
+  ];
   const botStatus = {
     active: { title: 'Bot habilitado', detail: 'WhatsApp activo' },
     paused: { title: 'Bot pausado', detail: 'Respuestas desactivadas' },
@@ -724,7 +737,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               </div>
             </div>
             <ul className="legend">
-              {chartData.slice(0, 4).map((entry, index) => (
+              {chartData.map((entry, index) => (
                 <li key={entry.name}>
                   <i style={{ background: chartColors[index % chartColors.length] }} />
                   {entry.name}

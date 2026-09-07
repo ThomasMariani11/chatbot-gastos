@@ -192,9 +192,25 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: 7px;
   flex: 1;
   min-width: 110px;
+  max-height: 145px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.legend::-webkit-scrollbar {
+  width: 4px;
+}
+
+.legend::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.legend::-webkit-scrollbar-thumb {
+  background: #d5ded9;
+  border-radius: 4px;
 }
 
 .legend li {
@@ -236,7 +252,8 @@
   }
 
   .legend {
-    gap: 7px;
+    gap: 6px;
+    max-height: 135px;
   }
 
   .legend li {
