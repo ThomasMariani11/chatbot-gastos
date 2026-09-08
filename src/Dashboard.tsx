@@ -130,15 +130,13 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const availableMonths = useMemo(() => {
     const monthsSet = new Set<string>();
 
-    // Generamos un rango amplio: 12 meses atrás y 18 meses hacia adelante
-    for (let i = -12; i <= 18; i++) {
-      monthsSet.add(shiftMonth(currentMonth, i));
-    }
+    // Incluimos siempre el mes actual del calendario (ej. Septiembre 2026)
+    if (currentMonth) monthsSet.add(currentMonth);
 
-    // Incluimos siempre el mes que el usuario está consultando
+    // Incluimos siempre el mes que el usuario está consultando en pantalla
     if (month) monthsSet.add(month);
 
-    // Incluimos cualquier mes con movimientos o cuotas conocidas
+    // Incluimos todos los meses que tengan gastos/movimientos o cuotas registradas
     knownMonths.forEach((m) => {
       if (m && /^\d{4}-\d{2}$/.test(m)) monthsSet.add(m);
     });
@@ -241,12 +239,13 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     const loadDashboard = async () => {
       if (loading) return;
       loading = true;
-      const [transactions, budgets, allInstallments, whatsappLink, appSettings] = await Promise.all([
+      const [transactions, budgets, allInstallments, whatsappLink, appSettings, allOccurred] = await Promise.all([
         supabase.from('transactions').select('id,description,amount_ars,occurred_on,kind,category_id,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
         supabase.from('budgets').select('amount_ars').eq('user_id', userId).eq('month', monthStart).maybeSingle(),
         supabase.from('transactions').select('id,description,amount_ars,occurred_on,installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
         supabase.from('whatsapp_links').select('status').eq('user_id', userId).maybeSingle(),
         supabase.from('app_settings').select('whatsapp_responses_enabled,paid_service_messages_authorized,cost_guard_date').eq('user_id', userId).maybeSingle(),
+        supabase.from('transactions').select('occurred_on').eq('user_id', userId).eq('status', 'confirmed'),
       ]);
       loading = false;
       if (!active) return;
@@ -282,15 +281,13 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         setBotState('active');
       }
       const monthsFound = new Set<string>();
-      (transactions.data ?? []).forEach((row: Record<string, unknown>) => {
+      (allOccurred.data ?? []).forEach((row: Record<string, unknown>) => {
         if (row.occurred_on) monthsFound.add(String(row.occurred_on).slice(0, 7));
       });
       (allInstallments.data ?? []).forEach((row: Record<string, unknown>) => {
         if (row.occurred_on) monthsFound.add(String(row.occurred_on).slice(0, 7));
       });
-      if (monthsFound.size > 0) {
-        setKnownMonths((prev) => Array.from(new Set([...prev, ...monthsFound])));
-      }
+      setKnownMonths(Array.from(monthsFound));
 
       if (!allInstallments.error && allInstallments.data) {
         const groups = new Map<string, Array<Record<string, unknown>>>();
@@ -478,6 +475,15 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       if (error) return window.alert('No pudimos guardar el movimiento.');
     }
 
+    const targetMonth = dateStr.slice(0, 7);
+    if (kind === 'expense' && isInstallments && installmentCount > 1) {
+      const addedMonths = Array.from({ length: installmentCount }, (_, i) => shiftMonth(targetMonth, i));
+      setKnownMonths((prev) => Array.from(new Set([...prev, ...addedMonths])));
+    } else {
+      setKnownMonths((prev) => Array.from(new Set([...prev, targetMonth])));
+    }
+    setMonth(targetMonth);
+
     setShowAdd(false);
     setIsInstallments(false);
     setInstallmentCount(3);
@@ -615,6 +621,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     setEditingMovement(null);
 
     // Navegación automática: si el movimiento fue asignado a otro mes (ej. Julio), cargamos ese mes para verlo
+    setKnownMonths((prev) => Array.from(new Set([...prev, targetMonth])));
     if (targetMonth !== month) {
       setMonth(targetMonth);
     }
