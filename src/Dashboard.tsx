@@ -1310,17 +1310,17 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     {showCategoryModal && (
       <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowCategoryModal(false)}>
         <div className="movement-form category-modal-container" onMouseDown={(event) => event.stopPropagation()}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div className="category-modal-header">
             <div>
               <p className="eyebrow">DISTRIBUCIÓN DE GASTOS</p>
               <h2>Gastos por categoría</h2>
-              <p style={{ color: 'var(--muted)', fontSize: '12px', margin: '4px 0 0' }}>
+              <p className="category-modal-subtitle">
                 {labelForMonth(month)} · Total: <strong>{money.format(expenses)}</strong>
               </p>
             </div>
             <button
               type="button"
-              className="icon-button modal-close-x"
+              className="modal-close-x"
               aria-label="Cerrar modal"
               onClick={() => setShowCategoryModal(false)}
             >
@@ -1389,29 +1389,31 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                       if (e.key === 'Enter' || e.key === ' ') setExpandedCategoryInModal(isExpanded ? null : entry.name);
                     }}
                   >
-                    <i className="category-modal-dot" style={{ background: color }} />
-                    <div className="category-modal-item-info">
-                      <div className="category-modal-name-row">
+                    <div className="category-modal-row-main">
+                      <div className="category-modal-left">
+                        <i className="category-modal-dot" style={{ background: color }} />
                         <span className="category-modal-name">{entry.name}</span>
                         <span className="category-modal-count">
-                          {catMovements.length} {catMovements.length === 1 ? 'movimiento' : 'movimientos'}
+                          ({catMovements.length} {catMovements.length === 1 ? 'compra' : 'compras'})
                         </span>
                       </div>
-                      <div className="category-modal-track">
-                        <span style={{ width: `${percent}%`, background: color }} />
+                      <div className="category-modal-right">
+                        <strong className="category-modal-amount">{money.format(entry.value)}</strong>
+                        <span className="category-modal-badge" style={{ background: `${color}18`, color }}>
+                          {percent}%
+                        </span>
+                        <span className={`category-modal-chevron ${isExpanded ? 'open' : ''}`}>›</span>
                       </div>
                     </div>
-                    <div className="category-modal-item-values">
-                      <strong className="category-modal-amount">{money.format(entry.value)}</strong>
-                      <span className="category-modal-percent" style={{ color }}>{percent}%</span>
+                    <div className="category-modal-track">
+                      <span style={{ width: `${percent}%`, background: color }} />
                     </div>
-                    <span className={`category-modal-chevron ${isExpanded ? 'open' : ''}`}>›</span>
                   </div>
 
                   {isExpanded && (
                     <div className="category-modal-sublist">
                       {catMovements.length === 0 ? (
-                        <p style={{ margin: 0, fontSize: '11px', color: '#8b9994', padding: '6px 4px' }}>
+                        <p className="category-modal-empty-msg">
                           No hay compras registradas en esta categoría.
                         </p>
                       ) : (
@@ -1434,17 +1436,17 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                             }}
                           >
                             <div className="category-modal-mov-info">
-                              <strong>{m.title}</strong>
-                              <small>
+                              <span className="category-modal-mov-title">{m.title}</span>
+                              <span className="category-modal-mov-date">
                                 {formatMovementDate(m.date)}
                                 {m.installmentCount && m.installmentCount > 1
                                   ? ` · Cuota ${m.installmentNumber ?? 1}/${m.installmentCount}`
                                   : ''}
-                              </small>
+                              </span>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div className="category-modal-mov-right">
                               <b className="category-modal-mov-amount">−{money.format(m.amount)}</b>
-                              <span style={{ color: '#9aa7a2', fontSize: '12px' }}>✎</span>
+                              <span className="category-modal-mov-edit" aria-hidden="true">✎</span>
                             </div>
                           </div>
                         ))
@@ -1456,7 +1458,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             })}
           </div>
 
-          <div style={{ marginTop: '14px' }}>
+          <div className="category-modal-footer">
             <button
               type="button"
               className="modal-btn-cancel"
