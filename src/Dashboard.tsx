@@ -151,6 +151,9 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [budget, setBudget] = useState(0);
   const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [expandedCategoryInModal, setExpandedCategoryInModal] = useState<string | null>(null);
+  const [dashboardActiveCategory, setDashboardActiveCategory] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState<number | ''>('');
   const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [botState, setBotState] = useState<BotState>('loading');
@@ -711,9 +714,37 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               <h2>Gastos por categoría</h2>
               <p>Distribución del mes</p>
             </div>
+            {chartData.length > 0 && (
+              <button
+                className="text-button"
+                type="button"
+                onClick={() => {
+                  setExpandedCategoryInModal(null);
+                  setShowCategoryModal(true);
+                }}
+              >
+                Ver detalle ↗
+              </button>
+            )}
           </div>
           <div className="chart-row">
-            <div className="donut-chart" role="img" aria-label="Gráfico de gastos por categoría">
+            <div
+              className="donut-chart interactive-donut"
+              role="button"
+              tabIndex={0}
+              title="Hacé clic para ver el detalle de categorías"
+              aria-label="Gráfico de gastos por categoría. Hacé clic para ver detalle ampliado."
+              onClick={() => {
+                setExpandedCategoryInModal(null);
+                setShowCategoryModal(true);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  setExpandedCategoryInModal(null);
+                  setShowCategoryModal(true);
+                }
+              }}
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                   <Pie
@@ -726,21 +757,55 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                     stroke="none"
                   >
                     {chartData.map((entry, index) => (
-                      <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />
+                      <Cell
+                        key={entry.name}
+                        fill={chartColors[index % chartColors.length]}
+                        opacity={dashboardActiveCategory && dashboardActiveCategory !== entry.name ? 0.45 : 1}
+                        style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                        onMouseEnter={() => setDashboardActiveCategory(entry.name)}
+                        onMouseLeave={() => setDashboardActiveCategory(null)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedCategoryInModal(entry.name);
+                          setShowCategoryModal(true);
+                        }}
+                      />
                     ))}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
               <div>
-                <strong>{money.format(expenses)}</strong>
-                <span>Total</span>
+                <strong>
+                  {dashboardActiveCategory
+                    ? money.format(chartData.find((c) => c.name === dashboardActiveCategory)?.value ?? expenses)
+                    : money.format(expenses)}
+                </strong>
+                <span>{dashboardActiveCategory ?? 'Total'}</span>
               </div>
             </div>
             <ul className="legend">
               {chartData.map((entry, index) => (
-                <li key={entry.name}>
+                <li
+                  key={entry.name}
+                  className="interactive-legend-item"
+                  role="button"
+                  tabIndex={0}
+                  title={`Ver detalle de ${entry.name}`}
+                  onMouseEnter={() => setDashboardActiveCategory(entry.name)}
+                  onMouseLeave={() => setDashboardActiveCategory(null)}
+                  onClick={() => {
+                    setExpandedCategoryInModal(entry.name);
+                    setShowCategoryModal(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      setExpandedCategoryInModal(entry.name);
+                      setShowCategoryModal(true);
+                    }
+                  }}
+                >
                   <i style={{ background: chartColors[index % chartColors.length] }} />
-                  {entry.name}
+                  <span>{entry.name}</span>
                   <strong>{expenses ? Math.round((entry.value / expenses) * 100) : 0}%</strong>
                 </li>
               ))}
@@ -1239,6 +1304,169 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             </button>
           </div>
         </form>
+      </div>
+    )}
+
+    {showCategoryModal && (
+      <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowCategoryModal(false)}>
+        <div className="movement-form category-modal-container" onMouseDown={(event) => event.stopPropagation()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p className="eyebrow">DISTRIBUCIÓN DE GASTOS</p>
+              <h2>Gastos por categoría</h2>
+              <p style={{ color: 'var(--muted)', fontSize: '12px', margin: '4px 0 0' }}>
+                {labelForMonth(month)} · Total: <strong>{money.format(expenses)}</strong>
+              </p>
+            </div>
+            <button
+              type="button"
+              className="icon-button modal-close-x"
+              aria-label="Cerrar modal"
+              onClick={() => setShowCategoryModal(false)}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="category-modal-chart-box">
+            <div className="donut-chart category-modal-donut">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                  <Pie
+                    data={chartData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius="62%"
+                    outerRadius="88%"
+                    paddingAngle={chartData.length > 1 ? 2 : 0}
+                    stroke="none"
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={entry.name}
+                        fill={chartColors[index % chartColors.length]}
+                        opacity={expandedCategoryInModal && expandedCategoryInModal !== entry.name ? 0.4 : 1}
+                        style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                        onClick={() => setExpandedCategoryInModal((prev) => (prev === entry.name ? null : entry.name))}
+                      />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div>
+                <strong>
+                  {expandedCategoryInModal
+                    ? money.format(chartData.find((c) => c.name === expandedCategoryInModal)?.value ?? expenses)
+                    : money.format(expenses)}
+                </strong>
+                <span>
+                  {expandedCategoryInModal ?? 'Total'}
+                </span>
+              </div>
+            </div>
+            <p className="category-modal-hint">
+              {expandedCategoryInModal
+                ? 'Tocá de nuevo para deseleccionar'
+                : 'Tocá cualquier categoría para ver sus compras'}
+            </p>
+          </div>
+
+          <div className="category-modal-list">
+            {chartData.map((entry, index) => {
+              const color = chartColors[index % chartColors.length];
+              const percent = expenses ? Math.round((entry.value / expenses) * 100) : 0;
+              const isExpanded = expandedCategoryInModal === entry.name;
+              const catMovements = movements.filter((m) => m.kind === 'expense' && m.category === entry.name);
+
+              return (
+                <div key={entry.name} className={`category-modal-item ${isExpanded ? 'active' : ''}`}>
+                  <div
+                    className="category-modal-item-header"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setExpandedCategoryInModal(isExpanded ? null : entry.name)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') setExpandedCategoryInModal(isExpanded ? null : entry.name);
+                    }}
+                  >
+                    <i className="category-modal-dot" style={{ background: color }} />
+                    <div className="category-modal-item-info">
+                      <div className="category-modal-name-row">
+                        <span className="category-modal-name">{entry.name}</span>
+                        <span className="category-modal-count">
+                          {catMovements.length} {catMovements.length === 1 ? 'movimiento' : 'movimientos'}
+                        </span>
+                      </div>
+                      <div className="category-modal-track">
+                        <span style={{ width: `${percent}%`, background: color }} />
+                      </div>
+                    </div>
+                    <div className="category-modal-item-values">
+                      <strong className="category-modal-amount">{money.format(entry.value)}</strong>
+                      <span className="category-modal-percent" style={{ color }}>{percent}%</span>
+                    </div>
+                    <span className={`category-modal-chevron ${isExpanded ? 'open' : ''}`}>›</span>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="category-modal-sublist">
+                      {catMovements.length === 0 ? (
+                        <p style={{ margin: 0, fontSize: '11px', color: '#8b9994', padding: '6px 4px' }}>
+                          No hay compras registradas en esta categoría.
+                        </p>
+                      ) : (
+                        catMovements.map((m) => (
+                          <div
+                            key={m.id}
+                            className="category-modal-movement"
+                            role="button"
+                            tabIndex={0}
+                            title="Hacé clic para editar este movimiento"
+                            onClick={() => {
+                              setShowCategoryModal(false);
+                              startEditMovement(m);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                setShowCategoryModal(false);
+                                startEditMovement(m);
+                              }
+                            }}
+                          >
+                            <div className="category-modal-mov-info">
+                              <strong>{m.title}</strong>
+                              <small>
+                                {formatMovementDate(m.date)}
+                                {m.installmentCount && m.installmentCount > 1
+                                  ? ` · Cuota ${m.installmentNumber ?? 1}/${m.installmentCount}`
+                                  : ''}
+                              </small>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <b className="category-modal-mov-amount">−{money.format(m.amount)}</b>
+                              <span style={{ color: '#9aa7a2', fontSize: '12px' }}>✎</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: '14px' }}>
+            <button
+              type="button"
+              className="modal-btn-cancel"
+              style={{ width: '100%', height: '46px', borderRadius: '12px', fontWeight: 700 }}
+              onClick={() => setShowCategoryModal(false)}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
       </div>
     )}
 
