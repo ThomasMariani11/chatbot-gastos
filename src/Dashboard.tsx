@@ -239,13 +239,13 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     const loadDashboard = async () => {
       if (loading) return;
       loading = true;
-      const [transactions, budgets, allInstallments, whatsappLink, appSettings, allOccurred] = await Promise.all([
+      const [transactions, budgets, allInstallments, whatsappLink, appSettings, distinctMonthsRes] = await Promise.all([
         supabase.from('transactions').select('id,description,amount_ars,occurred_on,kind,category_id,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
         supabase.from('budgets').select('amount_ars').eq('user_id', userId).eq('month', monthStart).maybeSingle(),
         supabase.from('transactions').select('id,description,amount_ars,occurred_on,installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
         supabase.from('whatsapp_links').select('status').eq('user_id', userId).maybeSingle(),
         supabase.from('app_settings').select('whatsapp_responses_enabled,paid_service_messages_authorized,cost_guard_date').eq('user_id', userId).maybeSingle(),
-        supabase.from('transactions').select('occurred_on').eq('user_id', userId).eq('status', 'confirmed'),
+        supabase.rpc('get_distinct_transaction_months'),
       ]);
       loading = false;
       if (!active) return;
@@ -281,9 +281,26 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         setBotState('active');
       }
       const monthsFound = new Set<string>();
-      (allOccurred.data ?? []).forEach((row: Record<string, unknown>) => {
-        if (row.occurred_on) monthsFound.add(String(row.occurred_on).slice(0, 7));
-      });
+      if (!distinctMonthsRes.error && Array.isArray(distinctMonthsRes.data)) {
+        distinctMonthsRes.data.forEach((item: unknown) => {
+          if (typeof item === 'string' && /^\d{4}-\d{2}$/.test(item)) {
+            monthsFound.add(item);
+          } else if (item && typeof item === 'object' && 'month' in item) {
+            const m = String((item as { month?: unknown }).month);
+            if (/^\d{4}-\d{2}$/.test(m)) monthsFound.add(m);
+          }
+        });
+      } else {
+        // Fallback resiliente: Si la función RPC aún no fue migrada en la base de datos remota
+        const fallback = await supabase
+          .from('transactions')
+          .select('occurred_on')
+          .eq('user_id', userId)
+          .eq('status', 'confirmed');
+        (fallback.data ?? []).forEach((row: Record<string, unknown>) => {
+          if (row.occurred_on) monthsFound.add(String(row.occurred_on).slice(0, 7));
+        });
+      }
       (allInstallments.data ?? []).forEach((row: Record<string, unknown>) => {
         if (row.occurred_on) monthsFound.add(String(row.occurred_on).slice(0, 7));
       });
