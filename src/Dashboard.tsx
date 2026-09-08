@@ -1329,7 +1329,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           </div>
 
           <div className="category-modal-chart-box">
-            <div className="donut-chart category-modal-donut">
+            <div className="donut-chart category-modal-donut" aria-hidden="true">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                   <Pie
@@ -1340,16 +1340,25 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                     outerRadius="88%"
                     paddingAngle={chartData.length > 1 ? 2 : 0}
                     stroke="none"
+                    isAnimationActive={false}
                   >
-                    {chartData.map((entry, index) => (
-                      <Cell
-                        key={entry.name}
-                        fill={chartColors[index % chartColors.length]}
-                        opacity={expandedCategoryInModal && expandedCategoryInModal !== entry.name ? 0.4 : 1}
-                        style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
-                        onClick={() => setExpandedCategoryInModal((prev) => (prev === entry.name ? null : entry.name))}
-                      />
-                    ))}
+                    {chartData.map((entry, index) => {
+                      const isSelected = expandedCategoryInModal === entry.name;
+                      const hasSelection = Boolean(expandedCategoryInModal);
+                      return (
+                        <Cell
+                          key={entry.name}
+                          fill={chartColors[index % chartColors.length]}
+                          opacity={hasSelection ? (isSelected ? 1 : 0.22) : 1}
+                          stroke={isSelected ? '#ffffff' : 'none'}
+                          strokeWidth={isSelected ? 3 : 0}
+                          style={{
+                            transition: 'opacity 0.22s ease',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                      );
+                    })}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
@@ -1366,8 +1375,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             </div>
             <p className="category-modal-hint">
               {expandedCategoryInModal
-                ? 'Tocá de nuevo para deseleccionar'
-                : 'Tocá cualquier categoría para ver sus compras'}
+                ? 'Categoría seleccionada · Tocá de nuevo en la lista para volver al total'
+                : 'Tocá una categoría de la lista para ver sus compras y resaltarla en el gráfico'}
             </p>
           </div>
 

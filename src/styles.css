@@ -809,6 +809,9 @@ textarea,
   width: 140px !important;
   height: 140px !important;
   flex: 0 0 140px !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  cursor: default !important;
 }
 
 .category-modal-donut strong {
