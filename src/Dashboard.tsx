@@ -1430,19 +1430,6 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                           <div
                             key={m.id}
                             className="category-modal-movement"
-                            role="button"
-                            tabIndex={0}
-                            title="Hacé clic para editar este movimiento"
-                            onClick={() => {
-                              setShowCategoryModal(false);
-                              startEditMovement(m);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                setShowCategoryModal(false);
-                                startEditMovement(m);
-                              }
-                            }}
                           >
                             <div className="category-modal-mov-info">
                               <span className="category-modal-mov-title">{m.title}</span>
@@ -1455,7 +1442,6 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                             </div>
                             <div className="category-modal-mov-right">
                               <b className="category-modal-mov-amount">−{money.format(m.amount)}</b>
-                              <span className="category-modal-mov-edit" aria-hidden="true">✎</span>
                             </div>
                           </div>
                         ))

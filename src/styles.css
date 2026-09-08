@@ -1004,13 +1004,8 @@ textarea,
   border-radius: 8px;
   background: #ffffff;
   border: 1px solid #edf2ef;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.category-modal-movement:hover {
-  background: #edf6f1;
-  border-color: #d2e7dc;
+  cursor: default;
+  user-select: none;
 }
 
 .category-modal-mov-info {
@@ -1045,12 +1040,6 @@ textarea,
   font-weight: 700;
   color: #384942;
   white-space: nowrap;
-}
-
-.category-modal-mov-edit {
-  color: #9aa7a2;
-  font-size: 12px;
-  line-height: 1;
 }
 
 .category-modal-footer {
