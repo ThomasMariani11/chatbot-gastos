@@ -38,6 +38,7 @@ type InstallmentPlan = {
   quedanTotal: number;
   progressPercent: number;
   currentDateStr: string;
+  currentMovement?: Movement;
 };
 
 type Props = { userId: string; onOpenSettings: () => void; onSignOut: () => void };
@@ -176,6 +177,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const [categoryId, setCategoryId] = useState('');
   const [isInstallments, setIsInstallments] = useState(false);
   const [installmentCount, setInstallmentCount] = useState(3);
+  const [currentInstallmentNumber, setCurrentInstallmentNumber] = useState<number>(1);
   const [formAmount, setFormAmount] = useState<number | ''>('');
   const [installmentDeletePrompt, setInstallmentDeletePrompt] = useState<{ movement?: Movement; plan?: InstallmentPlan } | null>(null);
   const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
@@ -184,6 +186,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const [editKind, setEditKind] = useState<'expense' | 'income'>('expense');
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editDate, setEditDate] = useState('');
+  const [editInstallmentNumber, setEditInstallmentNumber] = useState<number>(1);
+  const [editInstallmentCount, setEditInstallmentCount] = useState<number>(3);
   const [editApplyToAll, setEditApplyToAll] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const availableCategories = useMemo(() => categories.filter((category) => category.kind === manualKind), [categories, manualKind]);
@@ -264,7 +268,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       const [transactions, budgets, allInstallments, whatsappLink, appSettings, distinctMonthsRes] = await Promise.all([
         supabase.from('transactions').select('id,description,amount_ars,currency,occurred_on,kind,category_id,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
         supabase.from('budgets').select('amount_ars').eq('user_id', userId).eq('month', monthStart).maybeSingle(),
-        supabase.from('transactions').select('id,description,amount_ars,currency,occurred_on,installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
+        supabase.from('transactions').select('id,description,amount_ars,currency,occurred_on,kind,category_id,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
         supabase.from('whatsapp_links').select('status').eq('user_id', userId).maybeSingle(),
         supabase.from('app_settings').select('whatsapp_responses_enabled,paid_service_messages_authorized,cost_guard_date').eq('user_id', userId).maybeSingle(),
         supabase.rpc('get_distinct_transaction_months'),
@@ -381,6 +385,22 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           const progressPercent = Math.round((vanCount / totalCount) * 100);
           const currentDateStr = currentRow ? String(currentRow.occurred_on) : String(remainingRows[0]?.occurred_on ?? '');
 
+          const rowToEdit = currentRow ?? rows[0];
+          const currentMovement: Movement | undefined = rowToEdit ? {
+            id: String(rowToEdit.id),
+            title: String(rowToEdit.description),
+            amount: Number(rowToEdit.amount_ars),
+            currency: (rowToEdit.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
+            category: String((rowToEdit.categories as { name?: string } | null)?.name ?? 'Compras'),
+            categoryId: rowToEdit.category_id ? String(rowToEdit.category_id) : undefined,
+            date: String(rowToEdit.occurred_on),
+            kind: (rowToEdit.kind || 'expense') as 'expense' | 'income',
+            icon: '•',
+            installmentNumber: rowToEdit.installment_number ? Number(rowToEdit.installment_number) : 1,
+            installmentCount: totalCount,
+            installmentGroupId: groupId,
+          } : undefined;
+
           // Cuando ya se acabaron las cuotas (es decir, no quedan cuotas pendientes en o después de este mes),
           // el cuadro de esa compra desaparece por completo del resumen de cuotas
           if (remainingRows.length > 0) {
@@ -396,6 +416,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               quedanTotal,
               progressPercent,
               currentDateStr,
+              currentMovement,
             });
           }
         });
@@ -461,6 +482,11 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     if (!description || !totalAmount || totalAmount <= 0) return;
 
     if (kind === 'expense' && isInstallments && installmentCount > 1) {
+      const selectedCurrentCuota = currentInstallmentNumber;
+      const targetMonth = dateStr.slice(0, 7);
+      const day = dateStr.slice(8, 10);
+      const startMonth = shiftMonth(targetMonth, -(selectedCurrentCuota - 1));
+
       const { data: parent, error: parentError } = await supabase
         .from('transactions')
         .insert({
@@ -469,12 +495,12 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           description,
           amount_ars: totalAmount,
           currency,
-          occurred_on: dateStr,
+          occurred_on: `${startMonth}-${day}`,
           category_id: selectedCategory.id,
           status: 'cancelled',
           source: 'pwa',
           installment_count: installmentCount,
-          first_installment_month: dateStr.slice(0, 7),
+          first_installment_month: startMonth,
         })
         .select('id')
         .single();
@@ -484,8 +510,6 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       }
 
       const values = splitInstallments(totalAmount, installmentCount);
-      const startMonth = dateStr.slice(0, 7);
-      const day = dateStr.slice(8, 10);
       const rows = values.map((amount, index) => ({
         user_id: userId,
         kind: 'expense',
@@ -505,6 +529,18 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       if (batchError) {
         return window.alert('Hubo un error guardando las cuotas. Intentá nuevamente.');
       }
+
+      const addedMonths = Array.from({ length: installmentCount }, (_, i) => shiftMonth(startMonth, i));
+      setKnownMonths((prev) => Array.from(new Set([...prev, ...addedMonths])));
+      setMonth(targetMonth);
+      setActiveCurrency(currency);
+
+      setShowAdd(false);
+      setIsInstallments(false);
+      setInstallmentCount(3);
+      setCurrentInstallmentNumber(1);
+      setFormAmount('');
+      return;
     } else {
       const { error } = await supabase.from('transactions').insert({
         user_id: userId,
@@ -545,6 +581,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     const matchingCatId = item.categoryId ?? categories.find((c) => c.name === item.category && c.kind === item.kind)?.id ?? '';
     setEditCategoryId(matchingCatId);
     setEditDate(item.date);
+    setEditInstallmentNumber(item.installmentNumber ?? 1);
+    setEditInstallmentCount(item.installmentCount ?? 3);
     setEditApplyToAll(Boolean(item.installmentCount && item.installmentCount > 1));
   }
 
@@ -567,13 +605,14 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
 
     if (isInstallmentPlan && editApplyToAll) {
       const groupId = editingMovement.installmentGroupId!;
-      const currentCuotaNum = editingMovement.installmentNumber ?? 1;
+      const currentCuotaNum = editInstallmentNumber;
+      const totalCuotas = editInstallmentCount;
       const newStartMonth = shiftMonth(targetMonth, -(currentCuotaNum - 1));
 
       // 1. Buscamos todas las cuotas de este plan
       const { data: groupRows, error: fetchErr } = await supabase
         .from('transactions')
-        .select('id, installment_number, installment_count')
+        .select('id, installment_number, installment_count, occurred_on')
         .eq('user_id', userId)
         .eq('installment_group_id', groupId)
         .eq('status', 'confirmed');
@@ -583,23 +622,64 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         return window.alert('No pudimos consultar las cuotas del plan.');
       }
 
-      // 2. Actualizamos cada cuota consecutiva en la base de datos
-      const updatePromises = (groupRows ?? []).map((row) => {
-        const num = Number(row.installment_number ?? 1);
-        const cuotaMonth = shiftMonth(newStartMonth, num - 1);
+      const rows = (groupRows ?? []).slice();
+      rows.sort((a, b) => Number(a.installment_number ?? 1) - Number(b.installment_number ?? 1));
+
+      const updatePromises: Array<PromiseLike<{ error: unknown }>> = [];
+      const rowsToInsert: Array<Record<string, unknown>> = [];
+      const rowsToDelete: string[] = [];
+
+      for (let i = 1; i <= totalCuotas; i++) {
+        const cuotaMonth = shiftMonth(newStartMonth, i - 1);
         const cuotaDate = `${cuotaMonth}-${targetDay}`;
-        return supabase
-          .from('transactions')
-          .update({
+        const existing = rows[i - 1];
+
+        if (existing) {
+          updatePromises.push(
+            supabase
+              .from('transactions')
+              .update({
+                description,
+                category_id: selectedCategory.id,
+                occurred_on: cuotaDate,
+                amount_ars: amount,
+                currency: editCurrency,
+                installment_number: i,
+                installment_count: totalCuotas,
+              })
+              .eq('id', existing.id)
+              .eq('user_id', userId)
+          );
+        } else {
+          rowsToInsert.push({
+            user_id: userId,
+            kind: 'expense',
             description,
-            category_id: selectedCategory.id,
-            occurred_on: cuotaDate,
             amount_ars: amount,
             currency: editCurrency,
-          })
-          .eq('id', row.id)
-          .eq('user_id', userId);
-      });
+            occurred_on: cuotaDate,
+            category_id: selectedCategory.id,
+            status: 'confirmed',
+            source: 'pwa',
+            installment_group_id: groupId,
+            installment_number: i,
+            installment_count: totalCuotas,
+          });
+        }
+      }
+
+      if (rows.length > totalCuotas) {
+        for (let i = totalCuotas; i < rows.length; i++) {
+          rowsToDelete.push(String(rows[i].id));
+        }
+      }
+
+      if (rowsToInsert.length > 0) {
+        updatePromises.push(supabase.from('transactions').insert(rowsToInsert));
+      }
+      if (rowsToDelete.length > 0) {
+        updatePromises.push(supabase.from('transactions').delete().in('id', rowsToDelete).eq('user_id', userId));
+      }
 
       // 3. Actualizamos también el registro padre
       const parentPromise = supabase
@@ -609,8 +689,9 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           category_id: selectedCategory.id,
           first_installment_month: newStartMonth,
           occurred_on: `${newStartMonth}-${targetDay}`,
-          amount_ars: amount * (editingMovement.installmentCount ?? 1),
+          amount_ars: amount * totalCuotas,
           currency: editCurrency,
+          installment_count: totalCuotas,
         })
         .eq('id', groupId)
         .eq('user_id', userId);
@@ -621,6 +702,9 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         setIsSavingEdit(false);
         return window.alert('No pudimos actualizar todas las cuotas del plan.');
       }
+
+      const addedMonths = Array.from({ length: totalCuotas }, (_, i) => shiftMonth(newStartMonth, i));
+      setKnownMonths((prev) => Array.from(new Set([...prev, ...addedMonths])));
     } else {
       const { error } = await supabase
         .from('transactions')
@@ -631,6 +715,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           kind: editKind,
           category_id: selectedCategory.id,
           occurred_on: dateStr,
+          installment_number: isInstallmentPlan ? editInstallmentNumber : editingMovement.installmentNumber,
+          installment_count: isInstallmentPlan ? editInstallmentCount : editingMovement.installmentCount,
         })
         .eq('id', editingMovement.id)
         .eq('user_id', userId);
@@ -654,6 +740,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             categoryId: selectedCategory.id,
             date: dateStr,
             icon: editKind === 'income' ? '↗' : '•',
+            installmentNumber: isInstallmentPlan ? editInstallmentNumber : m.installmentNumber,
+            installmentCount: isInstallmentPlan ? editInstallmentCount : m.installmentCount,
           };
         }
         if (isInstallmentPlan && editApplyToAll && m.installmentGroupId === editingMovement.installmentGroupId) {
@@ -663,6 +751,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             currency: editCurrency,
             category: selectedCategory.name,
             categoryId: selectedCategory.id,
+            installmentCount: editInstallmentCount,
           };
         }
         return m;
@@ -1011,6 +1100,18 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                   <div className="installment-footer-actions">
                     <button
                       type="button"
+                      className="installment-edit-plan-btn"
+                      onClick={() => {
+                        if (plan.currentMovement) {
+                          startEditMovement(plan.currentMovement);
+                        }
+                      }}
+                      aria-label={`Modificar cuotas de ${plan.description}`}
+                    >
+                      ✏️ Modificar cuotas
+                    </button>
+                    <button
+                      type="button"
                       className="installment-delete-plan-btn"
                       onClick={() => setInstallmentDeletePrompt({ plan })}
                       aria-label={`Eliminar plan ${plan.description}`}
@@ -1119,23 +1220,39 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             </label>
           )}
           {manualKind === 'expense' && isInstallments && (
-            <div className="form-grid" style={{ alignItems: 'flex-end' }}>
-              <label>
-                Cantidad de cuotas
-                <select
-                  name="installmentCount"
-                  value={installmentCount}
-                  onChange={(e) => setInstallmentCount(Number(e.target.value))}
-                >
-                  <option value={2}>2 cuotas</option>
-                  <option value={3}>3 cuotas</option>
-                  <option value={6}>6 cuotas</option>
-                  <option value={9}>9 cuotas</option>
-                  <option value={12}>12 cuotas</option>
-                  <option value={18}>18 cuotas</option>
-                  <option value={24}>24 cuotas</option>
-                </select>
-              </label>
+            <>
+              <div className="form-grid">
+                <label>
+                  Cantidad total de cuotas
+                  <select
+                    name="installmentCount"
+                    value={installmentCount}
+                    onChange={(e) => {
+                      const count = Number(e.target.value);
+                      setInstallmentCount(count);
+                      if (currentInstallmentNumber > count) setCurrentInstallmentNumber(1);
+                    }}
+                  >
+                    {[2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48].map((count) => (
+                      <option key={count} value={count}>{count} cuotas</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  ¿Por qué cuota vas?
+                  <select
+                    name="currentInstallmentNumber"
+                    value={currentInstallmentNumber}
+                    onChange={(e) => setCurrentInstallmentNumber(Number(e.target.value))}
+                  >
+                    {Array.from({ length: installmentCount }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>
+                        {n === 1 ? '1° cuota (arranca este mes)' : `Cuota ${n} de ${installmentCount}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               <div className="installment-calc-preview">
                 <small>Valor por cuota:</small>
                 <strong>
@@ -1144,7 +1261,12 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                     : 'Ingresá el total'}
                 </strong>
               </div>
-            </div>
+              {currentInstallmentNumber > 1 && (
+                <div className="installment-cuota-preview-hint">
+                  Tarjeta en curso: En la fecha elegida se registrará la <strong>cuota {currentInstallmentNumber}</strong>. Las cuotas 1 a {currentInstallmentNumber - 1} se registrarán en los meses anteriores y las {installmentCount - currentInstallmentNumber} restantes en los próximos.
+                </div>
+              )}
+            </>
           )}
           <div className="form-grid">
             <label>
@@ -1162,7 +1284,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               </select>
             </label>
             <label>
-              {isInstallments && manualKind === 'expense' ? 'Fecha 1° cuota' : 'Fecha'}
+              {isInstallments && manualKind === 'expense' ? (currentInstallmentNumber > 1 ? `Fecha cuota ${currentInstallmentNumber}` : 'Fecha 1° cuota') : 'Fecha'}
               <input name="date" required type="date" defaultValue={todayKey()} />
             </label>
           </div>
@@ -1174,6 +1296,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                 setShowAdd(false);
                 setIsInstallments(false);
                 setInstallmentCount(3);
+                setCurrentInstallmentNumber(1);
                 setFormAmount('');
               }}
             >
@@ -1192,13 +1315,58 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         <form className="movement-form" onSubmit={saveMovementEdit} onMouseDown={(event) => event.stopPropagation()}>
           <div>
             <p className="eyebrow">MODIFICAR MOVIMIENTO</p>
-            <h2>Editar operación</h2>
-            {editingMovement.installmentCount && editingMovement.installmentCount > 1 && (
-              <span className="installment-cuota-badge" style={{ marginTop: '6px', display: 'inline-block' }}>
-                Cuota {editingMovement.installmentNumber ?? 1} de {editingMovement.installmentCount}
-              </span>
-            )}
+            <h2>{editingMovement.installmentCount && editingMovement.installmentCount > 1 ? 'Editar compra en cuotas' : 'Editar operación'}</h2>
           </div>
+          {editingMovement.installmentCount && editingMovement.installmentCount > 1 && (
+            <div className="installment-edit-box">
+              <div className="form-grid">
+                <label>
+                  ¿Por qué cuota vas este mes?
+                  <select
+                    value={editInstallmentNumber}
+                    onChange={(e) => {
+                      const num = Number(e.target.value);
+                      setEditInstallmentNumber(num);
+                      if (num > editInstallmentCount) setEditInstallmentCount(num);
+                    }}
+                  >
+                    {Array.from({ length: Math.max(editInstallmentCount, 36) }, (_, i) => i + 1)
+                      .filter((n) => n <= Math.max(editInstallmentCount, 12))
+                      .map((num) => (
+                        <option key={num} value={num}>
+                          Cuota {num} de {editInstallmentCount}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label>
+                  Total de cuotas
+                  <select
+                    value={editInstallmentCount}
+                    onChange={(e) => {
+                      const count = Number(e.target.value);
+                      setEditInstallmentCount(count);
+                      if (editInstallmentNumber > count) setEditInstallmentNumber(count);
+                    }}
+                  >
+                    {[2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48].map((count) => (
+                      <option key={count} value={count}>
+                        {count} cuotas
+                      </option>
+                    ))}
+                    {!([2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48].includes(editInstallmentCount)) && (
+                      <option value={editInstallmentCount}>{editInstallmentCount} cuotas</option>
+                    )}
+                  </select>
+                </label>
+              </div>
+              <div className="installment-cuota-preview-hint">
+                {editInstallmentNumber === 1
+                  ? `Esta es la primera cuota. Quedarán ${editInstallmentCount - 1} cuotas en los próximos meses.`
+                  : `En esta fecha estás en la cuota ${editInstallmentNumber} de ${editInstallmentCount}. Las cuotas anteriores se sincronizarán en los meses previos y las ${editInstallmentCount - editInstallmentNumber} restantes en los próximos.`}
+              </div>
+            </div>
+          )}
           <label>
             Descripción
             <input
@@ -1240,7 +1408,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             </label>
           </div>
           <label>
-            {editingMovement.installmentCount && editingMovement.installmentCount > 1 && editApplyToAll
+            {editingMovement.installmentCount && editingMovement.installmentCount > 1
               ? `Monto por cuota (${editCurrency})`
               : `Monto (${editCurrency})`}
             <input
@@ -1255,6 +1423,12 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               onChange={(e) => setEditAmount(e.target.value === '' ? '' : Number(e.target.value))}
             />
           </label>
+          {editingMovement.installmentCount && editingMovement.installmentCount > 1 && typeof editAmount === 'number' && editAmount > 0 && (
+            <div className="installment-calc-preview" style={{ marginTop: '-4px', marginBottom: '8px' }}>
+              <small>Total de la compra ({editInstallmentCount} cuotas):</small>
+              <strong>{formatMoney(Math.round(editAmount * editInstallmentCount * 100) / 100, editCurrency)}</strong>
+            </div>
+          )}
           <div className="form-grid">
             <label>
               Categoría

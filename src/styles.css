@@ -636,10 +636,33 @@
 
 .installment-footer-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   margin-top: 2px;
   padding-top: 8px;
   border-top: 1px dashed #e8ece9;
+  gap: 10px;
+}
+
+.installment-edit-plan-btn {
+  background: #f0f7f3;
+  border: 1px solid #d4e6db;
+  color: var(--mint-dark);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 5px 9px;
+  border-radius: 7px;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.installment-edit-plan-btn:hover {
+  background: #e2f1e8;
+  border-color: #bfe0cc;
+  color: var(--ink);
 }
 
 .installment-delete-plan-btn {
@@ -657,6 +680,25 @@
 .installment-delete-plan-btn:hover {
   color: #d32f2f;
   background: #fff0f0;
+}
+
+.installment-edit-box {
+  background: #f7faf8;
+  border: 1px solid #dbe6df;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 6px 0 12px;
+}
+
+.installment-cuota-preview-hint {
+  font-size: 11px;
+  color: #4b6358;
+  background: #eaf4ee;
+  border: 1px solid #d3e7da;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  line-height: 1.35;
 }
 
 .installment-calc-preview {
