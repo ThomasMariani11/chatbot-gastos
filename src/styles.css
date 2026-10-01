@@ -1193,3 +1193,37 @@ textarea,
     font-size: 12px;
   }
 }
+
+.installment-mode-pills {
+  display: inline-flex;
+  background: #edf3ef;
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid #dbe5df;
+}
+
+.mode-pill {
+  border: none;
+  background: transparent;
+  color: #64736d;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  line-height: 1.3;
+}
+
+.mode-pill:hover {
+  color: var(--ink);
+}
+
+.mode-pill.active {
+  background: #ffffff;
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+

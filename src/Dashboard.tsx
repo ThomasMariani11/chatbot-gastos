@@ -137,6 +137,8 @@ function IconSettings({ className = 'nav-icon' }: { className?: string }) {
 }
 
 
+const PRESET_INSTALLMENT_COUNTS = [2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48];
+
 export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const currentMonth = monthKey(new Date());
   const [month, setMonth] = useState(currentMonth);
@@ -177,6 +179,9 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const [categoryId, setCategoryId] = useState('');
   const [isInstallments, setIsInstallments] = useState(false);
   const [installmentCount, setInstallmentCount] = useState(3);
+  const [isCustomInstallmentCount, setIsCustomInstallmentCount] = useState(false);
+  const [customCountInput, setCustomCountInput] = useState('3');
+  const [installmentAmountMode, setInstallmentAmountMode] = useState<'total' | 'quota'>('total');
   const [currentInstallmentNumber, setCurrentInstallmentNumber] = useState<number>(1);
   const [formAmount, setFormAmount] = useState<number | ''>('');
   const [installmentDeletePrompt, setInstallmentDeletePrompt] = useState<{ movement?: Movement; plan?: InstallmentPlan } | null>(null);
@@ -188,6 +193,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const [editDate, setEditDate] = useState('');
   const [editInstallmentNumber, setEditInstallmentNumber] = useState<number>(1);
   const [editInstallmentCount, setEditInstallmentCount] = useState<number>(3);
+  const [isCustomEditInstallmentCount, setIsCustomEditInstallmentCount] = useState(false);
+  const [customEditCountInput, setCustomEditCountInput] = useState('3');
   const [editApplyToAll, setEditApplyToAll] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const availableCategories = useMemo(() => categories.filter((category) => category.kind === manualKind), [categories, manualKind]);
@@ -477,15 +484,19 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     const selectedCategory = categories.find((category) => category.id === categoryId && category.kind === kind);
     if (!selectedCategory) return window.alert('Seleccioná una categoría válida.');
     const description = String(form.get('description')).trim();
-    const totalAmount = Number(form.get('amount'));
+    const enteredAmount = Number(form.get('amount'));
     const dateStr = String(form.get('date'));
-    if (!description || !totalAmount || totalAmount <= 0) return;
+    if (!description || !enteredAmount || enteredAmount <= 0) return;
 
     if (kind === 'expense' && isInstallments && installmentCount > 1) {
       const selectedCurrentCuota = currentInstallmentNumber;
       const targetMonth = dateStr.slice(0, 7);
       const day = dateStr.slice(8, 10);
       const startMonth = shiftMonth(targetMonth, -(selectedCurrentCuota - 1));
+
+      const totalAmount = installmentAmountMode === 'quota'
+        ? Math.round(enteredAmount * installmentCount * 100) / 100
+        : enteredAmount;
 
       const { data: parent, error: parentError } = await supabase
         .from('transactions')
@@ -509,7 +520,10 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         return window.alert('No pudimos registrar la compra en cuotas. Intentá nuevamente.');
       }
 
-      const values = splitInstallments(totalAmount, installmentCount);
+      const values = installmentAmountMode === 'quota'
+        ? Array.from({ length: installmentCount }, () => enteredAmount)
+        : splitInstallments(totalAmount, installmentCount);
+
       const rows = values.map((amount, index) => ({
         user_id: userId,
         kind: 'expense',
@@ -538,6 +552,9 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       setShowAdd(false);
       setIsInstallments(false);
       setInstallmentCount(3);
+      setIsCustomInstallmentCount(false);
+      setCustomCountInput('3');
+      setInstallmentAmountMode('total');
       setCurrentInstallmentNumber(1);
       setFormAmount('');
       return;
@@ -546,7 +563,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         user_id: userId,
         kind,
         description,
-        amount_ars: totalAmount,
+        amount_ars: enteredAmount,
         currency,
         occurred_on: dateStr,
         category_id: selectedCategory.id,
@@ -557,18 +574,17 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     }
 
     const targetMonth = dateStr.slice(0, 7);
-    if (kind === 'expense' && isInstallments && installmentCount > 1) {
-      const addedMonths = Array.from({ length: installmentCount }, (_, i) => shiftMonth(targetMonth, i));
-      setKnownMonths((prev) => Array.from(new Set([...prev, ...addedMonths])));
-    } else {
-      setKnownMonths((prev) => Array.from(new Set([...prev, targetMonth])));
-    }
+    setKnownMonths((prev) => Array.from(new Set([...prev, targetMonth])));
     setMonth(targetMonth);
     setActiveCurrency(currency);
 
     setShowAdd(false);
     setIsInstallments(false);
     setInstallmentCount(3);
+    setIsCustomInstallmentCount(false);
+    setCustomCountInput('3');
+    setInstallmentAmountMode('total');
+    setCurrentInstallmentNumber(1);
     setFormAmount('');
   }
 
@@ -581,8 +597,13 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     const matchingCatId = item.categoryId ?? categories.find((c) => c.name === item.category && c.kind === item.kind)?.id ?? '';
     setEditCategoryId(matchingCatId);
     setEditDate(item.date);
-    setEditInstallmentNumber(item.installmentNumber ?? 1);
-    setEditInstallmentCount(item.installmentCount ?? 3);
+    const count = item.installmentCount ?? 3;
+    setEditInstallmentCount(count);
+    const isCustom = !PRESET_INSTALLMENT_COUNTS.includes(count);
+    setIsCustomEditInstallmentCount(isCustom);
+    setCustomEditCountInput(String(count));
+    const num = Math.min(item.installmentNumber ?? 1, count);
+    setEditInstallmentNumber(num);
     setEditApplyToAll(Boolean(item.installmentCount && item.installmentCount > 1));
   }
 
@@ -1208,8 +1229,32 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               </select>
             </label>
           </div>
-          <label>
-            {isInstallments && manualKind === 'expense' ? `Monto total compra (${manualCurrency})` : `Monto (${manualCurrency})`}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>
+                {isInstallments && manualKind === 'expense'
+                  ? (installmentAmountMode === 'quota' ? `Monto por cuota (${manualCurrency})` : `Monto total de la compra (${manualCurrency})`)
+                  : `Monto (${manualCurrency})`}
+              </span>
+              {isInstallments && manualKind === 'expense' && (
+                <div className="installment-mode-pills">
+                  <button
+                    type="button"
+                    className={`mode-pill ${installmentAmountMode === 'total' ? 'active' : ''}`}
+                    onClick={() => setInstallmentAmountMode('total')}
+                  >
+                    Monto total
+                  </button>
+                  <button
+                    type="button"
+                    className={`mode-pill ${installmentAmountMode === 'quota' ? 'active' : ''}`}
+                    onClick={() => setInstallmentAmountMode('quota')}
+                  >
+                    Monto por cuota
+                  </button>
+                </div>
+              )}
+            </div>
             <input
               name="amount"
               required
@@ -1221,7 +1266,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               value={formAmount}
               onChange={(e) => setFormAmount(e.target.value === '' ? '' : Number(e.target.value))}
             />
-          </label>
+          </div>
           {manualKind === 'expense' && (
             <label className="switch-row" style={{ marginTop: '2px', padding: '6px 0' }}>
               <span>
@@ -1239,19 +1284,26 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             <>
               <div className="form-grid">
                 <label>
-                  Cantidad total de cuotas
+                  Cantidad de cuotas
                   <select
-                    name="installmentCount"
-                    value={installmentCount}
+                    name="installmentCountSelect"
+                    value={isCustomInstallmentCount ? 'custom' : installmentCount}
                     onChange={(e) => {
-                      const count = Number(e.target.value);
-                      setInstallmentCount(count);
-                      if (currentInstallmentNumber > count) setCurrentInstallmentNumber(1);
+                      if (e.target.value === 'custom') {
+                        setIsCustomInstallmentCount(true);
+                        setCustomCountInput(String(installmentCount));
+                      } else {
+                        setIsCustomInstallmentCount(false);
+                        const count = Number(e.target.value);
+                        setInstallmentCount(count);
+                        if (currentInstallmentNumber > count) setCurrentInstallmentNumber(1);
+                      }
                     }}
                   >
-                    {[2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48].map((count) => (
+                    {PRESET_INSTALLMENT_COUNTS.map((count) => (
                       <option key={count} value={count}>{count} cuotas</option>
                     ))}
+                    <option value="custom">✏️ Personalizada (otra cantidad)...</option>
                   </select>
                 </label>
                 <label>
@@ -1269,13 +1321,62 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                   </select>
                 </label>
               </div>
+              {isCustomInstallmentCount && (
+                <label style={{ marginTop: '-4px' }}>
+                  <span>Ingresá el número de cuotas (2 a 120):</span>
+                  <input
+                    type="number"
+                    min="2"
+                    max="120"
+                    value={customCountInput}
+                    onChange={(e) => {
+                      const valStr = e.target.value;
+                      setCustomCountInput(valStr);
+                      const parsed = parseInt(valStr, 10);
+                      if (!isNaN(parsed) && parsed >= 2) {
+                        const clamped = Math.min(120, parsed);
+                        setInstallmentCount(clamped);
+                        if (currentInstallmentNumber > clamped) setCurrentInstallmentNumber(clamped);
+                      }
+                    }}
+                    onBlur={() => {
+                      const parsed = parseInt(customCountInput, 10);
+                      if (isNaN(parsed) || parsed < 2) {
+                        setCustomCountInput('2');
+                        setInstallmentCount(2);
+                      } else if (parsed > 120) {
+                        setCustomCountInput('120');
+                        setInstallmentCount(120);
+                      } else {
+                        setCustomCountInput(String(parsed));
+                        setInstallmentCount(parsed);
+                      }
+                    }}
+                    placeholder="Ej. 7, 8, 14..."
+                    autoFocus
+                  />
+                </label>
+              )}
               <div className="installment-calc-preview">
-                <small>Valor por cuota:</small>
-                <strong>
-                  {typeof formAmount === 'number' && formAmount > 0
-                    ? `${formatMoney(Math.round((formAmount / installmentCount) * 100) / 100, manualCurrency)} / mes`
-                    : 'Ingresá el total'}
-                </strong>
+                {installmentAmountMode === 'total' ? (
+                  <>
+                    <small>Valor por cuota ({installmentCount} cuotas):</small>
+                    <strong>
+                      {typeof formAmount === 'number' && formAmount > 0
+                        ? `${formatMoney(Math.round((formAmount / installmentCount) * 100) / 100, manualCurrency)} / mes`
+                        : 'Ingresá el monto total'}
+                    </strong>
+                  </>
+                ) : (
+                  <>
+                    <small>Total de la compra ({installmentCount} cuotas):</small>
+                    <strong>
+                      {typeof formAmount === 'number' && formAmount > 0
+                        ? `${formatMoney(Math.round(formAmount * installmentCount * 100) / 100, manualCurrency)} en total`
+                        : 'Ingresá el monto por cuota'}
+                    </strong>
+                  </>
+                )}
               </div>
               {currentInstallmentNumber > 1 && (
                 <div className="installment-cuota-preview-hint">
@@ -1312,6 +1413,9 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                 setShowAdd(false);
                 setIsInstallments(false);
                 setInstallmentCount(3);
+                setIsCustomInstallmentCount(false);
+                setCustomCountInput('3');
+                setInstallmentAmountMode('total');
                 setCurrentInstallmentNumber(1);
                 setFormAmount('');
               }}
@@ -1365,24 +1469,64 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                 <label>
                   Total de cuotas
                   <select
-                    value={editInstallmentCount}
+                    value={isCustomEditInstallmentCount ? 'custom' : editInstallmentCount}
                     onChange={(e) => {
-                      const count = Number(e.target.value);
-                      setEditInstallmentCount(count);
-                      if (editInstallmentNumber > count) setEditInstallmentNumber(count);
+                      if (e.target.value === 'custom') {
+                        setIsCustomEditInstallmentCount(true);
+                        setCustomEditCountInput(String(editInstallmentCount));
+                      } else {
+                        setIsCustomEditInstallmentCount(false);
+                        const count = Number(e.target.value);
+                        setEditInstallmentCount(count);
+                        if (editInstallmentNumber > count) setEditInstallmentNumber(count);
+                      }
                     }}
                   >
-                    {[2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48].map((count) => (
+                    {PRESET_INSTALLMENT_COUNTS.map((count) => (
                       <option key={count} value={count}>
                         {count} cuotas
                       </option>
                     ))}
-                    {!([2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48].includes(editInstallmentCount)) && (
-                      <option value={editInstallmentCount}>{editInstallmentCount} cuotas</option>
-                    )}
+                    <option value="custom">✏️ Personalizada (otra cantidad)...</option>
                   </select>
                 </label>
               </div>
+              {isCustomEditInstallmentCount && (
+                <label style={{ marginTop: '8px' }}>
+                  <span>Cantidad total de cuotas (2 a 120):</span>
+                  <input
+                    type="number"
+                    min="2"
+                    max="120"
+                    value={customEditCountInput}
+                    onChange={(e) => {
+                      const valStr = e.target.value;
+                      setCustomEditCountInput(valStr);
+                      const parsed = parseInt(valStr, 10);
+                      if (!isNaN(parsed) && parsed >= 2) {
+                        const clamped = Math.min(120, parsed);
+                        setEditInstallmentCount(clamped);
+                        if (editInstallmentNumber > clamped) setEditInstallmentNumber(clamped);
+                      }
+                    }}
+                    onBlur={() => {
+                      const parsed = parseInt(customEditCountInput, 10);
+                      if (isNaN(parsed) || parsed < 2) {
+                        setCustomEditCountInput('2');
+                        setEditInstallmentCount(2);
+                      } else if (parsed > 120) {
+                        setCustomEditCountInput('120');
+                        setEditInstallmentCount(120);
+                      } else {
+                        setCustomEditCountInput(String(parsed));
+                        setEditInstallmentCount(parsed);
+                      }
+                    }}
+                    placeholder="Ej. 7, 8, 14..."
+                    autoFocus
+                  />
+                </label>
+              )}
               <div className="installment-cuota-preview-hint">
                 {editInstallmentNumber === 1
                   ? `Esta es la primera cuota. Quedarán ${editInstallmentCount - 1} cuotas en los próximos meses.`
