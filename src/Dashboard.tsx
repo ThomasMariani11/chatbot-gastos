@@ -53,7 +53,7 @@ function formatShortDate(dateStr: string) {
 
 function formatMovementDate(dateStr: string) {
   if (!dateStr) return '';
-  const [y, m, d] = dateStr.split('-').map(Number);
+  const [, m, d] = dateStr.split('-').map(Number);
   const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
   const monthAbbr = months[(m - 1) % 12];
   return `${d} ${monthAbbr}`;
@@ -161,7 +161,6 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const [isInstallments, setIsInstallments] = useState(false);
   const [installmentCount, setInstallmentCount] = useState(3);
   const [formAmount, setFormAmount] = useState<number | ''>('');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [installmentDeletePrompt, setInstallmentDeletePrompt] = useState<{ movement?: Movement; plan?: InstallmentPlan } | null>(null);
   const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
   const [editDescription, setEditDescription] = useState('');
@@ -646,14 +645,12 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
 
   async function executeDeleteSingleMovement(item: Movement) {
     const previous = movements;
-    setDeletingId(item.id);
     setMovements((current) => current.filter((movement) => movement.id !== item.id));
     const { error } = await supabase.from('transactions').delete().eq('id', item.id).eq('user_id', userId);
     if (error) {
       setMovements(previous);
       window.alert('No pudimos eliminar el movimiento. Intentá nuevamente.');
     }
-    setDeletingId(null);
   }
 
   function deleteMovement(item: Movement) {

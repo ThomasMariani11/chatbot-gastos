@@ -9,6 +9,26 @@ export function Login() {
   const [sending, setSending] = useState(false);
   const [useOtp, setUseOtp] = useState(false);
 
+  function getErrorMessage(error: { message: string }) {
+    const raw = error.message || '';
+    const lower = raw.toLowerCase();
+    if (lower.includes('invalid login credentials')) {
+      return 'Correo o contraseña incorrectos.';
+    }
+    if (
+      lower.includes('load failed') ||
+      lower.includes('failed to fetch') ||
+      lower.includes('network') ||
+      lower.includes('abort')
+    ) {
+      return 'No se pudo conectar con el servidor. Es probable que el proyecto de Supabase esté pausado por inactividad (podés reactivarlo desde supabase.com/dashboard) o que haya un problema de conexión.';
+    }
+    if (lower.includes('email not confirmed')) {
+      return 'El correo electrónico todavía no fue confirmado.';
+    }
+    return raw;
+  }
+
   async function submitPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSending(true);
@@ -22,11 +42,7 @@ export function Login() {
 
     if (error) {
       setIsError(true);
-      if (error.message.toLowerCase().includes('invalid login credentials')) {
-        setMessage('Correo o contraseña incorrectos.');
-      } else {
-        setMessage(error.message);
-      }
+      setMessage(getErrorMessage(error));
     }
     setSending(false);
   }
@@ -45,7 +61,7 @@ export function Login() {
 
     if (error) {
       setIsError(true);
-      setMessage(error.message);
+      setMessage(getErrorMessage(error));
     } else {
       setIsError(false);
       setMessage('Revisá tu correo y abrí el enlace para entrar.');
