@@ -1154,11 +1154,27 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     <button className="desktop-add" onClick={() => { setManualCurrency(activeCurrency); setShowAdd(true); }}>＋ Agregar movimiento</button>
     {showAdd && (
 
-      <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowAdd(false)}>
-        <form className="movement-form" onSubmit={addMovement} onMouseDown={(event) => event.stopPropagation()}>
-          <div>
-            <p className="eyebrow">NUEVO MOVIMIENTO</p>
-            <h2>Registrá una operación</h2>
+      <div className="modal-backdrop" role="presentation" onClick={() => setShowAdd(false)}>
+        <form className="movement-form" onSubmit={addMovement} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+            <div>
+              <p className="eyebrow">NUEVO MOVIMIENTO</p>
+              <h2>Registrá una operación</h2>
+            </div>
+            <button
+              type="button"
+              className="modal-close-x"
+              aria-label="Cerrar modal"
+              onClick={() => {
+                setShowAdd(false);
+                setIsInstallments(false);
+                setInstallmentCount(3);
+                setCurrentInstallmentNumber(1);
+                setFormAmount('');
+              }}
+            >
+              ✕
+            </button>
           </div>
           <label>
             Descripción
@@ -1311,11 +1327,21 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     )}
 
     {editingMovement && (
-      <div className="modal-backdrop" role="presentation" onMouseDown={() => setEditingMovement(null)}>
-        <form className="movement-form" onSubmit={saveMovementEdit} onMouseDown={(event) => event.stopPropagation()}>
-          <div>
-            <p className="eyebrow">MODIFICAR MOVIMIENTO</p>
-            <h2>{editingMovement.installmentCount && editingMovement.installmentCount > 1 ? 'Editar compra en cuotas' : 'Editar operación'}</h2>
+      <div className="modal-backdrop" role="presentation" onClick={() => setEditingMovement(null)}>
+        <form className="movement-form" onSubmit={saveMovementEdit} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+            <div>
+              <p className="eyebrow">MODIFICAR MOVIMIENTO</p>
+              <h2>{editingMovement.installmentCount && editingMovement.installmentCount > 1 ? 'Editar compra en cuotas' : 'Editar operación'}</h2>
+            </div>
+            <button
+              type="button"
+              className="modal-close-x"
+              aria-label="Cerrar modal"
+              onClick={() => setEditingMovement(null)}
+            >
+              ✕
+            </button>
           </div>
           {editingMovement.installmentCount && editingMovement.installmentCount > 1 && (
             <div className="installment-edit-box">
@@ -1327,16 +1353,13 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                     onChange={(e) => {
                       const num = Number(e.target.value);
                       setEditInstallmentNumber(num);
-                      if (num > editInstallmentCount) setEditInstallmentCount(num);
                     }}
                   >
-                    {Array.from({ length: Math.max(editInstallmentCount, 36) }, (_, i) => i + 1)
-                      .filter((n) => n <= Math.max(editInstallmentCount, 12))
-                      .map((num) => (
-                        <option key={num} value={num}>
-                          Cuota {num} de {editInstallmentCount}
-                        </option>
-                      ))}
+                    {Array.from({ length: editInstallmentCount }, (_, i) => i + 1).map((num) => (
+                      <option key={num} value={num}>
+                        Cuota {num} de {editInstallmentCount}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <label>
@@ -1505,8 +1528,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     )}
 
     {installmentDeletePrompt && (
-      <div className="modal-backdrop" role="presentation" onMouseDown={() => setInstallmentDeletePrompt(null)}>
-        <div className="movement-form delete-plan-modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="modal-backdrop" role="presentation" onClick={() => setInstallmentDeletePrompt(null)}>
+        <div className="movement-form delete-plan-modal" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
           <div>
             <p className="eyebrow" style={{ color: '#ea7172' }}>ELIMINAR CUOTAS</p>
             <h2>{installmentDeletePrompt.movement ? '¿Cómo querés eliminar este movimiento?' : '¿Eliminar compra en cuotas?'}</h2>
@@ -1563,14 +1586,24 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     )}
 
     {showBudgetModal && (
-      <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowBudgetModal(false)}>
-        <form className="movement-form" onSubmit={saveBudget} onMouseDown={(event) => event.stopPropagation()}>
-          <div>
-            <p className="eyebrow">PRESUPUESTO MENSUAL</p>
-            <h2>Presupuesto de {labelForMonth(month)}</h2>
-            <p style={{ color: 'var(--muted)', fontSize: '12px', margin: '4px 0 0' }}>
-              Definí tu límite de gastos para este mes.
-            </p>
+      <div className="modal-backdrop" role="presentation" onClick={() => setShowBudgetModal(false)}>
+        <form className="movement-form" onSubmit={saveBudget} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+            <div>
+              <p className="eyebrow">PRESUPUESTO MENSUAL</p>
+              <h2>Presupuesto de {labelForMonth(month)}</h2>
+              <p style={{ color: 'var(--muted)', fontSize: '12px', margin: '4px 0 0' }}>
+                Definí tu límite de gastos para este mes.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="modal-close-x"
+              aria-label="Cerrar modal"
+              onClick={() => setShowBudgetModal(false)}
+            >
+              ✕
+            </button>
           </div>
 
           <label>
@@ -1626,8 +1659,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     )}
 
     {showCategoryModal && (
-      <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowCategoryModal(false)}>
-        <div className="movement-form category-modal-container" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="modal-backdrop" role="presentation" onClick={() => setShowCategoryModal(false)}>
+        <div className="movement-form category-modal-container" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
           <div className="category-modal-header">
             <div>
               <p className="eyebrow">DISTRIBUCIÓN DE GASTOS</p>

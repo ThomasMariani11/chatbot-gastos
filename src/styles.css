@@ -438,14 +438,52 @@
 
 /* Form modal & date input fixes for iOS Safari */
 .modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
   padding: 16px;
   box-sizing: border-box;
+  background: rgba(24, 48, 41, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 .movement-form {
-  width: min(470px, 100%) !important;
+  width: min(480px, 100%) !important;
   max-width: 100% !important;
+  max-height: calc(100dvh - 32px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
   box-sizing: border-box !important;
+  margin: auto !important;
+  padding: 24px 20px !important;
+  border-radius: 20px !important;
+  background: #ffffff !important;
+  box-shadow: 0 20px 60px rgba(16, 39, 31, 0.25) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 13px !important;
+}
+
+.movement-form::-webkit-scrollbar {
+  width: 4px;
+}
+
+.movement-form::-webkit-scrollbar-thumb {
+  background: #d5ded9;
+  border-radius: 4px;
+}
+
+.modal-actions-grid-2,
+.modal-actions-grid-3 {
+  flex-shrink: 0 !important;
+  margin-top: 6px !important;
+  padding-bottom: 2px;
 }
 
 .movement-form label:not(.switch-row),
