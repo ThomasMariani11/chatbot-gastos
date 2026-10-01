@@ -8,6 +8,7 @@ type Movement = {
   category: string;
   categoryId?: string;
   amount: number;
+  currency: 'ARS' | 'USD';
   date: string;
   kind: 'expense' | 'income';
   icon: string;
@@ -29,6 +30,7 @@ type InstallmentPlan = {
   groupId: string;
   description: string;
   totalAmount: number;
+  currency: 'ARS' | 'USD';
   installmentCount: number;
   vanCount: number;
   monthlyAmount: number;
@@ -40,7 +42,18 @@ type InstallmentPlan = {
 
 type Props = { userId: string; onOpenSettings: () => void; onSignOut: () => void };
 
-const money = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+const moneyArs = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+
+function formatMoney(amount: number, currency: 'ARS' | 'USD' = 'ARS') {
+  if (currency === 'USD') {
+    const hasDecimals = amount % 1 !== 0;
+    return `US$ ${amount.toLocaleString('es-AR', {
+      minimumFractionDigits: hasDecimals ? 2 : 0,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+  return moneyArs.format(amount);
+}
 
 function formatShortDate(dateStr: string) {
   if (!dateStr) return '';
@@ -144,6 +157,9 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     return Array.from(monthsSet).sort();
   }, [currentMonth, month, knownMonths]);
 
+  const [activeCurrency, setActiveCurrency] = useState<'ARS' | 'USD'>('ARS');
+  const [manualCurrency, setManualCurrency] = useState<'ARS' | 'USD'>('ARS');
+  const [editCurrency, setEditCurrency] = useState<'ARS' | 'USD'>('ARS');
   const [movements, setMovements] = useState<Movement[]>([]);
   const [installmentPlans, setInstallmentPlans] = useState<InstallmentPlan[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
@@ -173,17 +189,24 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   const availableCategories = useMemo(() => categories.filter((category) => category.kind === manualKind), [categories, manualKind]);
   const availableEditCategories = useMemo(() => categories.filter((category) => category.kind === editKind), [categories, editKind]);
 
+  const filteredMovements = useMemo(() => {
+    return movements.filter((item) => (item.currency || 'ARS') === activeCurrency);
+  }, [movements, activeCurrency]);
 
-  const expenses = useMemo(() => movements.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0), [movements]);
-  const income = useMemo(() => movements.filter((item) => item.kind === 'income').reduce((sum, item) => sum + item.amount, 0), [movements]);
+  const filteredInstallmentPlans = useMemo(() => {
+    return installmentPlans.filter((plan) => (plan.currency || 'ARS') === activeCurrency);
+  }, [installmentPlans, activeCurrency]);
+
+  const expenses = useMemo(() => filteredMovements.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0), [filteredMovements]);
+  const income = useMemo(() => filteredMovements.filter((item) => item.kind === 'income').reduce((sum, item) => sum + item.amount, 0), [filteredMovements]);
   const progress = budget > 0 ? Math.round((expenses / budget) * 100) : 0;
   const chartData = useMemo(() => {
     const grouped = new Map<string, number>();
-    movements
+    filteredMovements
       .filter((item) => item.kind === 'expense')
       .forEach((item) => grouped.set(item.category, (grouped.get(item.category) ?? 0) + item.amount));
     return Array.from(grouped, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [movements]);
+  }, [filteredMovements]);
   const chartColors = [
     '#655ad8', // violeta
     '#20b984', // menta / verde
@@ -239,9 +262,9 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       if (loading) return;
       loading = true;
       const [transactions, budgets, allInstallments, whatsappLink, appSettings, distinctMonthsRes] = await Promise.all([
-        supabase.from('transactions').select('id,description,amount_ars,occurred_on,kind,category_id,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
+        supabase.from('transactions').select('id,description,amount_ars,currency,occurred_on,kind,category_id,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
         supabase.from('budgets').select('amount_ars').eq('user_id', userId).eq('month', monthStart).maybeSingle(),
-        supabase.from('transactions').select('id,description,amount_ars,occurred_on,installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
+        supabase.from('transactions').select('id,description,amount_ars,currency,occurred_on,installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
         supabase.from('whatsapp_links').select('status').eq('user_id', userId).maybeSingle(),
         supabase.from('app_settings').select('whatsapp_responses_enabled,paid_service_messages_authorized,cost_guard_date').eq('user_id', userId).maybeSingle(),
         supabase.rpc('get_distinct_transaction_months'),
@@ -255,6 +278,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           category: String((row.categories as { name?: string } | null)?.name ?? 'Otros'),
           categoryId: row.category_id ? String(row.category_id) : undefined,
           amount: Number(row.amount_ars),
+          currency: (row.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
           date: String(row.occurred_on),
           kind: row.kind as 'expense' | 'income',
           icon: row.kind === 'income' ? '↗' : '•',
@@ -364,6 +388,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               groupId,
               description: desc,
               totalAmount: rows.reduce((sum, r) => sum + Number(r.amount_ars), 0),
+              currency: (rows[0]?.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
               installmentCount: totalCount,
               vanCount,
               monthlyAmount,
@@ -426,6 +451,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
   async function addMovement(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const currency = (form.get('currency') as 'ARS' | 'USD') || manualCurrency;
     const kind = form.get('kind') as 'expense' | 'income';
     const selectedCategory = categories.find((category) => category.id === categoryId && category.kind === kind);
     if (!selectedCategory) return window.alert('Seleccioná una categoría válida.');
@@ -442,6 +468,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           kind: 'expense',
           description,
           amount_ars: totalAmount,
+          currency,
           occurred_on: dateStr,
           category_id: selectedCategory.id,
           status: 'cancelled',
@@ -464,6 +491,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         kind: 'expense',
         description,
         amount_ars: amount,
+        currency,
         occurred_on: `${shiftMonth(startMonth, index)}-${day}`,
         category_id: selectedCategory.id,
         status: 'confirmed',
@@ -483,6 +511,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         kind,
         description,
         amount_ars: totalAmount,
+        currency,
         occurred_on: dateStr,
         category_id: selectedCategory.id,
         status: 'confirmed',
@@ -499,6 +528,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
       setKnownMonths((prev) => Array.from(new Set([...prev, targetMonth])));
     }
     setMonth(targetMonth);
+    setActiveCurrency(currency);
 
     setShowAdd(false);
     setIsInstallments(false);
@@ -511,6 +541,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
     setEditDescription(item.title);
     setEditAmount(item.amount);
     setEditKind(item.kind);
+    setEditCurrency(item.currency || 'ARS');
     const matchingCatId = item.categoryId ?? categories.find((c) => c.name === item.category && c.kind === item.kind)?.id ?? '';
     setEditCategoryId(matchingCatId);
     setEditDate(item.date);
@@ -564,6 +595,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             category_id: selectedCategory.id,
             occurred_on: cuotaDate,
             amount_ars: amount,
+            currency: editCurrency,
           })
           .eq('id', row.id)
           .eq('user_id', userId);
@@ -578,6 +610,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           first_installment_month: newStartMonth,
           occurred_on: `${newStartMonth}-${targetDay}`,
           amount_ars: amount * (editingMovement.installmentCount ?? 1),
+          currency: editCurrency,
         })
         .eq('id', groupId)
         .eq('user_id', userId);
@@ -594,6 +627,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         .update({
           description,
           amount_ars: amount,
+          currency: editCurrency,
           kind: editKind,
           category_id: selectedCategory.id,
           occurred_on: dateStr,
@@ -614,6 +648,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             ...m,
             title: description,
             amount,
+            currency: editCurrency,
             kind: editKind,
             category: selectedCategory.name,
             categoryId: selectedCategory.id,
@@ -625,6 +660,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           return {
             ...m,
             title: description,
+            currency: editCurrency,
             category: selectedCategory.name,
             categoryId: selectedCategory.id,
           };
@@ -722,17 +758,81 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           <button aria-label="Notificaciones" className="icon-button">♢</button>
         </div>
       </header>
-      <section className="summary-grid" aria-label="Resumen mensual">
-        <article className="summary-card expense"><div className="card-heading"><span className="metric-icon">↘</span><small>GASTOS DEL MES</small></div><strong>{money.format(expenses)}</strong><p>Actualizado automáticamente</p></article>
-        <article className="summary-card income"><div className="card-heading"><span className="metric-icon">↗</span><small>INGRESOS DEL MES</small></div><strong>{money.format(income)}</strong><p>Actualizado automáticamente</p></article>
-        <article className="summary-card balance"><div className="card-heading"><span className="metric-icon">◎</span><small>BALANCE</small></div><strong>{money.format(income - expenses)}</strong><p>Disponible este mes</p></article>
+      <div className="currency-switch-bar">
+        <div className="currency-pills" role="tablist" aria-label="Seleccionar moneda">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeCurrency === 'ARS'}
+            className={`currency-pill ${activeCurrency === 'ARS' ? 'active' : ''}`}
+            onClick={() => setActiveCurrency('ARS')}
+          >
+            <span className="currency-flag">🇦🇷</span>
+            <span>Pesos (ARS)</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeCurrency === 'USD'}
+            className={`currency-pill ${activeCurrency === 'USD' ? 'active' : ''}`}
+            onClick={() => setActiveCurrency('USD')}
+          >
+            <span className="currency-flag">🇺🇸</span>
+            <span>Dólares (USD)</span>
+          </button>
+        </div>
+      </div>
+      <section className="summary-grid" aria-label={`Resumen mensual en ${activeCurrency}`}>
+        <article className="summary-card expense">
+          <div className="card-heading">
+            <span className="metric-icon">↘</span>
+            <small>GASTOS {activeCurrency}</small>
+          </div>
+          <strong>{formatMoney(expenses, activeCurrency)}</strong>
+          <p>Actualizado automáticamente</p>
+        </article>
+        <article className="summary-card income">
+          <div className="card-heading">
+            <span className="metric-icon">↗</span>
+            <small>INGRESOS {activeCurrency}</small>
+          </div>
+          <strong>{formatMoney(income, activeCurrency)}</strong>
+          <p>Actualizado automáticamente</p>
+        </article>
+        <article className="summary-card balance">
+          <div className="card-heading">
+            <span className="metric-icon">◎</span>
+            <small>BALANCE {activeCurrency}</small>
+          </div>
+          <strong>{formatMoney(income - expenses, activeCurrency)}</strong>
+          <p>Disponible este mes</p>
+        </article>
       </section>
-      <section className="main-grid">
-        <article className="panel budget-card"><div className="panel-title"><div><h2>Presupuesto mensual</h2><p>Tu límite de gastos para {labelForMonth(month).toLowerCase()}</p></div><button className="text-button" onClick={openBudgetModal}>Editar</button></div><div className="budget-numbers"><div><span>Gastado</span><strong>{money.format(expenses)}</strong></div><div className="align-right"><span>Presupuesto</span><strong>{money.format(budget)}</strong></div></div><div className="progress-track"><span style={{ width: `${Math.min(progress, 100)}%` }}/></div><div className="progress-copy"><span>{progress}% utilizado</span><span>Te quedan <strong>{money.format(budget - expenses)}</strong></span></div></article>
+      <section className={`main-grid ${activeCurrency === 'USD' ? 'main-grid-usd' : ''}`}>
+        {activeCurrency === 'ARS' && (
+          <article className="panel budget-card">
+            <div className="panel-title">
+              <div>
+                <h2>Presupuesto mensual</h2>
+                <p>Tu límite de gastos para {labelForMonth(month).toLowerCase()}</p>
+              </div>
+              <button className="text-button" onClick={openBudgetModal}>Editar</button>
+            </div>
+            <div className="budget-numbers">
+              <div><span>Gastado</span><strong>{formatMoney(expenses, 'ARS')}</strong></div>
+              <div className="align-right"><span>Presupuesto</span><strong>{formatMoney(budget, 'ARS')}</strong></div>
+            </div>
+            <div className="progress-track"><span style={{ width: `${Math.min(progress, 100)}%` }}/></div>
+            <div className="progress-copy">
+              <span>{progress}% utilizado</span>
+              <span>Te quedan <strong>{formatMoney(budget - expenses, 'ARS')}</strong></span>
+            </div>
+          </article>
+        )}
         <article className="panel category-card">
           <div className="panel-title">
             <div>
-              <h2>Gastos por categoría</h2>
+              <h2>Gastos por categoría {activeCurrency === 'USD' ? '(USD)' : ''}</h2>
               <p>Distribución del mes</p>
             </div>
             {chartData.length > 0 && (
@@ -798,8 +898,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               <div>
                 <strong>
                   {dashboardActiveCategory
-                    ? money.format(chartData.find((c) => c.name === dashboardActiveCategory)?.value ?? expenses)
-                    : money.format(expenses)}
+                    ? formatMoney(chartData.find((c) => c.name === dashboardActiveCategory)?.value ?? expenses, activeCurrency)
+                    : formatMoney(expenses, activeCurrency)}
                 </strong>
                 <span>{dashboardActiveCategory ?? 'Total'}</span>
               </div>
@@ -836,15 +936,15 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         <article className="panel movements-card" id="movimientos">
           <div className="panel-title">
             <div>
-              <h2>Últimos movimientos</h2>
-              <p>Tus operaciones más recientes</p>
+              <h2>Últimos movimientos {activeCurrency === 'USD' ? '(USD)' : '(ARS)'}</h2>
+              <p>Tus operaciones más recientes en {activeCurrency === 'USD' ? 'dólares' : 'pesos'}</p>
             </div>
           </div>
           <div className="movement-list">
-            {movements.length === 0 ? (
-              <p className="empty-movements">Todavía no hay movimientos en este mes.</p>
+            {filteredMovements.length === 0 ? (
+              <p className="empty-movements">Todavía no hay movimientos en {activeCurrency} este mes.</p>
             ) : (
-              movements.map((item) => (
+              filteredMovements.map((item) => (
                 <div
                   className="movement"
                   key={item.id}
@@ -863,7 +963,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                     </small>
                   </div>
                   <div className="movement-right">
-                    <b className={item.kind}>{item.kind === 'expense' ? '−' : '+'}{money.format(item.amount)}</b>
+                    <b className={item.kind}>{item.kind === 'expense' ? '−' : '+'}{formatMoney(item.amount, item.currency)}</b>
                     <span className="movement-chevron" aria-hidden="true">›</span>
                   </div>
                 </div>
@@ -874,20 +974,20 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         <article className="panel installments-card" id="cuotas">
           <div className="panel-title">
             <div>
-              <h2>Próximas cuotas</h2>
-              <p>Compromisos futuros</p>
+              <h2>Próximas cuotas {activeCurrency === 'USD' ? '(USD)' : '(ARS)'}</h2>
+              <p>Compromisos futuros en {activeCurrency === 'USD' ? 'dólares' : 'pesos'}</p>
             </div>
-            <span className="pill">{installmentPlans.length} {installmentPlans.length === 1 ? 'activa' : 'activas'}</span>
+            <span className="pill">{filteredInstallmentPlans.length} {filteredInstallmentPlans.length === 1 ? 'activa' : 'activas'}</span>
           </div>
-          {installmentPlans.length === 0 ? (
+          {filteredInstallmentPlans.length === 0 ? (
             <div className="installments-empty">
               <span>✓</span>
-              <strong>No tenés cuotas pendientes</strong>
-              <small>Cuando registres una compra en cuotas, aparecerá acá.</small>
+              <strong>No tenés cuotas pendientes en {activeCurrency}</strong>
+              <small>Cuando registres una compra en cuotas en {activeCurrency}, aparecerá acá.</small>
             </div>
           ) : (
             <div className="installments-list">
-              {installmentPlans.map((plan) => (
+              {filteredInstallmentPlans.map((plan) => (
                 <div className="installment-item" key={plan.groupId}>
                   <div className="installment-header">
                     <div className="installment-info-col">
@@ -895,10 +995,10 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                         <span className="installment-date">{formatShortDate(plan.currentDateStr)}</span>
                       )}
                       <strong className="installment-title">{plan.description}</strong>
-                      <small className="installment-subtitle">Total compra: {money.format(plan.totalAmount)}</small>
+                      <small className="installment-subtitle">Total compra: {formatMoney(plan.totalAmount, plan.currency)}</small>
                     </div>
                     <div className="installment-amount-col">
-                      <strong className="installment-amount">{money.format(plan.monthlyAmount)}</strong>
+                      <strong className="installment-amount">{formatMoney(plan.monthlyAmount, plan.currency)}</strong>
                       <span className="installment-cuota-badge">Cuota {plan.vanCount}/{plan.installmentCount}</span>
                     </div>
                   </div>
@@ -919,7 +1019,6 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                     </button>
                   </div>
                 </div>
-
               ))}
             </div>
           )}
@@ -936,7 +1035,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         <IconMovements />
         <span>Movimientos</span>
       </a>
-      <button aria-label="Agregar movimiento" onClick={() => setShowAdd(true)}>
+      <button aria-label="Agregar movimiento" onClick={() => { setManualCurrency(activeCurrency); setShowAdd(true); }}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
@@ -951,7 +1050,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         <span>Ajustes</span>
       </button>
     </nav>
-    <button className="desktop-add" onClick={() => setShowAdd(true)}>＋ Agregar movimiento</button>
+    <button className="desktop-add" onClick={() => { setManualCurrency(activeCurrency); setShowAdd(true); }}>＋ Agregar movimiento</button>
     {showAdd && (
 
       <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowAdd(false)}>
@@ -966,18 +1065,15 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           </label>
           <div className="form-grid">
             <label>
-              {isInstallments && manualKind === 'expense' ? 'Monto total compra (ARS)' : 'Monto ARS'}
-              <input
-                name="amount"
-                required
-                min="0.01"
-                step="0.01"
-                type="number"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={formAmount}
-                onChange={(e) => setFormAmount(e.target.value === '' ? '' : Number(e.target.value))}
-              />
+              Moneda
+              <select
+                name="currency"
+                value={manualCurrency}
+                onChange={(e) => setManualCurrency(e.target.value as 'ARS' | 'USD')}
+              >
+                <option value="ARS">🇦🇷 Pesos (ARS)</option>
+                <option value="USD">🇺🇸 Dólares (USD)</option>
+              </select>
             </label>
             <label>
               Tipo
@@ -995,6 +1091,20 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               </select>
             </label>
           </div>
+          <label>
+            {isInstallments && manualKind === 'expense' ? `Monto total compra (${manualCurrency})` : `Monto (${manualCurrency})`}
+            <input
+              name="amount"
+              required
+              min="0.01"
+              step="0.01"
+              type="number"
+              inputMode="decimal"
+              placeholder="0.00"
+              value={formAmount}
+              onChange={(e) => setFormAmount(e.target.value === '' ? '' : Number(e.target.value))}
+            />
+          </label>
           {manualKind === 'expense' && (
             <label className="switch-row" style={{ marginTop: '2px', padding: '6px 0' }}>
               <span>
@@ -1030,7 +1140,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                 <small>Valor por cuota:</small>
                 <strong>
                   {typeof formAmount === 'number' && formAmount > 0
-                    ? `${money.format(Math.round(formAmount / installmentCount))} / mes`
+                    ? `${formatMoney(Math.round((formAmount / installmentCount) * 100) / 100, manualCurrency)} / mes`
                     : 'Ingresá el total'}
                 </strong>
               </div>
@@ -1101,18 +1211,15 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           </label>
           <div className="form-grid">
             <label>
-              Monto ARS
-              <input
-                name="amount"
-                required
-                min="0.01"
-                step="0.01"
-                type="number"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={editAmount}
-                onChange={(e) => setEditAmount(e.target.value === '' ? '' : Number(e.target.value))}
-              />
+              Moneda
+              <select
+                name="currency"
+                value={editCurrency}
+                onChange={(e) => setEditCurrency(e.target.value as 'ARS' | 'USD')}
+              >
+                <option value="ARS">🇦🇷 Pesos (ARS)</option>
+                <option value="USD">🇺🇸 Dólares (USD)</option>
+              </select>
             </label>
             <label>
               Tipo
@@ -1132,6 +1239,22 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               </select>
             </label>
           </div>
+          <label>
+            {editingMovement.installmentCount && editingMovement.installmentCount > 1 && editApplyToAll
+              ? `Monto por cuota (${editCurrency})`
+              : `Monto (${editCurrency})`}
+            <input
+              name="amount"
+              required
+              min="0.01"
+              step="0.01"
+              type="number"
+              inputMode="decimal"
+              placeholder="0.00"
+              value={editAmount}
+              onChange={(e) => setEditAmount(e.target.value === '' ? '' : Number(e.target.value))}
+            />
+          </label>
           <div className="form-grid">
             <label>
               Categoría
@@ -1232,7 +1355,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               >
                 <div>
                   <strong>Eliminar solo esta cuota</strong>
-                  <small>Borra únicamente el pago de este mes ({money.format(installmentDeletePrompt.movement.amount)})</small>
+                  <small>Borra únicamente el pago de este mes ({formatMoney(installmentDeletePrompt.movement.amount, installmentDeletePrompt.movement.currency || activeCurrency)})</small>
                 </div>
                 <span>›</span>
               </button>
@@ -1296,12 +1419,12 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
             <div className="installment-calc-preview" style={{ height: 'auto', padding: '10px 14px', gap: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#6d7d77' }}>
                 <span>Gastado en {labelForMonth(month)}:</span>
-                <strong style={{ color: 'var(--ink)' }}>{money.format(expenses)}</strong>
+                <strong style={{ color: 'var(--ink)' }}>{formatMoney(expenses, 'ARS')}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #dce8e1' }}>
                 <span>Disponible con este límite:</span>
                 <strong style={{ color: budgetInput - expenses >= 0 ? 'var(--mint-dark)' : '#d32f2f' }}>
-                  {money.format(budgetInput - expenses)}
+                  {formatMoney(budgetInput - expenses, 'ARS')}
                 </strong>
               </div>
             </div>
@@ -1336,7 +1459,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               <p className="eyebrow">DISTRIBUCIÓN DE GASTOS</p>
               <h2>Gastos por categoría</h2>
               <p className="category-modal-subtitle">
-                {labelForMonth(month)} · Total: <strong>{money.format(expenses)}</strong>
+                {labelForMonth(month)} · Total: <strong>{formatMoney(expenses, activeCurrency)}</strong>
               </p>
             </div>
             <button
@@ -1386,8 +1509,8 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               <div>
                 <strong>
                   {expandedCategoryInModal
-                    ? money.format(chartData.find((c) => c.name === expandedCategoryInModal)?.value ?? expenses)
-                    : money.format(expenses)}
+                    ? formatMoney(chartData.find((c) => c.name === expandedCategoryInModal)?.value ?? expenses, activeCurrency)
+                    : formatMoney(expenses, activeCurrency)}
                 </strong>
                 <span>
                   {expandedCategoryInModal ?? 'Total'}
@@ -1406,7 +1529,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
               const color = chartColors[index % chartColors.length];
               const percent = expenses ? Math.round((entry.value / expenses) * 100) : 0;
               const isExpanded = expandedCategoryInModal === entry.name;
-              const catMovements = movements.filter((m) => m.kind === 'expense' && m.category === entry.name);
+              const catMovements = filteredMovements.filter((m) => m.kind === 'expense' && m.category === entry.name);
 
               return (
                 <div key={entry.name} className={`category-modal-item ${isExpanded ? 'active' : ''}`}>
@@ -1428,7 +1551,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                         </span>
                       </div>
                       <div className="category-modal-right">
-                        <strong className="category-modal-amount">{money.format(entry.value)}</strong>
+                        <strong className="category-modal-amount">{formatMoney(entry.value, activeCurrency)}</strong>
                         <span className="category-modal-badge" style={{ background: `${color}18`, color }}>
                           {percent}%
                         </span>
@@ -1462,7 +1585,7 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
                               </span>
                             </div>
                             <div className="category-modal-mov-right">
-                              <b className="category-modal-mov-amount">−{money.format(m.amount)}</b>
+                              <b className="category-modal-mov-amount">−{formatMoney(m.amount, m.currency || activeCurrency)}</b>
                             </div>
                           </div>
                         ))

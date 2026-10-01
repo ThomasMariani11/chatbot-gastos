@@ -4,6 +4,7 @@ export type FinancialProposal = {
   kind: TransactionKind;
   description: string;
   totalAmountArs: number | null;
+  currency?: 'ARS' | 'USD';
   occurredOn: string | null;
   category: string | null;
   installments: number;
@@ -17,6 +18,7 @@ export type Movement = {
   description: string;
   categoryName: string;
   amountArs: number;
+  currency?: 'ARS' | 'USD';
   occurredOn: string;
   kind: TransactionKind;
   status: 'pending' | 'confirmed' | 'cancelled';

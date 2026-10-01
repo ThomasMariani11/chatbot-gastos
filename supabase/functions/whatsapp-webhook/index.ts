@@ -13,6 +13,7 @@ type FinancialProposal = {
   kind: 'expense' | 'income';
   description: string;
   totalAmountArs: number | null;
+  currency: 'ARS' | 'USD';
   occurredOn: string | null;
   category: string | null;
   installments: number;
@@ -88,6 +89,7 @@ const responseJsonSchema = {
     kind: { type: 'string', enum: ['expense', 'income'] },
     description: { type: 'string' },
     totalAmountArs: { type: ['number', 'null'] },
+    currency: { type: 'string', enum: ['ARS', 'USD'] },
     occurredOn: { type: ['string', 'null'] },
     category: { type: ['string', 'null'] },
     installments: { type: 'integer', minimum: 1, maximum: 60 },
@@ -95,7 +97,7 @@ const responseJsonSchema = {
     confidence: { type: 'number', minimum: 0, maximum: 1 },
     missingFields: { type: 'array', items: { type: 'string', enum: ['amount', 'date', 'category'] } },
   },
-  required: ['kind', 'description', 'totalAmountArs', 'occurredOn', 'category', 'installments', 'firstInstallmentMonth', 'confidence', 'missingFields'],
+  required: ['kind', 'description', 'totalAmountArs', 'currency', 'occurredOn', 'category', 'installments', 'firstInstallmentMonth', 'confidence', 'missingFields'],
 };
 
 async function extractFinancialProposal(input: { text?: string; mediaBase64?: string; mimeType?: string }): Promise<FinancialProposal> {
@@ -107,7 +109,7 @@ async function extractFinancialProposal(input: { text?: string; mediaBase64?: st
     month: '2-digit',
     day: '2-digit',
   }).format(new Date());
-  const prompt = `Fecha local: ${today}. Extraé una sola operación financiera argentina. Interpretá “lucas” y “k” como miles de ARS. Si la fecha no está expresada, usá la fecha local. Categorías de gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros. Categorías de ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros. Si es una compra en cuotas y el usuario menciona que ya pagó N cuotas (ej. "en 6 cuotas y ya pagué 2"), calculá firstInstallmentMonth restando N meses a la fecha actual para que la primera cuota comience en el mes histórico correspondiente. Si el mensaje o audio no contiene una operación financiera clara, o es solo ruido de fondo, murmullo o incomprensible, devolvé totalAmountArs null y confidence 0. ${input.text ?? ''}`;
+  const prompt = `Fecha local: ${today}. Extraé una sola operación financiera (en pesos argentinos ARS o dólares estadounidenses USD). Moneda: "USD" si el usuario menciona dólares, usd, u$s, greens, etc.; de lo contrario por defecto "ARS". Interpretá “lucas” y “k” como miles de ARS. Si la fecha no está expresada, usá la fecha local. Categorías de gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros. Categorías de ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros. Si es una compra en cuotas y el usuario menciona que ya pagó N cuotas (ej. "en 6 cuotas y ya pagué 2"), calculá firstInstallmentMonth restando N meses a la fecha actual para que la primera cuota comience en el mes histórico correspondiente. Si el mensaje o audio no contiene una operación financiera clara, o es solo ruido de fondo, murmullo o incomprensible, devolvé totalAmountArs null y confidence 0. ${input.text ?? ''}`;
 
   const parts: Array<Record<string, unknown>> = [{ text: prompt }];
   if (input.mediaBase64 && input.mimeType) parts.push({ inlineData: { mimeType: input.mimeType, data: input.mediaBase64 } });
@@ -148,10 +150,16 @@ function serviceMessagesAllowed(costGuardDate: string | null | undefined, overri
 }
 
 function formatProposal(proposal: FinancialProposal) {
-  const amount = proposal.totalAmountArs == null ? 'Falta indicar' : new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(proposal.totalAmountArs);
+  const isUsd = proposal.currency === 'USD';
+  const amount = proposal.totalAmountArs == null
+    ? 'Falta indicar'
+    : isUsd
+      ? `US$ ${proposal.totalAmountArs.toLocaleString('es-AR', { minimumFractionDigits: proposal.totalAmountArs % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}`
+      : new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(proposal.totalAmountArs);
   const type = proposal.kind === 'expense' ? 'Gasto' : 'Ingreso';
+  const currTag = isUsd ? ' [USD]' : '';
   const installments = proposal.installments > 1 ? `\nCuotas: ${proposal.installments} desde ${proposal.firstInstallmentMonth}` : '';
-  return `¿Confirmás esta operación?\n\n${type}: ${proposal.description}\nMonto: ${amount}\nCategoría: ${proposal.category ?? 'Falta indicar'}\nFecha: ${proposal.occurredOn ?? 'Falta indicar'}${installments}\n\nRespondé CONFIRMAR, CANCELAR o escribí la corrección.`;
+  return `¿Confirmás esta operación?\n\n${type}${currTag}: ${proposal.description}\nMonto: ${amount}\nCategoría: ${proposal.category ?? 'Falta indicar'}\nFecha: ${proposal.occurredOn ?? 'Falta indicar'}${installments}\n\nRespondé CONFIRMAR, CANCELAR o escribí la corrección.`;
 }
 
 Deno.serve(async (request) => {
@@ -205,13 +213,31 @@ Deno.serve(async (request) => {
 
     if (isConfirm) {
       const { data: pending } = await supabase.from('transactions').select('*').eq('user_id', link.user_id).eq('status', 'pending').order('created_at', { ascending: false }).limit(1).maybeSingle();
-      if (!pending) await sendWhatsAppText(message.from, 'No tenés ninguna operación pendiente.');
-      else if ((pending.installment_count ?? 1) > 1) {
+      if (!pending) {
+        await sendWhatsAppText(message.from, 'No tenés ninguna operación pendiente.');
+      } else if ((pending.installment_count ?? 1) > 1) {
         const values = splitInstallments(Number(pending.amount_ars), pending.installment_count);
-        const rows = values.map((amount, index) => ({ user_id: link.user_id, kind: pending.kind, description: pending.description, amount_ars: amount, occurred_on: `${addMonths(pending.first_installment_month, index)}-01`, category_id: pending.category_id, status: 'confirmed', source: pending.source, installment_group_id: pending.id, installment_number: index + 1, installment_count: values.length }));
+        const isUsd = pending.currency === 'USD';
+        const quotaText = isUsd
+          ? `US$ ${values[0].toLocaleString('es-AR', { minimumFractionDigits: values[0] % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}`
+          : new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(values[0]);
+        const rows = values.map((amount, index) => ({
+          user_id: link.user_id,
+          kind: pending.kind,
+          description: pending.description,
+          amount_ars: amount,
+          currency: pending.currency || 'ARS',
+          occurred_on: `${addMonths(pending.first_installment_month, index)}-01`,
+          category_id: pending.category_id,
+          status: 'confirmed',
+          source: pending.source,
+          installment_group_id: pending.id,
+          installment_number: index + 1,
+          installment_count: values.length,
+        }));
         await supabase.from('transactions').insert(rows);
         await supabase.from('transactions').update({ status: 'cancelled' }).eq('id', pending.id);
-        await sendWhatsAppText(message.from, `Listo: registré ${values.length} cuotas de ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(values[0])}.`);
+        await sendWhatsAppText(message.from, `Listo: registré ${values.length} cuotas de ${quotaText}.`);
       } else {
         await supabase.from('transactions').update({ status: 'confirmed', confirmed_at: new Date().toISOString() }).eq('id', pending.id);
         await sendWhatsAppText(message.from, 'Listo, quedó registrado ✅');
@@ -231,7 +257,21 @@ Deno.serve(async (request) => {
       const { data: category } = await supabase.from('categories').select('id').eq('user_id', link.user_id).eq('kind', proposal.kind).ilike('name', proposal.category ?? 'Otros').maybeSingle();
       // Cancelar cualquier propuesta previa que haya quedado pendiente
       await supabase.from('transactions').update({ status: 'cancelled' }).eq('user_id', link.user_id).eq('status', 'pending');
-      await supabase.from('transactions').insert({ user_id: link.user_id, kind: proposal.kind, description: proposal.description, amount_ars: proposal.totalAmountArs, occurred_on: proposal.occurredOn, category_id: category?.id ?? null, status: 'pending', source: message.type, confidence: proposal.confidence, installment_count: proposal.installments, first_installment_month: proposal.firstInstallmentMonth ?? proposal.occurredOn?.slice(0, 7), wa_message_id: message.id });
+      await supabase.from('transactions').insert({
+        user_id: link.user_id,
+        kind: proposal.kind,
+        description: proposal.description,
+        amount_ars: proposal.totalAmountArs,
+        currency: proposal.currency || 'ARS',
+        occurred_on: proposal.occurredOn,
+        category_id: category?.id ?? null,
+        status: 'pending',
+        source: message.type,
+        confidence: proposal.confidence,
+        installment_count: proposal.installments,
+        first_installment_month: proposal.firstInstallmentMonth ?? proposal.occurredOn?.slice(0, 7),
+        wa_message_id: message.id,
+      });
       await sendWhatsAppText(message.from, formatProposal(proposal));
     }
     await supabase.from('inbound_events').update({ status: 'processed', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
