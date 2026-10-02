@@ -72,8 +72,9 @@ La **Fase 1 (Base de Datos & Roles en Supabase)** ya está 100% desplegada y ver
 
 ```mermaid
 flowchart LR
-    F2["Fase 2 (SIGUIENTE)\nPanel de Administrador"] --> F3["Fase 3\nRegistro con Enlace Inteligente"]
-    F3 --> F4["Fase 4\nConectar WhatsApp en 1 clic"]
+    F1["Fase 1 ✅\nBase de Datos y Roles"] --> F2["Fase 2 ✅\nPanel de Administrador"]
+    F2 --> F3["Fase 3 ✅\nRegistro con Enlace Inteligente"]
+    F3 --> F4["Fase 4 (SIGUIENTE)\nConectar WhatsApp en 1 toque"]
     F4 --> F5["Fase 5\nConfiguración limpia y Paywall"]
 ```
 
