@@ -5,7 +5,7 @@ type ClientProfile = {
   id: string;
   email: string | null;
   role: 'admin' | 'client';
-  subscription_status: 'active' | 'expired' | 'suspended';
+  subscription_status: 'active' | 'expired' | 'suspended' | 'pending_code';
   subscription_until: string | null;
   phone_number: string | null;
   created_at: string;
@@ -482,7 +482,9 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
                             )}
                           </td>
                           <td>
-                            {client.subscription_status === 'suspended' ? (
+                            {client.subscription_status === 'pending_code' ? (
+                              <span className="status-pill orange">🟡 Pendiente activación</span>
+                            ) : client.subscription_status === 'suspended' ? (
                               <span className="status-pill gray">⏸️ Suspendido</span>
                             ) : isExpired ? (
                               <span className="status-pill red">🔴 Vencido</span>
