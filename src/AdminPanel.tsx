@@ -76,13 +76,19 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
+  // Configuración de WhatsApp Bot
+  const [botPhone, setBotPhone] = useState('');
+  const [savingBotPhone, setSavingBotPhone] = useState(false);
+  const [botPhoneSuccess, setBotPhoneSuccess] = useState<string | null>(null);
+
   async function loadData() {
     setLoading(true);
     setErrorMsg(null);
 
-    const [profilesRes, codesRes] = await Promise.all([
+    const [profilesRes, codesRes, botPhoneRes] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('invitation_codes').select('*').order('created_at', { ascending: false }),
+      supabase.from('system_config').select('value').eq('key', 'whatsapp_bot_phone').maybeSingle(),
     ]);
 
     if (profilesRes.error) {
@@ -95,6 +101,10 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
       setErrorMsg((prev) => (prev ? prev + ' | ' : '') + 'No se pudieron cargar los códigos: ' + codesRes.error.message);
     } else {
       setCodes((codesRes.data ?? []) as InvitationCode[]);
+    }
+
+    if (botPhoneRes.data?.value) {
+      setBotPhone(botPhoneRes.data.value);
     }
 
     setLoading(false);
@@ -173,6 +183,30 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     void navigator.clipboard.writeText(inviteUrl);
     setCopyFeedback('¡Enlace copiado al portapapeles!');
     setTimeout(() => setCopyFeedback(null), 3000);
+  }
+
+  // Guardar número de WhatsApp del bot
+  async function handleSaveBotPhone(e: FormEvent) {
+    e.preventDefault();
+    setSavingBotPhone(true);
+    setBotPhoneSuccess(null);
+    const cleanNumber = botPhone.trim().replace(/[^\d+]/g, '');
+    const { error } = await supabase
+      .from('system_config')
+      .upsert({
+        key: 'whatsapp_bot_phone',
+        value: cleanNumber,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'key' });
+
+    setSavingBotPhone(false);
+    if (error) {
+      window.alert('Error al guardar el número del bot: ' + error.message);
+    } else {
+      setBotPhone(cleanNumber);
+      setBotPhoneSuccess('¡Número del bot guardado exitosamente!');
+      setTimeout(() => setBotPhoneSuccess(null), 3500);
+    }
   }
 
   // Extender suscripción (+30 días)
@@ -324,6 +358,54 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
             <span className="kpi-label">Total registrados</span>
           </div>
         </div>
+      </section>
+
+      {/* CONFIGURACIÓN DEL NÚMERO DE WHATSAPP DEL BOT (FASE 4) */}
+      <section className="admin-generator-card" style={{ marginBottom: '24px' }}>
+        <div className="generator-header">
+          <div>
+            <p className="eyebrow" style={{ color: 'var(--mint-dark)' }}>CONFIGURACIÓN DEL SISTEMA</p>
+            <h2>Número de WhatsApp del Bot</h2>
+            <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0' }}>
+              Este es el número al que tus clientes enviarán sus gastos y audios. El botón <strong>"Conectar mi WhatsApp en 1 toque"</strong> abrirá este chat automáticamente.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSaveBotPhone} className="generator-form">
+          <div className="form-grid">
+            <label>
+              Número de WhatsApp (con código de país sin espacios ni signos, ej. 5491122334455 o 15551234567)
+              <input
+                type="text"
+                placeholder="Ej. 5491122334455"
+                value={botPhone}
+                onChange={(e) => setBotPhone(e.target.value)}
+              />
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap' }}>
+            <button className="primary-button" type="submit" disabled={savingBotPhone}>
+              {savingBotPhone ? 'Guardando…' : '💾 Guardar número del bot'}
+            </button>
+            {botPhoneSuccess && (
+              <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 700 }}>
+                {botPhoneSuccess}
+              </span>
+            )}
+            {botPhone && (
+              <a
+                href={`https://wa.me/${botPhone.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="button-link"
+                style={{ fontSize: '12px', fontWeight: 700 }}
+              >
+                Probar chat en WhatsApp ↗
+              </a>
+            )}
+          </div>
+        </form>
       </section>
 
       {/* GENERADOR DE CÓDIGOS */}

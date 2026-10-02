@@ -1826,3 +1826,119 @@ textarea,
   filter: brightness(1.05);
   transform: translateY(-1px);
 }
+
+/* ========================================================
+   WHATSAPP ONBOARDING BANNER (FASE 4)
+   ======================================================== */
+.whatsapp-onboarding-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #e6f9ef 100%);
+  border: 1px solid #86efac;
+  border-radius: 18px;
+  padding: 20px 22px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(32, 185, 132, 0.1);
+}
+
+.onboarding-badge-icon {
+  font-size: 28px;
+  line-height: 1;
+  background: #ffffff;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(24, 60, 46, 0.08);
+  flex-shrink: 0;
+}
+
+.onboarding-details {
+  flex: 1;
+}
+
+.onboarding-step-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--mint-dark);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.onboarding-details h2 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+
+.onboarding-details p {
+  font-size: 13px;
+  color: #334155;
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.onboarding-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.whatsapp-onboarding-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #25d366;
+  color: #ffffff !important;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 12px 22px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+  transition: transform .15s ease, filter .15s ease;
+}
+
+.whatsapp-onboarding-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.whatsapp-onboarding-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.onboarding-note {
+  font-size: 12px;
+  color: #166534;
+  margin-top: 12px !important;
+  padding: 10px 14px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #bbf7d0;
+  display: inline-block;
+  line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+  .whatsapp-onboarding-banner {
+    flex-direction: column;
+    padding: 16px;
+    gap: 12px;
+  }
+  .whatsapp-onboarding-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+

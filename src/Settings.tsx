@@ -37,15 +37,35 @@ export function Settings({ userId, onBack, onSignOut, isAdmin, onOpenAdmin }: Pr
     setStatus('Cambios guardados.');
   }
 
-  async function generateCode() {
+  async function connectWhatsAppOneTouch() {
+    setStatus('Generando enlace de vinculación…');
     const values = new Uint32Array(1);
     crypto.getRandomValues(values);
     const nextCode = String(100000 + (values[0] % 900000));
     const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    const { error } = await supabase.from('whatsapp_links').upsert({ user_id: userId, link_code_hash: await sha256(nextCode), link_code_expires_at: expires, status: 'pending' }, { onConflict: 'user_id' });
+    const { error } = await supabase.from('whatsapp_links').upsert({
+      user_id: userId,
+      link_code_hash: await sha256(nextCode),
+      link_code_expires_at: expires,
+      status: 'pending',
+    }, { onConflict: 'user_id' });
+
     if (error) return setStatus('No se pudo generar el código.');
     setCode(nextCode);
-    setStatus('Código generado. Enviá el mensaje desde tu WhatsApp.');
+
+    const { data: configData } = await supabase
+      .from('system_config')
+      .select('value')
+      .eq('key', 'whatsapp_bot_phone')
+      .maybeSingle();
+
+    const cleanPhone = (configData?.value || '').replace(/\D/g, '');
+    const waUrl = cleanPhone
+      ? `https://wa.me/${cleanPhone}?text=VINCULAR%20${nextCode}`
+      : `https://wa.me/?text=VINCULAR%20${nextCode}`;
+
+    window.open(waUrl, '_blank');
+    setStatus(`Abrimos WhatsApp con tu mensaje listo. Tocá 'Enviar' en el chat (Código: VINCULAR ${nextCode}).`);
   }
 
   return (
@@ -92,10 +112,19 @@ export function Settings({ userId, onBack, onSignOut, isAdmin, onOpenAdmin }: Pr
         </label>
       </section>
       <section className="settings-panel">
-        <h2>Vincular tu número</h2>
-        <p>Generá un código y enviá <b>VINCULAR código</b> al número del bot. Vence en 10 minutos.</p>
-        <button className="primary-button" onClick={() => void generateCode()}>Generar código</button>
-        {code && <div className="link-code">VINCULAR {code}</div>}
+        <h2>Vincular WhatsApp</h2>
+        <p>Conectá tu número para registrar gastos y enviar audios directamente al bot.</p>
+        <div style={{ marginTop: '12px' }}>
+          <button
+            className="primary-button"
+            type="button"
+            style={{ background: '#25d366', color: '#fff', border: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            onClick={() => void connectWhatsAppOneTouch()}
+          >
+            <span>🟢</span> Conectar WhatsApp en 1 toque
+          </button>
+        </div>
+        {code && <div className="link-code" style={{ marginTop: '14px' }}>VINCULAR {code}</div>}
       </section>
       {onSignOut && (
         <section className="settings-panel">

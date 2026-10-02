@@ -43,6 +43,7 @@ type InstallmentPlan = {
 
 type Props = {
   userId: string;
+  userEmail?: string | null;
   onOpenSettings: () => void;
   onSignOut: () => void;
   isAdmin?: boolean;
@@ -145,7 +146,83 @@ function IconSettings({ className = 'nav-icon' }: { className?: string }) {
 
 const PRESET_INSTALLMENT_COUNTS = [2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48];
 
-export function Dashboard({ userId, onOpenSettings, onSignOut, isAdmin, onOpenAdmin }: Props) {
+export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmin, onOpenAdmin }: Props) {
+  const userDisplayName = useMemo(() => {
+    if (!userEmail) return 'Thomas';
+    const namePart = userEmail.split('@')[0];
+    const words = namePart.replace(/[._-]/g, ' ').trim().split(/\s+/);
+    return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }, [userEmail]);
+
+  const userInitials = useMemo(() => {
+    if (!userDisplayName) return 'TS';
+    const parts = userDisplayName.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return userDisplayName.slice(0, 2).toUpperCase();
+  }, [userDisplayName]);
+
+  // Onboarding WhatsApp (Fase 4)
+  const [isConnectingWa, setIsConnectingWa] = useState(false);
+  const [onboardingWaMsg, setOnboardingWaMsg] = useState<string | null>(null);
+  const [waBotNumber, setWaBotNumber] = useState<string>('');
+
+  async function handleConnectWhatsApp() {
+    setIsConnectingWa(true);
+    setOnboardingWaMsg(null);
+
+    try {
+      const values = new Uint32Array(1);
+      crypto.getRandomValues(values);
+      const nextCode = String(100000 + (values[0] % 900000));
+      const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(nextCode));
+      const nextHash = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+
+      const { error: upsertErr } = await supabase.from('whatsapp_links').upsert({
+        user_id: userId,
+        link_code_hash: nextHash,
+        link_code_expires_at: expires,
+        status: 'pending',
+      }, { onConflict: 'user_id' });
+
+      if (upsertErr) {
+        setIsConnectingWa(false);
+        setOnboardingWaMsg('No pudimos generar el enlace de conexión: ' + upsertErr.message);
+        return;
+      }
+
+      let targetPhone = waBotNumber;
+      if (!targetPhone) {
+        const { data: configData } = await supabase
+          .from('system_config')
+          .select('value')
+          .eq('key', 'whatsapp_bot_phone')
+          .maybeSingle();
+        if (configData?.value) {
+          targetPhone = configData.value;
+          setWaBotNumber(configData.value);
+        }
+      }
+
+      const cleanPhone = (targetPhone || '').replace(/\D/g, '');
+      const waUrl = cleanPhone
+        ? `https://wa.me/${cleanPhone}?text=VINCULAR%20${nextCode}`
+        : `https://wa.me/?text=VINCULAR%20${nextCode}`;
+
+      window.open(waUrl, '_blank');
+      setIsConnectingWa(false);
+      setOnboardingWaMsg(
+        `⏳ Abrimos WhatsApp con tu mensaje listo. Tocá 'Enviar' en el chat con Pesito (código: VINCULAR ${nextCode}). Tu pantalla se actualizará automáticamente apenas lo envíes.`
+      );
+    } catch {
+      setIsConnectingWa(false);
+      setOnboardingWaMsg('Ocurrió un inconveniente al abrir WhatsApp.');
+    }
+  }
+
   const currentMonth = monthKey(new Date());
   const [month, setMonth] = useState(currentMonth);
   const [knownMonths, setKnownMonths] = useState<string[]>([]);
@@ -859,13 +936,13 @@ export function Dashboard({ userId, onOpenSettings, onSignOut, isAdmin, onOpenAd
         )}
       </nav>
       <div className={`bot-status bot-status-${botState}`}><span className="status-dot"/><div><strong>{botStatus.title}</strong><small>{botStatus.detail}</small></div></div>
-      <button className="profile logout-button" type="button" onClick={onSignOut}><span>TS</span><div><strong>Thomas</strong><small>Cerrar sesión</small></div><b>›</b></button>
+      <button className="profile logout-button" type="button" onClick={onSignOut}><span>{userInitials}</span><div><strong>{userDisplayName}</strong><small>Cerrar sesión</small></div><b>›</b></button>
     </aside>
     <section className="content" id="resumen">
       <header className="topbar">
         <div>
           <p className="eyebrow">TU RESUMEN</p>
-          <h1>Hola, Thomas <span>👋</span></h1>
+          <h1>Hola, {userDisplayName} <span>👋</span></h1>
           <p>Así vienen tus finanzas este mes.</p>
         </div>
         <div className="top-actions">
@@ -889,6 +966,34 @@ export function Dashboard({ userId, onOpenSettings, onSignOut, isAdmin, onOpenAd
           <button aria-label="Notificaciones" className="icon-button">♢</button>
         </div>
       </header>
+
+      {/* WHATSAPP ONBOARDING BANNER (FASE 4) */}
+      {botState === 'unlinked' && (
+        <section className="whatsapp-onboarding-banner">
+          <div className="onboarding-badge-icon">💬</div>
+          <div className="onboarding-details">
+            <span className="onboarding-step-tag">VINCULACIÓN RÁPIDA</span>
+            <h2>Conectá tu WhatsApp en 1 toque</h2>
+            <p>
+              Registrá tus gastos e ingresos enviando mensajes de texto, audios o fotos de comprobantes directamente por WhatsApp.
+            </p>
+            <div className="onboarding-actions">
+              <button
+                type="button"
+                className="whatsapp-onboarding-btn"
+                onClick={() => void handleConnectWhatsApp()}
+                disabled={isConnectingWa}
+              >
+                {isConnectingWa ? 'Abriendo WhatsApp…' : '🟢 Conectar mi WhatsApp en 1 toque'}
+              </button>
+            </div>
+            {onboardingWaMsg && (
+              <p className="onboarding-note">{onboardingWaMsg}</p>
+            )}
+          </div>
+        </section>
+      )}
+
       <div className="currency-switch-bar">
         <div className="currency-pills" role="tablist" aria-label="Seleccionar moneda">
           <button

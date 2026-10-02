@@ -70,6 +70,7 @@ export function App() {
   return (
     <Dashboard
       userId={session.user.id}
+      userEmail={session.user.email}
       isAdmin={isAdmin}
       onOpenAdmin={() => setView('admin')}
       onOpenSettings={() => setView('settings')}
