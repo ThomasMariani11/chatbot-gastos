@@ -25,12 +25,20 @@ export function App() {
       return;
     }
     supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        setIsAdmin(data?.role === 'admin');
+      .rpc('get_my_role')
+      .then(({ data, error }) => {
+        if (!error && typeof data === 'string') {
+          setIsAdmin(data === 'admin');
+        } else {
+          supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .maybeSingle()
+            .then(({ data: fallbackData }) => {
+              setIsAdmin(fallbackData?.role === 'admin');
+            });
+        }
       });
   }, [session?.user?.id]);
 
