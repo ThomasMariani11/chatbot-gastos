@@ -51,6 +51,8 @@ export function App() {
     return (
       <Settings
         userId={session.user.id}
+        isAdmin={isAdmin}
+        onOpenAdmin={() => setView('admin')}
         onBack={() => setView('dashboard')}
         onSignOut={() => supabase.auth.signOut()}
       />

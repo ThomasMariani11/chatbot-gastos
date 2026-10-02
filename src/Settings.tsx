@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 
-type Props = { userId: string; onBack: () => void; onSignOut?: () => void };
+type Props = {
+  userId: string;
+  onBack: () => void;
+  onSignOut?: () => void;
+  isAdmin?: boolean;
+  onOpenAdmin?: () => void;
+};
 
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export function Settings({ userId, onBack, onSignOut }: Props) {
+export function Settings({ userId, onBack, onSignOut, isAdmin, onOpenAdmin }: Props) {
   const [code, setCode] = useState<string>();
   const [enabled, setEnabled] = useState(true);
   const [paid, setPaid] = useState(false);
@@ -50,6 +56,26 @@ export function Settings({ userId, onBack, onSignOut }: Props) {
         <h1>WhatsApp y costos</h1>
         <p>Controlá la conexión y evitá cargos inesperados.</p>
       </header>
+
+      {isAdmin && onOpenAdmin && (
+        <section className="settings-panel admin-highlight-box" style={{ background: '#0f172a', color: '#ffffff', border: 'none' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div>
+              <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '1px', color: '#38bdf8', textTransform: 'uppercase' }}>ADMINISTRADOR</span>
+              <h2 style={{ color: '#ffffff', margin: '2px 0 4px', fontSize: '18px' }}>Panel de Control</h2>
+              <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Gestioná licencias, códigos y clientes.</p>
+            </div>
+            <button
+              type="button"
+              className="primary-button"
+              style={{ background: '#38bdf8', color: '#0f172a', fontWeight: 800, whiteSpace: 'nowrap' }}
+              onClick={onOpenAdmin}
+            >
+              🛠️ Abrir Panel Admin
+            </button>
+          </div>
+        </section>
+      )}
       <section className="settings-panel warning">
         <strong>Corte automático programado</strong>
         <p>Las respuestas se bloquearán el 30 de septiembre de 2026 a las 23:50 si no autorizás mensajes pagos.</p>
