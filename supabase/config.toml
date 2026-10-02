@@ -2,3 +2,23 @@ project_id = "ystyatotldslfmucvgsq"
 
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+[auth]
+additional_redirect_urls = ["https://thomasmariani11.github.io/chatbot-gastos/**"]
+site_url = "https://thomasmariani11.github.io/chatbot-gastos/"
+
+[auth.email]
+enable_confirmations = false
+max_frequency = "1m0s"
+otp_length = 8
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[db.pooler]
+default_pool_size = 15
+max_client_conn = 200
+
+[storage.vector]
+enabled = false
