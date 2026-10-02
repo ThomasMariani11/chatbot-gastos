@@ -41,7 +41,13 @@ type InstallmentPlan = {
   currentMovement?: Movement;
 };
 
-type Props = { userId: string; onOpenSettings: () => void; onSignOut: () => void };
+type Props = {
+  userId: string;
+  onOpenSettings: () => void;
+  onSignOut: () => void;
+  isAdmin?: boolean;
+  onOpenAdmin?: () => void;
+};
 
 const moneyArs = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
@@ -139,7 +145,7 @@ function IconSettings({ className = 'nav-icon' }: { className?: string }) {
 
 const PRESET_INSTALLMENT_COUNTS = [2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48];
 
-export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
+export function Dashboard({ userId, onOpenSettings, onSignOut, isAdmin, onOpenAdmin }: Props) {
   const currentMonth = monthKey(new Date());
   const [month, setMonth] = useState(currentMonth);
   const [knownMonths, setKnownMonths] = useState<string[]>([]);
@@ -846,6 +852,11 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
         <a className="nav-item" href="#movimientos"><span><IconMovements /></span>Movimientos</a>
         <a className="nav-item" href="#cuotas"><span><IconInstallments /></span>Cuotas</a>
         <button className="nav-item nav-button" type="button" onClick={onOpenSettings}><span><IconSettings /></span>Configuración</button>
+        {isAdmin && onOpenAdmin && (
+          <button className="nav-item nav-button admin-sidebar-nav" type="button" onClick={onOpenAdmin}>
+            <span>🛠️</span>Panel Admin
+          </button>
+        )}
       </nav>
       <div className={`bot-status bot-status-${botState}`}><span className="status-dot"/><div><strong>{botStatus.title}</strong><small>{botStatus.detail}</small></div></div>
       <button className="profile logout-button" type="button" onClick={onSignOut}><span>TS</span><div><strong>Thomas</strong><small>Cerrar sesión</small></div><b>›</b></button>
@@ -858,6 +869,16 @@ export function Dashboard({ userId, onOpenSettings, onSignOut }: Props) {
           <p>Así vienen tus finanzas este mes.</p>
         </div>
         <div className="top-actions">
+          {isAdmin && onOpenAdmin && (
+            <button
+              type="button"
+              className="admin-topbar-pill"
+              onClick={onOpenAdmin}
+              title="Ir al Panel de Administrador"
+            >
+              🛠️ Panel Admin
+            </button>
+          )}
           <select aria-label="Mes" value={month} onChange={(event) => setMonth(event.target.value)}>
             {availableMonths.map((m) => (
               <option key={m} value={m}>
