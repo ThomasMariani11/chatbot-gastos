@@ -1710,5 +1710,119 @@ textarea,
   }
 }
 
+/* ========================================================
+   AUTH / REGISTRATION WITH INVITATION CODES (FASE 3)
+   ======================================================== */
+.auth-tabs {
+  display: flex;
+  background: #f1f5f3;
+  border-radius: 12px;
+  padding: 4px;
+  margin: 18px 0 20px;
+  gap: 4px;
+}
 
+.auth-tab {
+  flex: 1;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s ease;
+  font-family: inherit;
+}
 
+.auth-tab.active {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgba(24, 60, 46, 0.08);
+}
+
+.auth-tab:hover:not(.active) {
+  color: var(--ink);
+}
+
+.invite-code-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-weight: 800 !important;
+  letter-spacing: 1.5px !important;
+  text-transform: uppercase !important;
+  font-size: 14px !important;
+}
+
+.code-feedback-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.code-feedback-badge.valid {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.code-feedback-badge.invalid {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.code-feedback-badge.checking {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.auth-no-code-box {
+  margin-top: 22px;
+  padding: 16px;
+  background: #f0fdf4;
+  border: 1px dashed #86efac;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.auth-no-code-box strong {
+  display: block;
+  font-size: 13px;
+  color: #14532d;
+  margin-bottom: 4px;
+}
+
+.auth-no-code-box p {
+  font-size: 12px;
+  color: #166534;
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+
+.whatsapp-request-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #25d366;
+  color: #ffffff !important;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 12px;
+  text-decoration: none !important;
+  transition: transform .15s ease, filter .15s ease;
+  box-shadow: 0 3px 10px rgba(37, 211, 102, 0.25);
+}
+
+.whatsapp-request-btn:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
