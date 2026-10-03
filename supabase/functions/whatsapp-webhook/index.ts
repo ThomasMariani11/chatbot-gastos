@@ -182,20 +182,29 @@ Deno.serve(async (request) => {
   if (!inserted) return json({ received: true, duplicate: true });
 
   try {
-    let { data: link } = await supabase.from('whatsapp_links').select('user_id').eq('wa_id', message.from).eq('status', 'active').maybeSingle();
     const initialText = message.text?.body?.trim() ?? '';
     const linkMatch = initialText.match(/^vincular\s+(\d{6})$/i);
-    if (!link && linkMatch) {
+    if (linkMatch) {
       const { data: candidate } = await supabase.from('whatsapp_links').select('user_id').eq('link_code_hash', await sha256(linkMatch[1])).gt('link_code_expires_at', new Date().toISOString()).maybeSingle();
       if (candidate) {
+        // Desvincular de cuenta anterior si este wa_id estaba asignado a otro usuario
+        await supabase.from('whatsapp_links').update({ wa_id: null, status: 'pending' }).eq('wa_id', message.from).neq('user_id', candidate.user_id);
+        await supabase.from('profiles').update({ phone_number: null }).eq('phone_number', message.from).neq('id', candidate.user_id);
+
+        // Vincular a la nueva cuenta
         await supabase.from('whatsapp_links').update({ wa_id: message.from, status: 'active', linked_at: new Date().toISOString(), link_code_hash: null, link_code_expires_at: null }).eq('user_id', candidate.user_id);
         await supabase.from('profiles').update({ phone_number: message.from }).eq('id', candidate.user_id);
-        link = candidate;
         await sendWhatsAppText(message.from, '¡Listo! Tu WhatsApp quedó vinculado con Pesito ✅');
         await supabase.from('inbound_events').update({ status: 'processed', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
         return json({ received: true, linked: true });
+      } else {
+        await sendWhatsAppText(message.from, 'El código de vinculación no es válido o ya venció (duran 10 minutos). Generá uno nuevo desde la app.');
+        await supabase.from('inbound_events').update({ status: 'processed', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+        return json({ received: true, linked: false });
       }
     }
+
+    let { data: link } = await supabase.from('whatsapp_links').select('user_id').eq('wa_id', message.from).eq('status', 'active').maybeSingle();
     if (!link) throw new Error('Número no vinculado.');
     const { data: settings } = await supabase.from('app_settings').select('whatsapp_responses_enabled,paid_service_messages_authorized,cost_guard_date').eq('user_id', link.user_id).maybeSingle();
     if (!(settings?.whatsapp_responses_enabled ?? true)) {
