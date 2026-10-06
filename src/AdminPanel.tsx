@@ -234,7 +234,21 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   // Copiar mensaje listo para WhatsApp
   function copyWhatsAppMessage(code: string) {
     const inviteUrl = `${window.location.origin}${window.location.pathname}?invitacion=${code}`;
-    const text = `¡Hola! Gracias por sumarte a Pesito 💰.\n\nPara activar tu cuenta:\n1. Entrá a este enlace exclusivo:\n${inviteUrl}\n2. Creá tu contraseña.\n3. Tocá 'Instalar' para tenerla como app en tu celular.\n4. ¡Listo! Ya podés registrar tus gastos por audio y texto por WhatsApp.`;
+    const text = `¡Hola! Bienvenido/a a *Pesito* 💰✨
+
+Tu cuenta ya está habilitada. Seguí estos 3 pasos rápidos para empezar:
+
+1️⃣ *Creá tu cuenta:* Entrá a este enlace exclusivo:
+${inviteUrl}
+(Ingresá tu email y la contraseña que prefieras).
+
+2️⃣ *Instalá la app en tu celu (Opcional pero recomendado):* 
+Tocá el botón *"📲 Instalar app"* arriba a la derecha para tenerla en la pantalla de inicio de tu celular.
+
+3️⃣ *Conectá tu WhatsApp:* 
+Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsApp en un toque"*. Te va a abrir el chat del bot; solo dale a *Enviar* y ¡listo!
+
+🚀 A partir de ese momento podés mandarle audios de voz o textos normales (ej: "gasté 4500 en la carnicería", "me ingresaron 150000") y se registran al instante.`;
 
     void navigator.clipboard.writeText(text);
     setCopyFeedback('¡Mensaje copiado al portapapeles!');
