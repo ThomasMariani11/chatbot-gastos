@@ -61,12 +61,41 @@ async function sendWhatsAppText(to: string, body: string) {
     headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
     body: JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to: recipient, type: 'text', text: { preview_url: false, body } }),
   });
+
   let response = await send(to);
-  if (!response.ok && to.startsWith('549')) {
-    const failure = await response.clone().json().catch(() => null) as { error?: { code?: number } } | null;
-    if (failure?.error?.code === 131030) response = await send(to.replace(/^549/, '54'));
+  let failureJson: any = null;
+
+  if (!response.ok) {
+    failureJson = await response.clone().json().catch(() => null);
+    console.error(`WhatsApp send failed to ${to}:`, JSON.stringify(failureJson));
+
+    // Si es de Argentina (+54), probar alternando con o sin el '9'
+    if (to.startsWith('549')) {
+      const altTo = to.replace(/^549/, '54');
+      const altResponse = await send(altTo);
+      if (altResponse.ok) {
+        console.log(`WhatsApp send succeeded with alt format ${altTo}`);
+        return;
+      }
+      failureJson = (await altResponse.clone().json().catch(() => null)) || failureJson;
+      response = altResponse;
+    } else if (to.startsWith('54') && !to.startsWith('549')) {
+      const altTo = to.replace(/^54/, '549');
+      const altResponse = await send(altTo);
+      if (altResponse.ok) {
+        console.log(`WhatsApp send succeeded with alt format ${altTo}`);
+        return;
+      }
+      failureJson = (await altResponse.clone().json().catch(() => null)) || failureJson;
+      response = altResponse;
+    }
   }
-  if (!response.ok) throw new Error(`WhatsApp respondió ${response.status}.`);
+
+  if (!response.ok) {
+    const errorDetails = failureJson?.error?.message || failureJson?.error?.error_user_msg || JSON.stringify(failureJson) || 'Sin detalle';
+    const code = failureJson?.error?.code || response.status;
+    throw new Error(`WhatsApp error ${code}: ${errorDetails}`);
+  }
 }
 
 async function downloadWhatsAppMedia(mediaId: string) {
@@ -194,8 +223,23 @@ function formatProposal(proposal: FinancialProposal) {
 }
 
 Deno.serve(async (request) => {
+  const url = new URL(request.url);
+  if (url.searchParams.get('action') === 'test-send' && request.method === 'POST') {
+    const authHeader = request.headers.get('authorization') || '';
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!serviceKey || !authHeader.includes(serviceKey)) {
+      return json({ error: 'No autorizado.' }, 401);
+    }
+    try {
+      const data = await request.json();
+      await sendWhatsAppText(data.to, data.body || 'Prueba de Pesito');
+      return json({ ok: true, sent_to: data.to });
+    } catch (err: any) {
+      return json({ ok: false, error: err.message }, 400);
+    }
+  }
+
   if (request.method === 'GET') {
-    const url = new URL(request.url);
     const valid = url.searchParams.get('hub.mode') === 'subscribe' && url.searchParams.get('hub.verify_token') === Deno.env.get('WHATSAPP_VERIFY_TOKEN');
     return valid ? new Response(url.searchParams.get('hub.challenge') ?? '') : json({ error: 'Verificación rechazada.' }, 403);
   }
