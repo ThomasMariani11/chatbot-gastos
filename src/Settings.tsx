@@ -363,26 +363,25 @@ export function Settings({
             VINCULAR {code}
           </div>
         )}
-
-        <label className="switch-row" style={{ borderTop: 'none', padding: '8px 0 0' }}>
-          <span>
-            <strong>Respuestas del bot</strong>
-            <small>Podés pausar las respuestas automáticas del bot temporalmente.</small>
-          </span>
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={(e) => void updateBotResponses(e.target.checked)}
-          />
-        </label>
       </section>
 
       {/* SECCIÓN TÉCNICA (SÓLO ADMINISTRADOR) */}
       {isAdmin && (
         <section className="settings-panel warning">
           <span style={{ fontSize: '10px', fontWeight: 800, color: '#b45309', textTransform: 'uppercase' }}>SÓLO ADMIN</span>
-          <h2 style={{ margin: '2px 0 8px', fontSize: '14px' }}>Control de Costos de Mensajería</h2>
-          <label className="switch-row" style={{ borderTop: 'none' }}>
+          <h2 style={{ margin: '2px 0 8px', fontSize: '14px' }}>Control Técnico y Costos (Admin)</h2>
+          <label className="switch-row" style={{ borderTop: 'none', padding: '8px 0 0' }}>
+            <span>
+              <strong>Respuestas del bot (Modo prueba)</strong>
+              <small>Pausar respuestas automáticas del bot temporalmente para tu cuenta.</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => void updateBotResponses(e.target.checked)}
+            />
+          </label>
+          <label className="switch-row" style={{ marginTop: '12px' }}>
             <span>
               <strong>Autorizar mensajes pagos de Meta</strong>
               <small>Habilita el envío de mensajes que superen la ventana gratuita de 24 horas.</small>
