@@ -1942,3 +1942,59 @@ textarea,
   }
 }
 
+/* ========================================================
+   PAYWALL & SUBSCRIPTION (FASE 5)
+   ======================================================== */
+.paywall-card {
+  max-width: 480px;
+  text-align: left;
+}
+
+.paywall-section {
+  margin-top: 24px;
+  padding: 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+}
+
+.paywall-section h3 {
+  font-size: 15px;
+  margin: 0 0 4px;
+  color: var(--ink);
+}
+
+.paywall-hint {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0 0 14px;
+  line-height: 1.4;
+}
+
+.paywall-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.paywall-form button {
+  width: 100%;
+}
+
+.paywall-whatsapp-box {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f0fdf4;
+  border: 1px dashed #86efac;
+  border-radius: 16px;
+  text-align: center;
+}
+
+.paywall-whatsapp-box p {
+  font-size: 12px;
+  color: #166534;
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+
+

@@ -206,6 +206,38 @@ Deno.serve(async (request) => {
 
     let { data: link } = await supabase.from('whatsapp_links').select('user_id').eq('wa_id', message.from).eq('status', 'active').maybeSingle();
     if (!link) throw new Error('Número no vinculado.');
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, subscription_status, subscription_until')
+      .eq('id', link.user_id)
+      .maybeSingle();
+
+    if (profile && profile.role !== 'admin') {
+      const isSuspended = profile.subscription_status === 'suspended';
+      const isExpired =
+        profile.subscription_status === 'expired' ||
+        profile.subscription_status === 'pending_code' ||
+        (profile.subscription_until && new Date(profile.subscription_until).getTime() < Date.now());
+
+      if (isSuspended) {
+        await sendWhatsAppText(
+          message.from,
+          'Tu cuenta de Pesito se encuentra en pausa ⏸️. Si necesitás reactivarla, comunicate con soporte desde la app.'
+        );
+        await supabase.from('inbound_events').update({ status: 'blocked_suspended', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+        return json({ received: true, blocked: true });
+      }
+
+      if (isExpired) {
+        await sendWhatsAppText(
+          message.from,
+          'Tu suscripción en Pesito ha finalizado ⏳. Para seguir registrando tus gastos y consultando tus finanzas, renová tu membresía desde la app.'
+        );
+        await supabase.from('inbound_events').update({ status: 'blocked_expired', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+        return json({ received: true, blocked: true });
+      }
+    }
     const { data: settings } = await supabase.from('app_settings').select('whatsapp_responses_enabled,paid_service_messages_authorized,cost_guard_date').eq('user_id', link.user_id).maybeSingle();
     if (!(settings?.whatsapp_responses_enabled ?? true)) {
       await supabase.from('inbound_events').update({ status: 'blocked_paused', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
