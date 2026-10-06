@@ -360,7 +360,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
         supabase.from('budgets').select('amount_ars').eq('user_id', userId).eq('month', monthStart).maybeSingle(),
         supabase.from('transactions').select('id,description,amount_ars,currency,occurred_on,kind,category_id,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
         supabase.from('whatsapp_links').select('status').eq('user_id', userId).maybeSingle(),
-        supabase.from('app_settings').select('whatsapp_responses_enabled,paid_service_messages_authorized,cost_guard_date').eq('user_id', userId).maybeSingle(),
+        supabase.from('app_settings').select('whatsapp_responses_enabled').eq('user_id', userId).maybeSingle(),
         supabase.rpc('get_distinct_transaction_months'),
       ]);
       loading = false;
@@ -389,11 +389,6 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
         setBotState('unlinked');
       } else if (!appSettings.data.whatsapp_responses_enabled) {
         setBotState('paused');
-      } else if (
-        !appSettings.data.paid_service_messages_authorized
-        && Date.now() >= new Date(appSettings.data.cost_guard_date).getTime()
-      ) {
-        setBotState('cost-blocked');
       } else {
         setBotState('active');
       }

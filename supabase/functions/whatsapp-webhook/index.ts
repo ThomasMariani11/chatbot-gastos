@@ -138,17 +138,6 @@ function addMonths(month: string, offset: number) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-const DEFAULT_COST_GUARD_DATE = '2026-09-30T23:50:00-03:00';
-
-function serviceMessagesAllowed(costGuardDate: string | null | undefined, override: boolean) {
-  if (override) return true;
-  const configuredDate = new Date(costGuardDate ?? DEFAULT_COST_GUARD_DATE);
-  const cutoff = Number.isNaN(configuredDate.getTime())
-    ? new Date(DEFAULT_COST_GUARD_DATE)
-    : configuredDate;
-  return new Date() < cutoff;
-}
-
 function formatProposal(proposal: FinancialProposal) {
   const isUsd = proposal.currency === 'USD';
   const amount = proposal.totalAmountArs == null
@@ -238,14 +227,9 @@ Deno.serve(async (request) => {
         return json({ received: true, blocked: true });
       }
     }
-    const { data: settings } = await supabase.from('app_settings').select('whatsapp_responses_enabled,paid_service_messages_authorized,cost_guard_date').eq('user_id', link.user_id).maybeSingle();
+    const { data: settings } = await supabase.from('app_settings').select('whatsapp_responses_enabled').eq('user_id', link.user_id).maybeSingle();
     if (!(settings?.whatsapp_responses_enabled ?? true)) {
       await supabase.from('inbound_events').update({ status: 'blocked_paused', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
-      return json({ received: true, blocked: true });
-    }
-    if (!serviceMessagesAllowed(settings?.cost_guard_date, settings?.paid_service_messages_authorized ?? false)) {
-      await supabase.from('inbound_events').update({ status: 'blocked_cost_guard', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
-      await sendWhatsAppText(message.from, 'Pesito: Se activó el corte de seguridad programado para evitar costos extras. Si querés seguir usándolo, podés autorizar los mensajes desde la app en Configuración.');
       return json({ received: true, blocked: true });
     }
 

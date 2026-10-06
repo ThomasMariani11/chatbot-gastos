@@ -46,7 +46,6 @@ export function Settings({
 }: Props) {
   const [code, setCode] = useState<string>();
   const [enabled, setEnabled] = useState(true);
-  const [paid, setPaid] = useState(false);
   const [status, setStatus] = useState('');
   const [botPhone, setBotPhone] = useState('');
 
@@ -60,7 +59,6 @@ export function Settings({
     supabase.from('app_settings').select('*').eq('user_id', userId).single().then(({ data, error }) => {
       if (error) return;
       setEnabled(data.whatsapp_responses_enabled);
-      setPaid(data.paid_service_messages_authorized);
     });
 
     supabase.from('system_config').select('value').eq('key', 'whatsapp_bot_phone').maybeSingle().then(({ data }) => {
@@ -79,20 +77,6 @@ export function Settings({
     }
     setEnabled(nextEnabled);
     setStatus(nextEnabled ? 'Bot activado.' : 'Bot pausado.');
-    setTimeout(() => setStatus(''), 3000);
-  }
-
-  async function updatePaidMessages(nextPaid: boolean) {
-    const { error } = await supabase
-      .from('app_settings')
-      .update({ paid_service_messages_authorized: nextPaid, updated_at: new Date().toISOString() })
-      .eq('user_id', userId);
-    if (error) {
-      setStatus('No pudimos guardar los cambios.');
-      return;
-    }
-    setPaid(nextPaid);
-    setStatus('Configuración guardada.');
     setTimeout(() => setStatus(''), 3000);
   }
 
@@ -379,17 +363,6 @@ export function Settings({
               type="checkbox"
               checked={enabled}
               onChange={(e) => void updateBotResponses(e.target.checked)}
-            />
-          </label>
-          <label className="switch-row" style={{ marginTop: '12px' }}>
-            <span>
-              <strong>Autorizar mensajes pagos de Meta</strong>
-              <small>Habilita el envío de mensajes que superen la ventana gratuita de 24 horas.</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={paid}
-              onChange={(e) => void updatePaidMessages(e.target.checked)}
             />
           </label>
         </section>
