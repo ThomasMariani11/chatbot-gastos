@@ -86,6 +86,17 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [togglingBot, setTogglingBot] = useState(false);
   const [botStatusFeedback, setBotStatusFeedback] = useState<string | null>(null);
 
+  // Modales interactivos (Extender Días y Pausar/Reactivar)
+  const [extendingClient, setExtendingClient] = useState<ClientProfile | null>(null);
+  const [selectedDaysOption, setSelectedDaysOption] = useState<number | 'lifetime' | 'custom'>(30);
+  const [customDays, setCustomDays] = useState<number>(30);
+  const [isSubmittingExtend, setIsSubmittingExtend] = useState(false);
+
+  const [suspendingClient, setSuspendingClient] = useState<ClientProfile | null>(null);
+  const [isSubmittingSuspend, setIsSubmittingSuspend] = useState(false);
+
+  const [actionToast, setActionToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   async function loadData() {
     setLoading(true);
     setErrorMsg(null);
@@ -245,43 +256,99 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     }
   }
 
-  // Extender suscripción (+30 días)
-  async function handleExtendDays(client: ClientProfile, daysToAdd = 30) {
-    const confirm = window.confirm(`¿Querés sumar ${daysToAdd} días de suscripción a ${client.email}?`);
-    if (!confirm) return;
-
+  // Cálculo dinámico de extensión para el modal
+  const extendPreview = useMemo(() => {
+    if (!extendingClient) return null;
+    if (selectedDaysOption === 'lifetime') {
+      return { isLifetime: true, text: '🌟 Plan Vitalicio (Permanente sin vencimiento)' };
+    }
+    const days = selectedDaysOption === 'custom' ? Math.max(1, customDays || 1) : selectedDaysOption;
     let baseDate = new Date();
-    if (client.subscription_until) {
-      const currentUntil = new Date(client.subscription_until);
+    let isAccumulated = false;
+    if (extendingClient.subscription_until) {
+      const currentUntil = new Date(extendingClient.subscription_until);
       if (currentUntil > baseDate) {
         baseDate = currentUntil;
+        isAccumulated = true;
       }
     }
+    const targetDate = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
+    const formatted = new Intl.DateTimeFormat('es-AR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(targetDate);
 
-    const newDate = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+    return {
+      isLifetime: false,
+      days,
+      text: `${formatted} (+${days} ${days === 1 ? 'día' : 'días'}${isAccumulated ? ' acumulados' : ''})`,
+    };
+  }, [extendingClient, selectedDaysOption, customDays]);
+
+  function handleOpenExtendModal(client: ClientProfile) {
+    setExtendingClient(client);
+    setSelectedDaysOption(30);
+    setCustomDays(30);
+  }
+
+  function handleOpenSuspendModal(client: ClientProfile) {
+    setSuspendingClient(client);
+  }
+
+  async function handleConfirmExtendDays() {
+    if (!extendingClient) return;
+    setIsSubmittingExtend(true);
+    setActionToast(null);
+
+    let nextUntil: string | null = null;
+    let daysAdded = 0;
+
+    if (selectedDaysOption === 'lifetime') {
+      nextUntil = null;
+    } else {
+      daysAdded = selectedDaysOption === 'custom' ? Math.max(1, customDays || 1) : selectedDaysOption;
+      let baseDate = new Date();
+      if (extendingClient.subscription_until) {
+        const currentUntil = new Date(extendingClient.subscription_until);
+        if (currentUntil > baseDate) {
+          baseDate = currentUntil;
+        }
+      }
+      nextUntil = new Date(baseDate.getTime() + daysAdded * 24 * 60 * 60 * 1000).toISOString();
+    }
 
     const { error } = await supabase
       .from('profiles')
       .update({
         subscription_status: 'active',
-        subscription_until: newDate.toISOString(),
+        subscription_until: nextUntil,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', client.id);
+      .eq('id', extendingClient.id);
+
+    setIsSubmittingExtend(false);
 
     if (error) {
-      window.alert('No se pudo actualizar: ' + error.message);
+      setActionToast({ type: 'error', message: 'No se pudo actualizar la suscripción: ' + error.message });
     } else {
+      const msg = selectedDaysOption === 'lifetime'
+        ? `🌟 Plan cambiado a Vitalicio para ${extendingClient.email}.`
+        : `✅ Se sumaron ${daysAdded} días de servicio a ${extendingClient.email}.`;
+      setActionToast({ type: 'success', message: msg });
+      setExtendingClient(null);
       void loadData();
+      setTimeout(() => setActionToast(null), 4000);
     }
   }
 
-  // Pausar / Reactivar cuenta
-  async function handleToggleSuspend(client: ClientProfile) {
-    const nextStatus = client.subscription_status === 'suspended' ? 'active' : 'suspended';
-    const actionText = nextStatus === 'suspended' ? 'pausar el acceso de' : 'reactivar';
-    const confirm = window.confirm(`¿Seguro que querés ${actionText} a ${client.email}?`);
-    if (!confirm) return;
+  async function handleConfirmToggleSuspend() {
+    if (!suspendingClient) return;
+    setIsSubmittingSuspend(true);
+    setActionToast(null);
+
+    const isCurrentlySuspended = suspendingClient.subscription_status === 'suspended';
+    const nextStatus = isCurrentlySuspended ? 'active' : 'suspended';
 
     const { error } = await supabase
       .from('profiles')
@@ -289,12 +356,20 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
         subscription_status: nextStatus,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', client.id);
+      .eq('id', suspendingClient.id);
+
+    setIsSubmittingSuspend(false);
 
     if (error) {
-      window.alert('No se pudo cambiar el estado: ' + error.message);
+      setActionToast({ type: 'error', message: 'No se pudo actualizar el estado: ' + error.message });
     } else {
+      const msg = isCurrentlySuspended
+        ? `🟢 Cuenta reactivada para ${suspendingClient.email}.`
+        : `⏸️ Cuenta pausada para ${suspendingClient.email}.`;
+      setActionToast({ type: 'success', message: msg });
+      setSuspendingClient(null);
       void loadData();
+      setTimeout(() => setActionToast(null), 4000);
     }
   }
 
@@ -359,6 +434,15 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
       {errorMsg && (
         <div className="admin-alert-banner danger">
           <span>⚠️ {errorMsg}</span>
+        </div>
+      )}
+
+      {actionToast && (
+        <div
+          className={`admin-alert-banner ${actionToast.type === 'error' ? 'danger' : ''}`}
+          style={actionToast.type === 'success' ? { background: '#ecfdf5', borderColor: '#a7f3d0', color: '#065f46' } : {}}
+        >
+          <span>{actionToast.message}</span>
         </div>
       )}
 
@@ -692,15 +776,15 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
                               <button
                                 type="button"
                                 className="action-btn small"
-                                title="Sumar 30 días"
-                                onClick={() => void handleExtendDays(client, 30)}
+                                title="Sumar días de suscripción"
+                                onClick={() => handleOpenExtendModal(client)}
                               >
-                                ＋ 30 días
+                                ＋ Días
                               </button>
                               <button
                                 type="button"
                                 className="action-btn small secondary"
-                                onClick={() => void handleToggleSuspend(client)}
+                                onClick={() => handleOpenSuspendModal(client)}
                               >
                                 {client.subscription_status === 'suspended' ? 'Reactivar' : 'Pausar'}
                               </button>
@@ -823,6 +907,161 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
           </div>
         )}
       </section>
+      {/* MODAL: EXTENDER DÍAS DE SUSCRIPCIÓN */}
+      {extendingClient && (
+        <div className="admin-modal-backdrop" onClick={() => !isSubmittingExtend && setExtendingClient(null)}>
+          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <div>
+                <h3>Sumar días de suscripción</h3>
+                <p>Cliente: <strong>{extendingClient.email}</strong></p>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close"
+                disabled={isSubmittingExtend}
+                onClick={() => setExtendingClient(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '8px' }}>
+                Elegí cuánto tiempo querés sumar:
+              </span>
+              <div className="admin-days-grid">
+                {[
+                  { value: 15, label: '+15 días', desc: 'Quincena' },
+                  { value: 30, label: '+30 días', desc: '1 Mes' },
+                  { value: 60, label: '+60 días', desc: '2 Meses' },
+                  { value: 90, label: '+90 días', desc: '3 Meses (Trimestre)' },
+                  { value: 180, label: '+180 días', desc: '6 Meses (Semestre)' },
+                  { value: 365, label: '+365 días', desc: '1 Año' },
+                  { value: 'lifetime', label: '🌟 Vitalicio', desc: 'Sin vencimiento' },
+                  { value: 'custom', label: '✏️ Personalizado', desc: 'Elegir días' },
+                ].map((opt) => (
+                  <button
+                    key={String(opt.value)}
+                    type="button"
+                    className={`admin-day-chip ${selectedDaysOption === opt.value ? 'active' : ''}`}
+                    onClick={() => setSelectedDaysOption(opt.value as number | 'lifetime' | 'custom')}
+                  >
+                    <span>{opt.label}</span>
+                    <small>{opt.desc}</small>
+                  </button>
+                ))}
+              </div>
+
+              {selectedDaysOption === 'custom' && (
+                <div className="admin-custom-days-row">
+                  <label>
+                    Cantidad exacta de días:
+                    <input
+                      type="number"
+                      min={1}
+                      max={3650}
+                      className="admin-custom-days-input"
+                      value={customDays}
+                      onChange={(e) => setCustomDays(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    />
+                    <span>días</span>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {extendPreview && (
+              <div className="admin-date-preview-card">
+                <span className="preview-label">Nuevo vencimiento proyectado</span>
+                <strong className="preview-value">{extendPreview.text}</strong>
+                <small style={{ color: '#047857', fontSize: '11px', marginTop: '2px' }}>
+                  Vencimiento actual: {formatDate(extendingClient.subscription_until)}
+                </small>
+              </div>
+            )}
+
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="button-link"
+                disabled={isSubmittingExtend}
+                onClick={() => setExtendingClient(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={isSubmittingExtend}
+                onClick={() => void handleConfirmExtendDays()}
+              >
+                {isSubmittingExtend ? 'Guardando…' : 'Confirmar y sumar días'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: PAUSAR / REACTIVAR CUENTA */}
+      {suspendingClient && (
+        <div className="admin-modal-backdrop" onClick={() => !isSubmittingSuspend && setSuspendingClient(null)}>
+          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <div>
+                <h3>
+                  {suspendingClient.subscription_status === 'suspended'
+                    ? '🟢 Reactivar cuenta'
+                    : '⏸️ Pausar cuenta'}
+                </h3>
+                <p>Cliente: <strong>{suspendingClient.email}</strong></p>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close"
+                disabled={isSubmittingSuspend}
+                onClick={() => setSuspendingClient(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className={`admin-date-preview-card ${suspendingClient.subscription_status === 'suspended' ? '' : 'danger'}`}>
+              <span className="preview-label">
+                {suspendingClient.subscription_status === 'suspended' ? 'Efecto de la reactivación' : 'Efecto de la pausa'}
+              </span>
+              <p style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.5, color: '#334155' }}>
+                {suspendingClient.subscription_status === 'suspended'
+                  ? 'El bot volverá a responder los mensajes de WhatsApp de este cliente y se habilitará su acceso a la app.'
+                  : 'El bot dejará de responder los mensajes de WhatsApp de este cliente y se mostrará un aviso de cuenta pausada al entrar a la app. Podrás reactivarlo en cualquier momento.'}
+              </p>
+            </div>
+
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="button-link"
+                disabled={isSubmittingSuspend}
+                onClick={() => setSuspendingClient(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className={suspendingClient.subscription_status === 'suspended' ? 'primary-button' : 'danger-button'}
+                disabled={isSubmittingSuspend}
+                onClick={() => void handleConfirmToggleSuspend()}
+              >
+                {isSubmittingSuspend
+                  ? 'Guardando…'
+                  : suspendingClient.subscription_status === 'suspended'
+                  ? '🟢 Sí, reactivar cuenta'
+                  : '⏸️ Sí, pausar cuenta'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
