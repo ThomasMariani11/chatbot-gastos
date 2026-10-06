@@ -216,10 +216,15 @@ export function Login() {
       return;
     }
 
-    // Crear usuario en Supabase Auth
+    // Crear usuario en Supabase Auth pasando el código de invitación para canje atómico
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: cleanEmail,
       password,
+      options: {
+        data: {
+          invitation_code: cleanCode,
+        },
+      },
     });
 
     if (authError || !authData.user) {
@@ -229,20 +234,14 @@ export function Login() {
       return;
     }
 
-    // Canjear y vincular código inmediatamente al usuario recién creado
-    const { data: redeemData, error: redeemError } = await supabase.rpc('redeem_invitation_code', {
-      p_code: cleanCode,
-      p_user_id: authData.user.id,
-    });
-
-    if (redeemError || (redeemData && !redeemData.success)) {
-      setIsError(true);
-      setMessage(
-        'Tu usuario fue creado pero hubo un inconveniente al activar el código: ' +
-          (redeemError?.message || redeemData?.error || 'Intentá nuevamente.')
-      );
-      setSending(false);
-      return;
+    // Respaldo por si el trigger no procesó los metadatos
+    try {
+      await supabase.rpc('redeem_invitation_code', {
+        p_code: cleanCode,
+        p_user_id: authData.user.id,
+      });
+    } catch {
+      // El trigger atómico ya procesó el canje
     }
 
     // Éxito: Si Supabase retornó sesión activa, entrará automáticamente
