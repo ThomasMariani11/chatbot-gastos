@@ -109,20 +109,62 @@ async function extractFinancialProposal(input: { text?: string; mediaBase64?: st
     month: '2-digit',
     day: '2-digit',
   }).format(new Date());
-  const prompt = `Fecha local: ${today}. Extraé una sola operación financiera (en pesos argentinos ARS o dólares estadounidenses USD). Moneda: "USD" si el usuario menciona dólares, usd, u$s, greens, etc.; de lo contrario por defecto "ARS". Interpretá “lucas” y “k” como miles de ARS. Si la fecha no está expresada, usá la fecha local. Categorías de gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros. Categorías de ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros. Si es una compra en cuotas y el usuario menciona qué cuota está pagando (ej. "voy por la cuota 3 de 6", "es la cuota 4 de 12") o cuántas ya pagó (ej. "en 6 cuotas y ya pagué 2"), calculá firstInstallmentMonth restando a la fecha actual la cantidad de cuotas anteriores (ej. para "cuota 3 de 6", restar 2 meses a la fecha actual) para que la cuota actual coincida con el mes en curso. Si el mensaje o audio no contiene una operación financiera clara, o es solo ruido de fondo, murmullo o incomprensible, devolvé totalAmountArs null y confidence 0. ${input.text ?? ''}`;
+
+  const prompt = `Fecha local: ${today}.
+Extraé una sola operación financiera (en pesos argentinos ARS o dólares estadounidenses USD).
+
+TIPO DE OPERACIÓN ("kind"):
+- "income": Si el usuario indica un ingreso de dinero, cobro, haber, sueldo, freelance, honorarios, venta, depósito recibido, entrada de plata o transferencia recibida (ejemplos: "ingreso 20000", "me ingresaron...", "cobré...", "me pagaron...", "me entraron...", "me transfirieron...", "me depositaron...", "sueldo...", "vendí...").
+- "expense": Si es un gasto, egreso, compra, consumo o pago realizado (ejemplos: "gasté 5000 en comida", "pagué la luz", "compré ropa").
+
+MONEDA Y MONTOS:
+- "USD" si el usuario menciona dólares, usd, u$s, greens, etc.; de lo contrario por defecto "ARS".
+- Interpretá “lucas” y “k” como miles de ARS (ej: "20 lucas" = 20000, "5k" = 5000).
+- Si la fecha no está expresada, usá la fecha local: ${today}.
+
+CATEGORÍAS:
+- Categorías de gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros.
+- Categorías de ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros. Si es un ingreso general sin especificar categoría (ej: "ingreso 20000", "me entraron 10k"), asigná "Otros".
+
+CUOTAS (solo para gastos):
+- Si es una compra en cuotas y el usuario menciona qué cuota está pagando (ej. "voy por la cuota 3 de 6", "es la cuota 4 de 12") o cuántas ya pagó (ej. "en 6 cuotas y ya pagué 2"), calculá firstInstallmentMonth restando a la fecha actual la cantidad de cuotas anteriores para que la cuota actual coincida con el mes en curso. Para operaciones sin cuotas o ingresos, installments = 1 y firstInstallmentMonth = null.
+
+Si el mensaje o audio no contiene una operación financiera clara, o es solo ruido de fondo, murmullo o incomprensible, devolvé totalAmountArs null y confidence 0.
+
+Mensaje del usuario: ${input.text ?? ''}`;
 
   const parts: Array<Record<string, unknown>> = [{ text: prompt }];
   if (input.mediaBase64 && input.mimeType) parts.push({ inlineData: { mimeType: input.mimeType, data: input.mediaBase64 } });
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', responseJsonSchema, temperature: 0.1 } }),
-  });
-  if (!response.ok) throw new Error(`Gemini respondió ${response.status}.`);
-  const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-  const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!raw) throw new Error('Gemini no devolvió una propuesta.');
-  return JSON.parse(raw) as FinancialProposal;
+
+  // Fallback entre modelos disponibles para máxima confiabilidad y tolerancia a sobrecarga (503 / 429)
+  const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+  let lastError: Error | null = null;
+
+  for (const model of candidateModels) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', responseJsonSchema, temperature: 0.1 } }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => '');
+        console.error(`Gemini (${model}) returned status ${response.status}: ${errorBody.slice(0, 200)}`);
+        throw new Error(`Gemini respondió ${response.status}.`);
+      }
+
+      const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+      const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!raw) throw new Error('Gemini no devolvió una propuesta.');
+      return JSON.parse(raw) as FinancialProposal;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`Intento con ${model} falló, probando siguiente modelo si disponible...`, lastError.message);
+    }
+  }
+
+  throw lastError ?? new Error('Gemini no pudo procesar la solicitud.');
 }
 
 function splitInstallments(total: number, count: number) {
@@ -297,9 +339,29 @@ Deno.serve(async (request) => {
       if (!text && !media) throw new Error('Tipo de mensaje no compatible.');
       const proposal = await extractFinancialProposal({ text, mediaBase64: media?.base64, mimeType: media?.mimeType });
       if (!proposal.totalAmountArs || (proposal.confidence ?? 0) < 0.5) {
-        throw new Error('No se pudo identificar un monto o gasto válido en el mensaje/audio.');
+        throw new Error('No se pudo identificar un monto u operación válida en el mensaje/audio.');
       }
-      const { data: category } = await supabase.from('categories').select('id').eq('user_id', link.user_id).eq('kind', proposal.kind).ilike('name', proposal.category ?? 'Otros').maybeSingle();
+      let categoryId: string | null = null;
+      if (proposal.category) {
+        const { data: matchedCategory } = await supabase
+          .from('categories')
+          .select('id')
+          .eq('user_id', link.user_id)
+          .eq('kind', proposal.kind)
+          .ilike('name', proposal.category)
+          .maybeSingle();
+        categoryId = matchedCategory?.id ?? null;
+      }
+      if (!categoryId) {
+        const { data: defaultCategory } = await supabase
+          .from('categories')
+          .select('id')
+          .eq('user_id', link.user_id)
+          .eq('kind', proposal.kind)
+          .ilike('name', 'Otros')
+          .maybeSingle();
+        categoryId = defaultCategory?.id ?? null;
+      }
       // Cancelar cualquier propuesta previa que haya quedado pendiente
       await supabase.from('transactions').update({ status: 'cancelled' }).eq('user_id', link.user_id).eq('status', 'pending');
       await supabase.from('transactions').insert({
@@ -309,7 +371,7 @@ Deno.serve(async (request) => {
         amount_ars: proposal.totalAmountArs,
         currency: proposal.currency || 'ARS',
         occurred_on: proposal.occurredOn,
-        category_id: category?.id ?? null,
+        category_id: categoryId,
         status: 'pending',
         source: message.type,
         confidence: proposal.confidence,
@@ -327,7 +389,7 @@ Deno.serve(async (request) => {
       try {
         const userNotice = errorMsg.includes('Número no vinculado')
           ? 'Tu número no está vinculado a Pesito. Podés vincularlo generando un código desde la app.'
-          : 'No pude interpretar el mensaje o comprobante 😕. Probá escribiendo el gasto (ej: "Gasté 15000 en súper") o reenviando el audio.';
+          : 'No pude interpretar el mensaje o comprobante 😕. Probá escribiendo el gasto o ingreso (ej: "Gasté 15000 en súper" o "Ingreso 50000 de sueldo") o reenviando el audio.';
         await sendWhatsAppText(message.from, userNotice);
       } catch {
         // Ignorar silenciosamente errores secundarios al enviar aviso por WhatsApp
