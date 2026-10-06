@@ -422,11 +422,22 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
           <p className="admin-subtitle">Gestión de licencias, clientes y suscripciones del negocio.</p>
         </div>
         <div className="admin-header-actions">
-          <button className="secondary-button" type="button" onClick={() => void loadData()}>
-            🔄 Actualizar
+          <button
+            type="button"
+            className="admin-header-btn secondary"
+            onClick={() => void loadData()}
+            disabled={loading}
+          >
+            <span>{loading ? '⏳' : '🔄'}</span>
+            <span>{loading ? 'Actualizando…' : 'Actualizar'}</span>
           </button>
-          <button className="danger-button" type="button" onClick={onSignOut}>
-            Cerrar sesión
+          <button
+            type="button"
+            className="admin-header-btn danger"
+            onClick={onSignOut}
+          >
+            <span>🚪</span>
+            <span>Cerrar sesión</span>
           </button>
         </div>
       </header>
