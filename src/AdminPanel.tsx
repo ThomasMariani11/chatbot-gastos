@@ -81,14 +81,20 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [savingBotPhone, setSavingBotPhone] = useState(false);
   const [botPhoneSuccess, setBotPhoneSuccess] = useState<string | null>(null);
 
+  // Corte general del bot (exclusivo admin)
+  const [botActive, setBotActive] = useState(true);
+  const [togglingBot, setTogglingBot] = useState(false);
+  const [botStatusFeedback, setBotStatusFeedback] = useState<string | null>(null);
+
   async function loadData() {
     setLoading(true);
     setErrorMsg(null);
 
-    const [profilesRes, codesRes, botPhoneRes] = await Promise.all([
+    const [profilesRes, codesRes, botPhoneRes, botActiveRes] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('invitation_codes').select('*').order('created_at', { ascending: false }),
       supabase.from('system_config').select('value').eq('key', 'whatsapp_bot_phone').maybeSingle(),
+      supabase.from('system_config').select('value').eq('key', 'bot_active').maybeSingle(),
     ]);
 
     if (profilesRes.error) {
@@ -107,7 +113,37 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
       setBotPhone(botPhoneRes.data.value);
     }
 
+    if (botActiveRes.data?.value !== undefined) {
+      setBotActive(botActiveRes.data.value !== 'false');
+    }
+
     setLoading(false);
+  }
+
+  async function handleToggleBotActive() {
+    setTogglingBot(true);
+    setBotStatusFeedback(null);
+    const nextActive = !botActive;
+    const { error } = await supabase
+      .from('system_config')
+      .upsert({
+        key: 'bot_active',
+        value: String(nextActive),
+        updated_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      setErrorMsg('No se pudo cambiar el estado del bot: ' + error.message);
+    } else {
+      setBotActive(nextActive);
+      setBotStatusFeedback(
+        nextActive
+          ? '🟢 Bot reanudado: todos los clientes pueden enviar gastos.'
+          : '🛑 Corte activado: el bot está pausado para los clientes.'
+      );
+      setTimeout(() => setBotStatusFeedback(null), 4000);
+    }
+    setTogglingBot(false);
   }
 
   useEffect(() => {
@@ -358,6 +394,78 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
             <span className="kpi-label">Total registrados</span>
           </div>
         </div>
+      </section>
+
+      {/* CORTE GENERAL DEL BOT (EXCLUSIVO ADMIN) */}
+      <section
+        className="admin-generator-card"
+        style={{
+          marginBottom: '24px',
+          border: `1px solid ${botActive ? '#e2e8f0' : '#fca5a5'}`,
+        }}
+      >
+        <div className="generator-header">
+          <div>
+            <p className="eyebrow" style={{ color: 'var(--mint-dark)' }}>CONTROL DE DISPONIBILIDAD</p>
+            <h2>Corte General del Bot (Interruptor Maestro)</h2>
+            <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0' }}>
+              Solo vos como administrador podés activar el corte del bot o reanudar las respuestas para todos los clientes.
+            </p>
+          </div>
+          <div>
+            {botActive ? (
+              <span className="status-pill green" style={{ fontSize: '12px' }}>🟢 Bot Operativo</span>
+            ) : (
+              <span className="status-pill red" style={{ fontSize: '12px' }}>🛑 Corte Activado</span>
+            )}
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            background: botActive ? '#f8fafc' : '#fef2f2',
+            padding: '14px 18px',
+            borderRadius: '12px',
+            border: `1px solid ${botActive ? '#e2e8f0' : '#fecaca'}`,
+          }}
+        >
+          <div>
+            <strong style={{ display: 'block', fontSize: '14px', color: botActive ? '#0f172a' : '#991b1b' }}>
+              {botActive
+                ? 'El bot está procesando mensajes y gastos normalmente'
+                : 'Corte activo: El bot está pausado para clientes'}
+            </strong>
+            <small style={{ color: botActive ? '#64748b' : '#b91c1c' }}>
+              {botActive
+                ? 'Cualquier cliente con membresía activa puede enviar gastos, audios y tickets.'
+                : 'Los mensajes de clientes recibirán un aviso de mantenimiento y no registrarán operaciones.'}
+            </small>
+          </div>
+          <button
+            type="button"
+            className={botActive ? 'danger-button' : 'primary-button'}
+            style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700 }}
+            disabled={togglingBot}
+            onClick={() => void handleToggleBotActive()}
+          >
+            {togglingBot
+              ? 'Guardando…'
+              : botActive
+              ? '🛑 Activar corte del bot'
+              : '🟢 Desactivar corte (Reanudar)'}
+          </button>
+        </div>
+        {botStatusFeedback && (
+          <p style={{ margin: '10px 0 0', fontSize: '13px', fontWeight: 600, color: botActive ? '#059669' : '#dc2626' }}>
+            {botStatusFeedback}
+          </p>
+        )}
       </section>
 
       {/* CONFIGURACIÓN DEL NÚMERO DE WHATSAPP DEL BOT (FASE 4) */}

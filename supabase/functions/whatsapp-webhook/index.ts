@@ -227,6 +227,25 @@ Deno.serve(async (request) => {
         return json({ received: true, blocked: true });
       }
     }
+
+    // Corte General del Bot (configurado exclusivamente por el Admin)
+    const { data: botActiveConfig } = await supabase
+      .from('system_config')
+      .select('value')
+      .eq('key', 'bot_active')
+      .maybeSingle();
+
+    const isBotActiveGlobally = botActiveConfig ? botActiveConfig.value !== 'false' : true;
+
+    if (!isBotActiveGlobally && profile?.role !== 'admin') {
+      await sendWhatsAppText(
+        message.from,
+        'Pesito: El bot se encuentra temporalmente en pausa por corte de seguridad o mantenimiento. Por favor, intentá nuevamente más tarde.'
+      );
+      await supabase.from('inbound_events').update({ status: 'blocked_bot_paused', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+      return json({ received: true, blocked: true });
+    }
+
     const { data: settings } = await supabase.from('app_settings').select('whatsapp_responses_enabled').eq('user_id', link.user_id).maybeSingle();
     if (!(settings?.whatsapp_responses_enabled ?? true)) {
       await supabase.from('inbound_events').update({ status: 'blocked_paused', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
