@@ -984,7 +984,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
             <div className="admin-modal-actions">
               <button
                 type="button"
-                className="button-link"
+                className="admin-btn-cancel"
                 disabled={isSubmittingExtend}
                 onClick={() => setExtendingClient(null)}
               >
@@ -1040,7 +1040,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
             <div className="admin-modal-actions">
               <button
                 type="button"
-                className="button-link"
+                className="admin-btn-cancel"
                 disabled={isSubmittingSuspend}
                 onClick={() => setSuspendingClient(null)}
               >

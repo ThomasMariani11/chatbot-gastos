@@ -2191,14 +2191,82 @@ textarea,
 
 .admin-modal-actions {
   display: flex;
+  flex-direction: row;
+  align-items: center;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 8px;
-  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: nowrap;
 }
 
 .admin-modal-actions button {
+  height: 44px;
   min-width: 120px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.admin-btn-cancel {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 1px solid #cbd5e1 !important;
+  transition: all 0.15s ease;
+}
+
+.admin-btn-cancel:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}
+
+.admin-modal-actions .danger-button {
+  width: auto !important;
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fca5a5 !important;
+  padding: 10px 20px !important;
+  height: 44px !important;
+  margin: 0 !important;
+  transition: all 0.15s ease;
+}
+
+.admin-modal-actions .danger-button:hover {
+  background: #fecaca !important;
+  color: #b91c1c !important;
+  border-color: #f87171 !important;
+}
+
+.admin-modal-actions .primary-button {
+  width: auto !important;
+  height: 44px !important;
+  padding: 10px 22px !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 440px) {
+  .admin-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .admin-modal-actions button {
+    min-width: 0;
+    width: 100% !important;
+    padding: 10px 8px;
+    font-size: 13px;
+  }
 }
 
 
