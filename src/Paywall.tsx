@@ -71,7 +71,7 @@ export function Paywall({
 
     setSubmitting(false);
 
-    if (redeemError || (redeemData && !redeemData.success)) {
+    if (redeemError || redeemData?.success !== true) {
       setErrorMsg(
         'No se pudo activar el código: ' +
           (redeemError?.message || redeemData?.error || 'Intentá nuevamente.')

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabase';
+import { clientSubscriptionMetrics } from './subscription';
 
 type ClientProfile = {
   id: string;
@@ -181,23 +182,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const now = new Date();
   const clientsOnly = useMemo(() => profiles.filter((p) => p.role === 'client'), [profiles]);
 
-  const activeClientsCount = useMemo(() => {
-    return clientsOnly.filter((p) => {
-      if (p.subscription_status === 'suspended') return false;
-      if (!p.subscription_until) return true;
-      return new Date(p.subscription_until) > now;
-    }).length;
-  }, [clientsOnly, now]);
-
-  const expiringSoonCount = useMemo(() => {
-    return clientsOnly.filter((p) => {
-      if (!p.subscription_until || p.subscription_status === 'suspended') return false;
-      const until = new Date(p.subscription_until);
-      const diffMs = until.getTime() - now.getTime();
-      const diffDays = diffMs / (1000 * 60 * 60 * 24);
-      return diffDays > 0 && diffDays <= 7;
-    }).length;
-  }, [clientsOnly, now]);
+  const { activeClientsCount, expiringSoonCount } = clientSubscriptionMetrics(clientsOnly, now.getTime());
 
   const availableCodesCount = useMemo(() => {
     return codes.filter((c) => !c.is_used).length;

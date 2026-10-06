@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { AdminPanel } from './AdminPanel';
 import { Dashboard } from './Dashboard';
@@ -6,15 +6,12 @@ import { Login } from './Login';
 import { Paywall } from './Paywall';
 import { Settings, type UserProfile } from './Settings';
 import { supabase } from './supabase';
+import { hasActiveSubscription } from './subscription';
 
 type View = 'dashboard' | 'settings' | 'admin';
 
 export function App() {
   const [session, setSession] = useState<Session | null>();
-  const [view, setView] = useState<View>('dashboard');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -22,47 +19,50 @@ export function App() {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  if (session === undefined) return <main className="auth-page"><p className="loading-copy">Abriendo Pesito…</p></main>;
+  if (!session) return <Login />;
+  return <AuthenticatedApp key={session.user.id} session={session} />;
+}
+
+function AuthenticatedApp({ session }: { session: Session }) {
+  const [view, setView] = useState<View>('dashboard');
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState(false);
+  const requestId = useRef(0);
+  const isAdmin = profile?.role === 'admin';
+
   const loadProfile = useCallback(async () => {
-    if (!session?.user?.id) {
-      setIsAdmin(false);
-      setProfile(null);
-      setLoadingProfile(false);
-      return;
-    }
-
+    const currentRequest = ++requestId.current;
     try {
-      const [roleRes, profileRes] = await Promise.all([
-        supabase.rpc('get_my_role'),
-        supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle(),
-      ]);
-
-      const isUserAdmin = roleRes.data === 'admin' || profileRes.data?.role === 'admin';
-      setIsAdmin(isUserAdmin);
-
-      if (profileRes.data) {
-        setProfile(profileRes.data as UserProfile);
-      }
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+      if (currentRequest !== requestId.current) return;
+      if (error || !data || data.id !== session.user.id) throw new Error('Perfil no disponible');
+      setProfile(data as UserProfile);
+      setProfileError(false);
     } catch {
-      // ignore
+      if (currentRequest !== requestId.current) return;
+      setProfile(null);
+      setProfileError(true);
     } finally {
-      setLoadingProfile(false);
+      if (currentRequest === requestId.current) setLoadingProfile(false);
     }
   }, [session?.user?.id]);
 
   useEffect(() => {
     setLoadingProfile(true);
     void loadProfile();
+    const refresh = () => { void loadProfile(); };
+    const interval = window.setInterval(refresh, 30000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      requestId.current += 1;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+    };
   }, [loadProfile]);
 
-  const isSubscriptionActive = useMemo(() => {
-    if (isAdmin) return true; // Administrador siempre activo y vitalicio
-    if (!profile) return true; // Durante carga inicial no bloquear prematuramente
-    if (profile.subscription_status === 'suspended') return false;
-    if (profile.subscription_status === 'expired') return false;
-    if (profile.subscription_status === 'pending_code') return false;
-    if (!profile.subscription_until) return true; // null = acceso vitalicio
-    return new Date(profile.subscription_until).getTime() > Date.now();
-  }, [isAdmin, profile]);
+  const isSubscriptionActive = hasActiveSubscription(profile);
 
   if (session === undefined || (session && loadingProfile)) {
     return (
@@ -72,7 +72,14 @@ export function App() {
     );
   }
 
-  if (!session) return <Login />;
+  if (profileError || !profile) return (
+    <main className="auth-page"><section className="auth-card">
+      <h1>No pudimos verificar tu acceso</h1>
+      <p role="alert">Revisá tu conexión y volvé a intentar. Tus datos siguen guardados.</p>
+      <button type="button" onClick={() => { setLoadingProfile(true); void loadProfile(); }}>Reintentar</button>
+      <button type="button" className="button-link" onClick={() => void supabase.auth.signOut()}>Cerrar sesión</button>
+    </section></main>
+  );
 
   // Paywall bloqueante para clientes vencidos o suspendidos
   if (!isSubscriptionActive && profile) {

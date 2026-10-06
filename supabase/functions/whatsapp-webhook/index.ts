@@ -282,18 +282,24 @@ Deno.serve(async (request) => {
     let { data: link } = await supabase.from('whatsapp_links').select('user_id').eq('wa_id', message.from).eq('status', 'active').maybeSingle();
     if (!link) throw new Error('Número no vinculado.');
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role, subscription_status, subscription_until')
       .eq('id', link.user_id)
       .maybeSingle();
 
-    if (profile && profile.role !== 'admin') {
+    if (profileError || !profile) {
+      await supabase.from('inbound_events').update({ status: 'blocked_profile_unavailable', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+      await sendWhatsAppText(message.from, 'No pudimos verificar tu suscripción. Intentá nuevamente en unos minutos; no registramos ninguna operación.');
+      return json({ received: true, blocked: true });
+    }
+
+    if (profile.role !== 'admin') {
       const isSuspended = profile.subscription_status === 'suspended';
       const isExpired =
-        profile.subscription_status === 'expired' ||
-        profile.subscription_status === 'pending_code' ||
-        (profile.subscription_until && new Date(profile.subscription_until).getTime() < Date.now());
+        profile.role !== 'client' ||
+        profile.subscription_status !== 'active' ||
+        (profile.subscription_until !== null && !(Date.parse(profile.subscription_until) > Date.now()));
 
       if (isSuspended || isExpired) {
         const [supportRes, aliasRes] = await Promise.all([

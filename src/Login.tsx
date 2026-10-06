@@ -234,15 +234,8 @@ export function Login() {
       return;
     }
 
-    // Respaldo por si el trigger no procesó los metadatos
-    try {
-      await supabase.rpc('redeem_invitation_code', {
-        p_code: cleanCode,
-        p_user_id: authData.user.id,
-      });
-    } catch {
-      // El trigger atómico ya procesó el canje
-    }
+    // El trigger 010 canjea el código durante el alta, incluso sin sesión
+    // cuando se exige confirmar email. La RPC de renovación requiere sesión.
 
     // Éxito: Si Supabase retornó sesión activa, entrará automáticamente
     if (authData.session) {

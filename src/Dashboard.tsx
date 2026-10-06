@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { supabase } from './supabase';
+import { installmentDate } from '../lib/finance';
 import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
 
@@ -168,7 +169,6 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
   // PWA Install hook
   const {
     canInstall,
-    isIos,
     triggerInstall,
     showIosModal,
     setShowIosModal,
@@ -454,31 +454,8 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
           groups.get(key)!.push(row);
         });
 
-        // Auto-alineación de cuotas: Si las cuotas perdieron correlatividad mensual (ej. se editó la cuota 1 a julio pero la 2 quedó descolgada),
-        // las sincronizamos automáticamente en meses consecutivos.
-        groups.forEach((rows) => {
-          if (rows.length > 1) {
-            rows.sort((a, b) => Number(a.installment_number ?? 1) - Number(b.installment_number ?? 1));
-            const first = rows[0];
-            const firstDateStr = String(first.occurred_on);
-            const baseMonth = firstDateStr.slice(0, 7);
-            const day = firstDateStr.slice(8, 10);
-
-            rows.forEach((r) => {
-              const num = Number(r.installment_number ?? 1);
-              const expectedMonth = shiftMonth(baseMonth, num - 1);
-              const expectedDate = `${expectedMonth}-${day}`;
-              if (String(r.occurred_on) !== expectedDate) {
-                r.occurred_on = expectedDate;
-                void supabase
-                  .from('transactions')
-                  .update({ occurred_on: expectedDate })
-                  .eq('id', r.id)
-                  .eq('user_id', userId);
-              }
-            });
-          }
-        });
+        // Respetar las fechas guardadas, incluso si se eliminó una cuota.
+        // Reprogramar un plan es una acción explícita del formulario de edición.
 
         const currentKey = month; // Evaluamos las cuotas relativas al mes que el usuario está viendo en pantalla
         const computedPlans: InstallmentPlan[] = [];
@@ -612,7 +589,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
           description,
           amount_ars: totalAmount,
           currency,
-          occurred_on: `${startMonth}-${day}`,
+          occurred_on: installmentDate(startMonth, Number(day)),
           category_id: selectedCategory.id,
           status: 'cancelled',
           source: 'pwa',
@@ -636,7 +613,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
         description,
         amount_ars: amount,
         currency,
-        occurred_on: `${shiftMonth(startMonth, index)}-${day}`,
+        occurred_on: installmentDate(shiftMonth(startMonth, index), Number(day)),
         category_id: selectedCategory.id,
         status: 'confirmed',
         source: 'pwa',
@@ -758,7 +735,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
 
       for (let i = 1; i <= totalCuotas; i++) {
         const cuotaMonth = shiftMonth(newStartMonth, i - 1);
-        const cuotaDate = `${cuotaMonth}-${targetDay}`;
+        const cuotaDate = installmentDate(cuotaMonth, Number(targetDay));
         const existing = rows[i - 1];
 
         if (existing) {
@@ -815,7 +792,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
           description,
           category_id: selectedCategory.id,
           first_installment_month: newStartMonth,
-          occurred_on: `${newStartMonth}-${targetDay}`,
+          occurred_on: installmentDate(newStartMonth, Number(targetDay)),
           amount_ars: amount * totalCuotas,
           currency: editCurrency,
           installment_count: totalCuotas,

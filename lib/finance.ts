@@ -18,6 +18,17 @@ export function addMonths(month: string, offset: number): string {
   return monthKey(new Date(year, rawMonth - 1 + offset, 1));
 }
 
+// Calcular cada cuota desde el día elegido, sin arrastrar el ajuste de febrero.
+export function installmentDate(month: string, preferredDay: number): string {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !Number.isInteger(preferredDay) || preferredDay < 1 || preferredDay > 31) {
+    throw new Error('Mes o día de cuota inválido.');
+  }
+  const [year, monthNumber] = month.split('-').map(Number);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][monthNumber - 1];
+  return `${month}-${String(Math.min(preferredDay, daysInMonth)).padStart(2, '0')}`;
+}
+
 export function summarize(movements: Movement[], budgetArs: number) {
   const confirmed = movements.filter((movement) => movement.status === 'confirmed');
   const expenses = confirmed.filter((movement) => movement.kind === 'expense').reduce((sum, movement) => sum + movement.amountArs, 0);

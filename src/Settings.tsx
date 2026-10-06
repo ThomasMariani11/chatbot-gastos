@@ -57,7 +57,6 @@ export function Settings({
   // PWA Install hook
   const {
     canInstall,
-    isIos,
     triggerInstall,
     showIosModal,
     setShowIosModal,
@@ -168,7 +167,7 @@ export function Settings({
 
     setIsRedeeming(false);
 
-    if (redeemError || (redeemData && !redeemData.success)) {
+    if (redeemError || redeemData?.success !== true) {
       setRedeemFeedback({
         type: 'error',
         message: 'Error al activar código: ' + (redeemError?.message || redeemData?.error || 'Intentá nuevamente.'),
