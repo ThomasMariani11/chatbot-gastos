@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { supabase } from './supabase';
+import { usePwaInstall } from './usePwaInstall';
+import { InstallAppModal } from './InstallAppModal';
 
 type Movement = {
   id: string;
@@ -162,6 +164,17 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
     }
     return userDisplayName.slice(0, 2).toUpperCase();
   }, [userDisplayName]);
+
+  // PWA Install hook
+  const {
+    canInstall,
+    isIos,
+    triggerInstall,
+    showIosModal,
+    setShowIosModal,
+    showDesktopModal,
+    setShowDesktopModal,
+  } = usePwaInstall();
 
   // Onboarding WhatsApp (Fase 4)
   const [isConnectingWa, setIsConnectingWa] = useState(false);
@@ -944,6 +957,16 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
             <span>🛠️</span>Panel Admin
           </button>
         )}
+        {canInstall && (
+          <button
+            className="nav-item nav-button"
+            type="button"
+            onClick={triggerInstall}
+            style={{ color: '#059669', fontWeight: 700 }}
+          >
+            <span>📲</span>Instalar app
+          </button>
+        )}
       </nav>
       <div className={`bot-status bot-status-${botState}`}><span className="status-dot"/><div><strong>{botStatus.title}</strong><small>{botStatus.detail}</small></div></div>
       <button className="profile logout-button" type="button" onClick={onSignOut}><span>{userInitials}</span><div><strong>{userDisplayName}</strong><small>Cerrar sesión</small></div><b>›</b></button>
@@ -956,6 +979,29 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
           <p>Así vienen tus finanzas este mes.</p>
         </div>
         <div className="top-actions">
+          {canInstall && (
+            <button
+              type="button"
+              className="install-app-pill"
+              onClick={triggerInstall}
+              title="Instalar Pesito en tu celular"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#ecfdf5',
+                color: '#065f46',
+                border: '1px solid #a7f3d0',
+                padding: '6px 12px',
+                borderRadius: '999px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              📲 Instalar app
+            </button>
+          )}
           {isAdmin && onOpenAdmin && (
             <button
               type="button"
@@ -2107,5 +2153,13 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
       </div>
     )}
 
+    <InstallAppModal
+      isOpen={showIosModal || showDesktopModal}
+      onClose={() => {
+        setShowIosModal(false);
+        setShowDesktopModal(false);
+      }}
+      isIos={showIosModal}
+    />
   </main>;
 }

@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabase';
+import { usePwaInstall } from './usePwaInstall';
+import { InstallAppModal } from './InstallAppModal';
 
 export type UserProfile = {
   id: string;
@@ -51,6 +53,17 @@ export function Settings({
   const [botPhone, setBotPhone] = useState('');
   const [supportPhone, setSupportPhone] = useState('');
   const [paymentAlias, setPaymentAlias] = useState('');
+
+  // PWA Install hook
+  const {
+    canInstall,
+    isIos,
+    triggerInstall,
+    showIosModal,
+    setShowIosModal,
+    showDesktopModal,
+    setShowDesktopModal,
+  } = usePwaInstall();
 
   // Canje de código de renovación desde Ajustes
   const [showRedeemForm, setShowRedeemForm] = useState(false);
@@ -414,6 +427,41 @@ export function Settings({
           </label>
         </section>
       )}
+
+      {/* SECCIÓN: INSTALACIÓN DE LA APP (PWA) */}
+      <section className="settings-panel">
+        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          ACCESO RÁPIDO
+        </span>
+        <h2 style={{ margin: '4px 0 6px' }}>📲 Instalar Pesito en tu celular</h2>
+        <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#64748b' }}>
+          Instalá Pesito en tu pantalla de inicio para entrar más rápido, en pantalla completa y con la experiencia de una app nativa.
+        </p>
+
+        {canInstall ? (
+          <button
+            type="button"
+            className="primary-button"
+            onClick={triggerInstall}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 18px', fontSize: '13px' }}
+          >
+            📲 Instalar en este dispositivo
+          </button>
+        ) : (
+          <div style={{ padding: '12px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', color: '#166534', fontWeight: 700, fontSize: '13px' }}>
+            ✅ Pesito ya está instalado como app en este dispositivo.
+          </div>
+        )}
+      </section>
+
+      <InstallAppModal
+        isOpen={showIosModal || showDesktopModal}
+        onClose={() => {
+          setShowIosModal(false);
+          setShowDesktopModal(false);
+        }}
+        isIos={showIosModal}
+      />
 
       {/* SECCIÓN 3: CUENTA Y SESIÓN */}
       <section className="settings-panel">
