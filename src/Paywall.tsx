@@ -23,15 +23,20 @@ export function Paywall({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [botPhone, setBotPhone] = useState<string>('');
+  const [supportPhone, setSupportPhone] = useState<string>('');
+  const [paymentAlias, setPaymentAlias] = useState<string>('');
 
   useEffect(() => {
     supabase
       .from('system_config')
-      .select('value')
-      .eq('key', 'whatsapp_bot_phone')
-      .maybeSingle()
+      .select('key, value')
+      .in('key', ['whatsapp_bot_phone', 'support_phone', 'payment_alias'])
       .then(({ data }) => {
-        if (data?.value) setBotPhone(data.value);
+        data?.forEach((row) => {
+          if (row.key === 'whatsapp_bot_phone' && row.value) setBotPhone(row.value);
+          if (row.key === 'support_phone' && row.value) setSupportPhone(row.value);
+          if (row.key === 'payment_alias' && row.value) setPaymentAlias(row.value);
+        });
       });
   }, []);
 
@@ -98,12 +103,12 @@ export function Paywall({
     }
   }
 
-  const cleanPhone = botPhone.replace(/\D/g, '');
+  const targetPhone = (supportPhone || botPhone).replace(/\D/g, '');
   const renewalText = encodeURIComponent(
     `¡Hola! Quiero renovar mi suscripción a Pesito para la cuenta: ${userEmail || ''}`
   );
-  const whatsappUrl = cleanPhone
-    ? `https://wa.me/${cleanPhone}?text=${renewalText}`
+  const whatsappUrl = targetPhone
+    ? `https://wa.me/${targetPhone}?text=${renewalText}`
     : `https://wa.me/?text=${renewalText}`;
 
   const isSuspended = subscriptionStatus === 'suspended';
@@ -197,6 +202,21 @@ export function Paywall({
           >
             <span>💬</span> Renovar por WhatsApp
           </a>
+
+          {paymentAlias && (
+            <div style={{
+              marginTop: '12px',
+              padding: '10px 14px',
+              background: '#f8fafc',
+              borderRadius: '8px',
+              fontSize: '13px',
+              color: '#334155',
+              border: '1px solid #e2e8f0',
+              textAlign: 'center',
+            }}>
+              💸 Alias para transferencias: <strong style={{ color: '#0f172a' }}>{paymentAlias}</strong>
+            </div>
+          )}
         </div>
 
         <div className="auth-footer-links" style={{ marginTop: '20px' }}>

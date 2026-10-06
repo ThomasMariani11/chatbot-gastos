@@ -81,6 +81,12 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [savingBotPhone, setSavingBotPhone] = useState(false);
   const [botPhoneSuccess, setBotPhoneSuccess] = useState<string | null>(null);
 
+  // Soporte y datos de cobro para renovaciones
+  const [supportPhone, setSupportPhone] = useState('');
+  const [paymentAlias, setPaymentAlias] = useState('');
+  const [savingSupportConfig, setSavingSupportConfig] = useState(false);
+  const [supportConfigSuccess, setSupportConfigSuccess] = useState<string | null>(null);
+
   // Corte general del bot (exclusivo admin)
   const [botActive, setBotActive] = useState(true);
   const [togglingBot, setTogglingBot] = useState(false);
@@ -101,11 +107,13 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     setLoading(true);
     setErrorMsg(null);
 
-    const [profilesRes, codesRes, botPhoneRes, botActiveRes] = await Promise.all([
+    const [profilesRes, codesRes, botPhoneRes, botActiveRes, supportPhoneRes, paymentAliasRes] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('invitation_codes').select('*').order('created_at', { ascending: false }),
       supabase.from('system_config').select('value').eq('key', 'whatsapp_bot_phone').maybeSingle(),
       supabase.from('system_config').select('value').eq('key', 'bot_active').maybeSingle(),
+      supabase.from('system_config').select('value').eq('key', 'support_phone').maybeSingle(),
+      supabase.from('system_config').select('value').eq('key', 'payment_alias').maybeSingle(),
     ]);
 
     if (profilesRes.error) {
@@ -122,6 +130,14 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
 
     if (botPhoneRes.data?.value) {
       setBotPhone(botPhoneRes.data.value);
+    }
+
+    if (supportPhoneRes.data?.value) {
+      setSupportPhone(supportPhoneRes.data.value);
+    }
+
+    if (paymentAliasRes.data?.value) {
+      setPaymentAlias(paymentAliasRes.data.value);
     }
 
     if (botActiveRes.data?.value !== undefined) {
@@ -253,6 +269,38 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
       setBotPhone(cleanNumber);
       setBotPhoneSuccess('¡Número del bot guardado exitosamente!');
       setTimeout(() => setBotPhoneSuccess(null), 3500);
+    }
+  }
+
+  // Guardar configuración de soporte y cobros (renovaciones)
+  async function handleSaveSupportConfig(e: FormEvent) {
+    e.preventDefault();
+    setSavingSupportConfig(true);
+    setSupportConfigSuccess(null);
+    const cleanSupportNumber = supportPhone.trim().replace(/[^\d+]/g, '');
+    const cleanAlias = paymentAlias.trim();
+
+    const [res1, res2] = await Promise.all([
+      supabase.from('system_config').upsert({
+        key: 'support_phone',
+        value: cleanSupportNumber,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'key' }),
+      supabase.from('system_config').upsert({
+        key: 'payment_alias',
+        value: cleanAlias,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'key' }),
+    ]);
+
+    setSavingSupportConfig(false);
+    if (res1.error || res2.error) {
+      window.alert('Error al guardar la configuración de soporte: ' + (res1.error?.message || res2.error?.message));
+    } else {
+      setSupportPhone(cleanSupportNumber);
+      setPaymentAlias(cleanAlias);
+      setSupportConfigSuccess('¡Configuración de soporte y cobros guardada exitosamente!');
+      setTimeout(() => setSupportConfigSuccess(null), 3500);
     }
   }
 
@@ -605,6 +653,63 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
                 style={{ fontSize: '12px', fontWeight: 700 }}
               >
                 Probar chat en WhatsApp ↗
+              </a>
+            )}
+          </div>
+        </form>
+      </section>
+
+      {/* CONFIGURACIÓN DE SOPORTE Y VENTAS / RENOVACIONES */}
+      <section className="admin-generator-card" style={{ marginBottom: '24px' }}>
+        <div className="generator-header">
+          <div>
+            <p className="eyebrow" style={{ color: 'var(--mint-dark)' }}>SOPORTE Y RENOVACIONES</p>
+            <h2>WhatsApp de Soporte y Datos de Cobro</h2>
+            <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0' }}>
+              Este es tu número de WhatsApp de soporte/ventas al que tus clientes serán dirigidos cuando toquen <strong>"Renovar por WhatsApp"</strong> o le pregunten al bot cómo pagar.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSaveSupportConfig} className="generator-form">
+          <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+            <label>
+              WhatsApp de Soporte / Admin (con código de país sin signos, ej. 5493512345678)
+              <input
+                type="text"
+                placeholder="Ej. 5493512345678"
+                value={supportPhone}
+                onChange={(e) => setSupportPhone(e.target.value)}
+              />
+            </label>
+            <label>
+              Alias o CBU para transferencias (opcional, ej. pesito.app o 00000031...)
+              <input
+                type="text"
+                placeholder="Ej. mi.alias.mp o 00000..."
+                value={paymentAlias}
+                onChange={(e) => setPaymentAlias(e.target.value)}
+              />
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap' }}>
+            <button className="primary-button" type="submit" disabled={savingSupportConfig}>
+              {savingSupportConfig ? 'Guardando…' : '💾 Guardar soporte y pagos'}
+            </button>
+            {supportConfigSuccess && (
+              <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 700 }}>
+                {supportConfigSuccess}
+              </span>
+            )}
+            {supportPhone && (
+              <a
+                href={`https://wa.me/${supportPhone.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="button-link"
+                style={{ fontSize: '12px', fontWeight: 700 }}
+              >
+                Probar chat de soporte ↗
               </a>
             )}
           </div>

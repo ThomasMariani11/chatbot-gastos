@@ -251,22 +251,39 @@ Deno.serve(async (request) => {
         profile.subscription_status === 'pending_code' ||
         (profile.subscription_until && new Date(profile.subscription_until).getTime() < Date.now());
 
-      if (isSuspended) {
-        await sendWhatsAppText(
-          message.from,
-          'Tu cuenta de Pesito se encuentra en pausa ⏸️. Si necesitás reactivarla, comunicate con soporte desde la app.'
-        );
-        await supabase.from('inbound_events').update({ status: 'blocked_suspended', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
-        return json({ received: true, blocked: true });
-      }
+      if (isSuspended || isExpired) {
+        const [supportRes, aliasRes] = await Promise.all([
+          supabase.from('system_config').select('value').eq('key', 'support_phone').maybeSingle(),
+          supabase.from('system_config').select('value').eq('key', 'payment_alias').maybeSingle(),
+        ]);
+        const supportPhone = supportRes.data?.value ? supportRes.data.value.replace(/\D/g, '') : null;
+        const alias = aliasRes.data?.value?.trim();
 
-      if (isExpired) {
-        await sendWhatsAppText(
-          message.from,
-          'Tu suscripción en Pesito ha finalizado ⏳. Para seguir registrando tus gastos y consultando tus finanzas, renová tu membresía desde la app.'
-        );
-        await supabase.from('inbound_events').update({ status: 'blocked_expired', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
-        return json({ received: true, blocked: true });
+        let contactInfo = '';
+        if (supportPhone) {
+          contactInfo += `\n\n👉 Escribinos a soporte para renovar o reactivar: https://wa.me/${supportPhone}`;
+        }
+        if (alias) {
+          contactInfo += `\n💸 Alias para transferencias: *${alias}*`;
+        }
+
+        if (isSuspended) {
+          await sendWhatsAppText(
+            message.from,
+            `Tu cuenta de Pesito se encuentra en pausa ⏸️.${contactInfo || ' Si necesitás reactivarla, comunicate con soporte desde la app.'}`
+          );
+          await supabase.from('inbound_events').update({ status: 'blocked_suspended', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+          return json({ received: true, blocked: true });
+        }
+
+        if (isExpired) {
+          await sendWhatsAppText(
+            message.from,
+            `Tu suscripción en Pesito ha finalizado ⏳.${contactInfo || ' Para seguir registrando tus gastos y consultando tus finanzas, renová tu membresía desde la app.'}`
+          );
+          await supabase.from('inbound_events').update({ status: 'blocked_expired', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+          return json({ received: true, blocked: true });
+        }
       }
     }
 
@@ -297,6 +314,29 @@ Deno.serve(async (request) => {
     const text = message.text?.body?.trim() ?? message.image?.caption?.trim() ?? '';
     const isConfirm = /^(confirmar|confirmado|confirmo|si|sí|ok|dale|listo|de una|va|sisi|perfecto|👍)$/i.test(text);
     const isCancel = /^(cancelar|cancelalo|cancela|cancel|no|borralo|borrar|borra|anular|rechazar)$/i.test(text);
+    const isRenewalIntent = /(renovar|renovaci[oó]n|suscripci[oó]n|planes?|precios?|cu[aá]nto (sale|cuesta)|c[oó]mo (pago|abono|renuevo)|d[oó]nde (pago|transfiero)|quiero pagar|alias|cbu|datos de pago|transferir|transferencia|membres[ií]a)/i.test(text);
+
+    if (isRenewalIntent) {
+      const [supportRes, aliasRes] = await Promise.all([
+        supabase.from('system_config').select('value').eq('key', 'support_phone').maybeSingle(),
+        supabase.from('system_config').select('value').eq('key', 'payment_alias').maybeSingle(),
+      ]);
+      const supportPhone = supportRes.data?.value ? supportRes.data.value.replace(/\D/g, '') : null;
+      const alias = aliasRes.data?.value?.trim();
+
+      let reply = '¡Hola! 👋 Para renovar tu membresía en Pesito o consultar planes y medios de pago:\n';
+      if (supportPhone) {
+        reply += `\n👉 Escribinos directamente a soporte por WhatsApp: https://wa.me/${supportPhone}`;
+      }
+      if (alias) {
+        reply += `\n💸 Alias para transferencias: *${alias}*`;
+      }
+      reply += '\n\nApenas nos envíes el comprobante o te pongas en contacto, te activamos tu cuenta al instante 🚀';
+
+      await sendWhatsAppText(message.from, reply);
+      await supabase.from('inbound_events').update({ status: 'processed_renewal_intent', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+      return json({ received: true, renewal_intent: true });
+    }
 
     if (isConfirm) {
       const { data: pending } = await supabase.from('transactions').select('*').eq('user_id', link.user_id).eq('status', 'pending').order('created_at', { ascending: false }).limit(1).maybeSingle();

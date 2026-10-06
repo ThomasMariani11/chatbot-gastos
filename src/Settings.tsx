@@ -49,6 +49,8 @@ export function Settings({
   const [enabled, setEnabled] = useState(true);
   const [status, setStatus] = useState('');
   const [botPhone, setBotPhone] = useState('');
+  const [supportPhone, setSupportPhone] = useState('');
+  const [paymentAlias, setPaymentAlias] = useState('');
 
   // Canje de código de renovación desde Ajustes
   const [showRedeemForm, setShowRedeemForm] = useState(false);
@@ -62,8 +64,12 @@ export function Settings({
       setEnabled(data.whatsapp_responses_enabled);
     });
 
-    supabase.from('system_config').select('value').eq('key', 'whatsapp_bot_phone').maybeSingle().then(({ data }) => {
-      if (data?.value) setBotPhone(data.value);
+    supabase.from('system_config').select('key, value').in('key', ['whatsapp_bot_phone', 'support_phone', 'payment_alias']).then(({ data }) => {
+      data?.forEach((row) => {
+        if (row.key === 'whatsapp_bot_phone' && row.value) setBotPhone(row.value);
+        if (row.key === 'support_phone' && row.value) setSupportPhone(row.value);
+        if (row.key === 'payment_alias' && row.value) setPaymentAlias(row.value);
+      });
     });
   }, [userId]);
 
@@ -193,12 +199,12 @@ export function Settings({
     };
   }, [isAdmin, userProfile]);
 
-  const cleanPhone = botPhone.replace(/\D/g, '');
+  const targetRenewalPhone = (supportPhone || botPhone).replace(/\D/g, '');
   const renewalText = encodeURIComponent(
     `¡Hola! Quiero renovar mi suscripción a Pesito para la cuenta: ${userEmail || ''}`
   );
-  const whatsappRenewalUrl = cleanPhone
-    ? `https://wa.me/${cleanPhone}?text=${renewalText}`
+  const whatsappRenewalUrl = targetRenewalPhone
+    ? `https://wa.me/${targetRenewalPhone}?text=${renewalText}`
     : `https://wa.me/?text=${renewalText}`;
 
   return (
@@ -291,6 +297,21 @@ export function Settings({
             {showRedeemForm ? 'Cerrar formulario de código' : '¿Tenés un código de renovación?'}
           </button>
         </div>
+
+        {paymentAlias && !subscriptionInfo.isLifetime && (
+          <div style={{
+            marginTop: '10px',
+            padding: '8px 12px',
+            background: '#f8fafc',
+            borderRadius: '8px',
+            fontSize: '12px',
+            color: '#334155',
+            border: '1px solid #e2e8f0',
+            display: 'inline-block',
+          }}>
+            💸 Alias para transferencias: <strong style={{ color: '#0f172a' }}>{paymentAlias}</strong>
+          </div>
+        )}
 
         {/* Formulario colapsable para canjear código */}
         {showRedeemForm && (
