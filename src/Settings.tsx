@@ -45,6 +45,7 @@ export function Settings({
   onRefreshProfile,
 }: Props) {
   const [code, setCode] = useState<string>();
+  const [waDirectUrl, setWaDirectUrl] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(true);
   const [status, setStatus] = useState('');
   const [botPhone, setBotPhone] = useState('');
@@ -104,8 +105,20 @@ export function Settings({
       ? `https://wa.me/${cleanPhone}?text=VINCULAR%20${nextCode}`
       : `https://wa.me/?text=VINCULAR%20${nextCode}`;
 
-    window.open(waUrl, '_blank');
-    setStatus(`Abrimos WhatsApp con tu mensaje listo. Tocá 'Enviar' en el chat (Código: VINCULAR ${nextCode}).`);
+    setWaDirectUrl(waUrl);
+    setStatus(`Listo. Abrimos WhatsApp con tu mensaje. Tocá 'Enviar' en el chat (Código: VINCULAR ${nextCode}).`);
+
+    // En móviles o PWAs, window.open tras una promesa async es bloqueado como popup por Safari/Chrome.
+    // Modificar window.location.href abre directamente el Universal Link de WhatsApp de forma nativa.
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.matchMedia('(display-mode: standalone)').matches;
+    if (isMobile) {
+      window.location.href = waUrl;
+    } else {
+      const win = window.open(waUrl, '_blank');
+      if (!win) {
+        window.location.href = waUrl;
+      }
+    }
   }
 
   async function handleRedeemRenewal(e: FormEvent) {
@@ -343,8 +356,21 @@ export function Settings({
         </div>
 
         {code && (
-          <div className="link-code" style={{ marginBottom: '16px' }}>
-            VINCULAR {code}
+          <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="link-code">
+              VINCULAR {code}
+            </div>
+            {waDirectUrl && (
+              <a
+                href={waDirectUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="primary-button"
+                style={{ background: '#25d366', color: '#fff', textAlign: 'center', textDecoration: 'none', fontWeight: 800, padding: '10px 16px', display: 'block' }}
+              >
+                💬 Abrir chat en WhatsApp
+              </a>
+            )}
           </div>
         )}
       </section>

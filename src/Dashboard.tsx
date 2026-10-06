@@ -167,6 +167,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
   const [isConnectingWa, setIsConnectingWa] = useState(false);
   const [onboardingWaMsg, setOnboardingWaMsg] = useState<string | null>(null);
   const [waBotNumber, setWaBotNumber] = useState<string>('');
+  const [waLinkReady, setWaLinkReady] = useState<{ url: string; code: string } | null>(null);
 
   async function handleConnectWhatsApp() {
     setIsConnectingWa(true);
@@ -212,11 +213,23 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
         ? `https://wa.me/${cleanPhone}?text=VINCULAR%20${nextCode}`
         : `https://wa.me/?text=VINCULAR%20${nextCode}`;
 
-      window.open(waUrl, '_blank');
+      setWaLinkReady({ url: waUrl, code: nextCode });
       setIsConnectingWa(false);
       setOnboardingWaMsg(
-        `⏳ Abrimos WhatsApp con tu mensaje listo. Tocá 'Enviar' en el chat con Pesito (código: VINCULAR ${nextCode}). Tu pantalla se actualizará automáticamente apenas lo envíes.`
+        `⏳ Generamos tu código (VINCULAR ${nextCode}). Tocá 'Enviar' en el chat con Pesito. Tu pantalla se actualizará automáticamente apenas lo envíes.`
       );
+
+      // En móviles o PWAs, window.open tras una promesa async es bloqueado como popup por Safari/Chrome.
+      // Modificar window.location.href abre directamente el Universal Link de WhatsApp de forma nativa.
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.matchMedia('(display-mode: standalone)').matches;
+      if (isMobile) {
+        window.location.href = waUrl;
+      } else {
+        const win = window.open(waUrl, '_blank');
+        if (!win) {
+          window.location.href = waUrl;
+        }
+      }
     } catch {
       setIsConnectingWa(false);
       setOnboardingWaMsg('Ocurrió un inconveniente al abrir WhatsApp.');
@@ -355,16 +368,18 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
     const loadDashboard = async () => {
       if (loading) return;
       loading = true;
-      const [transactions, budgets, allInstallments, whatsappLink, appSettings, distinctMonthsRes] = await Promise.all([
+      const [transactions, budgets, allInstallments, whatsappLink, appSettings, distinctMonthsRes, botPhoneRes] = await Promise.all([
         supabase.from('transactions').select('id,description,amount_ars,currency,occurred_on,kind,category_id,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
         supabase.from('budgets').select('amount_ars').eq('user_id', userId).eq('month', monthStart).maybeSingle(),
         supabase.from('transactions').select('id,description,amount_ars,currency,occurred_on,kind,category_id,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
         supabase.from('whatsapp_links').select('status').eq('user_id', userId).maybeSingle(),
         supabase.from('app_settings').select('whatsapp_responses_enabled').eq('user_id', userId).maybeSingle(),
         supabase.rpc('get_distinct_transaction_months'),
+        supabase.from('system_config').select('value').eq('key', 'whatsapp_bot_phone').maybeSingle(),
       ]);
       loading = false;
       if (!active) return;
+      if (botPhoneRes?.data?.value) setWaBotNumber(botPhoneRes.data.value);
       if (!transactions.error) {
         setMovements((transactions.data ?? []).map((row: Record<string, unknown>) => ({
           id: String(row.id),
@@ -972,15 +987,24 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
             <p>
               Registrá tus gastos e ingresos enviando mensajes de texto, audios o fotos de comprobantes directamente por WhatsApp.
             </p>
-            <div className="onboarding-actions">
+            <div className="onboarding-actions" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
               <button
                 type="button"
                 className="whatsapp-onboarding-btn"
                 onClick={() => void handleConnectWhatsApp()}
                 disabled={isConnectingWa}
               >
-                {isConnectingWa ? 'Abriendo WhatsApp…' : '🟢 Conectar mi WhatsApp en 1 toque'}
+                {isConnectingWa ? 'Generando código…' : '🟢 Conectar mi WhatsApp en 1 toque'}
               </button>
+              {waLinkReady && (
+                <a
+                  href={waLinkReady.url}
+                  className="whatsapp-onboarding-btn"
+                  style={{ background: '#128c7e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  💬 Abrir WhatsApp ahora (Código: {waLinkReady.code})
+                </a>
+              )}
             </div>
             {onboardingWaMsg && (
               <p className="onboarding-note">{onboardingWaMsg}</p>
