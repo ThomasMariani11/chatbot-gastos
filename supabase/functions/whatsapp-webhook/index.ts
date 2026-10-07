@@ -146,6 +146,12 @@ TIPO DE OPERACIÓN ("kind"):
 - "income": Si el usuario indica un ingreso de dinero, cobro, haber, sueldo, freelance, honorarios, venta, depósito recibido, entrada de plata o transferencia recibida (ejemplos: "ingreso 20000", "me ingresaron...", "cobré...", "me pagaron...", "me entraron...", "me transfirieron...", "me depositaron...", "sueldo...", "vendí...").
 - "expense": Si es un gasto, egreso, compra, consumo o pago realizado (ejemplos: "gasté 5000 en comida", "pagué la luz", "compré ropa").
 
+CONCEPTO / DETALLE ("description"):
+- Debe ser ÚNICAMENTE el concepto, producto, servicio, comercio o lugar del gasto o ingreso, limpio y conciso con mayúscula inicial (ej: "Súper", "Carnicería", "Nafta YPF", "Farmacia", "Almuerzo", "Sueldo", "Factura de luz", "Zapatillas").
+- PROHIBIDO incluir verbos de acción ("gasté", "gaste", "pagué", "compré", "ingreso", "cobré", etc.) y PROHIBIDO incluir el monto numérico en la descripción ("5000", "20k", "lucas", etc.).
+- Ejemplo: si el usuario dice "gasté 5000 en súper", description DEBE ser "Súper".
+- Si no se especifica el concepto (ej: "gasté 5000"), usá "Gasto general" o "Ingreso general".
+
 MONEDA Y MONTOS:
 - "USD" si el usuario menciona dólares, usd, u$s, greens, etc.; de lo contrario por defecto "ARS".
 - Interpretá “lucas” y “k” como miles de ARS (ej: "20 lucas" = 20000, "5k" = 5000).
@@ -186,7 +192,9 @@ Mensaje del usuario: ${input.text ?? ''}`;
       const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
       const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!raw) throw new Error('Gemini no devolvió una propuesta.');
-      return JSON.parse(raw) as FinancialProposal;
+      const parsed = JSON.parse(raw) as FinancialProposal;
+      parsed.description = cleanDescription(parsed.description, parsed.kind);
+      return parsed;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       console.warn(`Intento con ${model} falló, probando siguiente modelo si disponible...`, lastError.message);
@@ -194,6 +202,19 @@ Mensaje del usuario: ${input.text ?? ''}`;
   }
 
   throw lastError ?? new Error('Gemini no pudo procesar la solicitud.');
+}
+
+function cleanDescription(desc: string, kind: 'expense' | 'income'): string {
+  if (!desc) return kind === 'expense' ? 'Gasto general' : 'Ingreso general';
+  let cleaned = desc.trim();
+  // Quitar prefijos comunes como "gasté ... en ", "pagué ... en ", "gaste en ", etc.
+  cleaned = cleaned.replace(/^(gast[eé]|pagu[eé]|compr[eé]|abone|abon[eé]|carg[uú]e|pagar|gastar)\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dólares)?\s*(en|de)?\s*)?/i, '');
+  cleaned = cleaned.replace(/^(ingres[oó]|me\s+ingresaron|cobr[eé]|me\s+pagaron|me\s+transfirieron|dep[oó]sito\s+de)\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dólares)?\s*(en|de|por)?\s*)?/i, '');
+  cleaned = cleaned.replace(/^(en\s+|de\s+|por\s+)/i, '');
+  cleaned = cleaned.replace(/\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dólares)?)$/i, '');
+  cleaned = cleaned.trim();
+  if (!cleaned) return kind === 'expense' ? 'Gasto general' : 'Ingreso general';
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
 function splitInstallments(total: number, count: number) {
