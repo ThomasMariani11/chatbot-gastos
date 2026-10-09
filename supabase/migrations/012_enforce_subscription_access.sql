@@ -18,16 +18,19 @@ revoke all on function public.has_active_subscription() from public;
 grant execute on function public.has_active_subscription() to authenticated;
 
 -- Restrictivas: se combinan con las políticas existentes de propiedad (AND).
+drop policy if exists "subscription required for transactions" on public.transactions;
 create policy "subscription required for transactions" on public.transactions
   as restrictive for all to authenticated
   using ((select public.has_active_subscription()))
   with check ((select public.has_active_subscription()));
 
+drop policy if exists "subscription required for budgets" on public.budgets;
 create policy "subscription required for budgets" on public.budgets
   as restrictive for all to authenticated
   using ((select public.has_active_subscription()))
   with check ((select public.has_active_subscription()));
 
+drop policy if exists "subscription required for categories" on public.categories;
 create policy "subscription required for categories" on public.categories
   as restrictive for all to authenticated
   using ((select public.has_active_subscription()))

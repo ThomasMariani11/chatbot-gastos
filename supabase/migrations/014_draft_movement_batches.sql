@@ -67,13 +67,19 @@ alter table public.draft_groups enable row level security;
 alter table public.draft_items enable row level security;
 alter table public.whatsapp_message_queue enable row level security;
 
+drop policy if exists "own draft groups select" on public.draft_groups;
 create policy "own draft groups select" on public.draft_groups for select using (auth.uid() = user_id);
+drop policy if exists "own draft groups modify" on public.draft_groups;
 create policy "own draft groups modify" on public.draft_groups for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "own draft items select" on public.draft_items;
 create policy "own draft items select" on public.draft_items for select using (auth.uid() = user_id);
+drop policy if exists "own draft items modify" on public.draft_items;
 create policy "own draft items modify" on public.draft_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "own wa queue select" on public.whatsapp_message_queue;
 create policy "own wa queue select" on public.whatsapp_message_queue for select using (auth.uid() = user_id);
+drop policy if exists "own wa queue modify" on public.whatsapp_message_queue;
 create policy "own wa queue modify" on public.whatsapp_message_queue for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- 5. Función SQL Atómica: Confirmar grupo de borradores y crear movimientos definitivos
