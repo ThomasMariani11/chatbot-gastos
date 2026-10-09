@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { supabase } from './supabase';
-import { installmentDate } from '../lib/finance';
+import { installmentDate, formatAmountInput, numberToAmountInput, parseAmountNumber } from '../lib/finance';
 import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
 
@@ -280,7 +280,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [expandedCategoryInModal, setExpandedCategoryInModal] = useState<string | null>(null);
   const [dashboardActiveCategory, setDashboardActiveCategory] = useState<string | null>(null);
-  const [budgetInput, setBudgetInput] = useState<number | ''>('');
+  const [budgetInput, setBudgetInput] = useState<string>('');
   const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [botState, setBotState] = useState<BotState>('loading');
   const [showAdd, setShowAdd] = useState(false);
@@ -292,11 +292,11 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
   const [customCountInput, setCustomCountInput] = useState('3');
   const [installmentAmountMode, setInstallmentAmountMode] = useState<'total' | 'quota'>('total');
   const [currentInstallmentNumber, setCurrentInstallmentNumber] = useState<number>(1);
-  const [formAmount, setFormAmount] = useState<number | ''>('');
+  const [formAmount, setFormAmount] = useState<string>('');
   const [installmentDeletePrompt, setInstallmentDeletePrompt] = useState<{ movement?: Movement; plan?: InstallmentPlan } | null>(null);
   const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
   const [editDescription, setEditDescription] = useState('');
-  const [editAmount, setEditAmount] = useState<number | ''>('');
+  const [editAmount, setEditAmount] = useState<string>('');
   const [editKind, setEditKind] = useState<'expense' | 'income'>('expense');
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editDate, setEditDate] = useState('');
@@ -533,13 +533,13 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
   }, [month, userId]);
 
   function openBudgetModal() {
-    setBudgetInput(budget > 0 ? budget : '');
+    setBudgetInput(budget > 0 ? numberToAmountInput(budget) : '');
     setShowBudgetModal(true);
   }
 
   async function saveBudget(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const next = Number(budgetInput);
+    const next = parseAmountNumber(budgetInput);
     if (!Number.isFinite(next) || next <= 0) {
       window.alert('Ingresá un monto de presupuesto válido mayor a 0.');
       return;
@@ -567,7 +567,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
     const selectedCategory = categories.find((category) => category.id === categoryId && category.kind === kind);
     if (!selectedCategory) return window.alert('Seleccioná una categoría válida.');
     const description = String(form.get('description')).trim();
-    const enteredAmount = Number(form.get('amount'));
+    const enteredAmount = parseAmountNumber(formAmount);
     const dateStr = String(form.get('date'));
     if (!description || !enteredAmount || enteredAmount <= 0) return;
 
@@ -674,7 +674,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
   function startEditMovement(item: Movement) {
     setEditingMovement(item);
     setEditDescription(item.title);
-    setEditAmount(item.amount);
+    setEditAmount(numberToAmountInput(item.amount));
     setEditKind(item.kind);
     setEditCurrency(item.currency || 'ARS');
     const matchingCatId = item.categoryId ?? categories.find((c) => c.name === item.category && c.kind === item.kind)?.id ?? '';
@@ -694,7 +694,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
     event.preventDefault();
     if (!editingMovement) return;
     const description = editDescription.trim();
-    const amount = Number(editAmount);
+    const amount = parseAmountNumber(editAmount);
     const dateStr = editDate;
     if (!description || !amount || amount <= 0 || !dateStr) return;
 
@@ -1426,13 +1426,11 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
             <input
               name="amount"
               required
-              min="0.01"
-              step="0.01"
-              type="number"
+              type="text"
               inputMode="decimal"
-              placeholder="0.00"
+              placeholder="0"
               value={formAmount}
-              onChange={(e) => setFormAmount(e.target.value === '' ? '' : Number(e.target.value))}
+              onChange={(e) => setFormAmount(formatAmountInput(e.target.value))}
             />
           </div>
           {manualKind === 'expense' && (
@@ -1530,8 +1528,8 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
                   <>
                     <small>Valor por cuota ({installmentCount} cuotas):</small>
                     <strong>
-                      {typeof formAmount === 'number' && formAmount > 0
-                        ? `${formatMoney(Math.round((formAmount / installmentCount) * 100) / 100, manualCurrency)} / mes`
+                      {parseAmountNumber(formAmount) > 0
+                        ? `${formatMoney(Math.round((parseAmountNumber(formAmount) / installmentCount) * 100) / 100, manualCurrency)} / mes`
                         : 'Ingresá el monto total'}
                     </strong>
                   </>
@@ -1539,8 +1537,8 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
                   <>
                     <small>Total de la compra ({installmentCount} cuotas):</small>
                     <strong>
-                      {typeof formAmount === 'number' && formAmount > 0
-                        ? `${formatMoney(Math.round(formAmount * installmentCount * 100) / 100, manualCurrency)} en total`
+                      {parseAmountNumber(formAmount) > 0
+                        ? `${formatMoney(Math.round(parseAmountNumber(formAmount) * installmentCount * 100) / 100, manualCurrency)} en total`
                         : 'Ingresá el monto por cuota'}
                     </strong>
                   </>
@@ -1749,19 +1747,17 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
             <input
               name="amount"
               required
-              min="0.01"
-              step="0.01"
-              type="number"
+              type="text"
               inputMode="decimal"
-              placeholder="0.00"
+              placeholder="0"
               value={editAmount}
-              onChange={(e) => setEditAmount(e.target.value === '' ? '' : Number(e.target.value))}
+              onChange={(e) => setEditAmount(formatAmountInput(e.target.value))}
             />
           </label>
-          {editingMovement.installmentCount && editingMovement.installmentCount > 1 && typeof editAmount === 'number' && editAmount > 0 && (
+          {editingMovement.installmentCount && editingMovement.installmentCount > 1 && parseAmountNumber(editAmount) > 0 && (
             <div className="installment-calc-preview" style={{ marginTop: '-4px', marginBottom: '8px' }}>
               <small>Total de la compra ({editInstallmentCount} cuotas):</small>
-              <strong>{formatMoney(Math.round(editAmount * editInstallmentCount * 100) / 100, editCurrency)}</strong>
+              <strong>{formatMoney(Math.round(parseAmountNumber(editAmount) * editInstallmentCount * 100) / 100, editCurrency)}</strong>
             </div>
           )}
           <div className="form-grid">
@@ -1922,19 +1918,17 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
             Monto límite mensual (ARS)
             <input
               name="budgetAmount"
-              type="number"
-              min="1"
-              step="any"
+              type="text"
               inputMode="decimal"
               required
               autoFocus
-              placeholder="Ej. 150000"
+              placeholder="Ej. 150.000"
               value={budgetInput}
-              onChange={(e) => setBudgetInput(e.target.value === '' ? '' : Number(e.target.value))}
+              onChange={(e) => setBudgetInput(formatAmountInput(e.target.value))}
             />
           </label>
 
-          {typeof budgetInput === 'number' && budgetInput > 0 && (
+          {parseAmountNumber(budgetInput) > 0 && (
             <div className="installment-calc-preview" style={{ height: 'auto', padding: '10px 14px', gap: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#6d7d77' }}>
                 <span>Gastado en {labelForMonth(month)}:</span>
@@ -1942,8 +1936,8 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #dce8e1' }}>
                 <span>Disponible con este límite:</span>
-                <strong style={{ color: budgetInput - expenses >= 0 ? 'var(--mint-dark)' : '#d32f2f' }}>
-                  {formatMoney(budgetInput - expenses, 'ARS')}
+                <strong style={{ color: parseAmountNumber(budgetInput) - expenses >= 0 ? 'var(--mint-dark)' : '#d32f2f' }}>
+                  {formatMoney(parseAmountNumber(budgetInput) - expenses, 'ARS')}
                 </strong>
               </div>
             </div>
@@ -1961,7 +1955,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
             <button
               className="modal-btn-save"
               type="submit"
-              disabled={isSavingBudget || !budgetInput || Number(budgetInput) <= 0}
+              disabled={isSavingBudget || parseAmountNumber(budgetInput) <= 0}
             >
               {isSavingBudget ? 'Guardando…' : 'Guardar'}
             </button>

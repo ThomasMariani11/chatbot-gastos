@@ -46,3 +46,52 @@ export function serviceMessagesAllowed(now: Date, override: boolean): boolean {
   const billingStart = new Date('2026-09-30T23:50:00-03:00');
   return now < billingStart || override;
 }
+
+export function formatAmountInput(input: string): string {
+  if (!input) return '';
+  let raw = String(input).trim();
+
+  // Si el usuario tipeó un punto al final (ej: '67.'), lo interpretamos como coma decimal
+  if (raw.endsWith('.')) {
+    raw = raw.slice(0, -1) + ',';
+  }
+
+  const hasComma = raw.includes(',');
+  let intPart = '';
+  let decPart = '';
+
+  if (hasComma) {
+    const parts = raw.split(',');
+    intPart = parts[0].replace(/\D/g, '');
+    decPart = parts.slice(1).join('').replace(/\D/g, '').slice(0, 2);
+  } else {
+    intPart = raw.replace(/\D/g, '');
+  }
+
+  if (!intPart && !hasComma) return '';
+  if (!intPart && hasComma) intPart = '0';
+
+  const formattedInt = BigInt(intPart).toLocaleString('es-AR');
+  return hasComma ? `${formattedInt},${decPart}` : formattedInt;
+}
+
+export function parseAmountNumber(val: string): number {
+  if (!val) return 0;
+  // Quitar puntos de miles y convertir coma decimal a punto
+  const normalized = val.replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(normalized);
+  return Number.isFinite(num) && num > 0 ? num : 0;
+}
+
+export function numberToAmountInput(num: number | '' | null | undefined): string {
+  if (num === '' || num === null || num === undefined || Number.isNaN(num) || num <= 0) return '';
+  const rounded = Math.round(Number(num) * 100) / 100;
+  const parts = String(rounded).split('.');
+  const intFormatted = BigInt(parts[0] || '0').toLocaleString('es-AR');
+  if (parts.length > 1 && parts[1]) {
+    const dec = parts[1].slice(0, 2);
+    const paddedDec = dec.length === 1 ? `${dec}0` : dec;
+    return `${intFormatted},${paddedDec}`;
+  }
+  return intFormatted;
+}

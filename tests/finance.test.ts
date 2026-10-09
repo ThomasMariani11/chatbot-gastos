@@ -26,4 +26,26 @@ describe('reglas financieras', () => {
     expect(serviceMessagesAllowed(new Date('2026-09-30T23:50:00-03:00'), false)).toBe(false);
     expect(serviceMessagesAllowed(new Date('2026-09-30T23:50:00-03:00'), true)).toBe(true);
   });
+
+  it('formatea montos con punto de miles y coma decimal en tiempo real', async () => {
+    const { formatAmountInput, parseAmountNumber, numberToAmountInput } = await import('../lib/finance');
+    expect(formatAmountInput('10000')).toBe('10.000');
+    expect(formatAmountInput('10.000,5')).toBe('10.000,5');
+    expect(formatAmountInput('10.000,50')).toBe('10.000,50');
+    expect(formatAmountInput('67')).toBe('67');
+    expect(formatAmountInput('67,')).toBe('67,');
+    expect(formatAmountInput('67.')).toBe('67,');
+    expect(formatAmountInput(',50')).toBe('0,50');
+
+    expect(parseAmountNumber('10.000')).toBe(10000);
+    expect(parseAmountNumber('10.000,50')).toBe(10000.5);
+    expect(parseAmountNumber('67')).toBe(67);
+    expect(parseAmountNumber('0,50')).toBe(0.5);
+
+    expect(numberToAmountInput(10000)).toBe('10.000');
+    expect(numberToAmountInput(10000.5)).toBe('10.000,50');
+    expect(numberToAmountInput(67)).toBe('67');
+    expect(numberToAmountInput(0.5)).toBe('0,50');
+    expect(numberToAmountInput(0)).toBe('');
+  });
 });
