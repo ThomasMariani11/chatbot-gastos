@@ -623,14 +623,20 @@ Deno.serve(async (request) => {
         if (!hasActiveDraft || draftItems.length === 0) {
           await sendWhatsAppText(message.from, 'No tenés movimientos pendientes para guardar.');
         } else {
-          const { data: confirmResult } = await supabase.rpc('confirm_draft_group', {
+          const { data: confirmResult, error: confirmErr } = await supabase.rpc('confirm_draft_group', {
             p_group_id: draftInfo.group_id,
             p_user_id: link.user_id,
             p_expected_version: draftInfo.version,
           });
-          const count = confirmResult?.confirmed_movements ?? draftItems.length;
-          const countText = count === 1 ? '1 movimiento' : `${count} movimientos`;
-          await sendWhatsAppText(message.from, `¡Listo! Se guardaron ${countText} en tu cuenta de Pesito ✅💰`);
+
+          if (confirmErr || !confirmResult?.success) {
+            const errMsg = confirmResult?.error || confirmErr?.message || 'No se pudieron confirmar los movimientos.';
+            await sendWhatsAppText(message.from, `No pudimos guardar: ${errMsg}`);
+          } else {
+            const count = confirmResult.confirmed_movements ?? draftItems.length;
+            const countText = count === 1 ? '1 movimiento' : `${count} movimientos`;
+            await sendWhatsAppText(message.from, `¡Listo! Se guardaron ${countText} en tu cuenta de Pesito ✅💰`);
+          }
         }
       } else if (geminiResult.intent === 'cancel') {
         if (hasActiveDraft) {
