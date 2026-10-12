@@ -48,4 +48,18 @@ describe('reglas financieras', () => {
     expect(numberToAmountInput(0.5)).toBe('0,50');
     expect(numberToAmountInput(0)).toBe('');
   });
+
+  it('formatea moneda conservando decimales cuando existen y sin decimales cuando es entero', async () => {
+    const { formatMoney } = await import('../lib/finance');
+    const normalize = (str: string) => str.replace(/\u00a0/g, ' ');
+
+    expect(normalize(formatMoney(10000, 'ARS'))).toBe('$ 10.000');
+    expect(normalize(formatMoney(10000.5, 'ARS'))).toBe('$ 10.000,50');
+    expect(normalize(formatMoney(10000.50, 'ARS'))).toBe('$ 10.000,50');
+    expect(normalize(formatMoney(10000.05, 'ARS'))).toBe('$ 10.000,05');
+    expect(normalize(formatMoney(308500.5, 'ARS'))).toBe('$ 308.500,50');
+
+    expect(normalize(formatMoney(100, 'USD'))).toBe('US$ 100');
+    expect(normalize(formatMoney(100.5, 'USD'))).toBe('US$ 100,50');
+  });
 });

@@ -47,6 +47,22 @@ export function serviceMessagesAllowed(now: Date, override: boolean): boolean {
   return now < billingStart || override;
 }
 
+export function formatMoney(amount: number, currency: 'ARS' | 'USD' = 'ARS'): string {
+  const hasDecimals = Math.round(Math.abs(amount) * 100) % 100 !== 0;
+  if (currency === 'USD') {
+    return `US$ ${amount.toLocaleString('es-AR', {
+      minimumFractionDigits: hasDecimals ? 2 : 0,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+  return amount.toLocaleString('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: hasDecimals ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
+}
+
 export function formatAmountInput(input: string): string {
   if (!input) return '';
   let raw = String(input).trim();

@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { supabase } from './supabase';
-import { installmentDate, formatAmountInput, numberToAmountInput, parseAmountNumber } from '../lib/finance';
+import { installmentDate, formatAmountInput, numberToAmountInput, parseAmountNumber, formatMoney } from '../lib/finance';
 import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
 
@@ -53,18 +53,6 @@ type Props = {
   onOpenAdmin?: () => void;
 };
 
-const moneyArs = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
-
-function formatMoney(amount: number, currency: 'ARS' | 'USD' = 'ARS') {
-  if (currency === 'USD') {
-    const hasDecimals = amount % 1 !== 0;
-    return `US$ ${amount.toLocaleString('es-AR', {
-      minimumFractionDigits: hasDecimals ? 2 : 0,
-      maximumFractionDigits: 2,
-    })}`;
-  }
-  return moneyArs.format(amount);
-}
 
 function formatShortDate(dateStr: string) {
   if (!dateStr) return '';

@@ -227,7 +227,7 @@ INTENCIONES POSIBLES ("intent"):
 REGLAS PARA OPERACIONES ("movements"):
 - TIPO ("kind"): "income" (sueldo, cobro, freelance, depósito, transferencia recibida, venta) o "expense" (compras, servicios, pagos, salidas).
 - CONCEPTO / DETALLE ("description"): ÚNICAMENTE el concepto, producto, servicio, comercio o lugar (ej: "Súper", "Carnicería", "Nafta YPF", "Farmacia", "Almuerzo", "Sueldo"). PROHIBIDO incluir verbos de acción ("gasté", "pagué", "cobré") y PROHIBIDO incluir el monto numérico en la descripción.
-- MONEDA Y MONTOS: "USD" si menciona dólares o u$s; por defecto "ARS". Interpretá "lucas" y "k" como miles de ARS (ej: "20 lucas" = 20000, "5k" = 5000).
+- MONEDA Y MONTOS: "USD" si menciona dólares o u$s; por defecto "ARS". Interpretá "lucas" y "k" como miles de ARS (ej: "20 lucas" = 20000, "5k" = 5000). Admití montos con decimales (centavos), ej: "10000,50" o "10000.50" = 10000.5.
 - CATEGORÍAS:
   * Gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros.
   * Ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros.
@@ -300,9 +300,10 @@ function formatDraftList(items: DraftListItem[]): string {
   for (const it of activeItems) {
     const isUsd = it.currency === 'USD';
     const icon = it.kind === 'income' ? '🟢' : '🔴';
+    const hasDecimals = Math.round(Math.abs(it.amount) * 100) % 100 !== 0;
     const amountStr = isUsd
-      ? `US$ ${it.amount.toLocaleString('es-AR', { minimumFractionDigits: it.amount % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })} [USD]`
-      : new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(it.amount);
+      ? `US$ ${it.amount.toLocaleString('es-AR', { minimumFractionDigits: hasDecimals ? 2 : 0, maximumFractionDigits: 2 })} [USD]`
+      : it.amount.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: hasDecimals ? 2 : 0, maximumFractionDigits: 2 });
 
     const instText = (it.installments && it.installments > 1) ? ` (${it.installments} cuotas)` : '';
     out += `${it.position}. ${icon} ${it.description} · ${amountStr}${instText}\n`;
