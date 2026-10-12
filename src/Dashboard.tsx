@@ -547,6 +547,26 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
     setShowBudgetModal(false);
   }
 
+  async function deleteBudget() {
+    if (budget <= 0) return;
+    if (!window.confirm(`¿Querés eliminar el límite de presupuesto para ${labelForMonth(month)}?`)) return;
+
+    setIsSavingBudget(true);
+    const { error } = await supabase
+      .from('budgets')
+      .delete()
+      .eq('user_id', userId)
+      .eq('month', `${month}-01`);
+
+    setIsSavingBudget(false);
+    if (error) {
+      return window.alert('No pudimos eliminar el presupuesto. Intentá nuevamente.');
+    }
+    setBudget(0);
+    setBudgetInput('');
+    setShowBudgetModal(false);
+  }
+
   async function addMovement(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -1082,7 +1102,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
                 <h2>Presupuesto mensual</h2>
                 <p>Tu límite de gastos para {labelForMonth(month).toLowerCase()}</p>
               </div>
-              <button className="text-button" onClick={openBudgetModal}>Editar</button>
+              <button className="text-button" onClick={openBudgetModal}>{budget > 0 ? 'Editar' : 'Definir'}</button>
             </div>
             <div className="budget-numbers">
               <div><span>Gastado</span><strong>{formatMoney(expenses, 'ARS')}</strong></div>
@@ -1887,9 +1907,9 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
             <div>
               <p className="eyebrow">PRESUPUESTO MENSUAL</p>
-              <h2>Presupuesto de {labelForMonth(month)}</h2>
+              <h2>{budget > 0 ? 'Modificar presupuesto' : 'Definir presupuesto'} de {labelForMonth(month)}</h2>
               <p style={{ color: 'var(--muted)', fontSize: '12px', margin: '4px 0 0' }}>
-                Definí tu límite de gastos para este mes.
+                {budget > 0 ? 'Actualizá o eliminá tu límite de gastos para este mes.' : 'Definí tu límite de gastos para este mes.'}
               </p>
             </div>
             <button
@@ -1931,23 +1951,52 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
             </div>
           )}
 
-          <div className="modal-actions-grid-2">
-            <button
-              type="button"
-              className="modal-btn-cancel"
-              disabled={isSavingBudget}
-              onClick={() => setShowBudgetModal(false)}
-            >
-              Cancelar
-            </button>
-            <button
-              className="modal-btn-save"
-              type="submit"
-              disabled={isSavingBudget || parseAmountNumber(budgetInput) <= 0}
-            >
-              {isSavingBudget ? 'Guardando…' : 'Guardar'}
-            </button>
-          </div>
+          {budget > 0 ? (
+            <div className="modal-actions-grid-3">
+              <button
+                type="button"
+                className="modal-btn-delete"
+                disabled={isSavingBudget}
+                onClick={() => void deleteBudget()}
+                aria-label="Eliminar presupuesto"
+              >
+                Eliminar
+              </button>
+              <button
+                type="button"
+                className="modal-btn-cancel"
+                disabled={isSavingBudget}
+                onClick={() => setShowBudgetModal(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                className="modal-btn-save"
+                type="submit"
+                disabled={isSavingBudget || parseAmountNumber(budgetInput) <= 0}
+              >
+                {isSavingBudget ? 'Guardando…' : 'Guardar'}
+              </button>
+            </div>
+          ) : (
+            <div className="modal-actions-grid-2">
+              <button
+                type="button"
+                className="modal-btn-cancel"
+                disabled={isSavingBudget}
+                onClick={() => setShowBudgetModal(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                className="modal-btn-save"
+                type="submit"
+                disabled={isSavingBudget || parseAmountNumber(budgetInput) <= 0}
+              >
+                {isSavingBudget ? 'Guardando…' : 'Guardar'}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     )}
