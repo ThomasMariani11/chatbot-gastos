@@ -265,6 +265,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [budget, setBudget] = useState(0);
   const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [showDeleteBudgetConfirm, setShowDeleteBudgetConfirm] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [expandedCategoryInModal, setExpandedCategoryInModal] = useState<string | null>(null);
   const [dashboardActiveCategory, setDashboardActiveCategory] = useState<string | null>(null);
@@ -547,10 +548,8 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
     setShowBudgetModal(false);
   }
 
-  async function deleteBudget() {
+  async function executeDeleteBudget() {
     if (budget <= 0) return;
-    if (!window.confirm(`¿Querés eliminar el límite de presupuesto para ${labelForMonth(month)}?`)) return;
-
     setIsSavingBudget(true);
     const { error } = await supabase
       .from('budgets')
@@ -564,6 +563,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
     }
     setBudget(0);
     setBudgetInput('');
+    setShowDeleteBudgetConfirm(false);
     setShowBudgetModal(false);
   }
 
@@ -1957,7 +1957,10 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
                 type="button"
                 className="modal-btn-delete"
                 disabled={isSavingBudget}
-                onClick={() => void deleteBudget()}
+                onClick={() => {
+                  setShowBudgetModal(false);
+                  setShowDeleteBudgetConfirm(true);
+                }}
                 aria-label="Eliminar presupuesto"
               >
                 Eliminar
@@ -1998,6 +2001,79 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
             </div>
           )}
         </form>
+      </div>
+    )}
+
+    {showDeleteBudgetConfirm && (
+      <div
+        className="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-budget-title"
+        onClick={() => {
+          setShowDeleteBudgetConfirm(false);
+          setShowBudgetModal(true);
+        }}
+      >
+        <div
+          className="movement-form"
+          style={{ maxWidth: '380px', textAlign: 'center', padding: '26px 20px', gap: '16px' }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div style={{ fontSize: '38px', lineHeight: 1 }}>🗑️</div>
+          <div>
+            <p className="eyebrow" style={{ color: '#ea7172', marginBottom: '4px' }}>ELIMINAR PRESUPUESTO</p>
+            <h2 id="delete-budget-title" style={{ margin: 0, fontSize: '19px', fontWeight: 800 }}>
+              ¿Eliminar presupuesto de {labelForMonth(month)}?
+            </h2>
+            <p style={{ margin: '8px 0 0', fontSize: '13px', color: '#6d7d77', lineHeight: 1.45 }}>
+              Se borrará el límite de <strong>{formatMoney(budget, 'ARS')}</strong> fijado para este mes. El seguimiento de gastos continuará disponible sin límite.
+            </p>
+          </div>
+          <div className="modal-actions-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+            <button
+              type="button"
+              className="modal-btn-cancel"
+              disabled={isSavingBudget}
+              style={{
+                height: '44px',
+                borderRadius: '12px',
+                fontWeight: 700,
+                fontSize: '14px',
+                background: '#f1f5f9',
+                color: '#475569',
+                border: '1px solid #cbd5e1',
+                cursor: 'pointer',
+              }}
+              onClick={() => {
+                setShowDeleteBudgetConfirm(false);
+                setShowBudgetModal(true);
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="modal-btn-delete"
+              disabled={isSavingBudget}
+              style={{
+                height: '44px',
+                borderRadius: '12px',
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+              onClick={() => void executeDeleteBudget()}
+            >
+              {isSavingBudget ? 'Eliminando…' : 'Eliminar'}
+            </button>
+          </div>
+        </div>
       </div>
     )}
 
