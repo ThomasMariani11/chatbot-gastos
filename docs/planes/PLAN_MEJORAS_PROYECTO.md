@@ -5,7 +5,8 @@
 Reunir los pendientes de infraestructura, frontend y backend para resolverlos de a uno, con alcance y criterios de validación claros.
 
 - Repositorio de trabajo: `C:\Users\thomi\OneDrive\Documentos\Codex\chatbot-gastos`.
-- Auditoría de referencia: 13/10/2026, commit `3619d86`.
+- Auditoría de infraestructura: 13/10/2026, commit `3619d86`.
+- Auditoría de backend: 13/10/2026, commit `7b5663f` (código sin cambios respecto de `3619d86`).
 - Estado inicial: pendientes documentados; ninguna corrección de esta lista aplicada.
 - Los datos del entorno representan una observación de esa fecha y deben verificarse nuevamente al abordar cada tarea.
 - No registrar claves, tokens, textos financieros, comprobantes ni datos personales en este documento.
@@ -20,7 +21,7 @@ Reunir los pendientes de infraestructura, frontend y backend para resolverlos de
 
 Estados posibles: pendiente, en curso, bloqueada, terminada.
 
-Las tareas de cola, entrega y límites del webhook también requieren cambios de backend. Se conservan aquí por su impacto operativo; al agregar el plan de backend se referenciarán estos IDs para evitar duplicarlas.
+Las tareas de cola, entrega y límites del webhook también requieren cambios de backend. Las entradas BE referencian las INF relacionadas: implementar el trabajo compartido una sola vez y cerrar ambas cuando se cumplan sus criterios.
 
 ## Infraestructura
 
@@ -171,9 +172,209 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 Pendiente de auditoría y definición de tareas. No se agregan problemas supuestos.
 
-## Backend — Por agregar
+## Backend
 
-Pendiente de auditoría y definición de tareas. Referenciar INF-03, INF-04, INF-09 e INF-12 cuando corresponda para no duplicar trabajo.
+Auditoría del 13/10/2026 sobre `7b5663f`. Ese commit agrega únicamente el plan; el código del backend corresponde a `3619d86`.
+
+No se aplicaron correcciones. Las pruebas con escrituras se realizaron con datos sintéticos en PostgreSQL aislado; las verificaciones productivas fueron de lectura y metadatos.
+
+### Relación con infraestructura
+
+Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. El mismo cambio y su validación pueden cerrar ambas entradas si cumplen todos sus criterios. No crear migraciones, workers o controles duplicados.
+
+### Orden sugerido
+
+| Orden | ID | Severidad | Tema | Infraestructura relacionada | Estado |
+| --- | --- | --- | --- | --- | --- |
+| 1 | BE-01 | Crítica | Autorización de RPC privilegiadas | INF-01 | Pendiente |
+| 2 | BE-03 | Alta | Escrituras y propiedad de datos operativos | INF-02 | Pendiente |
+| 3 | BE-02 | Alta | Renovaciones bloqueadas por el trigger | — | Pendiente |
+| 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | Pendiente |
+| 5 | BE-04 | Alta | Parser determinista e interpretación financiera | — | Pendiente |
+| 6 | BE-05 | Alta | Detección de consultas comerciales y saldo | — | Pendiente |
+| 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | Pendiente |
+| 8 | BE-07 | Alta | Confirmación durante procesamiento | INF-03, INF-04 | Pendiente |
+| 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | Pendiente |
+| 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | Pendiente |
+| 11 | BE-09 | Alta | Saldo por moneda y límites mensuales | — | Pendiente |
+| 12 | BE-11 | Media | Listas antiguas, excedentes y numeración | INF-03 | Pendiente |
+| 13 | BE-12 | Media | Correcciones y resumen completo | — | Pendiente |
+| 14 | BE-13 | Media | Consistencia del alta y bootstrap administrativo | INF-10 | Pendiente |
+| 15 | BE-14 | Media | Vinculación atómica y límites de intentos | — | Pendiente |
+| 16 | BE-15 | Media | Integraciones y límites de multimedia | INF-12 | Pendiente |
+| 17 | BE-16 | Media | Logs y errores seguros | INF-09, INF-14 | Pendiente |
+| 18 | BE-18 | Baja | Separación del código y llamadas remotas | — | Pendiente |
+
+Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por las renovaciones y la autorización. Su posición no implica postergar los cierres críticos hasta completar todo el sistema de pruebas.
+
+### BE-01 — Autorizar las RPC privilegiadas
+
+- [ ] Terminada.
+- **Problema confirmado:** `get_active_draft_group`, `confirm_draft_group` y `discard_draft_group` permiten ejecución anónima, aceptan el usuario por parámetro y no comprueban su identidad. Sus propietarios productivos tienen BYPASSRLS. La fixture permitió lectura y confirmación de un grupo ajeno como anon.
+- **Archivos:** `supabase/migrations/014_draft_movement_batches.sql:366`, `:311`; `supabase/migrations/015_allow_multiple_transactions_per_wa_message.sql:33`.
+- **Trabajo:** restringir las RPC al backend o validar identidad y permisos cuando requieran acceso cliente. Revocar también PUBLIC; comprobar la exposición por PostgREST y revisar las demás funciones SECURITY DEFINER.
+- **Cierre:** llamadas anónimas y entre usuarios rechazadas; acceso legítimo del bot verificado; no consultar ni modificar datos ajenos reales para probar el arreglo.
+- **Trabajo compartido:** INF-01; registrar una sola migración y validación para ambas tareas.
+
+### BE-02 — Corregir renovaciones y activaciones bloqueadas por el trigger
+
+- [ ] Terminada.
+- **Problema reproducido:** el trigger de perfiles conserva estado y vencimiento del cliente incluso durante un canje autorizado. La RPC devuelve éxito y consume el código, pero no renueva. También ocurre con un usuario pending_code.
+- **Archivos:** `supabase/migrations/016_add_name_fields_to_profiles.sql:23`; `supabase/migrations/013_secure_subscription_renewals.sql:47`.
+- **Trabajo:** separar la edición de nombres de las operaciones autorizadas de suscripción y administración. Rediseñar privilegios y trigger sin permitir que clientes modifiquen campos protegidos. No usar current_user=postgres como autorización dentro de un trigger SECURITY DEFINER. Incorporar regresiones con todas las migraciones relevantes.
+- **Cierre:** el vencimiento y estado persistidos coinciden con lo devuelto; cliente vigente conserva días y suma la renovación; pendiente y vencido se activan; suspendido no se reactiva; códigos se consumen solo con un cambio legítimo completado; actualización directa de campos protegidos rechazada.
+- **Seguimiento de datos:** verificar si hubo códigos reales consumidos sin renovación; no asumir que existen ni reasignarlos sin reconciliar evidencia.
+
+### BE-03 — Proteger escrituras y relaciones de propietario
+
+- [ ] Terminada.
+- **Problema reproducido:** un cliente puede modificar tablas operativas, activar su vínculo con un teléfono no asignado sin prueba de control e insertar un ítem propio en un grupo ajeno. La unicidad impide asignar un teléfono ya ocupado; no se demostró ese caso de toma de vínculo.
+- **Archivos:** `supabase/migrations/001_initial.sql:93`; `supabase/migrations/014_draft_movement_batches.sql:73`, `:78`, `:83`.
+- **Trabajo:** reservar las escrituras operativas al backend; crear una RPC limitada para generar códigos; activar el vínculo exclusivamente tras validación del webhook. Garantizar propietario de grupo e ítem mediante integridad relacional y revisar relaciones de categorías y cuotas entre clientes.
+- **Cierre:** escrituras cliente no autorizadas rechazadas; teléfono no activable directamente; relaciones entre propietarios distintos rechazadas por la base; generación y uso legítimo del código funcionan.
+- **Trabajo compartido:** INF-02; coordinar vinculación con BE-14.
+
+### BE-04 — Corregir el parser determinista
+
+- [ ] Terminada.
+- **Problema reproducido en funciones reales:** `Gasté 10000,50 en supermercado` genera dos gastos; `Cobré 80000 por diseño` se interpreta como gasto; `Compré iPhone 15 por 1200000` usa 15 como importe; cuotas y fechas explícitas se ignoran; una parte incomprensible puede perderse si otra se interpreta.
+- **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:200`, `:206`, `:260`, `:262`, `:270`, `:752`.
+- **Trabajo:** limitar la vía rápida a formatos inequívocos; no separar por comas decimales; reconocer ingresos con acentos; distinguir importes de números de producto, transporte, fechas y cuotas. Interpretar todas las partes o derivar el mensaje completo al extractor. Conservar números identificadores en las descripciones.
+- **Cierre:** regresiones con los ejemplos anteriores, ARS/USD, miles y centavos, múltiples operaciones, fechas, cuotas y partes incompletas; ninguna cifra o tipo cambiado silenciosamente. Las pruebas importan el código real.
+
+### BE-05 — Evitar que consultas intercepten operaciones válidas
+
+- [ ] Terminada.
+- **Problema reproducido:** gastos e ingresos por transferencia, gastos de suscripción y pagos con la palabra saldo son clasificados como consultas; terminan sin incorporarse al borrador.
+- **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:551`, `:601`.
+- **Trabajo:** distinguir una consulta comercial completa de una operación realizada. Revisar mensajes mixtos, captions y multimedia; ante ambigüedad conservar los pendientes y pedir aclaración.
+- **Cierre:** `Pagué 15000 por transferencia al supermercado`, `Cobré 80000 por transferencia`, `Gasté 5000 en la suscripción de Netflix` y `Pagué 5000 del saldo de la tarjeta` se registran como propuestas; consultas reales de renovación y saldo mantienen su respuesta.
+
+### BE-06 — Serializar mensajes y mutaciones de borradores
+
+- [ ] Terminada.
+- **Problema confirmado:** debounce que marca mensajes procesados sin interpretarlos; ausencia de exclusión duradera por usuario; posibilidad de grupos abiertos múltiples y posiciones concurrentes. La fixture aceptó dos grupos abiertos del mismo usuario.
+- **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:733`, `:742`, `:841`, `:852`, `:889`.
+- **Trabajo:** cola durable, lease por usuario, recuperación y orden definido; creación de grupo y reserva de posiciones atómicas. Persistir todos los mensajes de todas las entradas y cambios del payload: readMessages en la línea 62 solo recorre el primer entry/change. Definir deduplicación por mensaje y posición de operación.
+- **Cierre:** payloads múltiples, ráfagas, mensajes fuera de orden, trabajadores simultáneos y reiniciados conservan cada operación; un grupo activo por usuario; ningún pendiente queda oculto por grupos duplicados.
+- **Trabajo compartido:** INF-03; coordinar BE-07, BE-10 e INF-14.
+
+### BE-07 — Confirmar únicamente la versión revisada por el cliente
+
+- [ ] Terminada.
+- **Problema reproducido:** después de confirmar, la base admite un nuevo ítem pendiente en ese grupo cerrado; no aparece al consultar el borrador activo. CONFIRMAR no pasa por la misma cola y la versión usada no representa necesariamente el último resumen mostrado.
+- **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:643`, `:657`, `:889`; `supabase/migrations/015_allow_multiple_transactions_per_wa_message.sql:49`.
+- **Trabajo:** bloquear el grupo en toda mutación; exigir estado abierto; registrar versión mostrada y contexto de confirmación al recibir el mensaje. Si hay procesamiento anterior o lista modificada, solicitar revisión y una nueva confirmación. Revalidar usuario y suscripción al guardar.
+- **Cierre:** confirmaciones adelantadas, doble confirmación, respuestas de resumen fallidas y movimientos concurrentes no guardan datos no revisados ni dejan ítems pendientes en grupos cerrados. Un fallo SQL no guarda parcialmente.
+- **Trabajo compartido:** INF-03 e INF-04; depende del diseño de BE-06 y BE-10.
+
+### BE-08 — Conservar operaciones incompletas y dudas
+
+- [ ] Terminada.
+- **Problema confirmado:** se filtran las operaciones sin importe; missingFields no se persiste; amount exige un valor; confidence=0 se reemplaza por 1. Esto permite conservar solo la parte completa de un mensaje sin representar la incompleta.
+- **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:830`, `:889`, `:901`; `supabase/migrations/014_draft_movement_batches.sql:27`.
+- **Trabajo:** adaptar esquema y dominio para borradores incompletos; persistir dudas y confianza; distinguir agregar, corregir y completar. Validar respuestas del extractor en runtime y evitar que una instrucción ambigua modifique la lista.
+- **Cierre:** completos e incompletos conviven sin pérdidas; se solicita el dato faltante; no se guarda el grupo hasta completar o quitar el ítem; valores predeterminados se aplican solo cuando corresponde; confianza cero se conserva.
+
+### BE-09 — Calcular saldos por moneda y con fechas válidas
+
+- [ ] Terminada.
+- **Problema reproducido:** suma ARS y USD como pesos; utiliza el día 31 en todos los meses; ignora errores de lectura y puede mostrar cero. monthly_summary también mezcla monedas.
+- **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:614`, `:618`, `:633`; `supabase/migrations/001_initial.sql:114`.
+- **Trabajo:** agregación SQL por moneda, límite mensual exclusivo en el primer día del mes siguiente, manejo de errores y centavos. Evitar depender de transferir todas las filas; verificar el límite efectivo de PostgREST.
+- **Cierre:** ARS/USD separados; febrero, años bisiestos y meses de 30 días correctos; resultados completos para volúmenes superiores al límite de filas; errores no se informan como saldo cero.
+
+### BE-10 — Garantizar escrituras atómicas y respuestas recuperables
+
+- [ ] Terminada.
+- **Problema confirmado:** escrituras sin comprobar error o filas afectadas; borradores parcialmente insertados; reenvíos fallidos omitidos como duplicados; HTTP 200 tras fallos y ausencia de outbox luego de guardar.
+- **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:452`, `:648`, `:666`, `:824`, `:889`, `:927`, `:944`.
+- **Trabajo:** aplicar el resultado completo de un mensaje mediante una RPC transaccional; comprobar errores; separar estados de recepción, interpretación, guardado y envío. Crear respuestas pendientes en la misma transacción del guardado y reintentar su entrega de forma independiente.
+- **Cierre:** errores inyectados no dejan resultados parciales ni anuncios falsos; reenvíos y doble confirmación no duplican movimientos; fallos después del guardado recuperan la respuesta sin guardar otra vez. Documentar límites de entrega exactamente una vez con el proveedor.
+- **Compatibilidad adicional:** revisar la rama de transacciones antiguas en la línea 648: confirma directamente y no expande cuotas. La auditoría no encontró pendientes antiguos con cuotas, pero ese camino debe probarse o migrarse al modelo de borrador.
+- **Trabajo compartido:** INF-04; coordinar BE-06 y BE-07.
+
+### BE-11 — Retener mensajes ante listas antiguas o falta de capacidad
+
+- [ ] Terminada.
+- **Problema confirmado:** el gasto nuevo que llega con una lista antigua no queda retenido para retomarlo; los excedentes no tienen transición de recuperación. El límite depende de la posición máxima incluyendo eliminados, no de la cantidad activa.
+- **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:588`, `:863`; `supabase/migrations/014_draft_movement_batches.sql:24`.
+- **Trabajo:** conservar el mensaje hasta RETOMAR/DESCARTAR o liberar capacidad; no truncar un mensaje parcialmente. Mantener números estables sin limitar su identificador histórico a 20; contar operaciones activas bajo bloqueo. Definir qué hacer si un único mensaje supera 20.
+- **Cierre:** retomar o descartar conserva el gasto nuevo; excedentes explicados y recuperables; eliminaciones liberan capacidad sin renumerar; el usuario puede resolver mensajes mayores de 20 sin pérdida silenciosa.
+- **Trabajo compartido:** INF-03; depende de BE-06 y BE-08.
+
+### BE-12 — Completar correcciones y datos del resumen
+
+- [ ] Terminada.
+- **Problema confirmado:** categoría declarada en la edición pero no aplicada; no se verifica existencia/estado del objetivo; una actualización sin filas puede anunciar éxito. El resumen omite fecha y mes inicial de cuotas; el contrato de edición no representa moneda, fecha ni cuotas.
+- **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:818`, `:821`, `:828`, `:405`.
+- **Trabajo:** contrato validado para campos corregibles; verificar objetivo pendiente y pertenencia; aplicar todos los cambios de forma atómica y devolver el resultado real. Mostrar moneda, fecha y cuotas relevantes para revisar.
+- **Cierre:** posiciones inexistentes, quitadas y ajenas rechazadas sin modificar otros pendientes; importe, concepto, categoría, moneda, fecha y cuotas corregidos según el contrato; resumen coincide con lo guardado.
+
+### BE-13 — Hacer consistente el alta de usuarios
+
+- [ ] Terminada.
+- **Problema reproducido:** bootstrap_user captura cualquier excepción y permite persistir el usuario de Auth sin perfil ni configuración. La migración inicial 005 promueve a todos los usuarios existentes a administrador; su adecuación al procedimiento de instalación queda a verificar.
+- **Archivos:** `supabase/migrations/016_add_name_fields_to_profiles.sql:114`; `supabase/migrations/005_admin_and_invitations.sql:194`.
+- **Trabajo:** definir alta atómica o estado recuperable con reparación; no ocultar fallos de inicialización. Auditar posibles usuarios incompletos sin asumir que existen. Revisar el bootstrap administrativo para seleccionar explícitamente la cuenta aprobada y evitar promociones masivas en instalaciones sobre bases existentes. No reescribir migraciones aplicadas sin un procedimiento de actualización definido.
+- **Cierre:** fallos inyectados no producen cuentas silenciosamente incompletas; recuperación documentada; alta legítima e invitación funcionan; instalación con usuarios preexistentes no concede permisos administrativos inesperados.
+- **Relacionado:** INF-10; validar junto con BE-02 y BE-17.
+
+### BE-14 — Hacer atómica la vinculación y limitar intentos
+
+- [ ] Terminada.
+- **Problema confirmado en código:** búsqueda y consumo del código separados de las escrituras de vinculación; sin bloqueo de fila ni límites propios de intentos. No se ejecutó fuerza bruta real; los límites externos quedan a verificar.
+- **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:465`, `:467`, `:471`; `supabase/migrations/005_admin_and_invitations.sql:73`.
+- **Trabajo:** bloquear y consumir el código, desvincular y reasignar en una transacción; definir límites por teléfono y para consultas de invitación; vencimiento calculado en servidor; errores seguros sin revelar información innecesaria.
+- **Cierre:** dos usos concurrentes no generan doble vinculación exitosa; fallos intermedios revierten el cambio; códigos vencidos y límites de intentos comprobados; uso legítimo no bloqueado indebidamente.
+- **Dependencias:** BE-03; coordinar generación segura del código.
+
+### BE-15 — Acotar llamadas externas y procesamiento multimedia
+
+- [ ] Terminada.
+- **Problema confirmado:** envío/descarga de WhatsApp sin timeout explícito ni límite propio de bytes; Gemini solo tiene timeout por intento. No se confirmó SSRF: la URL de descarga viene de Meta, no directamente del cliente.
+- **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:86`, `:131`, `:139`, `:336`.
+- **Trabajo:** presupuesto total del trabajo; límites de tamaño y MIME; descargas acotadas; reintentos selectivos y backoff para errores transitorios. Validar el contrato de proveedores y las respuestas JSON en runtime; comprobar disponibilidad de modelos sin suponer nombres válidos o inválidos.
+- **Cierre:** fallos, respuestas incompletas, archivos grandes y proveedores lentos no agotan memoria ni invocaciones; fallback y recuperación probados; no se descartan operaciones por un error transitorio.
+- **Trabajo compartido:** INF-12; coordinar BE-08 y BE-10.
+
+### BE-16 — Separar errores de negocio, persistencia y envío
+
+- [ ] Terminada.
+- **Problema confirmado:** logs con mensajes financieros, teléfonos y respuestas crudas; errores SQL enviados al usuario y avisos que pueden confundir fallo de interpretación con fallo de entrega.
+- **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:97`, `:349`, `:375`, `:662`, `:926`.
+- **Trabajo:** códigos y eventos estructurados; mensajes públicos seguros y específicos; correlación que no exponga datos personales; tiempos y cantidades de operaciones/reintentos. Evitar registrar URLs que contengan credenciales.
+- **Cierre:** casos de éxito y error sin textos, comprobantes, teléfonos ni secretos en logs; diagnóstico posible; un guardado exitoso seguido de fallo de envío no se informa como interpretación fallida.
+- **Trabajo compartido:** INF-09 e INF-14; coordinar BE-10.
+
+### BE-17 — Probar el código real y las migraciones combinadas
+
+- [ ] Terminada.
+- **Problema confirmado:** tests con copias del parser/formateador y pruebas SQL que no incluyen el trigger de 016. PGlite depende de una instalación manual ignorada; npm test no ejecuta esa integración. Lint y build principales excluyen el webhook.
+- **Archivos:** `tests/deterministic-parser.test.ts:3`; `tests/draft-batches.test.ts:14`; `tests/renewals.integration.mjs:22`; `tsconfig.json:16`; `eslint.config.mjs:6`.
+- **Trabajo:** extraer e importar funciones reales; declarar dependencias de pruebas; ejecutar esquema y migraciones relevantes juntos. Agregar pruebas del handler, roles, entradas múltiples, cuotas, monedas, concurrencia, reenvíos, fallos de envío y procesamiento interrumpido. Configurar Deno check/lint conforme a las convenciones de Supabase.
+- **Cierre:** validaciones reproducibles desde checkout limpio; regresiones fallan sobre el comportamiento anterior y pasan con la corrección; no dependen de copias divergentes del código. No atribuir cobertura total a tests unitarios parciales.
+- **Trabajo compartido:** INF-06; acompañar cada tarea de mayor prioridad con sus regresiones.
+
+### BE-18 — Separar responsabilidades y reducir llamadas remotas
+
+- [ ] Terminada.
+- **Mejora observada:** handler de unas 945 líneas, confirmación/cancelación duplicadas y una escritura remota por movimiento. No se midió un cuello de botella productivo.
+- **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:413`, `:654`, `:788`, `:877`.
+- **Trabajo:** separar dominio puro, integraciones, repositorio transaccional y recepción/worker; unificar comandos; reducir escrituras mediante RPC o lotes sin sacrificar atomicidad. Revisar índices y consultas usando mediciones, no suposiciones.
+- **Cierre:** comportamiento y permisos preservados por regresiones; módulos testeables; llamadas y latencia comparadas para lotes; cambios de rendimiento respaldados por evidencia.
+- **Dependencias:** diseño fiable de BE-06, BE-07 y BE-10; pruebas de BE-17.
+
+### Resultados y límites de la auditoría de backend
+
+- npm test: 26 pruebas aprobadas; lint y build principales aprobados, pero excluyen el webhook.
+- Deno check del webhook: aprobado. Deno lint: tres problemas (import prefijado y dos usos de any); ajustar reglas y tipos sin tratar una convención de import como fallo de despliegue.
+- Integración existente: inicialmente falla por dependencia PGlite ausente; con dependencia provisionada solo en la copia temporal, 12 escenarios aprobados. No carga las migraciones combinadas que reproducen BE-02.
+- Las pruebas adicionales ejecutaron funciones reales y SQL aislado. La confirmación SQL revirtió sus inserciones ante un error interno; eso no resuelve las carreras ni la persistencia parcial de borradores.
+- npm audit completo: tres paquetes de desarrollo con alertas altas; audit sin dev: cero vulnerabilidades reportadas. No se realizó un escaneo independiente del bundle npm resuelto por Deno. Coordinar actualizaciones con INF-07.
+- Historial Git: 282 blobs de texto revisados, sin credenciales privadas reconocibles. Búsqueda por patrones, no garantía absoluta.
+- No se verificaron contenido exacto del bundle Edge, disponibilidad/comportamiento real de Gemini con credenciales productivas, entrega real de multimedia/WhatsApp, implementación interna de Auth, logs históricos de CI ni límites externos y máximo efectivo de filas de PostgREST.
+- No se enviaron mensajes reales ni se ejecutaron RPC productivas de escritura. Una prueba anónima de la RPC de lectura usó un UUID ficticio inexistente.
 
 ## Límites de la auditoría de referencia
 
