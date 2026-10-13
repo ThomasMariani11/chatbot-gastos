@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabase';
 import { clientSubscriptionMetrics } from './subscription';
+import { useSwipeBack } from './useSwipeBack';
 
 type ClientProfile = {
   id: string;
@@ -105,6 +106,9 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [isSubmittingSuspend, setIsSubmittingSuspend] = useState(false);
 
   const [actionToast, setActionToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Gesto táctil swipe back para volver deslizando la pantalla
+  const { dragOffset, isSwiping } = useSwipeBack({ onBack, enabled: !extendingClient && !suspendingClient });
 
   async function loadData() {
     setLoading(true);
@@ -463,7 +467,18 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
   }, [codes, codeFilter]);
 
   return (
-    <main className="admin-page">
+    <main
+      className="admin-page"
+      style={
+        dragOffset > 0
+          ? {
+              transform: `translateX(${dragOffset}px)`,
+              transition: isSwiping ? 'none' : 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+              willChange: 'transform',
+            }
+          : undefined
+      }
+    >
       <header className="admin-header">
         <div>
           <button className="back-link button-link" type="button" onClick={onBack}>

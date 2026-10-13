@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabase';
 import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
+import { useSwipeBack } from './useSwipeBack';
 
 export type UserProfile = {
   id: string;
@@ -77,6 +78,9 @@ export function Settings({
   const [lastNameInput, setLastNameInput] = useState(userProfile?.last_name || '');
   const [savingName, setSavingName] = useState(false);
   const [nameSuccess, setNameSuccess] = useState<string | null>(null);
+
+  // Gesto táctil swipe back para volver deslizando la pantalla
+  const { dragOffset, isSwiping } = useSwipeBack({ onBack });
 
   useEffect(() => {
     if (userProfile) {
@@ -258,7 +262,18 @@ export function Settings({
     : `https://wa.me/?text=${renewalText}`;
 
   return (
-    <main className="settings-page">
+    <main
+      className="settings-page"
+      style={
+        dragOffset > 0
+          ? {
+              transform: `translateX(${dragOffset}px)`,
+              transition: isSwiping ? 'none' : 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+              willChange: 'transform',
+            }
+          : undefined
+      }
+    >
       <button className="back-link button-link" type="button" onClick={onBack}>← Volver al resumen</button>
       <header>
         <p className="eyebrow">CONFIGURACIÓN</p>

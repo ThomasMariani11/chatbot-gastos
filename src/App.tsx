@@ -25,7 +25,69 @@ export function App() {
 }
 
 function AuthenticatedApp({ session }: { session: Session }) {
-  const [view, setView] = useState<View>('dashboard');
+  const [view, setView] = useState<View>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.location.hash === '#settings') return 'settings';
+      if (window.location.hash === '#admin') return 'admin';
+    }
+    return 'dashboard';
+  });
+
+  // Navegación sincronizada con el historial del navegador para soporte total de gestos
+  // como deslizar desde el borde en Safari iOS y navegación hacia atrás en Android/PWA
+  const navigateTo = useCallback((nextView: View) => {
+    if (nextView === 'settings') {
+      window.history.pushState({ view: 'settings' }, '', '#settings');
+      setView('settings');
+    } else if (nextView === 'admin') {
+      window.history.pushState({ view: 'admin' }, '', '#admin');
+      setView('admin');
+    } else {
+      if (window.location.hash === '#settings' || window.location.hash === '#admin' || window.history.state?.view) {
+        window.history.back();
+      } else {
+        setView('dashboard');
+        try {
+          window.history.replaceState({ view: 'dashboard' }, '', window.location.pathname + window.location.search);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const stateView = (event.state?.view as View | undefined);
+      const hash = window.location.hash;
+      if (stateView === 'settings' || hash === '#settings') {
+        setView('settings');
+      } else if (stateView === 'admin' || hash === '#admin') {
+        setView('admin');
+      } else {
+        setView('dashboard');
+      }
+    };
+
+    // Asegurar que el estado base exista en el historial para permitir volver siempre
+    if (typeof window !== 'undefined') {
+      if (!window.history.state?.view) {
+        if (window.location.hash === '#settings') {
+          window.history.replaceState({ view: 'dashboard' }, '', window.location.pathname + window.location.search);
+          window.history.pushState({ view: 'settings' }, '', '#settings');
+        } else if (window.location.hash === '#admin') {
+          window.history.replaceState({ view: 'dashboard' }, '', window.location.pathname + window.location.search);
+          window.history.pushState({ view: 'admin' }, '', '#admin');
+        } else {
+          window.history.replaceState({ view: 'dashboard' }, '', window.location.pathname + window.location.search);
+        }
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState(false);
@@ -187,7 +249,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
       <>
         <AdminPanel
           userId={session.user.id}
-          onBack={() => setView('dashboard')}
+          onBack={() => navigateTo('dashboard')}
           onSignOut={handleRequestSignOut}
         />
         {renderSignOutModal()}
@@ -203,8 +265,8 @@ function AuthenticatedApp({ session }: { session: Session }) {
           userEmail={session.user.email}
           userProfile={profile}
           isAdmin={isAdmin}
-          onOpenAdmin={() => setView('admin')}
-          onBack={() => setView('dashboard')}
+          onOpenAdmin={() => navigateTo('admin')}
+          onBack={() => navigateTo('dashboard')}
           onSignOut={handleRequestSignOut}
           onRefreshProfile={() => void loadProfile()}
         />
@@ -220,8 +282,8 @@ function AuthenticatedApp({ session }: { session: Session }) {
         userEmail={session.user.email}
         userProfile={profile}
         isAdmin={isAdmin}
-        onOpenAdmin={() => setView('admin')}
-        onOpenSettings={() => setView('settings')}
+        onOpenAdmin={() => navigateTo('admin')}
+        onOpenSettings={() => navigateTo('settings')}
         onSignOut={handleRequestSignOut}
       />
       {renderSignOutModal()}
