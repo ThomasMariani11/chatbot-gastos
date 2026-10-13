@@ -193,6 +193,89 @@ function cleanDescription(desc: string, kind: 'expense' | 'income'): string {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
+function parseDeterministicMovement(rawText: string, today: string): ExtractedMovement | null {
+  const text = rawText.trim();
+  if (!text) return null;
+
+  const isIncome = /^(ingres[oó]|me\s+ingresaron|cobr[eé]|me\s+pagaron|me\s+transfirieron|dep[oó]sito|sueldo|venta)\b/i.test(text);
+  const kind: 'expense' | 'income' = isIncome ? 'income' : 'expense';
+  const isUsd = /\b(usd|d[oó]lares?|u\$s|greens?)\b/i.test(text);
+  const currency: 'ARS' | 'USD' = isUsd ? 'USD' : 'ARS';
+
+  // Buscar monto numérico
+  const amountRegex = /(?:^|\s|\$)(?:usd|u\$s)?\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(k|mil|lucas?)?\s*(?:pesos?|ars|usd|d[oó]lares?)?(?:\s|$)/i;
+  const match = text.match(amountRegex);
+  if (!match) return null;
+
+  let rawNum = match[1];
+  const multiplier = match[2]?.toLowerCase();
+
+  // Normalizar número argentino
+  if (rawNum.includes('.') && rawNum.includes(',')) {
+    rawNum = rawNum.replace(/\./g, '').replace(',', '.');
+  } else if (rawNum.includes('.')) {
+    if (/^\d{1,3}(?:\.\d{3})+$/.test(rawNum)) {
+      rawNum = rawNum.replace(/\./g, '');
+    }
+  } else if (rawNum.includes(',')) {
+    rawNum = rawNum.replace(',', '.');
+  }
+
+  let num = parseFloat(rawNum);
+  if (!Number.isFinite(num) || num <= 0) return null;
+
+  if (multiplier === 'k' || multiplier === 'mil' || multiplier === 'luca' || multiplier === 'lucas') {
+    num *= 1000;
+  }
+
+  // Quitar el monto del texto para obtener la descripción
+  let desc = text.replace(match[0], ' ').trim();
+  desc = cleanDescription(desc, kind);
+
+  // Inferir categoría
+  const lowerDesc = desc.toLowerCase();
+  let category = 'Otros';
+  if (kind === 'income') {
+    if (/sueldo|salario|haberes|quincena/.test(lowerDesc)) category = 'Sueldo';
+    else if (/freelance|diseño|proyecto|cliente/.test(lowerDesc)) category = 'Freelance';
+    else if (/venta|vendo|mercadolibre/.test(lowerDesc)) category = 'Ventas';
+  } else {
+    if (/super|chango|coto|vea|dia|disco|carrefour|almacen|verduleria|carniceria|panaderia|comida|almuerzo|cena|merienda|desayuno|cafe|restaurant|pedidosya|rappi|mcdonalds|mostaza|burger|helado|facturas|kiosco|caramelos/.test(lowerDesc)) category = 'Alimentación';
+    else if (/nafta|combustible|ypf|shell|axion|uber|cabify|didi|taxi|colectivo|subte|tren|peaje|estacionamiento|cochera|sube/.test(lowerDesc)) category = 'Transporte';
+    else if (/luz|gas|agua|internet|wifi|fibertel|telecentro|flow|cable|claro|personal|movistar|expensas|edenor|edesur|metrogas/.test(lowerDesc)) category = 'Servicios';
+    else if (/alquiler|inmobiliaria/.test(lowerDesc)) category = 'Vivienda';
+    else if (/farmacia|remedio|medicamento|medico|doctor|dentista|odontologo|psicologo|consulta|analisis|creatina|suplementos?|proteina|optica/.test(lowerDesc)) category = 'Salud';
+    else if (/colegio|facultad|universidad|cuota|curso|taller|capacitacion|libro|apunte/.test(lowerDesc)) category = 'Educación';
+    else if (/cine|teatro|boliche|recital|salida|bar|cerveza|juego|steam|playstation|netflix|spotify|disney|hbo|prime/.test(lowerDesc)) category = 'Ocio';
+    else if (/ropa|zapatillas|remera|pantalon|shopping|zapatos|camisa|buzo|campera/.test(lowerDesc)) category = 'Compras';
+    else if (/afip|rentas|monotributo|arba|iibb|impuesto|tasa|patente/.test(lowerDesc)) category = 'Impuestos';
+    else if (/prestamo|tarjeta|cuota tarjeta|deuda/.test(lowerDesc)) category = 'Deudas';
+  }
+
+  return {
+    kind,
+    description: desc,
+    totalAmountArs: num,
+    currency,
+    occurredOn: today,
+    category,
+    installments: 1,
+    firstInstallmentMonth: null,
+    confidence: 0.95,
+    missingFields: [],
+  };
+}
+
+function parseDeterministicMovements(text: string, today: string): ExtractedMovement[] | null {
+  const parts = text.split(/\n|(?:\s+y\s+)|\s*,\s*/i).map((p) => p.trim()).filter(Boolean);
+  const results: ExtractedMovement[] = [];
+  for (const part of parts) {
+    const mov = parseDeterministicMovement(part, today);
+    if (mov) results.push(mov);
+  }
+  return results.length > 0 ? results : null;
+}
+
 async function extractFromGemini(input: {
   text?: string;
   mediaBase64?: string;
@@ -241,45 +324,68 @@ Mensaje del usuario: ${input.text ?? ''}`;
     parts.push({ inlineData: { mimeType: input.mimeType, data: input.mediaBase64 } });
   }
 
-  const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+  // Modelos candidatos ordenados por rapidez y capacidad
+  const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
   let lastError: Error | null = null;
 
   for (const model of candidateModels) {
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseJsonSchema: multiResponseJsonSchema,
-            temperature: 0.1,
-          },
-        }),
-      });
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts }],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              responseJsonSchema: multiResponseJsonSchema,
+              temperature: 0.1,
+            },
+          }),
+        });
 
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => '');
-        console.error(`Gemini (${model}) returned status ${response.status}: ${errorBody.slice(0, 200)}`);
-        throw new Error(`Gemini respondió ${response.status}.`);
-      }
+        if (!response.ok) {
+          const isTransient = response.status === 503 || response.status === 429 || response.status >= 500;
+          const errorBody = await response.text().catch(() => '');
+          console.error(`Gemini (${model}, intento ${attempt}) returned status ${response.status}: ${errorBody.slice(0, 200)}`);
+          if (isTransient && attempt < 2) {
+            // Esperar con backoff antes de reintentar el mismo modelo
+            await new Promise((r) => setTimeout(r, 1000 + Math.random() * 500));
+            continue;
+          }
+          throw new Error(`Gemini respondió ${response.status}.`);
+        }
 
-      const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-      const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!raw) throw new Error('Gemini no devolvió respuesta.');
-      const parsed = JSON.parse(raw) as GeminiParsedOutput;
+        const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+        const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!raw) throw new Error('Gemini no devolvió respuesta.');
+        const parsed = JSON.parse(raw) as GeminiParsedOutput;
 
-      if (parsed.movements && Array.isArray(parsed.movements)) {
-        for (const mov of parsed.movements) {
-          mov.description = cleanDescription(mov.description, mov.kind);
+        if (parsed.movements && Array.isArray(parsed.movements)) {
+          for (const mov of parsed.movements) {
+            mov.description = cleanDescription(mov.description, mov.kind);
+          }
+        }
+
+        return parsed;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (attempt === 2) {
+          console.warn(`Intento final con ${model} falló, probando siguiente modelo si disponible...`, lastError.message);
         }
       }
+    }
+  }
 
-      return parsed;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      console.warn(`Intento con ${model} falló, probando siguiente modelo si disponible...`, lastError.message);
+  // Si fallaron los modelos de IA y es un mensaje de texto (ej. 503 sobrecarga de Google), usar parser determinista
+  if (input.text && !input.mediaBase64) {
+    const fallbackMovements = parseDeterministicMovements(input.text, today);
+    if (fallbackMovements && fallbackMovements.length > 0) {
+      console.log(`Fallback determinista activado con éxito para: "${input.text}"`);
+      return {
+        intent: 'add_movements',
+        movements: fallbackMovements,
+      };
     }
   }
 
@@ -766,9 +872,12 @@ Deno.serve(async (request) => {
       await supabase.from('inbound_events').update({ status: 'failed', error_code: errorMsg.slice(0, 160), processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
       if (message?.from) {
         try {
-          const userNotice = errorMsg.includes('Número no vinculado')
-            ? 'Tu número no está vinculado a Pesito. Podés vincularlo generando un código desde la app.'
-            : 'No pude interpretar el mensaje o comprobante 😕. Probá escribiendo los gastos o ingresos (ej: "Gasté 15000 en súper y 4000 de nafta") o reenviando el audio.';
+          let userNotice = 'No pude interpretar el mensaje o comprobante 😕. Probá escribiendo los gastos o ingresos (ej: "Gasté 15000 en súper y 4000 de nafta") o reenviando el audio.';
+          if (errorMsg.includes('Número no vinculado')) {
+            userNotice = 'Tu número no está vinculado a Pesito. Podés vincularlo generando un código desde la app.';
+          } else if (errorMsg.includes('503') || errorMsg.includes('Overloaded') || errorMsg.includes('unavailable') || errorMsg.includes('429')) {
+            userNotice = '⚠️ El servicio de inteligencia artificial está temporalmente con alta demanda en los servidores de Google (error 503). Por favor reintentá enviar tu gasto en un minutito.';
+          }
           await sendWhatsAppText(message.from, userNotice);
         } catch {
           // Ignorar errores secundarios al enviar aviso
