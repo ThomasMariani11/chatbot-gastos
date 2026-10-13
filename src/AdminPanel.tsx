@@ -5,6 +5,8 @@ import { clientSubscriptionMetrics } from './subscription';
 type ClientProfile = {
   id: string;
   email: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
   role: 'admin' | 'client';
   subscription_status: 'active' | 'expired' | 'suspended' | 'pending_code';
   subscription_until: string | null;
@@ -442,7 +444,12 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
     return clientsOnly.filter((c) => {
       const q = clientSearch.toLowerCase().trim();
       if (!q) return true;
-      return (c.email ?? '').toLowerCase().includes(q) || (c.phone_number ?? '').includes(q);
+      const matchesEmail = (c.email ?? '').toLowerCase().includes(q);
+      const matchesPhone = (c.phone_number ?? '').includes(q);
+      const matchesFirst = (c.first_name ?? '').toLowerCase().includes(q);
+      const matchesLast = (c.last_name ?? '').toLowerCase().includes(q);
+      const matchesFull = `${c.first_name ?? ''} ${c.last_name ?? ''}`.toLowerCase().includes(q);
+      return matchesEmail || matchesPhone || matchesFirst || matchesLast || matchesFull;
     });
   }, [clientsOnly, clientSearch]);
 
@@ -814,7 +821,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               <input
                 type="text"
                 className="search-input"
-                placeholder="🔍 Buscar cliente por email o WhatsApp…"
+                placeholder="🔍 Buscar cliente por nombre, apellido, email o WhatsApp…"
                 value={clientSearch}
                 onChange={(e) => setClientSearch(e.target.value)}
               />
@@ -846,11 +853,27 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                         client.subscription_until &&
                         (new Date(client.subscription_until).getTime() - now.getTime()) / (1000 * 60 * 60 * 24) <= 7;
 
+                      const clientDisplayName = [client.last_name, client.first_name].filter(Boolean).join(', ');
+
                       return (
                         <tr key={client.id}>
                           <td>
-                            <strong>{client.email ?? 'Sin email'}</strong>
-                            <small className="cell-subtext">Alta: {formatDate(client.created_at)}</small>
+                            {clientDisplayName ? (
+                              <div>
+                                <strong style={{ display: 'block', fontSize: '14px', color: '#0f172a' }}>
+                                  {clientDisplayName}
+                                </strong>
+                                <span style={{ display: 'block', fontSize: '12px', color: '#64748b', marginTop: '1px' }}>
+                                  {client.email ?? 'Sin email'}
+                                </span>
+                                <small className="cell-subtext">Alta: {formatDate(client.created_at)}</small>
+                              </div>
+                            ) : (
+                              <div>
+                                <strong>{client.email ?? 'Sin email'}</strong>
+                                <small className="cell-subtext">Alta: {formatDate(client.created_at)}</small>
+                              </div>
+                            )}
                           </td>
                           <td>
                             {client.phone_number ? (
@@ -1029,7 +1052,14 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
             <div className="admin-modal-header">
               <div>
                 <h3>Sumar días de suscripción</h3>
-                <p>Cliente: <strong>{extendingClient.email}</strong></p>
+                <p>
+                  Cliente:{' '}
+                  <strong>
+                    {[extendingClient.first_name, extendingClient.last_name].filter(Boolean).join(' ')
+                      ? `${[extendingClient.first_name, extendingClient.last_name].filter(Boolean).join(' ')} (${extendingClient.email})`
+                      : extendingClient.email}
+                  </strong>
+                </p>
               </div>
               <button
                 type="button"
@@ -1129,7 +1159,14 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                     ? '🟢 Reactivar cuenta'
                     : '⏸️ Pausar cuenta'}
                 </h3>
-                <p>Cliente: <strong>{suspendingClient.email}</strong></p>
+                <p>
+                  Cliente:{' '}
+                  <strong>
+                    {[suspendingClient.first_name, suspendingClient.last_name].filter(Boolean).join(' ')
+                      ? `${[suspendingClient.first_name, suspendingClient.last_name].filter(Boolean).join(' ')} (${suspendingClient.email})`
+                      : suspendingClient.email}
+                  </strong>
+                </p>
               </div>
               <button
                 type="button"

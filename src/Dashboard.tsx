@@ -4,6 +4,7 @@ import { supabase } from './supabase';
 import { installmentDate, formatAmountInput, numberToAmountInput, parseAmountNumber, formatMoney } from '../lib/finance';
 import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
+import type { UserProfile } from './Settings';
 
 type Movement = {
   id: string;
@@ -47,6 +48,7 @@ type InstallmentPlan = {
 type Props = {
   userId: string;
   userEmail?: string | null;
+  userProfile?: UserProfile | null;
   onOpenSettings: () => void;
   onSignOut: () => void;
   isAdmin?: boolean;
@@ -137,22 +139,40 @@ function IconSettings({ className = 'nav-icon' }: { className?: string }) {
 
 const PRESET_INSTALLMENT_COUNTS = [2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48];
 
-export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmin, onOpenAdmin }: Props) {
+export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSignOut, isAdmin, onOpenAdmin }: Props) {
+  // Solo el primer nombre para el saludo de bienvenida ("Hola, María 👋")
+  const firstName = useMemo(() => {
+    if (userProfile?.first_name?.trim()) {
+      return userProfile.first_name.trim();
+    }
+    if (!userEmail) return 'Thomas';
+    const namePart = userEmail.split('@')[0];
+    const words = namePart.replace(/[._-]/g, ' ').trim().split(/\s+/);
+    return words[0].charAt(0).toUpperCase() + words[0].slice(1);
+  }, [userProfile?.first_name, userEmail]);
+
+  // Nombre completo para la barra lateral y datos de cuenta
   const userDisplayName = useMemo(() => {
+    if (userProfile?.first_name?.trim() || userProfile?.last_name?.trim()) {
+      return [userProfile.first_name?.trim(), userProfile.last_name?.trim()].filter(Boolean).join(' ');
+    }
     if (!userEmail) return 'Thomas';
     const namePart = userEmail.split('@')[0];
     const words = namePart.replace(/[._-]/g, ' ').trim().split(/\s+/);
     return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  }, [userEmail]);
+  }, [userProfile?.first_name, userProfile?.last_name, userEmail]);
 
   const userInitials = useMemo(() => {
+    if (userProfile?.first_name?.trim() && userProfile?.last_name?.trim()) {
+      return (userProfile.first_name.trim()[0] + userProfile.last_name.trim()[0]).toUpperCase();
+    }
     if (!userDisplayName) return 'TS';
     const parts = userDisplayName.split(' ');
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
     return userDisplayName.slice(0, 2).toUpperCase();
-  }, [userDisplayName]);
+  }, [userProfile?.first_name, userProfile?.last_name, userDisplayName]);
 
   // PWA Install hook
   const {
@@ -960,7 +980,7 @@ export function Dashboard({ userId, userEmail, onOpenSettings, onSignOut, isAdmi
       <header className="topbar">
         <div>
           <p className="eyebrow">TU RESUMEN</p>
-          <h1>Hola, {userDisplayName} <span>👋</span></h1>
+          <h1>Hola, {firstName} <span>👋</span></h1>
           <p>Así vienen tus finanzas este mes.</p>
         </div>
         <div className="top-actions">

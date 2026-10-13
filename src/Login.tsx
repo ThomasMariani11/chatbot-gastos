@@ -12,6 +12,8 @@ interface CodeCheckState {
 
 export function Login() {
   const [mode, setMode] = useState<AuthMode>('login');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -183,8 +185,24 @@ export function Login() {
     setMessage('');
     setIsError(false);
 
+    const cleanFirstName = firstName.trim();
+    const cleanLastName = lastName.trim();
     const cleanEmail = email.trim();
     const cleanCode = inviteCode.trim().toUpperCase();
+
+    if (!cleanFirstName) {
+      setIsError(true);
+      setMessage('Por favor, ingresá tu nombre.');
+      setSending(false);
+      return;
+    }
+
+    if (!cleanLastName) {
+      setIsError(true);
+      setMessage('Por favor, ingresá tu apellido.');
+      setSending(false);
+      return;
+    }
 
     if (!cleanCode) {
       setIsError(true);
@@ -216,12 +234,15 @@ export function Login() {
       return;
     }
 
-    // Crear usuario en Supabase Auth pasando el código de invitación para canje atómico
+    // Crear usuario en Supabase Auth pasando datos personales y código de invitación para canje atómico
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: cleanEmail,
       password,
       options: {
         data: {
+          first_name: cleanFirstName,
+          last_name: cleanLastName,
+          full_name: `${cleanFirstName} ${cleanLastName}`,
           invitation_code: cleanCode,
         },
       },
@@ -232,6 +253,21 @@ export function Login() {
       setMessage(authError ? getErrorMessage(authError) : 'No se pudo crear la cuenta.');
       setSending(false);
       return;
+    }
+
+    // Si Supabase retornó sesión activa, intentar sincronizar nombre en perfil directamente
+    if (authData.session) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            first_name: cleanFirstName,
+            last_name: cleanLastName,
+          })
+          .eq('id', authData.user.id);
+      } catch {
+        // el trigger de base de datos ya lo procesó
+      }
     }
 
     // El trigger 010 canjea el código durante el alta, incluso sin sesión
@@ -423,6 +459,31 @@ export function Login() {
                   <span>{codeState.message}</span>
                 </div>
               )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
+                <label>
+                  Nombre
+                  <input
+                    required
+                    type="text"
+                    autoComplete="given-name"
+                    value={firstName}
+                    onChange={(event) => setFirstName(event.target.value)}
+                    placeholder="Ej. María"
+                  />
+                </label>
+                <label>
+                  Apellido
+                  <input
+                    required
+                    type="text"
+                    autoComplete="family-name"
+                    value={lastName}
+                    onChange={(event) => setLastName(event.target.value)}
+                    placeholder="Ej. González"
+                  />
+                </label>
+              </div>
 
               <label style={{ marginTop: '4px' }}>
                 Correo electrónico

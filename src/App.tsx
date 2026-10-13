@@ -216,6 +216,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
       <Dashboard
         userId={session.user.id}
         userEmail={session.user.email}
+        userProfile={profile}
         isAdmin={isAdmin}
         onOpenAdmin={() => setView('admin')}
         onOpenSettings={() => setView('settings')}

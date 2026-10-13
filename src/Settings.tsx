@@ -6,6 +6,8 @@ import { InstallAppModal } from './InstallAppModal';
 export type UserProfile = {
   id: string;
   email: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
   role: 'admin' | 'client';
   subscription_status: 'active' | 'expired' | 'suspended' | 'pending_code';
   subscription_until: string | null;
@@ -69,6 +71,42 @@ export function Settings({
   const [renewalCode, setRenewalCode] = useState('');
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [redeemFeedback, setRedeemFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Nombre y Apellido del usuario
+  const [firstNameInput, setFirstNameInput] = useState(userProfile?.first_name || '');
+  const [lastNameInput, setLastNameInput] = useState(userProfile?.last_name || '');
+  const [savingName, setSavingName] = useState(false);
+  const [nameSuccess, setNameSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (userProfile) {
+      setFirstNameInput(userProfile.first_name || '');
+      setLastNameInput(userProfile.last_name || '');
+    }
+  }, [userProfile]);
+
+  async function handleSaveName(e: FormEvent) {
+    e.preventDefault();
+    setSavingName(true);
+    setNameSuccess(null);
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        first_name: firstNameInput.trim(),
+        last_name: lastNameInput.trim(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId);
+
+    setSavingName(false);
+    if (error) {
+      setStatus('No pudimos guardar los cambios: ' + error.message);
+    } else {
+      setNameSuccess('¡Datos personales guardados correctamente!');
+      if (onRefreshProfile) onRefreshProfile();
+      setTimeout(() => setNameSuccess(null), 3500);
+    }
+  }
 
   useEffect(() => {
     supabase.from('app_settings').select('*').eq('user_id', userId).single().then(({ data, error }) => {
@@ -462,8 +500,52 @@ export function Settings({
         isIos={showIosModal}
       />
 
-      {/* SECCIÓN 3: CUENTA Y SESIÓN */}
+      {/* SECCIÓN 3: DATOS PERSONALES Y SESIÓN */}
       <section className="settings-panel">
+        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          PERFIL
+        </span>
+        <h2 style={{ margin: '4px 0 6px' }}>Mis Datos Personales</h2>
+        <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#64748b' }}>
+          Tu nombre se usará en el saludo de bienvenida y para identificar tu cuenta en Pesito.
+        </p>
+
+        <form onSubmit={handleSaveName} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '22px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+            <label>
+              Nombre
+              <input
+                type="text"
+                value={firstNameInput}
+                onChange={(e) => setFirstNameInput(e.target.value)}
+                placeholder="Ej. María"
+              />
+            </label>
+            <label>
+              Apellido
+              <input
+                type="text"
+                value={lastNameInput}
+                onChange={(e) => setLastNameInput(e.target.value)}
+                placeholder="Ej. González"
+              />
+            </label>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button className="primary-button" type="submit" disabled={savingName} style={{ padding: '9px 18px', fontSize: '13px' }}>
+              {savingName ? 'Guardando…' : '💾 Guardar mis datos'}
+            </button>
+            {nameSuccess && (
+              <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 700 }}>
+                {nameSuccess}
+              </span>
+            )}
+          </div>
+        </form>
+
+        <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '18px 0' }} />
+
         <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           CUENTA
         </span>
