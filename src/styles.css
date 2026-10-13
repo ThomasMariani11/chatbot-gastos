@@ -495,12 +495,125 @@
 }
 
 .movement-form input:not([type="checkbox"]):not([type="radio"]),
-.movement-form select {
+.movement-form select,
+.settings-panel input:not([type="checkbox"]):not([type="radio"]),
+.settings-panel select,
+.auth-card input:not([type="checkbox"]):not([type="radio"]),
+.auth-card select {
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
   box-sizing: border-box !important;
   font-size: 16px !important; /* Previene auto-zoom de iOS al enfocar */
+}
+
+/* Fila de 2 columnas para formularios (Nombre y Apellido) */
+.settings-name-grid,
+.form-row-2 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.settings-name-grid > label,
+.form-row-2 > label {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+
+.settings-name-grid input,
+.form-row-2 input {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* En dispositivos móviles (<= 520px), apilar en 1 sola columna para que nunca se estiren */
+@media screen and (max-width: 520px) {
+  .settings-name-grid,
+  .form-row-2 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+}
+
+/* Estilos de inputs para la sección de Ajustes / Perfil */
+.settings-input {
+  height: 46px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  border: 1px solid #dce4df !important;
+  border-radius: 12px !important;
+  padding: 0 14px !important;
+  font-size: 16px !important;
+  font-family: inherit !important;
+  color: #1f2e29 !important;
+  background: #f8fafc !important;
+  outline: none !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+}
+
+.settings-input:focus {
+  border-color: var(--mint) !important;
+  box-shadow: 0 0 0 3px rgba(32, 185, 132, 0.15) !important;
+  background: #fff !important;
+}
+
+.settings-label {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #334155 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.settings-save-button {
+  height: 46px !important;
+  padding: 0 22px !important;
+  border-radius: 12px !important;
+  background: var(--mint) !important;
+  color: #fff !important;
+  border: none !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  box-shadow: 0 4px 14px rgba(32, 185, 132, 0.25) !important;
+  transition: all 0.15s ease !important;
+}
+
+.settings-save-button:hover:not(:disabled) {
+  background: var(--mint-dark) !important;
+}
+
+.settings-save-button:disabled {
+  opacity: 0.6 !important;
+  cursor: wait !important;
+}
+
+@media screen and (max-width: 520px) {
+  .settings-save-button {
+    width: 100% !important;
+  }
 }
 
 .movement-form label.switch-row,

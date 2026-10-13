@@ -510,30 +510,34 @@ export function Settings({
           Tu nombre se usará en el saludo de bienvenida y para identificar tu cuenta en Pesito.
         </p>
 
-        <form onSubmit={handleSaveName} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '22px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
-            <label>
-              Nombre
+        <form onSubmit={handleSaveName} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '22px', width: '100%' }}>
+          <div className="settings-name-grid">
+            <label className="settings-label">
+              <span>Nombre</span>
               <input
                 type="text"
+                className="settings-input"
                 value={firstNameInput}
                 onChange={(e) => setFirstNameInput(e.target.value)}
                 placeholder="Ej. María"
+                autoComplete="given-name"
               />
             </label>
-            <label>
-              Apellido
+            <label className="settings-label">
+              <span>Apellido</span>
               <input
                 type="text"
+                className="settings-input"
                 value={lastNameInput}
                 onChange={(e) => setLastNameInput(e.target.value)}
                 placeholder="Ej. González"
+                autoComplete="family-name"
               />
             </label>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button className="primary-button" type="submit" disabled={savingName} style={{ padding: '9px 18px', fontSize: '13px' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+            <button className="settings-save-button" type="submit" disabled={savingName}>
               {savingName ? 'Guardando…' : '💾 Guardar mis datos'}
             </button>
             {nameSuccess && (

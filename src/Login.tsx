@@ -460,7 +460,7 @@ export function Login() {
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
+              <div className="form-row-2" style={{ marginTop: '6px' }}>
                 <label>
                   Nombre
                   <input
