@@ -324,56 +324,47 @@ Mensaje del usuario: ${input.text ?? ''}`;
     parts.push({ inlineData: { mimeType: input.mimeType, data: input.mediaBase64 } });
   }
 
-  // Modelos candidatos ordenados por rapidez y capacidad
-  const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  // Modelos candidatos ordenados por rapidez y capacidad (gemini-3.8-flash primero por ser el más veloz y estable)
+  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
   let lastError: Error | null = null;
 
   for (const model of candidateModels) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              responseJsonSchema: multiResponseJsonSchema,
-              temperature: 0.1,
-            },
-          }),
-        });
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        signal: AbortSignal.timeout(6000), // Timeout estricto de 6s para evitar demoras
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseJsonSchema: multiResponseJsonSchema,
+            temperature: 0.1,
+          },
+        }),
+      });
 
-        if (!response.ok) {
-          const isTransient = response.status === 503 || response.status === 429 || response.status >= 500;
-          const errorBody = await response.text().catch(() => '');
-          console.error(`Gemini (${model}, intento ${attempt}) returned status ${response.status}: ${errorBody.slice(0, 200)}`);
-          if (isTransient && attempt < 2) {
-            // Esperar con backoff antes de reintentar el mismo modelo
-            await new Promise((r) => setTimeout(r, 1000 + Math.random() * 500));
-            continue;
-          }
-          throw new Error(`Gemini respondió ${response.status}.`);
-        }
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => '');
+        console.error(`Gemini (${model}) returned status ${response.status}: ${errorBody.slice(0, 200)}`);
+        throw new Error(`Gemini respondió ${response.status}.`);
+      }
 
-        const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-        const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!raw) throw new Error('Gemini no devolvió respuesta.');
-        const parsed = JSON.parse(raw) as GeminiParsedOutput;
+      const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+      const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!raw) throw new Error('Gemini no devolvió respuesta.');
+      const parsed = JSON.parse(raw) as GeminiParsedOutput;
 
-        if (parsed.movements && Array.isArray(parsed.movements)) {
-          for (const mov of parsed.movements) {
-            mov.description = cleanDescription(mov.description, mov.kind);
-          }
-        }
-
-        return parsed;
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        if (attempt === 2) {
-          console.warn(`Intento final con ${model} falló, probando siguiente modelo si disponible...`, lastError.message);
+      if (parsed.movements && Array.isArray(parsed.movements)) {
+        for (const mov of parsed.movements) {
+          mov.description = cleanDescription(mov.description, mov.kind);
         }
       }
+
+      return parsed;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`Intento con ${model} falló o superó 6s, probando siguiente modelo si disponible...`, lastError.message);
     }
   }
 
@@ -604,9 +595,9 @@ Deno.serve(async (request) => {
       }
 
       // 8. Comandos rápidos directos
-      const isConfirm = /^(confirmar|confirmado|confirmo|si|sí|ok|dale|listo|de una|va|sisi|perfecto|👍)$/i.test(text);
-      const isCancel = /^(cancelar|cancelalo|cancela|cancel|no|borralo|borrar todo|anular|rechazar)$/i.test(text);
-      const isSummary = /^(resumen|pendientes|ver lista|lista)$/i.test(text);
+      const isConfirm = /^(confirmar|confirmado|confirmo|si|sí|ok|dale|listo|de una|va|sisi|perfecto|👍[🏻🏼🏽🏾🏿]?|✅|✔️|👌[🏻🏼🏽🏾🏿]?)$/i.test(text.trim());
+      const isCancel = /^(cancelar|cancelalo|cancela|cancel|no|borralo|borrar todo|anular|rechazar|❌|🚫)$/i.test(text.trim());
+      const isSummary = /^(resumen|pendientes|ver lista|lista|ver)$/i.test(text.trim());
       const removeMatch = text.match(/^(quit[aá]|borr[aá]|sac[aá]|elimin[aá])\s+(el\s+)?(\d{1,2})$/i);
 
       if (isConfirm) {
@@ -686,7 +677,7 @@ Deno.serve(async (request) => {
       if (mediaId) media = await downloadWhatsAppMedia(mediaId);
       if (!text && !media) throw new Error('Tipo de mensaje no compatible.');
 
-      // 10. Inserción en cola persistente y Debounce (espera de 3 segundos)
+      // 10. Inserción en cola persistente y Debounce ágil (1.2 segundos para agrupar ráfagas rápidas)
       await supabase.from('whatsapp_message_queue').insert({
         wa_message_id: message.id,
         wa_id: message.from,
@@ -695,8 +686,8 @@ Deno.serve(async (request) => {
         status: 'pending',
       });
 
-      // Esperar 3 segundos para acumular ráfagas rápidas de mensajes del mismo usuario
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // Esperar 1.2 segundos para acumular ráfagas rápidas de mensajes del mismo usuario
+      await new Promise((resolve) => setTimeout(resolve, 1200));
 
       // Verificar si hay mensajes más nuevos de este usuario en la cola
       const { data: newerPending } = await supabase
@@ -704,7 +695,7 @@ Deno.serve(async (request) => {
         .select('id')
         .eq('user_id', link.user_id)
         .eq('status', 'pending')
-        .gt('received_at', new Date(Date.now() - 3200).toISOString())
+        .gt('received_at', new Date(Date.now() - 1400).toISOString())
         .neq('wa_message_id', message.id);
 
       if (newerPending && newerPending.length > 0) {
@@ -713,17 +704,41 @@ Deno.serve(async (request) => {
         continue;
       }
 
-      // 11. Interpretación inteligente con Gemini
-      const activeDraftContext = draftItems.length > 0
-        ? draftItems.map((it) => `${it.position}. ${it.kind === 'income' ? 'Ingreso' : 'Gasto'}: ${it.description} $${it.amount}`).join('\n')
-        : '';
+      // 11. Interpretación: vía rápida instantánea para mensajes de texto simples (0ms de latencia)
+      const isQuestionOrComplex = /[?¿]|(cu[aá]nto|c[oó]mo|d[oó]nde|por qu[eé]|explicame|ayuda)/i.test(text);
+      const isEditOrRemove = /^(el\s+\d|cambi[aá]|correg[ií]|modific[aá]|sac[aá]|quit[aá]|borr[aá])/i.test(text);
+      let geminiResult: GeminiParsedOutput | null = null;
 
-      const geminiResult = await extractFromGemini({
-        text,
-        mediaBase64: media?.base64,
-        mimeType: media?.mimeType,
-        activeDraftContext,
-      });
+      if (text && !media && !isQuestionOrComplex && !isEditOrRemove) {
+        const today = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/Argentina/Buenos_Aires',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(new Date());
+
+        const directMovements = parseDeterministicMovements(text, today);
+        if (directMovements && directMovements.length > 0) {
+          geminiResult = {
+            intent: 'add_movements',
+            movements: directMovements,
+          };
+        }
+      }
+
+      // Si no se resolvió por vía rápida (ej: audios, imágenes o texto conversacional), llamar a Gemini
+      if (!geminiResult) {
+        const activeDraftContext = draftItems.length > 0
+          ? draftItems.map((it) => `${it.position}. ${it.kind === 'income' ? 'Ingreso' : 'Gasto'}: ${it.description} $${it.amount}`).join('\n')
+          : '';
+
+        geminiResult = await extractFromGemini({
+          text,
+          mediaBase64: media?.base64,
+          mimeType: media?.mimeType,
+          activeDraftContext,
+        });
+      }
 
       // Procesar intención detectada por Gemini
       if (geminiResult.intent === 'confirm') {
