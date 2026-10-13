@@ -1382,6 +1382,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               type="button"
               className="modal-close-x"
               aria-label="Cerrar modal"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setShowAdd(false);
                 setIsInstallments(false);
@@ -1437,6 +1438,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                   <button
                     type="button"
                     className={`mode-pill ${installmentAmountMode === 'total' ? 'active' : ''}`}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setInstallmentAmountMode('total')}
                   >
                     Monto total
@@ -1444,6 +1446,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                   <button
                     type="button"
                     className={`mode-pill ${installmentAmountMode === 'quota' ? 'active' : ''}`}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setInstallmentAmountMode('quota')}
                   >
                     Monto por cuota
@@ -1603,6 +1606,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <button
               type="button"
               className="modal-btn-cancel"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setShowAdd(false);
                 setIsInstallments(false);
@@ -1616,7 +1620,12 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             >
               Cancelar
             </button>
-            <button className="modal-btn-save" type="submit" disabled={!categoryId}>
+            <button
+              className="modal-btn-save"
+              type="submit"
+              disabled={!categoryId}
+              onMouseDown={(e) => e.preventDefault()}
+            >
               Guardar
             </button>
           </div>
@@ -1636,6 +1645,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               type="button"
               className="modal-close-x"
               aria-label="Cerrar modal"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setEditingMovement(null)}
             >
               ✕
@@ -1834,6 +1844,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               type="button"
               className="modal-btn-delete"
               disabled={isSavingEdit}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 const target = editingMovement;
                 setEditingMovement(null);
@@ -1847,6 +1858,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               type="button"
               className="modal-btn-cancel"
               disabled={isSavingEdit}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setEditingMovement(null)}
             >
               Cancelar
@@ -1855,6 +1867,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               className="modal-btn-save"
               type="submit"
               disabled={isSavingEdit || !editCategoryId}
+              onMouseDown={(e) => e.preventDefault()}
             >
               {isSavingEdit ? 'Guardando…' : 'Guardar'}
             </button>
@@ -1884,6 +1897,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               <button
                 type="button"
                 className="delete-option-btn"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => void executeDeleteSingleInstallment(installmentDeletePrompt.movement!)}
               >
                 <div>
@@ -1897,6 +1911,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <button
               type="button"
               className="delete-option-btn danger"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => void executeDeleteFullPlan(installmentDeletePrompt.movement ?? installmentDeletePrompt.plan!)}
             >
               <div>
@@ -1912,6 +1927,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               type="button"
               className="modal-btn-cancel"
               style={{ width: '100%' }}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setInstallmentDeletePrompt(null)}
             >
               Cancelar
@@ -1936,6 +1952,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               type="button"
               className="modal-close-x"
               aria-label="Cerrar modal"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setShowBudgetModal(false)}
             >
               ✕
@@ -1977,6 +1994,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 type="button"
                 className="modal-btn-delete"
                 disabled={isSavingBudget}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   setShowBudgetModal(false);
                   setShowDeleteBudgetConfirm(true);
@@ -1989,6 +2007,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 type="button"
                 className="modal-btn-cancel"
                 disabled={isSavingBudget}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setShowBudgetModal(false)}
               >
                 Cancelar
@@ -1997,6 +2016,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 className="modal-btn-save"
                 type="submit"
                 disabled={isSavingBudget || parseAmountNumber(budgetInput) <= 0}
+                onMouseDown={(e) => e.preventDefault()}
               >
                 {isSavingBudget ? 'Guardando…' : 'Guardar'}
               </button>
@@ -2007,6 +2027,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 type="button"
                 className="modal-btn-cancel"
                 disabled={isSavingBudget}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setShowBudgetModal(false)}
               >
                 Cancelar
@@ -2015,6 +2036,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 className="modal-btn-save"
                 type="submit"
                 disabled={isSavingBudget || parseAmountNumber(budgetInput) <= 0}
+                onMouseDown={(e) => e.preventDefault()}
               >
                 {isSavingBudget ? 'Guardando…' : 'Guardar'}
               </button>
@@ -2066,6 +2088,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 border: '1px solid #cbd5e1',
                 cursor: 'pointer',
               }}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setShowDeleteBudgetConfirm(false);
                 setShowBudgetModal(true);
@@ -2088,6 +2111,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 fontWeight: 800,
                 cursor: 'pointer',
               }}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => void executeDeleteBudget()}
             >
               {isSavingBudget ? 'Eliminando…' : 'Eliminar'}
@@ -2112,6 +2136,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               type="button"
               className="modal-close-x"
               aria-label="Cerrar modal"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setShowCategoryModal(false)}
             >
               ✕
@@ -2248,6 +2273,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               type="button"
               className="modal-btn-cancel"
               style={{ width: '100%', height: '46px', borderRadius: '12px', fontWeight: 700 }}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setShowCategoryModal(false)}
             >
               Cerrar

@@ -11,18 +11,26 @@
   transition: background 0.15s ease, transform 0.05s ease;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .movement:first-child {
   border-top: 0;
 }
 
-.movement:hover {
-  background: #f7faf8;
+@media (hover: hover) and (pointer: fine) {
+  .movement:hover {
+    background: #f7faf8;
+  }
+  .movement:hover .movement-chevron {
+    color: var(--mint-dark);
+    transform: translateX(2px);
+  }
 }
 
 .movement:active {
   background: #edf5f1;
+  transform: scale(0.99);
 }
 
 .movement-info {
@@ -119,6 +127,9 @@
   outline: none;
   transition: all 0.15s ease;
   min-width: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 /* Cancelar: tono neutro/sage en sintonía */
@@ -128,13 +139,16 @@
   color: #3b4e47;
 }
 
-.modal-btn-cancel:hover {
-  background: #e5ede8;
-  color: #1e3029;
+@media (hover: hover) and (pointer: fine) {
+  .modal-btn-cancel:hover {
+    background: #e5ede8;
+    color: #1e3029;
+  }
 }
 
 .modal-btn-cancel:active {
   background: #dbe5df;
+  transform: scale(0.97);
 }
 
 /* Eliminar: misma estructura, tamaño y altura, tono sutil en sintonía */
@@ -144,14 +158,17 @@
   color: #c4403d;
 }
 
-.modal-btn-delete:hover {
-  background: #fde6e4;
-  border-color: #ebb9b6;
-  color: #a82e2b;
+@media (hover: hover) and (pointer: fine) {
+  .modal-btn-delete:hover {
+    background: #fde6e4;
+    border-color: #ebb9b6;
+    color: #a82e2b;
+  }
 }
 
 .modal-btn-delete:active {
   background: #fbd6d4;
+  transform: scale(0.97);
 }
 
 .modal-btn-delete:disabled {
@@ -167,13 +184,15 @@
   box-shadow: 0 3px 12px rgba(32, 185, 132, 0.25);
 }
 
-.modal-btn-save:hover {
-  background: #199e70;
-  box-shadow: 0 4px 16px rgba(32, 185, 132, 0.35);
+@media (hover: hover) and (pointer: fine) {
+  .modal-btn-save:hover {
+    background: #199e70;
+    box-shadow: 0 4px 16px rgba(32, 185, 132, 0.35);
+  }
 }
 
 .modal-btn-save:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .modal-btn-save:disabled {

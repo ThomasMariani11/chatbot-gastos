@@ -1048,7 +1048,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
       {/* MODAL: EXTENDER DÍAS DE SUSCRIPCIÓN */}
       {extendingClient && (
         <div className="admin-modal-backdrop" onClick={() => !isSubmittingExtend && setExtendingClient(null)}>
-          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
+          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
               <div>
                 <h3>Sumar días de suscripción</h3>
@@ -1065,6 +1065,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                 type="button"
                 className="admin-modal-close"
                 disabled={isSubmittingExtend}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setExtendingClient(null)}
               >
                 ✕
@@ -1090,6 +1091,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                     key={String(opt.value)}
                     type="button"
                     className={`admin-day-chip ${selectedDaysOption === opt.value ? 'active' : ''}`}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setSelectedDaysOption(opt.value as number | 'lifetime' | 'custom')}
                   >
                     <span>{opt.label}</span>
@@ -1131,6 +1133,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                 type="button"
                 className="admin-btn-cancel"
                 disabled={isSubmittingExtend}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setExtendingClient(null)}
               >
                 Cancelar
@@ -1139,6 +1142,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                 type="button"
                 className="primary-button"
                 disabled={isSubmittingExtend}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => void handleConfirmExtendDays()}
               >
                 {isSubmittingExtend ? 'Guardando…' : 'Confirmar y sumar días'}
@@ -1151,7 +1155,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
       {/* MODAL: PAUSAR / REACTIVAR CUENTA */}
       {suspendingClient && (
         <div className="admin-modal-backdrop" onClick={() => !isSubmittingSuspend && setSuspendingClient(null)}>
-          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
+          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
               <div>
                 <h3>
@@ -1172,6 +1176,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                 type="button"
                 className="admin-modal-close"
                 disabled={isSubmittingSuspend}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setSuspendingClient(null)}
               >
                 ✕
@@ -1194,6 +1199,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                 type="button"
                 className="admin-btn-cancel"
                 disabled={isSubmittingSuspend}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setSuspendingClient(null)}
               >
                 Cancelar
@@ -1202,6 +1208,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                 type="button"
                 className={suspendingClient.subscription_status === 'suspended' ? 'primary-button' : 'danger-button'}
                 disabled={isSubmittingSuspend}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => void handleConfirmToggleSuspend()}
               >
                 {isSubmittingSuspend

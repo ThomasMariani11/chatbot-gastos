@@ -112,6 +112,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
                 border: '1px solid #cbd5e1',
                 cursor: 'pointer',
               }}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setShowSignOutConfirm(false)}
             >
               Cancelar
@@ -133,6 +134,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
                 border: '1px solid #fca5a5',
                 cursor: 'pointer',
               }}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => void handleConfirmSignOut()}
             >
               Cerrar sesión

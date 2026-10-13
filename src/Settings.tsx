@@ -342,6 +342,7 @@ export function Settings({
             type="button"
             className="button-link"
             style={{ fontSize: '12px', fontWeight: 700 }}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => setShowRedeemForm(!showRedeemForm)}
           >
             {showRedeemForm ? 'Cerrar formulario de código' : '¿Tenés un código de renovación?'}

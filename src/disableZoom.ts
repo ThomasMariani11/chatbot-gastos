@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Bloquea cualquier intento de zoom en la app tanto en móviles (iOS Safari, Android PWA)
  * como en computadoras (touchpad pinch, Ctrl+Wheel, Ctrl++, etc.) para garantizar
  * una experiencia fluida e idéntica a una aplicación nativa.
@@ -38,32 +38,8 @@ export function initZoomLock(): void {
     { passive: false }
   );
 
-  // 3. Prevenir doble toque accidental para hacer zoom en áreas no interactivas
-  let lastTouchEndTime = 0;
-  document.addEventListener(
-    'touchend',
-    (event: TouchEvent) => {
-      const now = Date.now();
-      if (now - lastTouchEndTime <= 300) {
-        const target = event.target as HTMLElement | null;
-        const isInteractive =
-          target &&
-          (target.tagName === 'INPUT' ||
-            target.tagName === 'SELECT' ||
-            target.tagName === 'TEXTAREA' ||
-            target.tagName === 'BUTTON' ||
-            Boolean(target.closest('button')) ||
-            Boolean(target.closest('a')) ||
-            Boolean(target.closest('.movement')));
-
-        if (!isInteractive) {
-          prevent(event);
-        }
-      }
-      lastTouchEndTime = now;
-    },
-    { passive: false }
-  );
+  // 3. El doble toque para zoom se anula limpiamente mediante CSS touch-action: manipulation
+  // y la etiqueta viewport del HTML, sin interceptar touchend por JS (lo cual cancelaba clics).
 
   // 4. Bloquear zoom por rueda del ratón o pellizco en touchpad (Ctrl + Wheel)
   window.addEventListener(

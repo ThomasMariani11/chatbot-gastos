@@ -316,6 +316,7 @@ export function Login() {
             role="tab"
             aria-selected={mode === 'login'}
             className={`auth-tab ${mode === 'login' ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               setMode('login');
               setMessage('');
@@ -329,6 +330,7 @@ export function Login() {
             role="tab"
             aria-selected={mode === 'register'}
             className={`auth-tab ${mode === 'register' ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               setMode('register');
               setMessage('');

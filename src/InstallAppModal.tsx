@@ -12,6 +12,7 @@ export function InstallAppModal({ isOpen, onClose, isIos }: Props) {
       <div
         className="modal-content"
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         style={{
           maxWidth: '440px',
           width: '90%',
@@ -20,6 +21,7 @@ export function InstallAppModal({ isOpen, onClose, isIos }: Props) {
           background: '#ffffff',
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
           textAlign: 'center',
+          cursor: 'default',
         }}
       >
         <div style={{ fontSize: '42px', marginBottom: '8px' }}>📲</div>
@@ -96,6 +98,7 @@ export function InstallAppModal({ isOpen, onClose, isIos }: Props) {
           <button
             type="button"
             className="primary-button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={onClose}
             style={{ width: '100%', padding: '12px', borderRadius: '10px' }}
           >
