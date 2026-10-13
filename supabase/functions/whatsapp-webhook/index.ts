@@ -324,8 +324,8 @@ Mensaje del usuario: ${input.text ?? ''}`;
     parts.push({ inlineData: { mimeType: input.mimeType, data: input.mediaBase64 } });
   }
 
-  // Modelos candidatos ordenados por rapidez y capacidad (gemini-3.8-flash primero por ser el más veloz y estable)
-  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
+  // Modelos candidatos ordenados por rapidez y capacidad (gemini-3.8-flash y gemini-3.1-flash-lite)
+  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
   let lastError: Error | null = null;
 
   for (const model of candidateModels) {
@@ -333,7 +333,7 @@ Mensaje del usuario: ${input.text ?? ''}`;
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        signal: AbortSignal.timeout(6000), // Timeout estricto de 6s para evitar demoras
+        signal: AbortSignal.timeout(3500), // Timeout ágil de 3.5s para no demorar al usuario
         body: JSON.stringify({
           contents: [{ role: 'user', parts }],
           generationConfig: {
@@ -364,7 +364,7 @@ Mensaje del usuario: ${input.text ?? ''}`;
       return parsed;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      console.warn(`Intento con ${model} falló o superó 6s, probando siguiente modelo si disponible...`, lastError.message);
+      console.warn(`Intento con ${model} falló o superó 3.5s, probando siguiente modelo si disponible...`, lastError.message);
     }
   }
 
@@ -598,7 +598,47 @@ Deno.serve(async (request) => {
       const isConfirm = /^(confirmar|confirmado|confirmo|si|sí|ok|dale|listo|de una|va|sisi|perfecto|👍[🏻🏼🏽🏾🏿]?|✅|✔️|👌[🏻🏼🏽🏾🏿]?)$/i.test(text.trim());
       const isCancel = /^(cancelar|cancelalo|cancela|cancel|no|borralo|borrar todo|anular|rechazar|❌|🚫)$/i.test(text.trim());
       const isSummary = /^(resumen|pendientes|ver lista|lista|ver)$/i.test(text.trim());
+      const isBalanceQuery = /(saldo|disponible|cu[aá]nt[ao]\s+(plata|dinero|me\s+queda)|balance)/i.test(text.trim());
       const removeMatch = text.match(/^(quit[aá]|borr[aá]|sac[aá]|elimin[aá])\s+(el\s+)?(\d{1,2})$/i);
+
+      if (isBalanceQuery) {
+        const todayStr = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/Argentina/Buenos_Aires',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(new Date());
+        const currentMonth = todayStr.slice(0, 7);
+
+        const [{ data: txs }, { data: budgetRow }] = await Promise.all([
+          supabase.from('transactions').select('amount_ars, kind').eq('user_id', link.user_id).eq('status', 'confirmed').gte('occurred_on', `${currentMonth}-01`).lte('occurred_on', `${currentMonth}-31`),
+          supabase.from('budgets').select('amount_ars').eq('user_id', link.user_id).eq('month', `${currentMonth}-01`).maybeSingle(),
+        ]);
+
+        const expenses = (txs ?? []).filter((t) => t.kind === 'expense').reduce((s, t) => s + Number(t.amount_ars), 0);
+        const income = (txs ?? []).filter((t) => t.kind === 'income').reduce((s, t) => s + Number(t.amount_ars), 0);
+        const budget = Number(budgetRow?.amount_ars ?? 0);
+        const availableBudget = budget > 0 ? budget - expenses : null;
+        const netBalance = income - expenses;
+
+        const monthName = new Date().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+        let reply = `📊 *Resumen de ${monthName}:*\n\n`;
+        reply += `• Total gastado: $ ${expenses.toLocaleString('es-AR', { maximumFractionDigits: 0 })}\n`;
+        if (income > 0) {
+          reply += `• Total ingresos: $ ${income.toLocaleString('es-AR', { maximumFractionDigits: 0 })}\n`;
+          reply += `• Balance neto: $ ${netBalance.toLocaleString('es-AR', { maximumFractionDigits: 0 })}\n`;
+        }
+        if (budget > 0) {
+          reply += `• Presupuesto del mes: $ ${budget.toLocaleString('es-AR', { maximumFractionDigits: 0 })}\n`;
+          reply += `• *Disponible restante: $ ${(availableBudget ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}*\n`;
+        } else {
+          reply += `\n💡 Podés fijar un presupuesto mensual en la app para ver tu saldo disponible restante.`;
+        }
+
+        await sendWhatsAppText(message.from, reply);
+        await supabase.from('inbound_events').update({ status: 'processed', processed_at: new Date().toISOString() }).eq('wa_message_id', message.id);
+        continue;
+      }
 
       if (isConfirm) {
         if (!hasActiveDraft || draftItems.length === 0) {
