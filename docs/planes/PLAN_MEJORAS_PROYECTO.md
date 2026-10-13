@@ -7,6 +7,7 @@ Reunir los pendientes de infraestructura, frontend y backend para resolverlos de
 - Repositorio de trabajo: `C:\Users\thomi\OneDrive\Documentos\Codex\chatbot-gastos`.
 - Auditoría de infraestructura: 13/10/2026, commit `3619d86`.
 - Auditoría de backend: 13/10/2026, commit `7b5663f` (código sin cambios respecto de `3619d86`).
+- Auditoría de frontend: 13/10/2026, commit `72ee916` (código sin cambios respecto de `3619d86`).
 - Estado inicial: pendientes documentados; ninguna corrección de esta lista aplicada.
 - Los datos del entorno representan una observación de esa fecha y deben verificarse nuevamente al abordar cada tarea.
 - No registrar claves, tokens, textos financieros, comprobantes ni datos personales en este documento.
@@ -168,9 +169,237 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Trabajo:** verificar tarifas, cuotas y presupuestos actuales de Meta, Gemini y Supabase; acordar límites y alertas; actualizar documentación para que coincida con la protección efectiva. Revisar qué hacer con campos de configuración sin uso.
 - **Cierre:** controles y documentación coinciden; límites y alertas se prueban; cualquier corte requiere una fecha y comportamiento vigentes, sin aplicar retroactivamente el corte vencido.
 
-## Frontend — Por agregar
+## Frontend
 
-Pendiente de auditoría y definición de tareas. No se agregan problemas supuestos.
+Auditoría del 13/10/2026 sobre el commit 72ee916. Los dos últimos commits agregan documentación; el código auditado no cambió respecto de 3619d86. El remoto se verificó sincronizado, sin commits nuevos para incorporar.
+
+No se aplicaron correcciones. Lint, type-check, tests y build se ejecutaron en una copia temporal con los archivos del frontend verificados contra el repositorio. Los casos financieros utilizaron funciones reales con respuestas y datos sintéticos; no hubo escrituras contra producción.
+
+### Relación con infraestructura y backend
+
+Implementar una sola vez el trabajo compartido y registrar su validación en las tareas relacionadas. FE-08 comparte actualización de dependencias con INF-07; FE-19 comparte CSP con INF-13. Las RPC propuestas para planes, idempotencia y extensiones requieren autorización e integridad del servidor: coordinar con BE-01, BE-02, BE-03, BE-10 y BE-17 sin reutilizar una RPC de borradores para una operación distinta. Las pruebas de FE-21 acompañan cada corrección; no se postergan hasta terminar todas las tareas.
+
+### Orden sugerido
+
+| Orden | ID | Severidad | Tema | Tareas relacionadas | Estado |
+| --- | --- | --- | --- | --- | --- |
+| 1 | FE-01 | Alta | Contrato de cuotas de WhatsApp y PWA | FE-02, FE-03, BE-03 | Pendiente |
+| 2 | FE-02 | Alta | Escrituras atómicas de planes | BE-10, BE-17 | Pendiente |
+| 3 | FE-03 | Alta | Preservar importes y cuotas eliminadas | FE-01, FE-02 | Pendiente |
+| 4 | FE-21 | Media | Pruebas de flujos y dominio real | BE-17, INF-06 | Pendiente |
+| 5 | FE-04 | Alta | Evitar movimientos duplicados | BE-10 | Pendiente |
+| 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Pendiente |
+| 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Pendiente |
+| 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Pendiente |
+| 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Pendiente |
+| 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Pendiente |
+| 11 | FE-13 | Media | Validación de invitación fuera de orden | — | Pendiente |
+| 12 | FE-08 | Alta; desarrollo | Dependencias vulnerables | INF-07 | Pendiente |
+| 13 | FE-10 | Media | Límite de cuotas y contrato SQL | FE-21 | Pendiente |
+| 14 | FE-14 | Media | Permitir ampliación del navegador | — | Pendiente |
+| 15 | FE-15 | Media | Diálogos, foco y etiquetas accesibles | FE-07 | Pendiente |
+| 16 | FE-16 | Media | Contraste de botones | FE-22 | Pendiente |
+| 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Pendiente |
+| 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Pendiente |
+| 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Pendiente |
+| 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | Pendiente |
+| 21 | FE-20 | Baja | Cancelar navegación pendiente al desmontar | — | Pendiente |
+| 22 | FE-22 | Baja | Cascada CSS de pestañas de acceso | FE-16 | Pendiente |
+
+### FE-01 — Unificar el contrato de cuotas de WhatsApp y PWA
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema reproducido:** la PWA supone un padre separado, pero WhatsApp usa la primera cuota confirmada como identificador del grupo. Al editar todo el plan se escribe sobre esa cuota tanto su importe individual como el total, en paralelo. Una fixture de tres cuotas de 100 terminó en 300, 100 y 100; el resultado depende del orden de escritura.
+- **Archivos:** src/Dashboard.tsx:817, :824; supabase/migrations/015_allow_multiple_transactions_per_wa_message.sql:184, :186.
+- **Trabajo:** definir un contrato único de grupo y distinguir un padre cancelado de una cuota confirmada; no escribir el total sobre una cuota. Revisar planes existentes antes de una migración y no asumir que existen importes dañados en producción. Coordinar la operación atómica de FE-02 y la integridad de propietario de BE-03.
+- **Cierre:** edición de planes originados en PWA y WhatsApp conserva la suma, actualiza cada cuota una sola vez y no altera datos de otro cliente; regresión del caso reproducido aprobada.
+
+### FE-02 — Guardar creación y edición de planes de forma atómica
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema reproducido:** las actualizaciones de cuotas y padre son peticiones independientes; Promise.all no es una transacción. Al fallar la segunda cuota de un cambio de 100 a 200, quedaron 200, 100 y 200. En el alta, un fallo del lote deja el padre cancelado sin hijos; la inserción del array de cuotas por sí misma sí es una única operación.
+- **Archivos:** src/Dashboard.tsx:612, :653, :831.
+- **Trabajo:** definir RPC transaccionales específicas para crear y editar planes, con identidad, suscripción, propietario, entradas validadas y control de versión; devolver el resultado real. Incluir altas, cambios y eliminaciones requeridos en la misma transacción. Reconciliar el estado cliente después del resultado.
+- **Cierre:** errores inyectados en cada etapa revierten todos los cambios; no hay padres huérfanos ni cuotas parcialmente modificadas; conflictos concurrentes se informan sin sobrescribir silenciosamente.
+- **Relacionado:** principios de BE-10, autorización de BE-01 e integridad de BE-03; pruebas junto con BE-17 y FE-21.
+
+### FE-03 — Preservar campos no modificados y números de cuota
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema reproducido:** aplicar a todas está activado por defecto y copia el importe de la cuota seleccionada a todas. Cambiar solo la descripción de un total de 100 dividido en 33,33 / 33,33 / 33,34 dejó 99,99. Si se eliminó la cuota 2, editar el plan renumera la 3 como 2 y crea otra 3.
+- **Archivos:** src/Dashboard.tsx:705, :718, :767, :777, :785.
+- **Trabajo:** calcular un patch de los campos efectivamente cambiados; mantener importes y centavos cuando no se editan; distribuir centavos desde un total validado cuando corresponda. Buscar cuotas por ID/número estable, no por índice; agregar, quitar o restaurar cuotas mediante acciones explícitas.
+- **Cierre:** editar solo nombre o categoría conserva fechas, cuotas e importes; centavos exactos; una cuota eliminada no reaparece y los números originales no cambian sin solicitud explícita.
+
+### FE-04 — Evitar dobles envíos de movimientos
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema reproducido:** addMovement no tiene exclusión durante el guardado ni clave de idempotencia. Dos envíos antes de terminar la primera petición crearon dos movimientos iguales. El botón solo se deshabilita por falta de categoría.
+- **Archivos:** src/Dashboard.tsx:590, :1626.
+- **Trabajo:** guardia inmediata mediante ref, estado de envío, botón deshabilitado y feedback visible; reutilizar una clave idempotente del mismo intento en reintentos. Validar y deduplicar esa clave en el servidor, sin bloquear operaciones iguales que el usuario quiera crear por separado.
+- **Cierre:** doble clic, Enter repetido y reintento tras respuesta incierta producen una sola operación por intento; fallos permiten reintentar y conservan el formulario.
+
+### FE-05 — Representar carga, error y contexto mensual correctamente
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema confirmado:** errores de movimientos/presupuesto se omiten y se mantiene el estado anterior. Al cambiar de mes y fallar solo una consulta pueden aparecer movimientos del mes anterior bajo el nuevo encabezado. La primera carga fallida puede verse como cero o vacío. El fallback de meses contiene un segundo await sin revalidar el efecto activo.
+- **Archivos:** src/Dashboard.tsx:385, :402, :405, :422, :444, :456.
+- **Trabajo:** estado de datos identificado por usuario/mes; estados explícitos de carga, vacío y error con reintento. Cancelar consultas o descartar respuestas con generación de solicitud, después de cada await; mantener la exclusión durante todo el fallback y evitar mezclar resultados de cargas distintas.
+- **Cierre:** cambios rápidos de mes, desmontaje y respuestas fuera de orden no alteran el contexto nuevo; errores parciales no presentan totales fiables ni saldo cero; recuperación y reintento verificados.
+
+### FE-06 — Extender suscripciones desde el valor actual del servidor
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema confirmado en código:** el administrador calcula una fecha absoluta desde el perfil cargado y la escribe sin comprobar modificaciones concurrentes. Dos administradores que agregan 30 días desde la misma fecha producen el mismo vencimiento, perdiendo una extensión; un canje entre apertura y guardado también puede sobrescribirse. No se ejecutaron extensiones reales.
+- **Archivos:** src/AdminPanel.tsx:365, :371, :376, :378, :381.
+- **Trabajo:** enviar días o cambio explícito de plan a una RPC administrativa autorizada; bloquear el perfil y calcular desde su valor actual, con fecha del servidor. Definir el comportamiento de planes vitalicios y devolver el vencimiento efectivo para el feedback. Coordinar con el trigger de BE-02.
+- **Cierre:** extensiones simultáneas y canjes concurrentes conservan todos los días válidos; usuarios no administradores rechazados; resultado mostrado coincide con la base; casos vencidos y vitalicios verificados.
+
+### FE-07 — Actualizar la PWA sin recargar formularios activos
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema reproducido:** la primera comprobación detecta escritura, pero el MutationObserver solo verifica ausencia de modal-backdrop. Una mutación del DOM recarga con un input todavía enfocado; eventos repetidos crean varios observadores. Los modales administrativos usan admin-modal-backdrop, otra clase.
+- **Archivos:** src/main.tsx:30, :35, :37, :45, :80; src/AdminPanel.tsx:1065.
+- **Trabajo:** centralizar la actualización pendiente y mostrar una acción explícita para aplicarla; considerar cambios sin guardar, foco y todos los diálogos mediante estado compartido. Evitar observadores duplicados y limpiar suscripciones; conservar compatibilidad entre versión web, service worker y cachés.
+- **Cierre:** actualización durante registro, Ajustes y modales no pierde datos; varios eventos generan un solo aviso; aceptación del usuario aplica la versión y limpia recursos; probar instalación existente y recuperación tras actualización fallida.
+
+### FE-08 — Actualizar dependencias vulnerables del frontend
+
+- [ ] Terminada.
+- **Categoría:** Seguridad. **Problema confirmado por npm audit:** tres paquetes de desarrollo con severidad alta: Vite 8.0.13, brace-expansion y source-map-js 1.2.1. Audit de producción reportó cero. El bypass de archivos de Vite en Windows afecta al servidor de desarrollo, no demuestra exposición desde GitHub Pages.
+- **Archivos:** package.json:30; package-lock.json:1069, :1385, :2580, :2822.
+- **Trabajo:** actualizar a versiones compatibles corregidas y revisar el lockfile; el audit observó Vite 8.3.4 como solución disponible. Verificar avisos vigentes al ejecutar y evitar actualizaciones forzadas sin revisar compatibilidad.
+- **Cierre:** audit completo y sin dev, lint, tipos, tests y build repetidos; desarrollo en Windows comprobado; registrar alertas residuales y su alcance si las hubiera.
+- **Trabajo compartido:** INF-07; una sola actualización y validación para ambas tareas.
+
+### FE-09 — Sumar las cuotas futuras reales
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema reproducido:** el total restante usa cantidad por importe de la primera cuota. Para cuota actual de 100 y futuras de 200 y 300 se muestran 200 restantes en vez de 500; redondeos y cuotas eliminadas también invalidan esa fórmula.
+- **Archivos:** src/Dashboard.tsx:474, :476, :480, :482, :483.
+- **Trabajo:** definir si restantes incluye la cuota del mes y sumar registros activos reales por fecha, grupo y moneda usando centavos. Calcular cantidades desde cuotas existentes, sin reconstruirlas a partir del total original.
+- **Cierre:** planes con importes distintos, redondeos, eliminaciones, inicio futuro y mes sin cuota muestran cantidades y totales correctos; ARS y USD separados.
+
+### FE-10 — Alinear el límite de cuotas con el esquema
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema confirmado:** el formulario acepta y anuncia hasta 120 cuotas, mientras transactions.installment_count y los borradores admiten como máximo 60 según las migraciones. No se intentó insertar 61 cuotas en producción.
+- **Archivos:** src/Dashboard.tsx:1523, :1527, :1534; supabase/migrations/001_initial.sql:42; supabase/migrations/014_draft_movement_batches.sql:31.
+- **Trabajo:** compartir el límite de 60 entre dominio, alta, edición y controles; validar enteros antes de llamar a la API. Si se decide ampliar a 120, cambiar previamente todos los contratos y restricciones mediante una migración aprobada.
+- **Cierre:** límites, decimales y entradas inválidas probados en alta y edición; mensaje de validación claro; ningún valor aceptado por el cliente es rechazado por una restricción incompatible.
+
+### FE-11 — Eliminar visualmente un plan por identidad, no por descripción
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema reproducido:** el filtrado optimista borra de la pantalla todos los planes/movimientos con igual título. Al eliminar un grupo de dos llamados Celular, ambos desaparecen; la base conserva el otro y vuelve al refrescar. No se demostró pérdida del segundo plan en la base.
+- **Archivos:** src/Dashboard.tsx:935, :936, :942.
+- **Trabajo:** filtrar exclusivamente por grupo/ID; reconciliar la respuesta real y revertir solo la operación fallida, sin sustituir cambios concurrentes con un snapshot viejo.
+- **Cierre:** planes homónimos permanecen visibles; error de eliminación restaura únicamente lo afectado; el estado final coincide con el servidor.
+
+### FE-12 — Conservar cambios sin guardar en Ajustes
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema reproducido:** cada objeto nuevo de userProfile vuelve a copiar nombre y apellido al formulario. El refresco cada 30 segundos o al recuperar foco reemplaza lo que el usuario escribió sin guardar.
+- **Archivos:** src/Settings.tsx:85, :87, :88; src/App.tsx:110, :128, :129.
+- **Trabajo:** separar borrador y perfil remoto; sincronizar solo cuando no hay cambios locales o al cambiar de usuario. Guardar limpia el estado dirty; definir feedback si hubo cambios remotos concurrentes.
+- **Cierre:** polling y retorno de foco no reemplazan entradas; cambio de usuario no conserva datos ajenos; guardar/cancelar y errores preservan el comportamiento esperado.
+
+### FE-13 — Descartar respuestas antiguas de validación de invitación
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema reproducido:** cancelar el debounce no cancela consultas iniciadas. La respuesta vieja de un código inválido, llegando después de una válida, dejó inválido el código actual y bloqueó el envío.
+- **Archivos:** src/Login.tsx:32, :51, :101, :104, :528.
+- **Trabajo:** asociar resultado a código y generación de solicitud; descartar respuestas anteriores; limpiar temporizador e invalidar solicitudes al desmontar o modificar el código. Manejar error de red separadamente de código inválido.
+- **Cierre:** respuestas en cualquier orden corresponden siempre al código visible; borrar código y desmontar no actualizan el estado anterior; reintento tras fallo funciona.
+
+### FE-14 — Permitir el zoom del navegador
+
+- [ ] Terminada.
+- **Categoría:** Accesibilidad. **Problema confirmado:** viewport con user-scalable=no y escala máxima/mínima 1; initZoomLock intercepta gestos, rueda y atajos de ampliación. Restringe el uso con baja visión.
+- **Archivos:** index.html:5; src/main.tsx:11; src/disableZoom.ts:16, :21, :45, :56.
+- **Trabajo:** usar viewport con width=device-width e initial-scale=1 y eliminar bloqueos globales. Resolver gestos específicos de la interfaz sin bloquear ampliación; comprobar texto y controles ampliados.
+- **Cierre:** zoom por teclado, navegador y gestos admitidos; al 200 % no se pierde contenido ni funcionalidad; revisar móviles reales y reflow.
+- **Referencia:** https://www.w3.org/WAI/WCAG22/Understanding/resize-text.html.
+
+### FE-15 — Centralizar diálogos accesibles y etiquetas de formularios
+
+- [ ] Terminada.
+- **Categoría:** Accesibilidad. **Problema observado en código:** modales principales sin gestión completa de foco, confinamiento, Escape y retorno al botón de apertura. El importe del alta tiene un texto visual en span sin label asociado. No se realizó una prueba con lector de pantalla real.
+- **Archivos:** src/Dashboard.tsx:1374, :1431, :1457, :1637; src/AdminPanel.tsx:1065, :1172.
+- **Trabajo:** componente de diálogo compartido con semántica, título, foco inicial, fondo inerte, cierre y restauración de foco; considerar dialog.showModal o una solución accesible probada. Asociar label/htmlFor e id a controles y errores; agregar foco visible donde se elimina outline.
+- **Cierre:** teclado y lector de pantalla recorren solo el diálogo; Escape y cierre devuelven el foco; campos tienen nombres accesibles; cierre con datos sin guardar tiene un comportamiento definido.
+- **Referencia:** https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/.
+
+### FE-16 — Corregir el contraste de botones
+
+- [ ] Terminada.
+- **Categoría:** Accesibilidad. **Problema medido:** blanco sobre #20b984 tiene contraste 2,52:1. El navegador confirmó esa combinación en el botón de registro con texto de 16 px; no alcanza 4,5:1 para texto normal ni 3:1 para texto grande.
+- **Archivos:** app/globals.css:1; app/forms.css:2.
+- **Trabajo:** definir variantes de color accesibles para botones, manteniendo el color de marca donde no afecte legibilidad. Por ejemplo, fondo #047857 con texto blanco; revisar hover, foco, error y estados aplicables.
+- **Cierre:** contraste medido sobre colores computados cumple los umbrales aplicables en todas las variantes activas; foco visible y estados distinguibles sin depender únicamente del color.
+- **Referencia:** https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html.
+
+### FE-17 — Separar la descarga inicial por pantallas
+
+- [ ] Terminada.
+- **Categoría:** Rendimiento. **Problema medido:** imports anticipados de Dashboard, Ajustes y Administración producen un JS principal de 809,54 kB, 231,27 kB gzip. El código de gráficos se incorpora antes de necesitarlo; Vite advierte un chunk mayor de 500 kB.
+- **Archivos:** src/App.tsx:3, :4, :5, :6, :7; vite.config.ts:9.
+- **Trabajo:** lazy/dynamic import por pantallas y Suspense con fallback útil; medir qué dependencias quedan en el ingreso. No separar chunks arbitrariamente sin comparar tamaño, peticiones y tiempos; manejar fallo de carga tras un despliegue.
+- **Cierre:** registrar tamaños antes/después y reducción de JS inicial; ingreso, navegación y actualización PWA funcionan en red lenta y con fallo de chunk; medir rendimiento en dispositivos representativos.
+
+### FE-18 — Reducir consultas y paginar resultados
+
+- [ ] Terminada.
+- **Categoría:** Rendimiento. **Problema confirmado:** siete consultas cada cinco segundos además de Realtime, aproximadamente 84 por minuto por pestaña activa sin contar carga inicial y otros refrescos. Se vuelven a traer cuotas históricas; perfiles y códigos administrativos no se paginan.
+- **Archivos:** src/Dashboard.tsx:393, :396, :528, :533; src/AdminPanel.tsx:118, :119.
+- **Trabajo:** cachear configuración estable, invalidar por eventos, pausar polling cuando corresponda y acotar consultas. Paginar listados; obtener totales completos en el servidor por moneda. Verificar máximo efectivo de filas de Supabase antes de atribuir truncamiento en producción.
+- **Cierre:** medir consultas/bytes antes y después; varias pestañas, red lenta y reconexión mantienen datos actualizados; probar más filas que el límite del servidor sin totales truncados ni elementos inaccesibles.
+- **A verificar:** límite productivo de PostgREST; no hubo acceso a esa configuración en la auditoría frontend. Coordinar agregaciones con BE-09 sin mezclar monedas.
+
+### FE-19 — Publicar una CSP compatible con el cliente
+
+- [ ] Terminada.
+- **Categoría:** Seguridad. **Problema confirmado por HTTP y documento:** no hay Content-Security-Policy, variante report-only ni meta CSP. No se encontró una vía de XSS explotable. Las sesiones persistentes de la SPA aumentan el impacto potencial de un script malicioso del mismo origen, pero usar persistencia del SDK no se clasificó por sí solo como vulnerabilidad.
+- **Archivos:** index.html:3; src/supabase.ts:7. Parte de la solución corresponde a configuración de hosting sin línea local equivalente.
+- **Trabajo:** política ajustada a scripts, estilos, fuentes, Supabase y Realtime; excluir objetos y restringir base-uri. Un punto inicial es script-src 'self'; object-src 'none'; base-uri 'self'. Validar antes de endurecer y documentar directivas que requieren headers.
+- **Cierre:** verificar política efectivamente publicada y funcionamiento de autenticación, gráficos, fuentes, PWA y Realtime; sin excepciones amplias injustificadas. frame-ancestors no se resuelve mediante meta.
+- **Trabajo compartido:** INF-13; no crear dos políticas contradictorias.
+
+### FE-20 — Cancelar temporizadores de navegación al desmontar
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema reproducido:** el gesto swipe back programa onBack con setTimeout sin cancelarlo al limpiar el efecto; una fixture invocó la navegación después del desmontaje.
+- **Archivos:** src/useSwipeBack.ts:118, :148.
+- **Trabajo:** conservar el temporizador en una ref y limpiarlo al desmontar, cancelar el gesto o deshabilitar el hook. Revisar listeners y estado de animación sin interferir con gestos nativos.
+- **Cierre:** desmontaje o cancelación durante la animación no llama onBack; gesto legítimo funciona y no acumula callbacks. Compatibilidad con Safari real requiere prueba adicional.
+
+### FE-21 — Probar flujos del cliente y reutilizar el dominio financiero
+
+- [ ] Terminada.
+- **Categoría:** Mejora. **Problema confirmado:** 26 tests aprobados en entorno Node sin cubrir componentes, formularios, navegación, efectos o service worker. Dashboard contiene lógica financiera propia, por lo que probar helpers similares no asegura ese comportamiento.
+- **Archivos:** vitest.config.ts:4; src/Dashboard.tsx:86; package.json:13.
+- **Trabajo:** importar una única implementación del dominio; incorporar entorno DOM y pruebas de comportamiento de componentes con peticiones controladas, además de E2E donde aporten valor. Priorizar regresiones de cuotas, errores parciales, duplicados, meses, validación fuera de orden y actualización PWA. Declarar dependencias y ejecutar desde checkout limpio.
+- **Cierre:** pruebas fallan ante los defectos originales y pasan con las correcciones; suite incluida en CI; no depender de copias del código ni afirmar cobertura completa por el número de tests.
+- **Relacionado:** BE-17 e INF-06. Agregar cada regresión junto con su tarea, no al final del plan.
+
+### FE-22 — Corregir especificidad de pestañas de acceso
+
+- [ ] Terminada.
+- **Categoría:** Bug. **Problema confirmado en navegador:** auth-card button tiene mayor especificidad que auth-tab y sobrescribe su fondo transparente/color. Al seleccionar Crear cuenta, Iniciar sesión inactivo permanece verde con blanco y el activo queda blanco.
+- **Archivos:** app/forms.css:2; src/styles.css:2147, :2164.
+- **Trabajo:** acotar estilos de botones y dar especificidad coherente a las pestañas, por ejemplo auth-tabs .auth-tab y su variante active; evitar !important como parche general. Revisar representación visual, estado seleccionado y foco.
+- **Cierre:** selección y apariencia coinciden en ingreso/registro, móvil/escritorio y navegación por teclado; sin alterar botones de envío; contraste conforme a FE-16.
+
+### Resultados y límites de la auditoría de frontend
+
+- ESLint, TypeScript y build aprobados en una copia temporal; 26 tests aprobados en cinco archivos. Un EPERM del sandbox afectó el primer intento de tests; repetir con permisos adecuados resolvió el problema, sin atribuirlo al proyecto.
+- Build: JS 809,54 kB / gzip 231,27 kB; CSS 56,46 kB / gzip 10,68 kB. Advertencia de chunk superior a 500 kB; no se midieron Core Web Vitals de campo.
+- npm audit completo: tres paquetes de desarrollo con alertas altas; audit --omit=dev: cero vulnerabilidades reportadas. Revalidar avisos al actualizar y coordinar INF-07.
+- Verificación pública sin autenticar: registro a 320 px sin desbordamiento horizontal; contraste insuficiente y conflicto de pestañas confirmados. No se enviaron formularios ni se crearon cuentas.
+- No se encontraron dangerouslySetInnerHTML, innerHTML ni enlaces javascript: en el frontend revisado. La clave pública Supabase es publishable, no una credencial privada de servidor; la protección definitiva requiere políticas y RPC del backend.
+- No se ejecutaron operaciones con una cuenta autenticada productiva ni escrituras reales. No se verificaron lectores de pantalla, Safari/iPhone real, límites efectivos de filas, equivalencia de migraciones con producción o comportamiento de ataques XSS reales.
+- Casos adicionales reproducidos con código real y respuestas simuladas: edición de cuotas de WhatsApp/PWA, centavos, cuota eliminada, fallo parcial, doble envío, planes homónimos, invitación fuera de orden, refresco de Ajustes, callback posterior al desmontaje y recarga PWA durante escritura.
+- La auditoría frontend no confirmó hallazgos críticos independientes. Las vulnerabilidades ya documentadas de autorización y RPC del backend continúan siendo dependencias del acceso cliente; ocultar una ruta en React no sustituye autorización del servidor.
 
 ## Backend
 
