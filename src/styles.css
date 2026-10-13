@@ -616,6 +616,127 @@
   }
 }
 
+/* ==========================================================================
+   PÁGINA DE AJUSTES Y SUSCRIPCIÓN (DESKTOP & MOBILE CONSISTENTE)
+   ========================================================================== */
+.settings-page {
+  min-height: 100vh !important;
+  width: 100% !important;
+  max-width: 860px !important;
+  margin: 0 auto !important;
+  padding: 40px 24px 80px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+}
+
+.settings-page > header {
+  width: 100% !important;
+  text-align: left !important;
+  margin: 16px 0 24px !important;
+}
+
+.settings-page > header .eyebrow {
+  text-align: left !important;
+  margin: 0 0 6px !important;
+}
+
+.settings-page > header h1 {
+  font-size: 30px !important;
+  font-weight: 800 !important;
+  letter-spacing: -1px !important;
+  margin: 0 0 6px !important;
+  text-align: left !important;
+  color: var(--ink) !important;
+}
+
+.settings-page > header p {
+  font-size: 14px !important;
+  color: #64748b !important;
+  margin: 0 !important;
+  text-align: left !important;
+}
+
+.settings-page .back-link {
+  align-self: flex-start !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: var(--mint-dark) !important;
+  margin-bottom: 8px !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+}
+
+.settings-page .back-link:hover {
+  text-decoration: underline !important;
+}
+
+.settings-panel {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 24px 28px !important;
+  margin: 0 0 18px 0 !important;
+  background: #ffffff !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 4px 18px rgba(35, 59, 50, 0.05) !important;
+}
+
+.settings-panel h2 {
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  margin: 4px 0 8px !important;
+}
+
+.settings-panel.admin-highlight-box {
+  background: #0f172a !important;
+  border: 1px solid #1e293b !important;
+  color: #ffffff !important;
+}
+
+.settings-panel.admin-highlight-box h2 {
+  color: #ffffff !important;
+}
+
+.settings-panel.warning {
+  background: #fffbeb !important;
+  border-color: #fde68a !important;
+}
+
+.settings-panel .danger-button {
+  width: auto !important;
+  min-width: 180px !important;
+  height: 44px !important;
+  padding: 0 24px !important;
+  border-radius: 12px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+}
+
+@media screen and (max-width: 600px) {
+  .settings-page {
+    padding: 24px 16px 60px !important;
+  }
+  .settings-panel {
+    padding: 18px 16px !important;
+    border-radius: 16px !important;
+    margin-bottom: 14px !important;
+  }
+  .settings-page > header h1 {
+    font-size: 24px !important;
+  }
+  .settings-panel .danger-button {
+    width: 100% !important;
+  }
+}
+
 .movement-form label.switch-row,
 .movement-form .switch-row {
   display: flex !important;
