@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabase';
+import { requestWhatsAppLinkCode } from './whatsappLink';
 import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
 import { useSwipeBack } from './useSwipeBack';
@@ -25,11 +26,6 @@ type Props = {
   onOpenAdmin?: () => void;
   onRefreshProfile?: () => void;
 };
-
-async function sha256(value: string) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
 
 function formatPhone(phone: string | null): string {
   if (!phone) return 'Sin vincular';
@@ -143,18 +139,10 @@ export function Settings({
 
   async function connectWhatsAppOneTouch() {
     setStatus('Generando enlace de vinculación…');
-    const values = new Uint32Array(1);
-    crypto.getRandomValues(values);
-    const nextCode = String(100000 + (values[0] % 900000));
-    const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    const { error } = await supabase.from('whatsapp_links').upsert({
-      user_id: userId,
-      link_code_hash: await sha256(nextCode),
-      link_code_expires_at: expires,
-      status: 'pending',
-    }, { onConflict: 'user_id' });
-
-    if (error) {
+    let nextCode: string;
+    try {
+      ({ code: nextCode } = await requestWhatsAppLinkCode());
+    } catch {
       setStatus('No se pudo generar el código.');
       return;
     }

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { supabase } from './supabase';
+import { requestWhatsAppLinkCode } from './whatsappLink';
 import { installmentDate, formatAmountInput, numberToAmountInput, parseAmountNumber, formatMoney } from '../lib/finance';
 import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
@@ -195,26 +196,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     setOnboardingWaMsg(null);
 
     try {
-      const values = new Uint32Array(1);
-      crypto.getRandomValues(values);
-      const nextCode = String(100000 + (values[0] % 900000));
-      const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-
-      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(nextCode));
-      const nextHash = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
-
-      const { error: upsertErr } = await supabase.from('whatsapp_links').upsert({
-        user_id: userId,
-        link_code_hash: nextHash,
-        link_code_expires_at: expires,
-        status: 'pending',
-      }, { onConflict: 'user_id' });
-
-      if (upsertErr) {
-        setIsConnectingWa(false);
-        setOnboardingWaMsg('No pudimos generar el enlace de conexión: ' + upsertErr.message);
-        return;
-      }
+      const { code: nextCode } = await requestWhatsAppLinkCode();
 
       let targetPhone = waBotNumber;
       if (!targetPhone) {
