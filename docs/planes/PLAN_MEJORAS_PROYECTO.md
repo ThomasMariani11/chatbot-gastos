@@ -30,7 +30,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 | Orden | ID | Severidad | Tema | Referencia | Estado |
 | --- | --- | --- | --- | --- | --- |
-| 1 | INF-01 | Crítica | Permisos de funciones SQL | F01 | Pendiente |
+| 1 | INF-01 | Crítica | Permisos de funciones SQL | F01 | Terminada |
 | 2 | INF-02 | Alta | Escrituras e integridad de borradores y cola | F02 | Pendiente |
 | 3 | INF-08 | Alta, a verificar | Backups y recuperación | F08 | Pendiente |
 | 4 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | Pendiente |
@@ -48,7 +48,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-01 — Restringir funciones SQL privilegiadas
 
-- [ ] Terminada.
+- [x] Terminada.
+- **Cierre al 14/10/2026:** Terminada. Migración 017 aplicada; ACL, HTTP y SQL con ROLLBACK verificados. Prueba WhatsApp del usuario corroborada en la base: un movimiento de prueba de 100 ARS confirmado, ninguno del concepto descartado y cero ítems de prueba pendientes. Webhook v36 sin redespliegue. La publicación Git se consulta en el historial del repositorio. [Procedimiento](VALIDACION_INF_01_BE_01.md) y [evidencia](evidencias/INF_01_BE_01_2026-10-14.json).
 - **Problema confirmado:** `confirm_draft_group`, `discard_draft_group` y `get_active_draft_group` tienen `SECURITY DEFINER`, permiten ejecución a `anon` y no validan la identidad recibida.
 - **Archivos:** `supabase/migrations/014_draft_movement_batches.sql:366`, `:311`; `supabase/migrations/015_allow_multiple_transactions_per_wa_message.sql:33`.
 - **Trabajo:** crear una migración nueva que revoque ejecución a `PUBLIC`, `anon` y, donde corresponda, `authenticated`; conservar acceso al backend. Si alguna RPC debe permanecer disponible para la PWA, validar explícitamente identidad y permisos.
@@ -415,7 +416,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 
 | Orden | ID | Severidad | Tema | Infraestructura relacionada | Estado |
 | --- | --- | --- | --- | --- | --- |
-| 1 | BE-01 | Crítica | Autorización de RPC privilegiadas | INF-01 | Pendiente |
+| 1 | BE-01 | Crítica | Autorización de RPC privilegiadas | INF-01 | Terminada |
 | 2 | BE-03 | Alta | Escrituras y propiedad de datos operativos | INF-02 | Pendiente |
 | 3 | BE-02 | Alta | Renovaciones bloqueadas por el trigger | — | Pendiente |
 | 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | Pendiente |
@@ -438,7 +439,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-01 — Autorizar las RPC privilegiadas
 
-- [ ] Terminada.
+- [x] Terminada.
+- **Cierre al 14/10/2026:** Terminada. Migración 017 aplicada; ACL, HTTP y SQL con ROLLBACK verificados. Prueba WhatsApp del usuario corroborada en la base: un movimiento de prueba de 100 ARS confirmado, ninguno del concepto descartado y cero ítems de prueba pendientes. Webhook v36 sin redespliegue. La publicación Git se consulta en el historial del repositorio. [Procedimiento](VALIDACION_INF_01_BE_01.md) y [evidencia](evidencias/INF_01_BE_01_2026-10-14.json).
 - **Problema confirmado:** `get_active_draft_group`, `confirm_draft_group` y `discard_draft_group` permiten ejecución anónima, aceptan el usuario por parámetro y no comprueban su identidad. Sus propietarios productivos tienen BYPASSRLS. La fixture permitió lectura y confirmación de un grupo ajeno como anon.
 - **Archivos:** `supabase/migrations/014_draft_movement_batches.sql:366`, `:311`; `supabase/migrations/015_allow_multiple_transactions_per_wa_message.sql:33`.
 - **Trabajo:** restringir las RPC al backend o validar identidad y permisos cuando requieran acceso cliente. Revocar también PUBLIC; comprobar la exposición por PostgREST y revisar las demás funciones SECURITY DEFINER.
@@ -620,4 +622,4 @@ Completar una entrada al cerrar cada tarea:
 
 | Fecha | ID | Cambios / commit | Validación | Publicación / versión | Pendientes restantes |
 | --- | --- | --- | --- | --- | --- |
-| — | — | Sin tareas aplicadas todavía | — | — | — |
+| 14/10/2026 | INF-01 / BE-01 | Migración 017 y regresiones; consultar historial Git | 49 tests, lint, tipos, build, ACL, HTTP, SQL con ROLLBACK y WhatsApp | Supabase 017; webhook v36 sin cambios | INF-02 / BE-03 y demás tareas abiertas |

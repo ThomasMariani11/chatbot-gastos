@@ -1,0 +1,150 @@
+{
+  "record_type": "Resumen de resultados observados de CLI, SQL y HTTP; no es un log crudo",
+  "date_local": "2026-10-14",
+  "timezone": "America/Buenos_Aires",
+  "project_ref": "ystyatotldslfmucvgsq",
+  "baseline_commit": "c8d6842",
+  "cli_version": "2.120.0",
+  "migration": {
+    "version": "017",
+    "name": "restrict_draft_rpc_execution",
+    "file": "supabase/migrations/017_restrict_draft_rpc_execution.sql",
+    "dry_run_only_this_migration": true,
+    "applied": true,
+    "registered_in_remote_history": true,
+    "vault_roles_and_seeds_not_published": true
+  },
+  "deployed_webhook": {
+    "version": 36,
+    "status": "ACTIVE",
+    "downloaded_source_matches_local_sha256": true,
+    "source_sha256": "770545fb605ff6ddef31c21f86b0adbb81b243f27fc1608dedfd8d35520ba045",
+    "uses_service_role_key": true,
+    "global_client_authorization_override": false,
+    "redeployed": false
+  },
+  "functions": [
+    {
+      "signature": "confirm_draft_group(uuid,uuid,integer)",
+      "definition_md5_before_and_after": "839d402f28c36fee4081d15da7f58768",
+      "owner": "postgres",
+      "security_definer": true,
+      "anon_execute_before": true,
+      "authenticated_execute_before": true,
+      "anon_execute_after": false,
+      "authenticated_execute_after": false,
+      "service_role_execute_after": true
+    },
+    {
+      "signature": "discard_draft_group(uuid,uuid)",
+      "definition_md5_before_and_after": "2f1c9fd1bf656b7e9e3b2fe84c39e959",
+      "owner": "postgres",
+      "security_definer": true,
+      "anon_execute_before": true,
+      "authenticated_execute_before": true,
+      "anon_execute_after": false,
+      "authenticated_execute_after": false,
+      "service_role_execute_after": true
+    },
+    {
+      "signature": "get_active_draft_group(uuid)",
+      "definition_md5_before_and_after": "bf8bc81b13d4a7ede2d4bc56fce14086",
+      "owner": "postgres",
+      "security_definer": true,
+      "anon_execute_before": true,
+      "authenticated_execute_before": true,
+      "anon_execute_after": false,
+      "authenticated_execute_after": false,
+      "service_role_execute_after": true
+    }
+  ],
+  "http_checks_with_nonexistent_fixture_ids": {
+    "anon": {
+      "get_active_draft_group": {
+        "status": 401,
+        "sqlstate": "42501",
+        "passed": true
+      },
+      "confirm_draft_group": {
+        "status": 401,
+        "sqlstate": "42501",
+        "passed": true
+      },
+      "discard_draft_group": {
+        "status": 401,
+        "sqlstate": "42501",
+        "passed": true
+      }
+    },
+    "service_role": {
+      "get_active_draft_group": {
+        "status": 200,
+        "found": false,
+        "passed": true
+      },
+      "confirm_draft_group": {
+        "status": 200,
+        "success": false,
+        "passed": true
+      },
+      "discard_draft_group": {
+        "status": 200,
+        "success": false,
+        "passed": true
+      }
+    },
+    "note": "HTTP 200 del backend con UUID inexistente indica acceso permitido y rechazo de negocio esperado; no prueba por sí mismo un guardado. El guardado se verificó por SQL dentro de una transacción revertida.",
+    "authenticated_http_session_tested": false
+  },
+  "production_sql_transaction_test": {
+    "script": "tests/sql/draft-rpc-permissions-smoke.sql",
+    "synthetic_users": 2,
+    "synthetic_groups": 2,
+    "denied_anon_and_authenticated_calls": 8,
+    "service_read_confirm_discard_passed": true,
+    "wrong_owner_and_version_rejected": true,
+    "double_confirmation_rejected": true,
+    "created_transactions_inside_rolled_back_test": 5,
+    "three_installments_sum_exact": true,
+    "ars_and_usd_totals_separate": true,
+    "assertions_passed": true,
+    "transaction_rolled_back": true,
+    "remaining_fixture_users": 0,
+    "remaining_fixture_groups": 0,
+    "remaining_fixture_items": 0,
+    "remaining_fixture_transactions": 0,
+    "remaining_fixture_codes": 0,
+    "existing_client_records_modified": false
+  },
+  "recovery": {
+    "physical_backups_returned": null,
+    "pitr_enabled": false,
+    "function_definitions_and_acls_saved_locally_before_change": true,
+    "full_database_backup_verified": false,
+    "note": "El listado no demuestra ausencia de copias lógicas o externas. Copia de metadatos no equivale a backup de datos ni restauración ensayada. INF-08 sigue pendiente."
+  },
+  "pending": [],
+  "out_of_scope_still_pending": [
+    "INF-02",
+    "BE-03",
+    "BE-02"
+  ],
+  "whatsapp_end_to_end": {
+    "performed_by": "usuario con su cuenta y movimientos explícitos de prueba",
+    "screenshot_provided": true,
+    "read_only_database_crosscheck": true,
+    "initial_summary_empty": true,
+    "confirmation_alias": "si",
+    "discard_alias": "no",
+    "matching_test_accounts": 1,
+    "confirmed_100_ars": 1,
+    "all_confirmed_permission_test_records": 1,
+    "confirmed_temporal_test_records": 0,
+    "permission_draft_confirmed": 1,
+    "temporal_draft_discarded": 1,
+    "pending_test_items": 0,
+    "passed": true,
+    "confirmed_test_record_left_for_user_cleanup": true
+  },
+  "task_status": "INF-01 y BE-01 terminadas el 14/10/2026; consultar historial Git para la entrega"
+}
