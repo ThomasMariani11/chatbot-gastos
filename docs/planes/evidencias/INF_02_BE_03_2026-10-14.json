@@ -1,0 +1,292 @@
+{
+  "record_type": "Resumen de ejecuciones CLI, SQL y HTTP; no es un log crudo",
+  "date_local": "2026-10-14",
+  "timezone": "America/Buenos_Aires",
+  "verified_at_utc": "2026-10-14T23:40:12Z",
+  "project_ref": "ystyatotldslfmucvgsq",
+  "cli_version": "2.120.0",
+  "baseline_commit": "145cf54ea8d7d3c8ed15dcc2b169f62702faed71",
+  "frontend_release_commit": "b7ff5cf2cac7ff9bb1ee8472fea8ae25a329027c",
+  "deployment_order": [
+    "018 aplicada y registrada",
+    "PWA b7ff5cf publicada y verificada",
+    "019 aplicada y registrada"
+  ],
+  "web_release": {
+    "workflow_conclusion": "success",
+    "workflow_url": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38654839716",
+    "version_json_verified": true,
+    "published_bundle_uses_new_rpc": true,
+    "published_bundle_contains_old_link_hash_field": false
+  },
+  "migrations_and_security": {
+    "history": [
+      {
+        "name": "restrict_draft_rpc_execution",
+        "version": "017"
+      },
+      {
+        "name": "request_whatsapp_link_code",
+        "version": "018"
+      },
+      {
+        "name": "enforce_backend_writes_and_owner_links",
+        "version": "019"
+      }
+    ],
+    "owner_foreign_keys": [
+      {
+        "definition": "FOREIGN KEY (category_id, user_id) REFERENCES categories(id, user_id) ON DELETE SET NULL (category_id)",
+        "name": "draft_items_category_owner_fkey",
+        "validated": true
+      },
+      {
+        "definition": "FOREIGN KEY (group_id, user_id) REFERENCES draft_groups(id, user_id) ON DELETE CASCADE",
+        "name": "draft_items_group_owner_fkey",
+        "validated": true
+      },
+      {
+        "definition": "FOREIGN KEY (category_id, user_id) REFERENCES categories(id, user_id) ON DELETE SET NULL (category_id)",
+        "name": "transactions_category_owner_fkey",
+        "validated": true
+      },
+      {
+        "definition": "FOREIGN KEY (installment_group_id, user_id) REFERENCES transactions(id, user_id) ON DELETE SET NULL (installment_group_id)",
+        "name": "transactions_installment_owner_fkey",
+        "validated": true
+      }
+    ],
+    "phone_trigger_active": true,
+    "policies": [
+      {
+        "command": "SELECT",
+        "name": "own draft groups select",
+        "table": "draft_groups"
+      },
+      {
+        "command": "SELECT",
+        "name": "own draft items select",
+        "table": "draft_items"
+      },
+      {
+        "command": "SELECT",
+        "name": "own whatsapp link select",
+        "table": "whatsapp_links"
+      }
+    ],
+    "request_rpc": {
+      "anon": false,
+      "authenticated": true
+    },
+    "tables": [
+      {
+        "anon_delete": false,
+        "anon_insert": false,
+        "anon_select": false,
+        "anon_update": false,
+        "client_delete": false,
+        "client_insert": false,
+        "client_select": true,
+        "client_update": false,
+        "name": "draft_groups",
+        "rls": true,
+        "service_delete": true,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true
+      },
+      {
+        "anon_delete": false,
+        "anon_insert": false,
+        "anon_select": false,
+        "anon_update": false,
+        "client_delete": false,
+        "client_insert": false,
+        "client_select": true,
+        "client_update": false,
+        "name": "draft_items",
+        "rls": true,
+        "service_delete": true,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true
+      },
+      {
+        "anon_delete": false,
+        "anon_insert": false,
+        "anon_select": false,
+        "anon_update": false,
+        "client_delete": false,
+        "client_insert": false,
+        "client_select": true,
+        "client_update": false,
+        "name": "whatsapp_links",
+        "rls": true,
+        "service_delete": true,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true
+      },
+      {
+        "anon_delete": false,
+        "anon_insert": false,
+        "anon_select": false,
+        "anon_update": false,
+        "client_delete": false,
+        "client_insert": false,
+        "client_select": false,
+        "client_update": false,
+        "name": "whatsapp_message_queue",
+        "rls": true,
+        "service_delete": true,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true
+      }
+    ]
+  },
+  "live_sql_before_019": {
+    "assertions_passed": true,
+    "migration_019_applied": false,
+    "remaining_fixture_codes": 0,
+    "remaining_fixture_groups": 0,
+    "remaining_fixture_transactions": 0,
+    "remaining_fixture_users": 0,
+    "transaction_rolled_back": true
+  },
+  "live_sql_after_019": {
+    "assertions_passed": true,
+    "migration_019_applied": true,
+    "remaining_fixture_codes": 0,
+    "remaining_fixture_groups": 0,
+    "remaining_fixture_transactions": 0,
+    "remaining_fixture_users": 0,
+    "transaction_rolled_back": true
+  },
+  "production_sql_checks": {
+    "synthetic_users": 2,
+    "synthetic_groups": 2,
+    "writes_denied_to_anon_and_authenticated": 24,
+    "cross_owner_constraints_checked": true,
+    "rpc_hash_expiry_and_rotation_checked": true,
+    "existing_link_preserved_when_requesting_code": true,
+    "profile_phone_client_change_denied": true,
+    "profile_name_update_allowed": true,
+    "backend_confirm_installments_and_discard_passed": true,
+    "double_confirmation_rejected": true,
+    "transaction_rolled_back": true,
+    "existing_client_records_modified": false
+  },
+  "http_checks": [
+    {
+      "role": "anon",
+      "endpoint": "rpc/request_whatsapp_link_code",
+      "method": "Post",
+      "status": 401,
+      "sqlstate": "42501",
+      "passed": true
+    },
+    {
+      "role": "anon",
+      "endpoint": "draft_groups",
+      "method": "Post",
+      "status": 401,
+      "sqlstate": "42501",
+      "passed": true
+    },
+    {
+      "role": "anon",
+      "endpoint": "draft_items",
+      "method": "Post",
+      "status": 401,
+      "sqlstate": "42501",
+      "passed": true
+    },
+    {
+      "role": "anon",
+      "endpoint": "whatsapp_links",
+      "method": "Post",
+      "status": 401,
+      "sqlstate": "42501",
+      "passed": true
+    },
+    {
+      "role": "anon",
+      "endpoint": "whatsapp_message_queue",
+      "method": "Post",
+      "status": 401,
+      "sqlstate": "42501",
+      "passed": true
+    },
+    {
+      "role": "service_role",
+      "endpoint": "transactions",
+      "method": "Get",
+      "status": 200,
+      "sqlstate": null,
+      "passed": true
+    },
+    {
+      "role": "service_role",
+      "endpoint": "draft_items",
+      "method": "Get",
+      "status": 200,
+      "sqlstate": null,
+      "passed": true
+    },
+    {
+      "role": "service_role",
+      "endpoint": "whatsapp_links",
+      "method": "Get",
+      "status": 200,
+      "sqlstate": null,
+      "passed": true
+    },
+    {
+      "role": "service_role",
+      "endpoint": "whatsapp_message_queue",
+      "method": "Get",
+      "status": 200,
+      "sqlstate": null,
+      "passed": true
+    },
+    {
+      "role": "service_role",
+      "endpoint": "rpc/get_active_draft_group",
+      "method": "Post",
+      "status": 200,
+      "sqlstate": null,
+      "passed": true
+    }
+  ],
+  "local_validation": {
+    "tests_passed": 106,
+    "test_files": 8,
+    "lint_passed": true,
+    "typescript_passed": true,
+    "build_passed": true,
+    "bundle_warning_preexisting": true
+  },
+  "webhook": {
+    "version": 36,
+    "status": "ACTIVE",
+    "redeployed": false
+  },
+  "recovery": {
+    "metadata_acls_constraints_policies_saved_locally": true,
+    "physical_backups_returned": null,
+    "pitr_enabled": false,
+    "full_backup_verified": false,
+    "related_pending_task": "INF-08"
+  },
+  "pending": [
+    "Prueba real de generación/vinculación desde la PWA actualizada y mensajes WhatsApp del usuario",
+    "Cierre de INF-02 / BE-03 tras esa prueba"
+  ],
+  "limitations": [
+    "Sin prueba de concurrencia real entre conexiones",
+    "Sin sesión HTTP authenticated de un usuario real; el rol se validó en PostgreSQL",
+    "Sin envío de mensajes WhatsApp por el asistente",
+    "BE-14 y BE-02 continúan pendientes"
+  ]
+}

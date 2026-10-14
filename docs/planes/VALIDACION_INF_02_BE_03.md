@@ -1,6 +1,6 @@
 # Validación y despliegue de INF-02 / BE-03
 
-Fecha: 14/10/2026. Base: 145cf54, publicado en origin/main y verificado en version.json de la web pública. Estado de publicación: 018 aplicada y registrada; prueba transaccional productiva aprobada sin residuos. Se publica el nuevo cliente antes de aplicar 019; el cierre requiere las verificaciones finales y WhatsApp del usuario.
+Fecha: 14/10/2026. Base: 145cf54, publicado en origin/main y verificado en version.json de la web pública. Estado: 018 y 019 aplicadas y registradas; PWA nueva publicada en el orden previsto y verificaciones técnicas SQL/HTTP aprobadas. Falta la prueba de PWA instalada y WhatsApp del usuario para cerrar INF-02 / BE-03.
 
 ## Revalidación productiva de solo lectura
 
@@ -62,9 +62,9 @@ Las regresiones cubren:
 - Activación del vínculo y copia de teléfono desde el backend; rechazo de cambio directo del teléfono desde el cliente; nombres y preferencias siguen editables.
 - Contrato del helper de la PWA y respuestas inválidas o errores de servidor.
 
-No se probaron concurrencia real de conexiones, PostgREST remoto con 018/019 ni una nueva vinculación real por WhatsApp. Las pruebas locales no equivalen a publicación ni cierre productivo.
+No se probó concurrencia real de conexiones. PostgREST y SQL remotos se verificaron tras publicar, según el registro siguiente. Falta una nueva vinculación real por WhatsApp y la comprobación de la PWA instalada por el usuario; las pruebas locales por sí solas no equivalen a cierre productivo.
 
-## Orden de despliegue pendiente
+## Procedimiento de despliegue
 
 1. Revisar estado remoto, backups disponibles y metadatos actuales; registrar definiciones, políticas y ACL previas sin exportar datos de clientes. INF-08 sigue abierto; no asumir recuperación completa por la copia de metadatos de 017.
 2. Publicar únicamente 018. Usar una carpeta de despliegue con las migraciones hasta 018 y comprobar mediante dry-run que solo anuncia ese archivo. No ejecutar db push desde un árbol que incluya 019 en este paso: aplicaría ambas antes de actualizar la PWA.
@@ -84,3 +84,17 @@ Si falla 018, la transacción revierte sus cambios. Si la nueva PWA falla antes 
 Después de 019, recuperar el cliente que usa la RPC o aplicar una corrección específica. Una vuelta a la PWA anterior requiere coordinar su contrato; no reabrir escrituras arbitrarias de clientes como recuperación automática. Verificar historial antes de reejecutar migraciones: estos archivos de esquema no están diseñados para aplicarse dos veces por fuera del registro de migraciones.
 
 BE-14 sigue pendiente: consumo y reasignación completos del código en una transacción, rate limiting y límites de intentos. También permanecen BE-02 (renovaciones), las tareas de cola y los demás hallazgos. Este cambio no atribuye a la generación de código la solución de todo el proceso de vinculación.
+
+## Registro de publicación — 14/10/2026
+
+- Se revalidaron permisos e integridad sin leer textos ni teléfonos. No se encontraron relaciones cruzadas o hashes duplicados. Se guardaron ACL, políticas, restricciones y triggers previos en archivos temporales locales; no se exportaron datos de clientes.
+- Backups físicos: el listado no devolvió copias; PITR desactivado. No se verificaron backups lógicos/externos ni restauración: INF-08 sigue abierto.
+- 018 se publicó desde una carpeta de despliegue que contenía únicamente 001–018; dry-run y ejecución anunciaron solo 018. Su RPC pasó la prueba productiva sintética con ROLLBACK, sin activar ni desconectar vínculos reales.
+- Cliente publicado en b7ff5cf2cac7ff9bb1ee8472fea8ae25a329027c. Workflow terminado en success y version.json coincidente; el bundle servido contiene request_whatsapp_link_code y ya no contiene link_code_hash. Se verificó antes de aplicar 019.
+- 019 se aplicó después de esa comprobación y quedó registrada. Las cuatro tablas tienen RLS; anon y authenticated no tienen privilegios efectivos de INSERT/UPDATE/DELETE. authenticated conserva lectura propia de grupos, ítems y vínculos; la cola no es accesible al cliente. service_role conserva CRUD.
+- Cuatro claves foráneas compuestas validadas y trigger de teléfono activo. RPC de solicitud: anon sin ejecución, authenticated con ejecución; sus controles de sesión y suscripción se comprobaron por SQL y tests.
+- Diez comprobaciones HTTP aprobadas: cinco rechazos anónimos 401/42501 y cinco respuestas 200 de lectura/backend con UUID ficticios inexistentes. Los joins categories(name) y draft_groups(id) siguen siendo reconocidos por PostgREST. No se abrió una sesión HTTP de un usuario real para estas pruebas.
+- Prueba SQL posterior con usuarios ficticios: 24 escrituras anon/authenticated rechazadas, aislamiento de lectura, cola interna, teléfono protegido, cambio legítimo de nombre, referencias ajenas rechazadas y backend capaz de leer, confirmar tres cuotas por un total exacto de 100 y descartar otro grupo. Doble confirmación rechazada. Solicitud, hash, vencimiento, rotación de código y conservación de vínculo activo también comprobados.
+- Toda la prueba terminó en ROLLBACK. La consulta posterior confirmó cero usuarios, grupos, transacciones y códigos de la fixture. Ningún registro de clientes fue modificado por la prueba. Una primera invocación de la CLI quedó sin finalizar y sin consulta activa; se detuvo solo ese proceso local y la ejecución secuencial posterior pasó.
+- Webhook v36 ACTIVE; no se redesplegó. Las comprobaciones finales y sus límites están en [la evidencia resumida](evidencias/INF_02_BE_03_2026-10-14.json). No hay claves, códigos de vinculación ni datos personales en ese registro.
+- Pendiente: recargar la PWA, solicitar y enviar el código VINCULAR desde la cuenta del usuario y comprobar resumen, confirmación y cancelación. No cerrar las tareas hasta obtener ese resultado. No se enviaron mensajes desde la cuenta del usuario ni se simularon mensajes de Meta.
