@@ -279,14 +279,36 @@
     "full_backup_verified": false,
     "related_pending_task": "INF-08"
   },
-  "pending": [
-    "Prueba real de generación/vinculación desde la PWA actualizada y mensajes WhatsApp del usuario",
-    "Cierre de INF-02 / BE-03 tras esa prueba"
-  ],
+  "task_status": "Terminada: INF-02 / BE-03",
+  "whatsapp_end_to_end": {
+    "passed": true,
+    "recorded_at_utc": "2026-10-14T23:48:10Z",
+    "source": "Captura aportada por el usuario y consulta productiva de agregados de solo lectura",
+    "messages_sent_by": "Usuario",
+    "confirm_reply": "si",
+    "discard_reply": "no",
+    "aggregates": {
+      "active_verified_links": 1,
+      "all_confirmed_isolation_test_records": 1,
+      "confirmed_100_ars": 1,
+      "confirmed_temporal_test_records": 0,
+      "consumed_link_challenges": 1,
+      "isolation_draft_confirmed": 1,
+      "matching_test_accounts": 1,
+      "pending_test_items": 0,
+      "temporal_draft_discarded": 1
+    },
+    "screenshot_or_link_code_stored": false,
+    "standalone_install_mode_verified": false,
+    "assistant_modified_data": false,
+    "confirmed_test_transaction_preserved": true
+  },
+  "pending": [],
   "limitations": [
     "Sin prueba de concurrencia real entre conexiones",
-    "Sin sesión HTTP authenticated de un usuario real; el rol se validó en PostgreSQL",
+    "Sin sesión HTTP authenticated automatizada de un usuario real; el rol se validó en PostgreSQL y el usuario realizó la vinculación real",
+    "Sin comprobación específica del modo instalado standalone",
     "Sin envío de mensajes WhatsApp por el asistente",
-    "BE-14 y BE-02 continúan pendientes"
+    "BE-14, BE-02 e INF-08 continúan pendientes"
   ]
 }

@@ -1,6 +1,6 @@
 # Validación y despliegue de INF-02 / BE-03
 
-Fecha: 14/10/2026. Base: 145cf54, publicado en origin/main y verificado en version.json de la web pública. Estado: 018 y 019 aplicadas y registradas; PWA nueva publicada en el orden previsto y verificaciones técnicas SQL/HTTP aprobadas. Falta la prueba de PWA instalada y WhatsApp del usuario para cerrar INF-02 / BE-03.
+Fecha: 14/10/2026. Base: 145cf54, publicado en origin/main y verificado en version.json de la web pública. Estado: 018 y 019 aplicadas y registradas; PWA nueva publicada en el orden previsto y verificaciones técnicas SQL/HTTP aprobadas. INF-02 / BE-03 cerradas tras la prueba real del usuario y su corroboración mediante agregados de solo lectura. El modo instalado standalone no se comprobó.
 
 ## Revalidación productiva de solo lectura
 
@@ -62,7 +62,7 @@ Las regresiones cubren:
 - Activación del vínculo y copia de teléfono desde el backend; rechazo de cambio directo del teléfono desde el cliente; nombres y preferencias siguen editables.
 - Contrato del helper de la PWA y respuestas inválidas o errores de servidor.
 
-No se probó concurrencia real de conexiones. PostgREST y SQL remotos se verificaron tras publicar, según el registro siguiente. Falta una nueva vinculación real por WhatsApp y la comprobación de la PWA instalada por el usuario; las pruebas locales por sí solas no equivalen a cierre productivo.
+No se probó concurrencia real de conexiones. PostgREST y SQL remotos se verificaron tras publicar, según el registro siguiente. El usuario completó la vinculación real por WhatsApp, el resumen, la confirmación y el descarte; se corroboraron en producción mediante agregados de solo lectura. No se verificó específicamente el modo instalado standalone.
 
 ## Procedimiento de despliegue
 
@@ -97,4 +97,6 @@ BE-14 sigue pendiente: consumo y reasignación completos del código en una tran
 - Prueba SQL posterior con usuarios ficticios: 24 escrituras anon/authenticated rechazadas, aislamiento de lectura, cola interna, teléfono protegido, cambio legítimo de nombre, referencias ajenas rechazadas y backend capaz de leer, confirmar tres cuotas por un total exacto de 100 y descartar otro grupo. Doble confirmación rechazada. Solicitud, hash, vencimiento, rotación de código y conservación de vínculo activo también comprobados.
 - Toda la prueba terminó en ROLLBACK. La consulta posterior confirmó cero usuarios, grupos, transacciones y códigos de la fixture. Ningún registro de clientes fue modificado por la prueba. Una primera invocación de la CLI quedó sin finalizar y sin consulta activa; se detuvo solo ese proceso local y la ejecución secuencial posterior pasó.
 - Webhook v36 ACTIVE; no se redesplegó. Las comprobaciones finales y sus límites están en [la evidencia resumida](evidencias/INF_02_BE_03_2026-10-14.json). No hay claves, códigos de vinculación ni datos personales en ese registro.
-- Pendiente: recargar la PWA, solicitar y enviar el código VINCULAR desde la cuenta del usuario y comprobar resumen, confirmación y cancelación. No cerrar las tareas hasta obtener ese resultado. No se enviaron mensajes desde la cuenta del usuario ni se simularon mensajes de Meta.
+- Prueba real completada por el usuario: vinculación, resumen sin pendientes, confirmación de un gasto de prueba de 100 ARS con «si» y descarte de otro de 200 con «no». La captura aportada muestra las respuestas del bot. No se guarda la captura ni su código de vinculación.
+- Consulta posterior de solo lectura, limitada a las etiquetas de prueba y al intervalo posterior a la validación técnica: una cuenta coincidente, un vínculo activo cuyo teléfono coincide con el perfil, un desafío consumido, un grupo confirmado y exactamente un movimiento de 100 ARS. El grupo temporal quedó descartado, sin movimientos guardados; cero ítems de prueba pendientes. La evidencia conserva únicamente esos agregados.
+- INF-02 y BE-03 cerradas. El movimiento de prueba confirmado se conserva para que el usuario decida eliminarlo desde la aplicación. El asistente no envió mensajes WhatsApp ni modificó los datos durante esta corroboración. La prueba no acredita específicamente la ejecución de la PWA en modo instalado standalone; BE-02, BE-14, INF-08 y demás tareas siguen abiertas.

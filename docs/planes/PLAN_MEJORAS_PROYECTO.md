@@ -31,7 +31,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | Orden | ID | Severidad | Tema | Referencia | Estado |
 | --- | --- | --- | --- | --- | --- |
 | 1 | INF-01 | Crítica | Permisos de funciones SQL | F01 | Terminada |
-| 2 | INF-02 | Alta | Escrituras e integridad de borradores y cola | F02 | En curso |
+| 2 | INF-02 | Alta | Escrituras e integridad de borradores y cola | F02 | Terminada |
 | 3 | INF-08 | Alta, a verificar | Backups y recuperación | F08 | Pendiente |
 | 4 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | Pendiente |
 | 5 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Pendiente |
@@ -57,8 +57,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-02 — Restringir escrituras e integridad de borradores y cola
 
-- [ ] Terminada.
-- **Estado al 14/10/2026:** En curso, con 018 y 019 aplicadas y registradas. PWA con RPC publicada antes de cerrar escrituras; 106 tests, lint, tipos y build aprobados. Permisos, cuatro FK de propietario, diez llamadas HTTP y SQL productivo con 24 rechazos y ROLLBACK verificados, sin residuos ni cambios en registros de clientes. Webhook v36 sin redespliegue. Falta prueba real de PWA instalada/vinculación/WhatsApp del usuario para cerrar. [Procedimiento](VALIDACION_INF_02_BE_03.md) y [evidencia](evidencias/INF_02_BE_03_2026-10-14.json).
+- [x] Terminada.
+- **Estado al 14/10/2026:** Terminada. Migraciones 018 y 019 aplicadas; PWA con RPC publicada antes de cerrar escrituras. 106 tests, lint, tipos, build, permisos, cuatro FK, diez llamadas HTTP y SQL con 24 rechazos y ROLLBACK aprobados. Prueba real del usuario y consulta agregada de solo lectura: vínculo activo y código consumido; gasto de 100 ARS guardado una sola vez; gasto temporal descartado sin guardarse; cero ítems pendientes de prueba. Webhook v36 sin redespliegue. El modo instalado standalone no se comprobó. [Procedimiento](VALIDACION_INF_02_BE_03.md) y [evidencia](evidencias/INF_02_BE_03_2026-10-14.json).
 - **Problema confirmado:** cuentas cliente pueden insertar y modificar tablas operativas. Las claves foráneas de grupo y usuario no garantizan que ambos pertenezcan al mismo propietario.
 - **Archivo:** `supabase/migrations/014_draft_movement_batches.sql:73`, `:78`, `:83`.
 - **Trabajo:** reservar las escrituras de `draft_groups`, `draft_items` y `whatsapp_message_queue` al backend; revisar políticas y privilegios. Incorporar integridad entre grupo y propietario. Revisar y resolver inconsistencias existentes antes de agregar restricciones.
@@ -418,7 +418,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | Orden | ID | Severidad | Tema | Infraestructura relacionada | Estado |
 | --- | --- | --- | --- | --- | --- |
 | 1 | BE-01 | Crítica | Autorización de RPC privilegiadas | INF-01 | Terminada |
-| 2 | BE-03 | Alta | Escrituras y propiedad de datos operativos | INF-02 | En curso |
+| 2 | BE-03 | Alta | Escrituras y propiedad de datos operativos | INF-02 | Terminada |
 | 3 | BE-02 | Alta | Renovaciones bloqueadas por el trigger | — | Pendiente |
 | 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | Pendiente |
 | 5 | BE-04 | Alta | Parser determinista e interpretación financiera | — | Pendiente |
@@ -459,8 +459,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-03 — Proteger escrituras y relaciones de propietario
 
-- [ ] Terminada.
-- **Estado al 14/10/2026:** En curso, con 018 y 019 aplicadas y registradas. PWA con RPC publicada antes de cerrar escrituras; 106 tests, lint, tipos y build aprobados. Permisos, cuatro FK de propietario, diez llamadas HTTP y SQL productivo con 24 rechazos y ROLLBACK verificados, sin residuos ni cambios en registros de clientes. Webhook v36 sin redespliegue. Falta prueba real de PWA instalada/vinculación/WhatsApp del usuario para cerrar. [Procedimiento](VALIDACION_INF_02_BE_03.md) y [evidencia](evidencias/INF_02_BE_03_2026-10-14.json).
+- [x] Terminada.
+- **Estado al 14/10/2026:** Terminada. Migraciones 018 y 019 aplicadas; PWA con RPC publicada antes de cerrar escrituras. 106 tests, lint, tipos, build, permisos, cuatro FK, diez llamadas HTTP y SQL con 24 rechazos y ROLLBACK aprobados. Prueba real del usuario y consulta agregada de solo lectura: vínculo activo y código consumido; gasto de 100 ARS guardado una sola vez; gasto temporal descartado sin guardarse; cero ítems pendientes de prueba. Webhook v36 sin redespliegue. El modo instalado standalone no se comprobó. [Procedimiento](VALIDACION_INF_02_BE_03.md) y [evidencia](evidencias/INF_02_BE_03_2026-10-14.json).
 - **Problema reproducido:** un cliente puede modificar tablas operativas, activar su vínculo con un teléfono no asignado sin prueba de control e insertar un ítem propio en un grupo ajeno. La unicidad impide asignar un teléfono ya ocupado; no se demostró ese caso de toma de vínculo.
 - **Archivos:** `supabase/migrations/001_initial.sql:93`; `supabase/migrations/014_draft_movement_batches.sql:73`, `:78`, `:83`.
 - **Trabajo:** reservar las escrituras operativas al backend; crear una RPC limitada para generar códigos; activar el vínculo exclusivamente tras validación del webhook. Garantizar propietario de grupo e ítem mediante integridad relacional y revisar relaciones de categorías y cuotas entre clientes.
@@ -625,3 +625,4 @@ Completar una entrada al cerrar cada tarea:
 | Fecha | ID | Cambios / commit | Validación | Publicación / versión | Pendientes restantes |
 | --- | --- | --- | --- | --- | --- |
 | 14/10/2026 | INF-01 / BE-01 | Migración 017 y regresiones; consultar historial Git | 49 tests, lint, tipos, build, ACL, HTTP, SQL con ROLLBACK y WhatsApp | Supabase 017; webhook v36 sin cambios | INF-02 / BE-03 y demás tareas abiertas |
+| 14/10/2026 | INF-02 / BE-03 | Migraciones 018/019, RPC y cliente b7ff5cf; evidencia técnica 5c41e42 | 106 tests, lint, tipos, build, ACL, HTTP, SQL con ROLLBACK y prueba real de vinculación/confirmación/descarte corroborada por agregados | Supabase 018/019; PWA con RPC; webhook v36 sin cambios | BE-02, BE-14, INF-08 y demás tareas abiertas |
