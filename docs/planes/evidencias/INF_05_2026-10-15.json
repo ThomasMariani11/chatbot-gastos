@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-15",
+  "scope": "INF-05",
+  "state": "applied_pending_owner_smoke_test",
+  "owner_inventory": "Only Supabase SQL Editor and this PC; no other SQL tools or services",
+  "tls": {
+    "after_enforced": true,
+    "applied_successfully": true,
+    "observed_pooler_protocol": "TLSv1.3",
+    "ca_and_hostname_verified": true,
+    "ca_source": "https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt",
+    "before_enforced": false,
+    "ca_file_sha256": "700723581420DD1AC98FD7E9AC529F0EF210EADCAF87FC868A3AD7D114C2F3B7",
+    "minimum_server_protocol": "TLSv1.2"
+  },
+  "network": {
+    "after_ipv4_prefix_lengths": [
+      32,
+      32
+    ],
+    "no_addons_or_billing_changes": true,
+    "actual_denial_observed": true,
+    "entitlement": "allowed",
+    "after_world_access": false,
+    "before_ipv4": "0.0.0.0/0",
+    "before_ipv6": "::/0",
+    "after_ipv6_rule_count": 0,
+    "status": "applied",
+    "address_values_stored_only_in_private_local_config": true,
+    "selection": "sources observed in this PC PostgreSQL protocol probes, not generic HTTPS egress",
+    "after_ipv4_rule_count": 2
+  },
+  "negative_probe": {
+    "date": "2026-10-15",
+    "credentials_sent": false,
+    "data_queries_sent": false,
+    "results": [
+      {
+        "route": "pooler_session",
+        "encrypted": false,
+        "outcome": "plaintext_rejected_tls_required"
+      },
+      {
+        "route": "pooler_session",
+        "encrypted": true,
+        "protocol": "TLSv1.3",
+        "authorized": true,
+        "outcome": "connection_rejected_network"
+      },
+      {
+        "route": "pooler_transaction",
+        "encrypted": false,
+        "outcome": "plaintext_rejected_tls_required"
+      },
+      {
+        "route": "pooler_transaction",
+        "encrypted": true,
+        "protocol": "TLSv1.3",
+        "authorized": true,
+        "outcome": "connection_rejected_network"
+      },
+      {
+        "route": "direct",
+        "encrypted": false,
+        "outcome": "unavailable",
+        "code": "ENOTFOUND"
+      },
+      {
+        "route": "direct",
+        "encrypted": true,
+        "outcome": "unavailable",
+        "code": "ENOTFOUND"
+      }
+    ]
+  },
+  "final_probe": {
+    "credentials_sent": false,
+    "data_queries_sent": false,
+    "results": [
+      {
+        "route": "pooler_session",
+        "encrypted": false,
+        "outcome": "plaintext_rejected_tls_required"
+      },
+      {
+        "route": "pooler_session",
+        "encrypted": true,
+        "protocol": "TLSv1.3",
+        "authorized": true,
+        "outcome": "authentication_requested_with_verified_tls"
+      },
+      {
+        "route": "pooler_transaction",
+        "encrypted": false,
+        "outcome": "plaintext_rejected_tls_required"
+      },
+      {
+        "route": "pooler_transaction",
+        "encrypted": true,
+        "protocol": "TLSv1.3",
+        "authorized": true,
+        "outcome": "authentication_requested_with_verified_tls"
+      },
+      {
+        "route": "direct",
+        "encrypted": false,
+        "outcome": "unavailable",
+        "code": "ENOTFOUND"
+      },
+      {
+        "route": "direct",
+        "encrypted": true,
+        "outcome": "unavailable",
+        "code": "ENOTFOUND"
+      }
+    ]
+  },
+  "health": {
+    "worker_authenticated_http": 200,
+    "auth_https": 200,
+    "v2_processing": 0,
+    "queue_enabled": true,
+    "pwa_https": 200,
+    "management_https_sql": true,
+    "latest_cron_status": "succeeded",
+    "v2_failed": 0,
+    "rest_limit_zero": 200
+  },
+  "limits": [
+    "Direct database hostname returned ENOTFOUND from this network; no direct IPv6 connection was verified.",
+    "Protocol probes stop at authentication; no database passwords or data queries are sent.",
+    "Observed source IPs can change; administration via HTTPS remains available.",
+    "SSL enforcement caused the documented database reboot; no second reboot or database password reset was performed."
+  ],
+  "next": "Owner: reload app and send RESUMEN in WhatsApp"
+}

@@ -34,7 +34,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 2 | INF-02 | Alta | Escrituras e integridad de borradores y cola | F02 | Terminada |
 | 3 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | Terminada |
 | 4 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Terminada |
-| 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Pendiente |
+| 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | En curso |
 | 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Pendiente |
 | 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Pendiente |
 | 8 | INF-09 | Media | Privacidad de logs | F09 | Pendiente |
@@ -87,6 +87,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Dependencias:** INF-03; verificar cobertura de recuperación con INF-08.
 
 ### INF-05 — Exigir TLS y limitar acceso SQL por red
+
+- **Avance al 15/10/2026:** TLS obligatorio y dos reglas IPv4 /32 para orígenes SQL observados desde la PC; sin acceso mundial ni addons. Rechazo de plaintext y de una fuente fuera de la regla comprobados; TLS 1.3 con CA/hostname válido en los poolers. Administración HTTPS, worker, REST, Auth y cron sanos. Falta prueba normal app/WhatsApp del propietario; endpoint directo ENOTFOUND desde esta red, a verificar. [Runbook y límites](VALIDACION_INF_05.md) y [evidencia](evidencias/INF_05_2026-10-15.json).
 
 - [ ] Terminada.
 - **Problema confirmado en Supabase:** permitidas `0.0.0.0/0` y `::/0`; exigencia de SSL desactivada, aunque SSL está disponible.
@@ -653,3 +655,5 @@ Completar una entrada al cerrar cada tarea:
 | 15/10/2026 | INF-04 / BE-10 | Migración 023: estados de entrega idempotentes; sin redespliegue de webhook v40 | 173 tests, diez ensayos nuevos, lint, tipos, build y concurrencia nativa | 023 aplicada; ACL y cola activa verificadas; sin fallos simulados en producción | Prueba normal del propietario para cerrar; límites de respuestas repetidas documentados |
 
 | 15/10/2026 | Cierre INF-04 / BE-10 | Migración 023 y evidencia de aceptación; sin cambios de código o deploy en este cierre | Propietario confirma prueba correcta; un único gasto de prueba de 1 ARS y cero pendientes; cola v2 sin fallos ni procesamiento | Lectura agregada sin modificar datos | INF-05 siguiente; resto de auditoría abierto; backups al final |
+
+| 15/10/2026 | INF-05 | TLS obligatorio y allowlist de dos /32 propias; script manual y runbook de recuperación por HTTPS | Protocolos sin credenciales, denegación de red, CA/hostname, salud HTTP/SQL/cron | Configuración aplicada sin addon ni cambios de app/bot/migraciones | Prueba normal del propietario; ruta directa no disponible desde esta red; IPs dinámicas se actualizan por control HTTPS |
