@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-15",
+  "webhook_version": 40,
+  "automated": {
+    "vitest": 163,
+    "deno": 12,
+    "native_postgres_concurrency": "passed_previous_evidence"
+  },
+  "owner_report": {
+    "correction_changes_only_item_2": true,
+    "removed_item_does_not_renumber": true,
+    "cancel_and_empty_summary": true
+  },
+  "read_only_check": {
+    "scope": "items and confirmed movements named prueba cola, created on 2026-10-15 Argentina",
+    "pending_test_items": 0,
+    "confirmed_test_movements": 0,
+    "test_item_states": {
+      "removed": 3
+    },
+    "queue_enabled": true,
+    "v2_processing": 0,
+    "v2_failed": 0
+  },
+  "limits": [
+    "No live worker was interrupted in production; recovery and fencing were tested in isolation.",
+    "No real audio/photo test or premature confirmation was performed in this acceptance.",
+    "Eight legacy version-1 failed messages remain held for authorized review."
+  ],
+  "completed": [
+    "INF-03",
+    "BE-06"
+  ],
+  "remaining": [
+    "INF-04",
+    "BE-10",
+    "other audit tasks"
+  ]
+}

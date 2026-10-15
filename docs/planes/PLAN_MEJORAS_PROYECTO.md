@@ -32,7 +32,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | --- | --- | --- | --- | --- | --- |
 | 1 | INF-01 | Crítica | Permisos de funciones SQL | F01 | Terminada |
 | 2 | INF-02 | Alta | Escrituras e integridad de borradores y cola | F02 | Terminada |
-| 3 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | En curso |
+| 3 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | Terminada |
 | 4 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Pendiente |
 | 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Pendiente |
 | 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Pendiente |
@@ -66,9 +66,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-03 — Hacer fiable el procesamiento de la cola
 
-- **Avance al 15/10/2026:** implementación preparada de recepción durable, leases con fencing, mutaciones atómicas, confirmación de la versión mostrada y recuperación con cron. 136 tests y concurrencia nativa aprobados; webhook v38 y migraciones 020–022 publicados. Cola habilitada tras el drenaje; WhatsApp pendiente. Ocho mensajes fallidos de la versión anterior conservados para revisión manual. [Procedimiento y alcance](VALIDACION_INF_03_BE_06.md).
+- [x] Terminada.
+- **Cierre al 15/10/2026:** webhook v40, migraciones 020–022; 163 tests, 12 Deno y concurrencia PostgreSQL nativa aprobados. Capturas del propietario: eliminación del ítem erróneo y corrección del número 2 sin aumentar la lista. El propietario confirma números estables y descarte con resumen vacío. Agregados de solo lectura: cero pendientes y cero confirmados con nombres de prueba; cero trabajos v2 fallidos o en procesamiento. Recuperación/interrupciones verificadas en aislamiento, no provocadas en producción. Ocho mensajes heredados conservados para revisión autorizada. [Aceptación](evidencias/INF_03_BE_06_aceptacion_2026-10-15.json) y [procedimiento](VALIDACION_INF_03_BE_06.md).
 
-- [ ] Terminada.
 - **Problema confirmado en código:** el debounce marca mensajes como procesados sin interpretarlos. No hay exclusión duradera por usuario ni recuperación programada declarada. En la auditoría había seis registros pendientes con más de una hora; no se confirmó si sus movimientos ya estaban registrados.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:733`, `:742`, `:852`, `:889`.
 - **Trabajo:** persistir todos los mensajes; procesarlos en orden con lease por usuario y protección contra trabajadores vencidos; asignar posiciones de forma atómica; comprobar errores de escritura; incorporar recuperación programada. Revisar los pendientes antiguos antes de reprocesarlos.
@@ -427,7 +427,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | Pendiente |
 | 5 | BE-04 | Alta | Parser determinista e interpretación financiera | — | Pendiente |
 | 6 | BE-05 | Alta | Detección de consultas comerciales y saldo | — | En curso |
-| 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | En curso |
+| 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | Terminada |
 | 8 | BE-07 | Alta | Confirmación durante procesamiento | INF-03, INF-04 | Pendiente |
 | 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | Pendiente |
 | 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | Pendiente |
@@ -491,9 +491,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-06 — Serializar mensajes y mutaciones de borradores
 
-- **Avance al 15/10/2026:** En curso, compartido con INF-03. Implementación publicada en webhook v38 y migraciones 020–022; 136 tests y concurrencia nativa aprobados. Cola habilitada tras el drenaje; falta la validación real por WhatsApp. [Procedimiento](VALIDACION_INF_03_BE_06.md).
+- [x] Terminada.
+- **Cierre al 15/10/2026:** trabajo compartido con INF-03 cerrado con las pruebas automáticas y concurrentes y la aceptación manual del propietario; lectura agregada sin pendientes ni confirmados de prueba. Persisten las limitaciones y tareas relacionadas indicadas en la [evidencia](evidencias/INF_03_BE_06_aceptacion_2026-10-15.json). INF-04/BE-10 y demás entradas conservan su propio alcance.
 
-- [ ] Terminada.
 - **Problema confirmado:** debounce que marca mensajes procesados sin interpretarlos; ausencia de exclusión duradera por usuario; posibilidad de grupos abiertos múltiples y posiciones concurrentes. La fixture aceptó dos grupos abiertos del mismo usuario.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:733`, `:742`, `:841`, `:852`, `:889`.
 - **Trabajo:** cola durable, lease por usuario, recuperación y orden definido; creación de grupo y reserva de posiciones atómicas. Persistir todos los mensajes de todas las entradas y cambios del payload: readMessages en la línea 62 solo recorre el primer entry/change. Definir deduplicación por mensaje y posición de operación.
@@ -643,3 +643,5 @@ Completar una entrada al cerrar cada tarea:
 | 15/10/2026 | BE-05 relacionado con INF-03 / BE-06 | Corrección del clasificador y parser mixto; webhook v39 | 151 tests, nueve Deno, tipos, lint y build aprobados | Sin migraciones ni reenvíos automáticos de mensajes anteriores | Propietario debe reenviar el mensaje y verificar los tres movimientos; aceptación de cola sigue pendiente |
 
 | 15/10/2026 | BE-12 / INF-03 / BE-06 | Webhook v40: corrección de importe por número y rechazo de altas falsas | 163 tests, 12 Deno, tipos, lint y build; edición SQL aislada sin inserciones | Sin migraciones ni cambios directos en la lista del propietario | Repetir corrección y completar aceptación WhatsApp; INF-04 todavía pendiente |
+
+| 15/10/2026 | Cierre INF-03 / BE-06 | Webhook v40, migraciones 020–022 y correcciones documentadas | 163 tests, 12 Deno, concurrencia nativa; capturas y confirmación del propietario; cero pendientes y confirmados de prueba en consulta agregada | Sin nuevo deploy ni escrituras productivas en el cierre | INF-04 / BE-10 siguiente; revisión autorizada de ocho heredados; otros puntos abiertos |

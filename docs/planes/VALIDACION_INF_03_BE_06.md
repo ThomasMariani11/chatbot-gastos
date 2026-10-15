@@ -1,6 +1,14 @@
 # INF-03 / BE-06 — Cola durable de WhatsApp
 
-Fecha: 15/10/2026. Base: `65510ca`. Estado: webhook v38 y migraciones 020–022 publicados; cola habilitada después del drenaje; validación real por WhatsApp pendiente. Backups INF-08 permanecen para el final del plan.
+Fecha: 15/10/2026. Base: `65510ca`. Estado: INF-03/BE-06 cerradas el 15/10/2026; webhook actual v40, migraciones 020–022 y aceptación del propietario registrada. Backups INF-08 permanecen para el final del plan.
+
+## Aceptación al 15/10/2026
+
+El propietario confirmó la finalización del procedimiento después de las capturas que muestran el ítem erróneo eliminado y la corrección exclusiva del monto del número 2. Reportó números conservados tras la eliminación, CANCELAR y resumen vacío. Consulta agregada de solo lectura: cero ítems pendientes y cero movimientos confirmados con los nombres de prueba de esta fecha; cero trabajos v2 fallidos o en procesamiento. Evidencia actual: 163 tests, 12 Deno y prueba previa de concurrencia PostgreSQL nativa.
+
+Se cierran INF-03/BE-06. No se provocó una interrupción del worker productivo: recuperación y fencing se probaron en aislamiento, y cron/HTTP se verificaron en el entorno alojado. No se ejecutó la variante manual de audio/foto o confirmación adelantada; esos caminos conservan su validación automática y se ampliarán con las tareas relacionadas. Los ocho mensajes heredados permanecen retenidos; no se reprocesan automáticamente. INF-04/BE-10 sigue pendiente.
+
+[Registro de aceptación y límites](evidencias/INF_03_BE_06_aceptacion_2026-10-15.json). Las secciones posteriores conservan el procedimiento y la evidencia de publicación original v38; los arreglos v39/v40 están documentados en el plan.
 
 ## Alcance
 
@@ -51,7 +59,7 @@ Webhook v38 activo, migraciones 020–022 registradas, secreto exclusivo en Edge
 
 Se trasladó una propuesta heredada a un borrador sin confirmarla. La transacción comparó el contenido completo de los movimientos confirmados antes y después: los 52 permanecieron idénticos. Ocho mensajes fallidos heredados siguen retenidos sin reprocesarse. No se crearon actores ni mensajes sintéticos en producción. Se eliminaron las copias temporales del secreto; el PostgreSQL local de prueba quedó apagado.
 
-[Estado técnico publicado, sin datos de clientes](evidencias/INF_03_BE_06_publicacion_2026-10-15.json). INF-03 y BE-06 permanecen en curso hasta completar la prueba del propietario; no se declara cerrado INF-04 ni el resto de la auditoría.
+[Estado técnico publicado, sin datos de clientes](evidencias/INF_03_BE_06_publicacion_2026-10-15.json). En la publicación original v38, INF-03 y BE-06 estaban pendientes de la prueba del propietario. Su cierre posterior se registra al inicio de este documento; INF-04 y el resto de la auditoría mantienen su propio alcance.
 
 ## Prueba del propietario
 
