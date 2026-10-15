@@ -108,7 +108,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-08 — Verificar backups y probar recuperación
 
-- **Decisión del propietario, 15/10/2026:** tarea postergada hasta terminar las demás mejoras de infraestructura, backend y frontend. Se retira la preparación de backups de esta etapa: workflow, scripts, guías y evidencias específicas; el historial Git conserva el trabajo para retomarlo. No se habilitaron backups productivos ni se restauró producción. La app y el bot mantienen las mejoras ya publicadas. Google aceptó la revocación del acceso OAuth de prueba y se retiraron las credenciales temporales locales. El proyecto Google Cloud y los archivos sintéticos privados de ensayo permanecen sin automatización; no se activó facturación.
+- **Decisión del propietario, 15/10/2026:** tarea postergada hasta terminar las demás mejoras de infraestructura, backend y frontend. Se retira la preparación de backups de esta etapa: workflow, scripts, guías y evidencias específicas; el historial Git conserva el trabajo para retomarlo. No se habilitaron backups productivos ni se restauró producción. La app y el bot mantienen las mejoras ya publicadas. Google aceptó la revocación del acceso OAuth de prueba y se retiraron las credenciales temporales locales. El 15/10/2026 se cerró el proyecto Google Cloud pesito-backups por pedido del propietario; la consola confirmó que está apagado y programado para borrarse después del 14/11/2026. Los archivos sintéticos privados de ensayo en Drive permanecen sin automatización; no se activó facturación.
 
 - [ ] Terminada.
 - **A verificar:** la API informó PITR desactivado y ninguna copia física listada. Esto no demuestra ausencia de backups lógicos o externos.
