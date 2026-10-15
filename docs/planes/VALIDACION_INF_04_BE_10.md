@@ -1,6 +1,6 @@
 # INF-04 / BE-10 — Reintentos y respuestas recuperables
 
-Fecha: 15/10/2026. Migración 023 publicada; webhook v40 sin redespliegue. Estado: implementación y validación técnica completas; prueba normal de WhatsApp del propietario pendiente.
+Fecha: 15/10/2026. Migración 023 publicada; webhook v40 sin redespliegue. Estado: INF-04/BE-10 cerradas con aceptación del propietario y corroboración agregada de solo lectura.
 
 ## Diseño y cambio
 
@@ -35,11 +35,11 @@ No se garantiza que un texto se entregue exactamente una vez: si el proveedor lo
 
 El resumen usa su bandera durable y versión mostrada; un fallo antes de registrar el envío puede repetir el resumen. Cron recupera trabajos según su cadencia; no garantiza un máximo de respuesta de tres segundos durante una falla.
 
-## Prueba normal pendiente
+## Procedimiento de aceptación ejecutado
 
 1. Revisar RESUMEN y resolver cualquier lista anterior antes de agregar pruebas.
 2. Enviar un único gasto de prueba identificable de 1 ARS. Revisar el borrador y responder CONFIRMAR una vez.
 3. Tras recibir el aviso de guardado, responder CONFIRMAR otra vez. Debe informar que no hay pendientes y la app debe contener un solo gasto de prueba de 1 ARS.
 4. El propietario puede eliminar ese gasto de prueba desde la app. No realizar simulaciones de fallos sobre su cuenta ni cancelar listas ajenas a la prueba.
 
-INF-04/BE-10 permanecen en curso hasta registrar esta aceptación. INF-03/BE-06 conservan su cierre. BE-05/BE-12 y los demás puntos no se cierran por esta publicación. Backups continúan para el final.
+INF-04/BE-10 cerradas el 15/10/2026. El propietario confirmó el resultado correcto: guardado único y segunda confirmación sin duplicado. Una lectura agregada corroboró un único gasto de prueba de 1 ARS, cero ítems pendientes de esa prueba y cero trabajos v2 fallidos o en procesamiento. No se modificaron datos ni se publicaron cambios adicionales durante el cierre. [Evidencia de aceptación](evidencias/INF_04_BE_10_aceptacion_2026-10-15.json). INF-03/BE-06 conservan su cierre. BE-05/BE-12 y los demás puntos no se cierran por esta publicación. Backups continúan para el final.

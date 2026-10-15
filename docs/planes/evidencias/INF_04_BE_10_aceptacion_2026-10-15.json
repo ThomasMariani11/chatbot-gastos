@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-15",
+  "migration": "023",
+  "webhook_version": 40,
+  "owner_report": {
+    "first_confirmation_saved": true,
+    "second_confirmation_did_not_duplicate": true,
+    "app_shows_one_test_expense": true
+  },
+  "read_only_verification": {
+    "migration_023": true,
+    "scope": "confirmed and pending items named prueba entrega, created on 2026-10-15 Argentina",
+    "v2_failed": 0,
+    "pending_test_items": 0,
+    "v2_processing": 0,
+    "confirmed_test_total_ars": 1,
+    "confirmed_test_rows": 1,
+    "queue_enabled": true
+  },
+  "technical_validation": {
+    "new_fault_cases": 10,
+    "native_postgres_concurrency": true,
+    "vitest": 173
+  },
+  "production_failure_injection": false,
+  "closure": [
+    "INF-04",
+    "BE-10"
+  ],
+  "limits": [
+    "A provider-accepted text may repeat if local delivery registration fails; financial writes remain idempotent.",
+    "No production outage was simulated; failure scenarios were isolated."
+  ],
+  "next": "INF-05",
+  "backups": "deferred_to_end"
+}

@@ -33,7 +33,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 1 | INF-01 | Crítica | Permisos de funciones SQL | F01 | Terminada |
 | 2 | INF-02 | Alta | Escrituras e integridad de borradores y cola | F02 | Terminada |
 | 3 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | Terminada |
-| 4 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | En curso |
+| 4 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Terminada |
 | 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Pendiente |
 | 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Pendiente |
 | 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Pendiente |
@@ -77,9 +77,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-04 — Separar recepción, guardado y entrega de respuestas
 
-- **Avance al 15/10/2026:** migración 023 publicada. Se reprodujo y corrigió la reapertura de entregas finalizadas tras perder la respuesta RPC. Diez ensayos nuevos con worker y SQL reales; 173 tests, build, lint y concurrencia PostgreSQL nativa aprobados. Sin fallos ni escrituras financieras de prueba en producción. Falta aceptación normal de doble confirmación por WhatsApp. [Procedimiento y límites](VALIDACION_INF_04_BE_10.md).
+- [x] Terminada.
+- **Cierre al 15/10/2026:** migración 023 aplicada; 173 tests, diez escenarios de fallo aislados, build, lint y PostgreSQL nativo concurrente aprobados. El propietario confirmó el guardado y la segunda confirmación sin duplicados. Lectura agregada: un único gasto de prueba de 1 ARS, cero pendientes de esa prueba y cero trabajos v2 fallidos o en procesamiento. Se mantiene documentada la posible repetición del texto si Meta lo acepta y falla su registro local. [Aceptación](evidencias/INF_04_BE_10_aceptacion_2026-10-15.json) y [procedimiento](VALIDACION_INF_04_BE_10.md).
 
-- [ ] Terminada.
 - **Problema confirmado en código:** se omiten reenvíos de IDs fallidos, errores de persistencia pueden tratarse como duplicados y no existe una outbox para respuestas que fallan después de guardar.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:452`, `:666`, `:944`.
 - **Trabajo:** distinguir duplicados de errores; confirmar recepción únicamente cuando el mensaje sea durable; definir estados y reintentos. Guardar el resultado financiero y la respuesta pendiente en una misma transacción; reintentar entrega sin repetir el guardado.
@@ -431,7 +431,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 6 | BE-05 | Alta | Detección de consultas comerciales y saldo | — | En curso |
 | 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | Terminada |
 | 8 | BE-07 | Alta | Confirmación durante procesamiento | INF-03, INF-04 | Pendiente |
-| 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | En curso |
+| 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | Terminada |
 | 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | Pendiente |
 | 11 | BE-09 | Alta | Saldo por moneda y límites mensuales | — | Pendiente |
 | 12 | BE-11 | Media | Listas antiguas, excedentes y numeración | INF-03 | Pendiente |
@@ -529,9 +529,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-10 — Garantizar escrituras atómicas y respuestas recuperables
 
-- **Avance al 15/10/2026:** migración 023 publicada. Se reprodujo y corrigió la reapertura de entregas finalizadas tras perder la respuesta RPC. Diez ensayos nuevos con worker y SQL reales; 173 tests, build, lint y concurrencia PostgreSQL nativa aprobados. Sin fallos ni escrituras financieras de prueba en producción. Falta aceptación normal de doble confirmación por WhatsApp. [Procedimiento y límites](VALIDACION_INF_04_BE_10.md).
+- [x] Terminada.
+- **Cierre al 15/10/2026:** migración 023 aplicada; 173 tests, diez escenarios de fallo aislados, build, lint y PostgreSQL nativo concurrente aprobados. El propietario confirmó el guardado y la segunda confirmación sin duplicados. Lectura agregada: un único gasto de prueba de 1 ARS, cero pendientes de esa prueba y cero trabajos v2 fallidos o en procesamiento. Se mantiene documentada la posible repetición del texto si Meta lo acepta y falla su registro local. [Aceptación](evidencias/INF_04_BE_10_aceptacion_2026-10-15.json) y [procedimiento](VALIDACION_INF_04_BE_10.md).
 
-- [ ] Terminada.
 - **Problema confirmado:** escrituras sin comprobar error o filas afectadas; borradores parcialmente insertados; reenvíos fallidos omitidos como duplicados; HTTP 200 tras fallos y ausencia de outbox luego de guardar.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:452`, `:648`, `:666`, `:824`, `:889`, `:927`, `:944`.
 - **Trabajo:** aplicar el resultado completo de un mensaje mediante una RPC transaccional; comprobar errores; separar estados de recepción, interpretación, guardado y envío. Crear respuestas pendientes en la misma transacción del guardado y reintentar su entrega de forma independiente.
@@ -651,3 +651,5 @@ Completar una entrada al cerrar cada tarea:
 | 15/10/2026 | Cierre INF-03 / BE-06 | Webhook v40, migraciones 020–022 y correcciones documentadas | 163 tests, 12 Deno, concurrencia nativa; capturas y confirmación del propietario; cero pendientes y confirmados de prueba en consulta agregada | Sin nuevo deploy ni escrituras productivas en el cierre | INF-04 / BE-10 siguiente; revisión autorizada de ocho heredados; otros puntos abiertos |
 
 | 15/10/2026 | INF-04 / BE-10 | Migración 023: estados de entrega idempotentes; sin redespliegue de webhook v40 | 173 tests, diez ensayos nuevos, lint, tipos, build y concurrencia nativa | 023 aplicada; ACL y cola activa verificadas; sin fallos simulados en producción | Prueba normal del propietario para cerrar; límites de respuestas repetidas documentados |
+
+| 15/10/2026 | Cierre INF-04 / BE-10 | Migración 023 y evidencia de aceptación; sin cambios de código o deploy en este cierre | Propietario confirma prueba correcta; un único gasto de prueba de 1 ARS y cero pendientes; cola v2 sin fallos ni procesamiento | Lectura agregada sin modificar datos | INF-05 siguiente; resto de auditoría abierto; backups al final |
