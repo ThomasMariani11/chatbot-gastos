@@ -18,8 +18,9 @@ async function rpc<T=Record<string,unknown>>(name:string, args:Record<string,unk
   await db.exec('savepoint queue_call');
   try {
     const result=await db.query<{result:T}>(`select public.${name}(${placeholders.join(',')}) as result`,entries.map(([,v])=>typeof v==='object'&&v!==null?JSON.stringify(v):v));
+    const value=name==='due_whatsapp_actors'?result.rows.map(row=>row.result):result.rows[0]?.result;
     await db.exec('release savepoint queue_call');
-    return result.rows[0].result;
+    return value as T;
   } catch(error) {
     await db.exec('rollback to savepoint queue_call; release savepoint queue_call'); throw error;
   }
@@ -90,6 +91,7 @@ beforeAll(async()=>{
     end $$;`);
   const privateTransport=(await readFile(new URL('022_whatsapp_recovery_private_transport.sql',migrationUrl),'utf8')).replace(/^create extension[^\n]+\n/gm,'');
   await db.exec(privateTransport);
+  await db.exec(await readFile(new URL('023_idempotent_whatsapp_delivery.sql',migrationUrl),'utf8'));
 },30000);
 beforeEach(async()=>{await db.exec('begin; update public.whatsapp_queue_control set enabled=true');});
 afterEach(async()=>{await db.exec('rollback');});
@@ -294,5 +296,122 @@ describe('trabajador real con fallos simulados',()=>{
     const {deps,calls,job}=dependencies(); job.effect_applied=true; job.reply_text='Guardado anteriormente';
     await runActor('synthetic-a',deps);
     expect(deps.prepare).not.toHaveBeenCalled(); expect(calls).not.toContain('apply_whatsapp_job'); expect(calls).toContain('finish_whatsapp_job');
+  });
+});
+
+describe('INF-04 / BE-10: trabajador con SQL real y fallos de entrega',()=>{
+  async function seed() {
+    await add('outbox-seed',[{...movement('Cuotas ARS',100.01),installments:3}, {...movement('Ingreso USD',50.25),kind:'income',currency:'USD'}]);
+    await show(); await rpc('release_whatsapp_actor',{p_wa_id:'synthetic-a',p_token:t1});
+    await enqueue(message('outbox-confirm','synthetic-a','confirmar'));
+  }
+  function worker(fault?:{name:string;after?:boolean},deliveryFailures=0,releaseFailure=false) {
+    let fired=false, clock=Date.now();
+    const calls:string[]=[];
+    const deps:QueueDependencies={
+      rpc:async<T>(name:string,args:Record<string,unknown>={})=>{
+        calls.push(name);
+        if(name==='release_whatsapp_actor'&&releaseFailure) throw new Error('synthetic_process_stopped');
+        if(fault?.name===name&&!fired&&!fault.after) {fired=true;throw new Error('synthetic_network_before_commit');}
+        const result=await rpc<T>(name,args);
+        if(fault?.name===name&&!fired&&fault.after) {fired=true;throw new Error('synthetic_response_lost_after_commit');}
+        return result;
+      },
+      prepare:vi.fn(async(_job,checkpoint)=>{await checkpoint({intent:'confirm',movements:[]});return {kind:'confirm'};}),
+      send:vi.fn(async()=>{if(deliveryFailures-->0) throw new Error('synthetic_provider_unavailable');}),
+      format:()=> 'Resumen sintético',now:()=>clock,sleep:async ms=>{clock+=ms;},token:()=>t1,metric:vi.fn(),
+    };
+    return {deps,calls};
+  }
+  async function recover() {
+    await db.exec("update public.whatsapp_message_queue set scheduled_for=clock_timestamp() where queue_version=2 and status='failed'; update public.whatsapp_worker_state set lease_until=clock_timestamp()-interval '1 second'; update public.whatsapp_user_leases set lease_until=clock_timestamp()-interval '1 second'");
+    expect(await rpc<string[]>('due_whatsapp_actors')).toContain('synthetic-a');
+  }
+  async function confirmed() {
+    return (await db.query('select id,kind,currency,amount_ars::text as amount,installment_number,installment_count from public.transactions order by currency,installment_number')).rows;
+  }
+  it('reproduce que un fallo tardío no debe reabrir una entrega ya finalizada',async()=>{
+    await seed(); const {deps}=worker({name:'finish_whatsapp_job',after:true});
+    await runActor('synthetic-a',deps);
+    expect((await db.query("select status,reply_sent_at is not null as delivered from public.whatsapp_message_queue where wa_message_id='outbox-confirm'")).rows[0]).toEqual({status:'processed',delivered:true});
+    await runActor('synthetic-a',deps);
+    expect(deps.send).toHaveBeenCalledTimes(1);
+    expect((await confirmed()).length).toBe(4);
+  });
+  it.each([false,true])('recupera fallo de RPC de guardado (commit=%s) sin duplicar monedas ni cuotas',async after=>{
+    await seed();const {deps,calls}=worker({name:'apply_whatsapp_job',after});
+    await runActor('synthetic-a',deps);
+    expect(deps.send).not.toHaveBeenCalled();
+    expect((await confirmed()).length).toBe(after?4:0);
+    await recover();await runActor('synthetic-a',deps);
+    const rows=await confirmed();expect(rows).toHaveLength(4);
+    expect((await db.query('select currency,sum(amount_ars)::text as total from public.transactions group by currency order by currency')).rows).toEqual([{currency:'ARS',total:'100.01'},{currency:'USD',total:'50.25'}]);
+    expect(deps.send).toHaveBeenCalledTimes(1);
+    expect(calls.filter(name=>name==='apply_whatsapp_job')).toHaveLength(after?1:2);
+  });
+  it('reenvío de Meta y fallo del proveedor recuperan solo la respuesta aun con más de cinco intentos',async()=>{
+    await seed();const {deps,calls}=worker(undefined,1);
+    await runActor('synthetic-a',deps);const saved=await confirmed();
+    await enqueue(message('outbox-confirm','synthetic-a','confirmar'));
+    await db.exec("update public.whatsapp_message_queue set attempts=8 where wa_message_id='outbox-confirm'");
+    await recover();await runActor('synthetic-a',deps);
+    expect(await confirmed()).toEqual(saved);
+    expect(deps.prepare).toHaveBeenCalledTimes(1);expect(calls.filter(name=>name==='apply_whatsapp_job')).toHaveLength(1);
+    expect(deps.send).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(deps.send).mock.calls[0][1]).toEqual(vi.mocked(deps.send).mock.calls[1][1]);
+    expect((await db.query("select count(*)::int as n from public.whatsapp_message_queue where wa_message_id='outbox-confirm'")).rows[0]).toEqual({n:1});
+  });
+  it('aceptación de Meta y fallo previo al registro pueden repetir respuesta pero nunca el guardado',async()=>{
+    await seed();const {deps}=worker({name:'finish_whatsapp_job'});
+    await runActor('synthetic-a',deps);const saved=await confirmed();
+    await recover();await runActor('synthetic-a',deps);
+    expect(deps.send).toHaveBeenCalledTimes(2);expect(await confirmed()).toEqual(saved);
+    expect(vi.mocked(deps.send).mock.calls[0][1]).toEqual(vi.mocked(deps.send).mock.calls[1][1]);
+  });
+  it('muerte tras guardar y fallo al liberar el lease se recuperan con otro trabajador',async()=>{
+    await seed();const stopped=worker({name:'fail_whatsapp_job'},1,true);
+    await expect(runActor('synthetic-a',stopped.deps)).rejects.toThrow('synthetic_process_stopped');
+    const saved=await confirmed();expect(saved).toHaveLength(4);
+    expect(await rpc<string[]>('due_whatsapp_actors')).not.toContain('synthetic-a');
+    await recover();const replacement=worker();await runActor('synthetic-a',replacement.deps);
+    expect(replacement.deps.prepare).not.toHaveBeenCalled();expect(await confirmed()).toEqual(saved);
+    expect(replacement.deps.send).toHaveBeenCalledOnce();
+  });
+  it('un fallo en la segunda cuota revierte todo y no anuncia éxito',async()=>{
+    await seed();
+    await db.exec("create function public.synthetic_reject_installment() returns trigger language plpgsql as $$ begin if new.installment_number=2 then raise exception 'SYNTHETIC_INSTALLMENT_FAILURE'; end if; return new; end $$; create trigger synthetic_reject_installment before insert on public.transactions for each row execute function public.synthetic_reject_installment()");
+    const {deps}=worker();await runActor('synthetic-a',deps);
+    expect(await confirmed()).toHaveLength(0);expect(deps.send).not.toHaveBeenCalled();
+    expect((await db.query("select status from public.draft_groups")).rows[0]).toEqual({status:'open'});
+    await db.exec('drop trigger synthetic_reject_installment on public.transactions');
+    await recover();await runActor('synthetic-a',deps);
+    expect(await confirmed()).toHaveLength(4);expect(deps.send).toHaveBeenCalledOnce();
+  });
+  it('un resumen cuyo envío falla queda recuperable sin volver a interpretar',async()=>{
+    await add('summary-seed');
+    await db.exec("update public.whatsapp_worker_state set last_received_at=clock_timestamp()-interval '4 seconds'");
+    await rpc('release_whatsapp_actor',{p_wa_id:'synthetic-a',p_token:t1});
+    const first=worker(undefined,1);
+    await expect(runActor('synthetic-a',first.deps)).rejects.toThrow('synthetic_provider_unavailable');
+    expect((await db.query('select summary_pending,shown_version from public.whatsapp_worker_state')).rows[0]).toEqual({summary_pending:true,shown_version:null});
+    expect(await rpc<string[]>('due_whatsapp_actors')).toContain('synthetic-a');
+    const retry=worker();await runActor('synthetic-a',retry.deps);
+    expect(retry.deps.prepare).not.toHaveBeenCalled();expect(retry.deps.send).toHaveBeenCalledOnce();
+    expect((await db.query('select summary_pending from public.whatsapp_worker_state')).rows[0]).toEqual({summary_pending:false});
+    expect(await confirmed()).toHaveLength(0);
+  });
+  it('un fallo tardío no reabre un aviso de revisión ya entregado ni reprograma dos veces',async()=>{
+    await enqueue(message('held'));await claim();
+    await db.exec("update public.whatsapp_message_queue set attempts=5");
+    const held=(await next())!;await finish(held);
+    const before=(await db.query('select status,scheduled_for,reply_sent_at from public.whatsapp_message_queue')).rows;
+    await rpc('fail_whatsapp_job',{p_id:held.id,p_token:t1});await finish(held);
+    expect((await db.query('select status,scheduled_for,reply_sent_at from public.whatsapp_message_queue')).rows).toEqual(before);
+  });
+  it('dos confirmaciones con IDs distintos no vuelven a guardar el grupo',async()=>{
+    await seed();await enqueue(message('outbox-confirm-again','synthetic-a','confirmar'));
+    const {deps}=worker();await runActor('synthetic-a',deps);
+    expect(await confirmed()).toHaveLength(4);
+    expect(vi.mocked(deps.send).mock.calls.map(call=>call[1]).filter(body=>body.includes('Se guardaron'))).toHaveLength(1);
   });
 });

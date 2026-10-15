@@ -37,6 +37,7 @@ for (const name of (await readdir(migrations)).filter(name => /^\d+.*\.sql$/.tes
   if (name === '002_enable_realtime.sql') continue;
   await execute((await readFile(new URL(name, migrations), 'utf8')).replace(/^\uFEFF/, ''));
 }
+await execute(await readFile(new URL('023_idempotent_whatsapp_delivery.sql', migrations),'utf8'));
 await execute(`insert into public.invitation_codes(code,duration_days) values('NATIVE-QUEUE',30);
   insert into auth.users(id,email,raw_user_meta_data) values('${a}','a@example.invalid','{"invitation_code":"NATIVE-QUEUE"}');
   update public.whatsapp_links set wa_id='synthetic-native',status='active' where user_id='${a}';
@@ -63,6 +64,8 @@ assert.equal((await execute('select count(*) from public.draft_items;')).output,
 await execute(`select public.finish_whatsapp_job('${current.id}','${tokens[2]}');`);
 await Promise.all(['native-a','native-b','native-a'].map(id=>execute(`select public.enqueue_whatsapp_messages(${quote(payload(id))}::jsonb);`)));
 assert.equal((await execute('select count(*) from public.whatsapp_message_queue;')).output,'3','Recepción concurrente perdida o duplicada');
-const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,concurrent_sessions:2,exclusive_lease:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,duration_ms:Date.now()-started};
+await Promise.all([execute(`select public.finish_whatsapp_job('${current.id}','${tokens[2]}');`),execute(`select public.fail_whatsapp_job('${current.id}','${tokens[2]}');`)]);
+assert.equal((await execute(`select status from public.whatsapp_message_queue where id='${current.id}';`)).output,'processed','Una respuesta tardía reabrió la entrega');
+const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,concurrent_sessions:2,exclusive_lease:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
 if(process.env.PESITO_TEST_EVIDENCE) await writeFile(process.env.PESITO_TEST_EVIDENCE,JSON.stringify(evidence,null,2));
 console.log(JSON.stringify(evidence));

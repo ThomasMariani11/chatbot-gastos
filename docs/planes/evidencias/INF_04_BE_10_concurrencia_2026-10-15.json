@@ -1,0 +1,11 @@
+{
+  "postgres": "17.11",
+  "isolated_database": true,
+  "concurrent_sessions": 2,
+  "exclusive_lease": true,
+  "expired_worker_fenced": true,
+  "concurrent_apply_idempotent": true,
+  "concurrent_enqueue_deduplicated": true,
+  "late_delivery_retry_idempotent": true,
+  "duration_ms": 5121
+}

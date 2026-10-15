@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-15",
+  "migration": "023",
+  "webhook_version": 40,
+  "webhook_redeployed": false,
+  "vitest_passed": 173,
+  "new_end_to_end_cases": 10,
+  "native_postgres_concurrency": true,
+  "pre_fix_failure_reproduced": "processed reply reopened as failed after RPC response loss",
+  "publication": {
+    "finish_service": true,
+    "late_error_guard_installed": true,
+    "v2_processing": 0,
+    "fail_service": true,
+    "finish_anon": false,
+    "migration_registered": true,
+    "fail_authenticated": false,
+    "queue_enabled": true,
+    "v2_failed": 0
+  },
+  "production_failure_injection": false,
+  "production_customer_transactions_modified": false,
+  "acceptance": "pending_owner_normal_confirmation_test"
+}

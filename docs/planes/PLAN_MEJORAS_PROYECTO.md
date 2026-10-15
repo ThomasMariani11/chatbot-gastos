@@ -33,7 +33,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 1 | INF-01 | Crítica | Permisos de funciones SQL | F01 | Terminada |
 | 2 | INF-02 | Alta | Escrituras e integridad de borradores y cola | F02 | Terminada |
 | 3 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | Terminada |
-| 4 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Pendiente |
+| 4 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | En curso |
 | 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Pendiente |
 | 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Pendiente |
 | 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Pendiente |
@@ -76,6 +76,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Dependencias:** INF-01 e INF-02. Coordinar con INF-04 e INF-14.
 
 ### INF-04 — Separar recepción, guardado y entrega de respuestas
+
+- **Avance al 15/10/2026:** migración 023 publicada. Se reprodujo y corrigió la reapertura de entregas finalizadas tras perder la respuesta RPC. Diez ensayos nuevos con worker y SQL reales; 173 tests, build, lint y concurrencia PostgreSQL nativa aprobados. Sin fallos ni escrituras financieras de prueba en producción. Falta aceptación normal de doble confirmación por WhatsApp. [Procedimiento y límites](VALIDACION_INF_04_BE_10.md).
 
 - [ ] Terminada.
 - **Problema confirmado en código:** se omiten reenvíos de IDs fallidos, errores de persistencia pueden tratarse como duplicados y no existe una outbox para respuestas que fallan después de guardar.
@@ -429,7 +431,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 6 | BE-05 | Alta | Detección de consultas comerciales y saldo | — | En curso |
 | 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | Terminada |
 | 8 | BE-07 | Alta | Confirmación durante procesamiento | INF-03, INF-04 | Pendiente |
-| 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | Pendiente |
+| 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | En curso |
 | 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | Pendiente |
 | 11 | BE-09 | Alta | Saldo por moneda y límites mensuales | — | Pendiente |
 | 12 | BE-11 | Media | Listas antiguas, excedentes y numeración | INF-03 | Pendiente |
@@ -526,6 +528,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Cierre:** ARS/USD separados; febrero, años bisiestos y meses de 30 días correctos; resultados completos para volúmenes superiores al límite de filas; errores no se informan como saldo cero.
 
 ### BE-10 — Garantizar escrituras atómicas y respuestas recuperables
+
+- **Avance al 15/10/2026:** migración 023 publicada. Se reprodujo y corrigió la reapertura de entregas finalizadas tras perder la respuesta RPC. Diez ensayos nuevos con worker y SQL reales; 173 tests, build, lint y concurrencia PostgreSQL nativa aprobados. Sin fallos ni escrituras financieras de prueba en producción. Falta aceptación normal de doble confirmación por WhatsApp. [Procedimiento y límites](VALIDACION_INF_04_BE_10.md).
 
 - [ ] Terminada.
 - **Problema confirmado:** escrituras sin comprobar error o filas afectadas; borradores parcialmente insertados; reenvíos fallidos omitidos como duplicados; HTTP 200 tras fallos y ausencia de outbox luego de guardar.
@@ -645,3 +649,5 @@ Completar una entrada al cerrar cada tarea:
 | 15/10/2026 | BE-12 / INF-03 / BE-06 | Webhook v40: corrección de importe por número y rechazo de altas falsas | 163 tests, 12 Deno, tipos, lint y build; edición SQL aislada sin inserciones | Sin migraciones ni cambios directos en la lista del propietario | Repetir corrección y completar aceptación WhatsApp; INF-04 todavía pendiente |
 
 | 15/10/2026 | Cierre INF-03 / BE-06 | Webhook v40, migraciones 020–022 y correcciones documentadas | 163 tests, 12 Deno, concurrencia nativa; capturas y confirmación del propietario; cero pendientes y confirmados de prueba en consulta agregada | Sin nuevo deploy ni escrituras productivas en el cierre | INF-04 / BE-10 siguiente; revisión autorizada de ocho heredados; otros puntos abiertos |
+
+| 15/10/2026 | INF-04 / BE-10 | Migración 023: estados de entrega idempotentes; sin redespliegue de webhook v40 | 173 tests, diez ensayos nuevos, lint, tipos, build y concurrencia nativa | 023 aplicada; ACL y cola activa verificadas; sin fallos simulados en producción | Prueba normal del propietario para cerrar; límites de respuestas repetidas documentados |
