@@ -15,11 +15,21 @@ Los datos de aplicación, Auth y el historial de migraciones se exportan en **un
 
 El manifiesto obtiene las cantidades de filas directamente de los bloques COPY del dump, no de una lectura posterior de producción. Conserva hashes de los archivos exportados dentro del archivo cifrado. Incluye los catálogos de Auth y Storage para preservar sus personalizaciones; **no deben ejecutarse completos sin revisión sobre otro proyecto administrado**. La restauración debe adaptar el trigger de alta, roles reservados, publicaciones y configuración del destino según el runbook principal.
 
-## Comprobación cloud ya realizada
+## Primer ensayo cloud con la conexión del chat — 14/10/2026
 
 Se creó una carpeta privada de ensayo `Pesito Backups` y se comprobó que solo figura el propietario. Se subió un archivo **sintético** cifrado de 553 bytes, se descargó, se verificó su hash, se descifró y se comparó con el original. El archivo también es privado. La clave fue efímera, exclusivamente para ese ensayo; no es la clave del backup productivo.
 
-No se subieron datos de clientes, claves privadas, contraseñas ni tokens. Este ensayo usa la conexión de Drive del chat; no autoriza ni provee tokens reutilizables al runner de GitHub. La cuota libre de la cuenta aún no se midió.
+No se subieron datos de clientes, claves privadas, contraseñas ni tokens. Este ensayo usa la conexión de Drive del chat; no autoriza ni provee tokens reutilizables al runner de GitHub. La cuota libre de la cuenta no se midió en ese primer ensayo.
+
+## Avance de conexión propia — 15/10/2026
+
+El propietario creó el cliente de escritorio del proyecto `pesito-backups`, aceptó la política de Google y completó el consentimiento con su cuenta. Se validó el JSON descargado sin imprimir sus valores y se preparó una configuración independiente de rclone con scope `drive.file`, dentro de un directorio temporal local con ACL restringida al usuario. No se cargaron estas credenciales en GitHub ni en el repositorio. Esta ubicación temporal es de preparación; no sustituye la custodia permanente de las credenciales.
+
+Con ese mismo cliente se creó la carpeta `Pesito Backups - automaticos`, se fijó su ID como raíz de rclone y se verificó mediante la API de permisos que solo figura el propietario. Se subió y descargó el fixture cifrado sintético existente de 553 bytes y se comprobó SHA-256; también se verificó que el archivo solo tiene permiso del propietario. En este recorrido se reutilizó el ciphertext del ensayo anterior, sin repetir el descifrado ni crear una clave de recuperación productiva. No contiene datos de clientes. La cuota de Drive se consultó correctamente y hay más de 256 MiB disponibles; no se publica el consumo personal de la cuenta.
+
+**La conexión funciona para ensayos, pero aún no está lista para operar permanentemente.** La última pantalla aportada por el propietario mostraba la app en modo Testing. Google documenta que, para aplicaciones externas en ese modo que solicitan acceso a Drive, el refresh token caduca a los siete días. Falta volver a comprobar el estado de publicación y resolverlo, conservando `drive.file` y sin activar facturación; no asumir que publicar cambia la duración de un token ya emitido. Después, verificar nuevamente la autorización que se usará en el runner.
+
+El cron y los backups productivos siguen desactivados. Continúan pendientes custodia, credenciales SQL/CA, medición del egress de Supabase, primera copia real, restauración aislada, retención y alertas. Véase [la evidencia de esta conexión](evidencias/INF_08_DRIVE_2026-10-15.json) y [la regla de expiración de Google](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 ## Límites de costo y operación
 

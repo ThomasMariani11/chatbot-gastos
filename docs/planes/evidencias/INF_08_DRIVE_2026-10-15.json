@@ -1,0 +1,63 @@
+{
+  "task_id": "INF-08",
+  "date_local": "2026-10-15",
+  "timezone": "America/Buenos_Aires",
+  "status": "En curso",
+  "baseline_commit": "48a5f04786fa2a47b31801ba035f908c06607d61",
+  "scope": "Conexion propia a Google Drive y transferencia de fixture cifrado sintetico; no backup de produccion",
+  "oauth": {
+    "project": "pesito-backups",
+    "application_type": "desktop",
+    "own_client_authorized": true,
+    "configured_scope": "drive.file",
+    "refresh_token_captured_privately": true,
+    "reusable_rclone_config_created_locally": true,
+    "local_credential_directory_acl_protected": true,
+    "permanent_credential_custody_verified": false,
+    "credentials_in_repository": false,
+    "credentials_returned_in_tool_output": false,
+    "latest_observed_publishing_status": "Testing",
+    "publishing_status_live_rechecked": false,
+    "long_lived_authorization_verified": false
+  },
+  "drive": {
+    "folder_name": "Pesito Backups - automaticos",
+    "folder_created_by_same_oauth_client": true,
+    "root_folder_configured": true,
+    "folder_owner_only_permission_verified": true,
+    "synthetic_file_owner_only_permission_verified": true,
+    "account_quota_read_successfully": true,
+    "free_space_above_256_mib_verified": true,
+    "synthetic_ciphertext_bytes": 553,
+    "upload_download_sha256_match": true,
+    "existing_synthetic_ciphertext_reused": true,
+    "decryption_retested_this_run": false,
+    "production_data_uploaded": false
+  },
+  "tooling": {
+    "rclone_version": "1.75.2",
+    "platform": "windows-amd64",
+    "official_zip_sha256_verified": true
+  },
+  "operation": {
+    "billing_activated_or_changed": false,
+    "github_backup_secrets_configured": false,
+    "production_recovery_key_created": false,
+    "production_backup_created": false,
+    "production_restore_verified": false,
+    "schedule_enabled": false,
+    "rpo_one_hour_guaranteed": false,
+    "application_source_modified": false
+  },
+  "remaining": [
+    "Verificar y resolver duracion del consentimiento OAuth antes de uso permanente; los refresh tokens de aplicaciones externas Testing caducan a los siete dias para scope Drive",
+    "Definir custodia permanente de credenciales y clave privada de recuperacion; la carpeta temporal local no es su destino definitivo",
+    "Configurar credencial SQL y CA sin resetear contrasenas existentes; medir egress y limites compartidos de Supabase",
+    "Probar backup real, descarga, descifrado y restauracion aislada compatible; acordar RTO",
+    "Implementar retencion y alertas independientes antes de habilitar el cron"
+  ],
+  "sources": [
+    "https://developers.google.com/identity/protocols/oauth2#expiration",
+    "https://rclone.org/drive/#making-your-own-client-id"
+  ]
+}
