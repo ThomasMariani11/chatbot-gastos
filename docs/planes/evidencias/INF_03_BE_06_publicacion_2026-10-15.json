@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-15",
+  "webhook_version": 38,
+  "migrations": [
+    "020",
+    "021",
+    "022"
+  ],
+  "drain_seconds": 441,
+  "confirmed_unchanged_during_cutover": true,
+  "vitest_passed": 136,
+  "deno_passed": 3,
+  "native_concurrency_passed": true,
+  "production": {
+    "confirmed_count": 52,
+    "cron_active": true,
+    "cron_failures": 0,
+    "dispatcher_anon": false,
+    "dispatcher_authenticated": false,
+    "enabled": true,
+    "legacy_held": 8,
+    "legacy_proposals_transferred": 1,
+    "net_queue_rows": 0,
+    "v2_messages": 0
+  },
+  "whatsapp_acceptance": "pending_owner_test",
+  "backups": "deferred_to_end"
+}

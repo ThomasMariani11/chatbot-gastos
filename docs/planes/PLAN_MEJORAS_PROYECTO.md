@@ -66,7 +66,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-03 — Hacer fiable el procesamiento de la cola
 
-- **Avance al 15/10/2026:** implementación preparada de recepción durable, leases con fencing, mutaciones atómicas, confirmación de la versión mostrada y recuperación con cron. Pruebas aisladas aprobadas; publicación y WhatsApp pendientes. Ocho mensajes fallidos de la versión anterior conservados para revisión manual. [Procedimiento y alcance](VALIDACION_INF_03_BE_06.md).
+- **Avance al 15/10/2026:** implementación preparada de recepción durable, leases con fencing, mutaciones atómicas, confirmación de la versión mostrada y recuperación con cron. 136 tests y concurrencia nativa aprobados; webhook v38 y migraciones 020–022 publicados. Cola habilitada tras el drenaje; WhatsApp pendiente. Ocho mensajes fallidos de la versión anterior conservados para revisión manual. [Procedimiento y alcance](VALIDACION_INF_03_BE_06.md).
 
 - [ ] Terminada.
 - **Problema confirmado en código:** el debounce marca mensajes como procesados sin interpretarlos. No hay exclusión duradera por usuario ni recuperación programada declarada. En la auditoría había seis registros pendientes con más de una hora; no se confirmó si sus movimientos ya estaban registrados.
@@ -427,7 +427,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | Pendiente |
 | 5 | BE-04 | Alta | Parser determinista e interpretación financiera | — | Pendiente |
 | 6 | BE-05 | Alta | Detección de consultas comerciales y saldo | — | Pendiente |
-| 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | Pendiente |
+| 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | En curso |
 | 8 | BE-07 | Alta | Confirmación durante procesamiento | INF-03, INF-04 | Pendiente |
 | 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | Pendiente |
 | 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | Pendiente |
@@ -489,7 +489,7 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-06 — Serializar mensajes y mutaciones de borradores
 
-- **Avance al 15/10/2026:** En curso, compartido con INF-03. Implementación y pruebas preparadas; falta completar publicación y validación real. [Procedimiento](VALIDACION_INF_03_BE_06.md).
+- **Avance al 15/10/2026:** En curso, compartido con INF-03. Implementación publicada en webhook v38 y migraciones 020–022; 136 tests y concurrencia nativa aprobados. Cola habilitada tras el drenaje; falta la validación real por WhatsApp. [Procedimiento](VALIDACION_INF_03_BE_06.md).
 
 - [ ] Terminada.
 - **Problema confirmado:** debounce que marca mensajes procesados sin interpretarlos; ausencia de exclusión duradera por usuario; posibilidad de grupos abiertos múltiples y posiciones concurrentes. La fixture aceptó dos grupos abiertos del mismo usuario.
@@ -633,3 +633,5 @@ Completar una entrada al cerrar cada tarea:
 | 14/10/2026 | INF-01 / BE-01 | Migración 017 y regresiones; consultar historial Git | 49 tests, lint, tipos, build, ACL, HTTP, SQL con ROLLBACK y WhatsApp | Supabase 017; webhook v36 sin cambios | INF-02 / BE-03 y demás tareas abiertas |
 | 14/10/2026 | INF-02 / BE-03 | Migraciones 018/019, RPC y cliente b7ff5cf; evidencia técnica 5c41e42 | 106 tests, lint, tipos, build, ACL, HTTP, SQL con ROLLBACK y prueba real de vinculación/confirmación/descarte corroborada por agregados | Supabase 018/019; PWA con RPC; webhook v36 sin cambios | BE-02, BE-14, INF-08 y demás tareas abiertas |
 | 15/10/2026 | INF-08 | Preparación revertida por decisión del propietario; pendiente para el final del plan completo | Se retiran únicamente archivos de INF-08; sin cambios en app, webhook ni migraciones | Sin backups productivos habilitados | Retomar desde inventario y credenciales cuando se priorice nuevamente |
+
+| 15/10/2026 | INF-03 / BE-06 | Cola durable, leases con fencing, cron y transporte privado; webhook v38; migraciones 020–022 | 136 tests, 3 Deno y concurrencia nativa; HTTP y cron verificados | Cola habilitada; una propuesta heredada trasladada sin confirmar; 52 confirmados intactos | Prueba WhatsApp del propietario; ocho mensajes antiguos conservados para revisión; INF-04 y demás tareas siguen abiertas |

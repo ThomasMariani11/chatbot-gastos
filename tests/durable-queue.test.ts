@@ -76,6 +76,19 @@ beforeAll(async()=>{
     create function net.http_post(url text,headers jsonb,body jsonb,timeout_milliseconds integer) returns bigint language plpgsql as $$ begin insert into public.synthetic_http_requests values(url,headers,body); return 1; end $$;`);
   const recovery=(await readFile(new URL('021_whatsapp_queue_recovery.sql',migrationUrl),'utf8')).replace(/^create extension[^\n]+\n/gm,'');
   await db.exec(recovery);
+  // Transporte síncrono: no escribe headers en net.http_request_queue.
+  await db.exec(`create schema if not exists extensions;
+    create function extensions.http_set_curlopt(varchar,varchar) returns boolean language sql as $$ select true $$;
+    create function extensions.http_reset_curlopt() returns boolean language sql as $$ select true $$;
+    create type extensions.http_header as (field varchar,value varchar);
+    create type extensions.http_request as (method varchar,uri varchar,headers extensions.http_header[],content_type varchar,content varchar);
+    create function extensions.http_header(varchar,varchar) returns extensions.http_header language sql as $$ select row($1,$2)::extensions.http_header $$;
+    create function extensions.http(extensions.http_request) returns table(status integer) language plpgsql as $$ begin
+      insert into public.synthetic_http_requests select ($1).uri,jsonb_object_agg(h.field,h.value),($1).content::jsonb from unnest(($1).headers) h;
+      return query select coalesce(nullif(current_setting('synthetic.http_status',true),'')::integer,200);
+    end $$;`);
+  const privateTransport=(await readFile(new URL('022_whatsapp_recovery_private_transport.sql',migrationUrl),'utf8')).replace(/^create extension[^\n]+\n/gm,'');
+  await db.exec(privateTransport);
 },30000);
 beforeEach(async()=>{await db.exec('begin; update public.whatsapp_queue_control set enabled=true');});
 afterEach(async()=>{await db.exec('rollback');});
@@ -220,10 +233,16 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
   });
   it('la recuperación usa un secreto de Vault por header y ningún payload del cliente',async()=>{
     await db.exec("insert into vault.decrypted_secrets values('whatsapp_worker_secret','synthetic-worker-secret')");
-    await enqueue(message('one')); expect(await rpc('dispatch_whatsapp_queue_recovery')).toBe(1);
+    await enqueue(message('one')); expect(await rpc('dispatch_whatsapp_queue_recovery')).toBe(200);
     const request=(await db.query<{url:string;headers:Record<string,string>;body:unknown}>('select * from public.synthetic_http_requests')).rows[0];
     expect(request.url).toContain('?action=worker'); expect(request.body).toEqual({}); expect(request.headers['x-worker-secret']).toBe('synthetic-worker-secret');
     expect((await db.query<{command:string}>('select command from cron.job')).rows[0].command).not.toContain('synthetic-worker-secret');
+  });
+  it('el transporte rechaza HTTP fallido sin guardar headers en pg_net',async()=>{
+    await db.exec("insert into vault.decrypted_secrets values('whatsapp_worker_secret','synthetic-worker-secret'); select set_config('synthetic.http_status','401',true)");
+    await enqueue(message('one'));
+    await expect(rpc('dispatch_whatsapp_queue_recovery')).rejects.toThrow('QUEUE_RECOVERY_HTTP_REJECTED');
+    expect((await db.query('select count(*)::int as n from net.http_request_queue')).rows[0]).toEqual({n:0});
   });
   it('cron detecta la falta del secreto y no intenta un worker sin autenticación',async()=>{
     await enqueue(message('one')); await expect(rpc('dispatch_whatsapp_queue_recovery')).rejects.toThrow('QUEUE_RECOVERY_SECRET_MISSING');
