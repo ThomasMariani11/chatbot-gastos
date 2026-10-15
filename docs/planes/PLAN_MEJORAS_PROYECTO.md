@@ -32,19 +32,19 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | --- | --- | --- | --- | --- | --- |
 | 1 | INF-01 | Crítica | Permisos de funciones SQL | F01 | Terminada |
 | 2 | INF-02 | Alta | Escrituras e integridad de borradores y cola | F02 | Terminada |
-| 3 | INF-08 | Alta, a verificar | Backups y recuperación | F08 | En curso |
-| 4 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | Pendiente |
-| 5 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Pendiente |
-| 6 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Pendiente |
-| 7 | INF-06 | Alta | Protección de main y controles de CI | F06 | Pendiente |
-| 8 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Pendiente |
-| 9 | INF-09 | Media | Privacidad de logs | F09 | Pendiente |
-| 10 | INF-10 | Media | Entornos, deploy y rollback | F10 | Pendiente |
-| 11 | INF-11 | Media | Actions y permisos mínimos | F11 | Pendiente |
-| 12 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Pendiente |
-| 13 | INF-14 | Media | Observabilidad y retención | F14 | Pendiente |
-| 14 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | Pendiente |
-| 15 | INF-15 | Media | Controles de costos y documentación | F15 | Pendiente |
+| 3 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | Pendiente |
+| 4 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Pendiente |
+| 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Pendiente |
+| 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Pendiente |
+| 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Pendiente |
+| 8 | INF-09 | Media | Privacidad de logs | F09 | Pendiente |
+| 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | Pendiente |
+| 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Pendiente |
+| 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Pendiente |
+| 12 | INF-14 | Media | Observabilidad y retención | F14 | Pendiente |
+| 13 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | Pendiente |
+| 14 | INF-15 | Media | Controles de costos y documentación | F15 | Pendiente |
+| 15 | INF-08 | Alta, a verificar | Backups y recuperación | F08 | Pendiente; última del plan |
 
 ### INF-01 — Restringir funciones SQL privilegiadas
 
@@ -108,8 +108,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-08 — Verificar backups y probar recuperación
 
+- **Decisión del propietario, 15/10/2026:** tarea postergada hasta terminar las demás mejoras de infraestructura, backend y frontend. Se retira la preparación de backups de esta etapa: workflow, scripts, guías y evidencias específicas; el historial Git conserva el trabajo para retomarlo. No se habilitaron backups productivos ni se restauró producción. La app y el bot mantienen las mejoras ya publicadas. Google aceptó la revocación del acceso OAuth de prueba y se retiraron las credenciales temporales locales. El proyecto Google Cloud y los archivos sintéticos privados de ensayo permanecen sin automatización; no se activó facturación.
+
 - [ ] Terminada.
-- **Estado al 15/10/2026:** En curso. Costo adicional máximo cero; Google Drive elegido y PITR de pago descartado. Cliente OAuth propio de escritorio autorizado con scope `drive.file`; carpeta propia de ese cliente, permisos solo del propietario y subida/descarga de ciphertext sintético con SHA-256 comprobados. Cuota de Drive consultada y suficiente para la reserva configurada. Credenciales únicamente en preparación local privada; no en el repo ni en GitHub. Workflow y scripts preparados y validados en el avance anterior. Falta resolver la duración de OAuth Testing, custodia permanente de credenciales/clave, acceso SQL/CA y egress de Supabase, backup/restauración real, RTO, retención y alertas. Cron y backups productivos desactivados; RPO de una hora sin garantizar. [Configuración gratuita](CONFIGURAR_BACKUP_GRATUITO.md), [procedimiento](RUNBOOK_BACKUPS_RECUPERACION.md), [inventario inicial](evidencias/INF_08_2026-10-14.json) y [conexión propia de Drive](evidencias/INF_08_DRIVE_2026-10-15.json).
 - **A verificar:** la API informó PITR desactivado y ninguna copia física listada. Esto no demuestra ausencia de backups lógicos o externos.
 - **Ubicación:** configuración remota; documentación actual en `GUIA-PUESTA-EN-MARCHA.md:30`.
 - **Trabajo:** identificar copias realmente disponibles, frecuencia, retención, cifrado y responsables; definir RPO y RTO; verificar qué recursos cubre cada copia. Probar restauración a un entorno aislado y documentar el procedimiento.
@@ -627,4 +628,4 @@ Completar una entrada al cerrar cada tarea:
 | --- | --- | --- | --- | --- | --- |
 | 14/10/2026 | INF-01 / BE-01 | Migración 017 y regresiones; consultar historial Git | 49 tests, lint, tipos, build, ACL, HTTP, SQL con ROLLBACK y WhatsApp | Supabase 017; webhook v36 sin cambios | INF-02 / BE-03 y demás tareas abiertas |
 | 14/10/2026 | INF-02 / BE-03 | Migraciones 018/019, RPC y cliente b7ff5cf; evidencia técnica 5c41e42 | 106 tests, lint, tipos, build, ACL, HTTP, SQL con ROLLBACK y prueba real de vinculación/confirmación/descarte corroborada por agregados | Supabase 018/019; PWA con RPC; webhook v36 sin cambios | BE-02, BE-14, INF-08 y demás tareas abiertas |
-| 15/10/2026 | INF-08 | Conexión propia de Drive; guía y evidencia actualizadas | OAuth drive.file, cuota, privacidad de carpeta/fixture y SHA-256 de ida y vuelta | Solo fixture cifrado sintético en Drive; cron desactivado | Duración OAuth, custodia, SQL/CA, egress, backup/restauración real, retención y alertas |
+| 15/10/2026 | INF-08 | Preparación revertida por decisión del propietario; pendiente para el final del plan completo | Se retiran únicamente archivos de INF-08; sin cambios en app, webhook ni migraciones | Sin backups productivos habilitados | Retomar desde inventario y credenciales cuando se priorice nuevamente |
