@@ -1,0 +1,84 @@
+{
+  "record_type": "Inventario y preparación; no acredita un backup ni una restauración",
+  "date_local": "2026-10-14",
+  "timezone": "America/Buenos_Aires",
+  "recorded_at_utc": "2026-10-15T00:53:50Z",
+  "task_id": "INF-08",
+  "status": "En curso",
+  "baseline_commit": "87469debbd3b7d7318178ef1d93c7a27bd369a89",
+  "git_clean_and_synced_before_work": true,
+  "cli_version": "2.120.0",
+  "requirements": {
+    "rpo_max_seconds": 3600,
+    "zero_loss_preferred": true,
+    "cloud_storage_requested": true,
+    "rto_agreed": false,
+    "cloud_provider_selected": false,
+    "paid_resources_approved": false
+  },
+  "backup_listing": {
+    "backups": null,
+    "physical_backup_data": {},
+    "pitr_enabled": false,
+    "walg_enabled": true,
+    "logical_or_external_backups_verified": false,
+    "available_restore_point_verified": false
+  },
+  "database_inventory": {
+    "postgres_version": "17.6",
+    "database_size_bytes": 13962387,
+    "public_table_count": 12,
+    "public_tables_all_rls_enabled": true,
+    "auth_user_count": 4,
+    "auth_users_public_function_trigger_count": 1,
+    "storage_bucket_count": 0,
+    "storage_object_count": 0,
+    "migration_versions": ["001", "002", "003", "004", "005", "006", "007", "008", "009", "010", "011", "012", "013", "014", "015", "016", "017", "018", "019"],
+    "extensions": ["pg_stat_statements", "pgcrypto", "plpgsql", "supabase_vault", "uuid-ossp"],
+    "vault_secret_count": 0,
+    "vault_secret_values_read": false,
+    "cron_extension_present": false,
+    "realtime_public_tables": ["app_settings", "budgets", "transactions", "whatsapp_links"],
+    "auth_users_public_triggers": [{"trigger": "on_auth_user_created", "function": "bootstrap_user"}]
+  },
+  "edge_required_secret_names_present": ["GEMINI_API_KEY", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_VERIFY_TOKEN", "META_APP_SECRET"],
+  "edge_secret_values_recovered": false,
+  "local_restore_environment": {
+    "docker_installed": true,
+    "docker_desktop_start_attempted": true,
+    "docker_engine_status": "stopped",
+    "docker_backend_reports_no_virtualization": true,
+    "windows_reports_hypervisor_present": true,
+    "windows_reports_firmware_virtualization_enabled": true,
+    "bios_or_hypervisor_config_changed": false,
+    "native_postgres_tools_found_on_path": false,
+    "restore_attempted": false,
+    "restore_passed": false,
+    "rto_measured_seconds": null
+  },
+  "checks": {
+    "production_sql_read_only": true,
+    "sql_transaction_rolled_back": true,
+    "client_rows_exported": false,
+    "client_contents_logged_or_committed": false,
+    "production_restored_or_modified": false,
+    "cloud_resources_created": false,
+    "billing_changed": false,
+    "scheduled_backup_enabled": false
+  },
+  "remaining": [
+    "Elegir proveedor, presupuesto, región y cuenta de almacenamiento",
+    "Acordar RTO, responsables, retención, alertas y custodia de claves",
+    "Habilitar un entorno de restauración aislado operativo",
+    "Configurar protección cloud y obtener una copia real cifrada",
+    "Probar descarga, descifrado, integridad, permisos y tiempos",
+    "Documentar reconciliación de cola antes de activar cualquier restauración"
+  ],
+  "limitations": [
+    "backups=null y walg_enabled=true no prueban existencia ni ausencia de todas las copias",
+    "No se verificaron copias lógicas externas, cifrado ni retención de una copia existente",
+    "No se midió RPO efectivo ni RTO",
+    "La ubicación local de un archivo o Git no equivale a una copia cloud de datos",
+    "No hay garantía de pérdida cero ni de RPO de una hora actualmente comprobada"
+  ]
+}

@@ -32,7 +32,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | --- | --- | --- | --- | --- | --- |
 | 1 | INF-01 | Crítica | Permisos de funciones SQL | F01 | Terminada |
 | 2 | INF-02 | Alta | Escrituras e integridad de borradores y cola | F02 | Terminada |
-| 3 | INF-08 | Alta, a verificar | Backups y recuperación | F08 | Pendiente |
+| 3 | INF-08 | Alta, a verificar | Backups y recuperación | F08 | En curso |
 | 4 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | Pendiente |
 | 5 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Pendiente |
 | 6 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Pendiente |
@@ -109,6 +109,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 ### INF-08 — Verificar backups y probar recuperación
 
 - [ ] Terminada.
+- **Estado al 14/10/2026:** En curso. Inventario productivo de solo lectura revalidado: PITR desactivado, ninguna copia física listada; copias lógicas/externas no verificadas. El propietario solicita cloud y pérdida máxima de una hora. Docker Desktop se intentó iniciar, pero el motor no quedó operativo y reporta falta de virtualización utilizable; no se cambió configuración del equipo. Runbook y alternativas de cobertura/costo preparados. Falta elegir solución cloud, acordar RTO/retención/custodia y realizar una restauración real aislada con integridad y tiempos medidos. No se exportaron datos de clientes ni se modificó producción. [Procedimiento](RUNBOOK_BACKUPS_RECUPERACION.md) y [evidencia](evidencias/INF_08_2026-10-14.json).
 - **A verificar:** la API informó PITR desactivado y ninguna copia física listada. Esto no demuestra ausencia de backups lógicos o externos.
 - **Ubicación:** configuración remota; documentación actual en `GUIA-PUESTA-EN-MARCHA.md:30`.
 - **Trabajo:** identificar copias realmente disponibles, frecuencia, retención, cifrado y responsables; definir RPO y RTO; verificar qué recursos cubre cada copia. Probar restauración a un entorno aislado y documentar el procedimiento.
