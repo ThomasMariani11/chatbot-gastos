@@ -244,7 +244,7 @@ export function cleanDescription(
     "",
   );
   cleaned = cleaned.replace(
-    /^(ingres[oó]|me\s+ingresaron|cobr[eé]|me\s+pagaron|me\s+transfirieron|dep[oó]sito\s+de)\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dólares)?\s*(en|de|por)?\s*)?/i,
+    /^(ingres[oó]|me\s+ingresaron|me\s+ingres[oó]|cobr[eé]|me\s+pagaron|me\s+transfirieron|dep[oó]sito\s+de)\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dólares)?\s*(en|de|por)?\s*)?/i,
     "",
   );
   cleaned = cleaned.replace(/^(en\s+|de\s+|por\s+)/i, "");
@@ -265,7 +265,7 @@ export function parseDeterministicMovement(
   if (!text) return null;
 
   const isIncome =
-    /^(ingres[oó]|me\s+ingresaron|cobr[eé]|me\s+pagaron|me\s+transfirieron|dep[oó]sito|sueldo|venta)\b/i
+    /^(ingres[oó]|me\s+ingresaron|me\s+ingres[oó]|cobr[eé]|me\s+pagaron|me\s+transfirieron|dep[oó]sito|sueldo|venta)(?=\s|$)/i
       .test(text);
   const kind: "expense" | "income" = isIncome ? "income" : "expense";
   const isUsd = /\b(usd|d[oó]lares?|u\$s|greens?)\b/i.test(text);
@@ -369,9 +369,9 @@ export function parseDeterministicMovements(
   text: string,
   today: string,
 ): ExtractedMovement[] | null {
-  const parts = text.split(/\n|(?:\s+y\s+)|,\s*(?=[a-záéíóúñ])/i).map((p) =>
-    p.trim()
-  ).filter(Boolean);
+  const parts = text.split(
+    /\n|(?:\s+y\s+)|,\s*(?=[a-záéíóúñ])|(?<=[^\d]),\s*(?=\d)/i,
+  ).map((p) => p.trim()).filter(Boolean);
   const results: ExtractedMovement[] = [];
   for (const part of parts) {
     const mov = parseDeterministicMovement(part, today);

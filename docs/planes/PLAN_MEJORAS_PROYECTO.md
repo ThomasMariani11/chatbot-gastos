@@ -426,7 +426,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 3 | BE-02 | Alta | Renovaciones bloqueadas por el trigger | — | Pendiente |
 | 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | Pendiente |
 | 5 | BE-04 | Alta | Parser determinista e interpretación financiera | — | Pendiente |
-| 6 | BE-05 | Alta | Detección de consultas comerciales y saldo | — | Pendiente |
+| 6 | BE-05 | Alta | Detección de consultas comerciales y saldo | — | En curso |
 | 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | En curso |
 | 8 | BE-07 | Alta | Confirmación durante procesamiento | INF-03, INF-04 | Pendiente |
 | 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | Pendiente |
@@ -480,6 +480,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Cierre:** regresiones con los ejemplos anteriores, ARS/USD, miles y centavos, múltiples operaciones, fechas, cuotas y partes incompletas; ninguna cifra o tipo cambiado silenciosamente. Las pruebas importan el código real.
 
 ### BE-05 — Evitar que consultas intercepten operaciones válidas
+
+- **Avance al 15/10/2026:** Webhook v39 publicado tras el fallo detectado por el propietario al probar INF-03/BE-06. Transferencias y operaciones realizadas ya no activan soporte o saldo; corregidos separadores e ingresos con tilde. 151 tests y nueve Deno aprobados. Prueba WhatsApp pendiente; BE-05 permanece en curso. [Corrección y alcance](CORRECCION_BE_05_2026-10-15.md).
 
 - [ ] Terminada.
 - **Problema reproducido:** gastos e ingresos por transferencia, gastos de suscripción y pagos con la palabra saldo son clasificados como consultas; terminan sin incorporarse al borrador.
@@ -635,3 +637,5 @@ Completar una entrada al cerrar cada tarea:
 | 15/10/2026 | INF-08 | Preparación revertida por decisión del propietario; pendiente para el final del plan completo | Se retiran únicamente archivos de INF-08; sin cambios en app, webhook ni migraciones | Sin backups productivos habilitados | Retomar desde inventario y credenciales cuando se priorice nuevamente |
 
 | 15/10/2026 | INF-03 / BE-06 | Cola durable, leases con fencing, cron y transporte privado; webhook v38; migraciones 020–022 | 136 tests, 3 Deno y concurrencia nativa; HTTP y cron verificados | Cola habilitada; una propuesta heredada trasladada sin confirmar; 52 confirmados intactos | Prueba WhatsApp del propietario; ocho mensajes antiguos conservados para revisión; INF-04 y demás tareas siguen abiertas |
+
+| 15/10/2026 | BE-05 relacionado con INF-03 / BE-06 | Corrección del clasificador y parser mixto; webhook v39 | 151 tests, nueve Deno, tipos, lint y build aprobados | Sin migraciones ni reenvíos automáticos de mensajes anteriores | Propietario debe reenviar el mensaje y verificar los tres movimientos; aceptación de cola sigue pendiente |

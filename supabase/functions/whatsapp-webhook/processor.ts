@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.114.0";
 import type { Job } from "./queue.ts";
+import { classifyTextQuery } from "./intent.ts";
 import {
   downloadWhatsAppMedia,
   extractFromGemini,
@@ -110,11 +111,11 @@ export async function prepareMessage(
   );
   if (settings?.whatsapp_responses_enabled === false) return blocked(null);
 
-  // Mantener las consultas comerciales del bot; revisar su clasificador en BE-05.
-  if (
-    /(renovar|renovaci[oó]n|suscripci[oó]n|planes?|precios?|cu[aá]nto (sale|cuesta)|c[oó]mo (pago|abono|renuevo)|d[oó]nde (pago|transfiero)|quiero pagar|alias|cbu|datos de pago|transferir|transferencia|membres[ií]a)/i
-      .test(text)
-  ) {
+  const query = classifyTextQuery(
+    text,
+    Boolean(message.image?.id || message.audio?.id),
+  );
+  if (query === "commercial") {
     return reply(
       `¡Hola! 👋 Para renovar tu membresía en Pesito o consultar planes y medios de pago:${await support()}\n\nComunicate con soporte para activar tu cuenta.`,
     );
@@ -137,11 +138,7 @@ export async function prepareMessage(
   );
   if (remove) return { kind: "remove", position: Number(remove[3]) };
 
-  if (
-    /(saldo|disponible|cu[aá]nt[ao]\s+(plata|dinero|me\s+queda)|balance)/i.test(
-      text,
-    )
-  ) {
+  if (query === "balance") {
     const month = localDate().slice(0, 7);
     const next = new Date(`${month}-01T12:00:00Z`);
     next.setUTCMonth(next.getUTCMonth() + 1);
