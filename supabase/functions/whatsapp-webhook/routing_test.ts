@@ -138,3 +138,49 @@ Deno.test("clasificación no permite operaciones en cuentas suspendidas", async 
     "Se interpretó una operación de cuenta suspendida",
   );
 });
+
+Deno.test("corrección por posición no invoca IA ni crea un checkpoint de alta", async () => {
+  const { db } = database();
+  let checkpoints = 0;
+  const result = await prepareMessage(db, job("el 2 fue de 250"), () => {
+    checkpoints++;
+    return Promise.resolve();
+  });
+  assert(
+    result.kind === "edit" && result.position === 2 && result.amount === 250,
+    "Corrección interpretada como alta",
+  );
+  assert(
+    result.description === null && checkpoints === 0,
+    "Se reinterpretó o cambió el concepto",
+  );
+});
+Deno.test("una corrección incompleta no modifica ni se convierte en gasto", async () => {
+  const { db } = database();
+  const input = job("Cambiá la descripción del 2");
+  input.parsed_result = {
+    intent: "add_movements",
+    movements: [{
+      kind: "expense",
+      description: "No debe agregarse",
+      totalAmountArs: 2,
+    }],
+  };
+  const result = await prepareMessage(db, input, () => Promise.resolve());
+  assert(
+    result.kind === "reply" && String(result.text).includes("No agregué"),
+    "Una respuesta IA inválida agregó un gasto",
+  );
+});
+Deno.test("dos correcciones juntas piden aclarar y conservan la lista", async () => {
+  const { db } = database();
+  const result = await prepareMessage(
+    db,
+    job("El 2 fue de 250 y el 3 de 500"),
+    () => Promise.resolve(),
+  );
+  assert(
+    result.kind === "reply" && String(result.text).includes("No modifiqué"),
+    "Se aceptó parcialmente una instrucción ambigua",
+  );
+});

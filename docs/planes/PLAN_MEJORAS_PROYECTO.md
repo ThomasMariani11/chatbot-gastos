@@ -433,7 +433,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | Pendiente |
 | 11 | BE-09 | Alta | Saldo por moneda y límites mensuales | — | Pendiente |
 | 12 | BE-11 | Media | Listas antiguas, excedentes y numeración | INF-03 | Pendiente |
-| 13 | BE-12 | Media | Correcciones y resumen completo | — | Pendiente |
+| 13 | BE-12 | Media | Correcciones y resumen completo | — | En curso |
 | 14 | BE-13 | Media | Consistencia del alta y bootstrap administrativo | INF-10 | Pendiente |
 | 15 | BE-14 | Media | Vinculación atómica y límites de intentos | — | Pendiente |
 | 16 | BE-15 | Media | Integraciones y límites de multimedia | INF-12 | Pendiente |
@@ -546,6 +546,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-12 — Completar correcciones y datos del resumen
 
+- **Avance al 15/10/2026:** durante la prueba INF-03 se detectó una corrección convertida en un gasto nuevo. Webhook v40 interpreta correcciones explícitas de importe sin IA y bloquea altas desde instrucciones de edición. 163 tests y 12 Deno aprobados. Pendiente repetir WhatsApp y completar los demás campos de BE-12. [Detalle y validación](CORRECCION_PENDIENTES_2026-10-15.md).
+
 - [ ] Terminada.
 - **Problema confirmado:** categoría declarada en la edición pero no aplicada; no se verifica existencia/estado del objetivo; una actualización sin filas puede anunciar éxito. El resumen omite fecha y mes inicial de cuotas; el contrato de edición no representa moneda, fecha ni cuotas.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:818`, `:821`, `:828`, `:405`.
@@ -639,3 +641,5 @@ Completar una entrada al cerrar cada tarea:
 | 15/10/2026 | INF-03 / BE-06 | Cola durable, leases con fencing, cron y transporte privado; webhook v38; migraciones 020–022 | 136 tests, 3 Deno y concurrencia nativa; HTTP y cron verificados | Cola habilitada; una propuesta heredada trasladada sin confirmar; 52 confirmados intactos | Prueba WhatsApp del propietario; ocho mensajes antiguos conservados para revisión; INF-04 y demás tareas siguen abiertas |
 
 | 15/10/2026 | BE-05 relacionado con INF-03 / BE-06 | Corrección del clasificador y parser mixto; webhook v39 | 151 tests, nueve Deno, tipos, lint y build aprobados | Sin migraciones ni reenvíos automáticos de mensajes anteriores | Propietario debe reenviar el mensaje y verificar los tres movimientos; aceptación de cola sigue pendiente |
+
+| 15/10/2026 | BE-12 / INF-03 / BE-06 | Webhook v40: corrección de importe por número y rechazo de altas falsas | 163 tests, 12 Deno, tipos, lint y build; edición SQL aislada sin inserciones | Sin migraciones ni cambios directos en la lista del propietario | Repetir corrección y completar aceptación WhatsApp; INF-04 todavía pendiente |

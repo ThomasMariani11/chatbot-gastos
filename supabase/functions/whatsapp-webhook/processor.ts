@@ -2,6 +2,10 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2.114.0";
 import type { Job } from "./queue.ts";
 import { classifyTextQuery } from "./intent.ts";
 import {
+  looksLikeDraftCorrection,
+  parseDraftCorrection,
+} from "./draft-corrections.ts";
+import {
   downloadWhatsAppMedia,
   extractFromGemini,
   formatDraftList,
@@ -111,7 +115,9 @@ export async function prepareMessage(
   );
   if (settings?.whatsapp_responses_enabled === false) return blocked(null);
 
-  const query = classifyTextQuery(
+  const correctionIntent = !message.image?.id && !message.audio?.id &&
+    looksLikeDraftCorrection(text);
+  const query = correctionIntent ? null : classifyTextQuery(
     text,
     Boolean(message.image?.id || message.audio?.id),
   );
@@ -189,6 +195,8 @@ export async function prepareMessage(
     "QUEUE_DRAFT_READ",
   );
   if (draft?.is_stale) return { kind: "summary" }; // SQL retiene el mensaje antes de interpretarlo.
+  const correction = correctionIntent ? parseDraftCorrection(text) : null;
+  if (correction) return correction;
   if (!text && !message.image?.id && !message.audio?.id) {
     return reply(
       "Este tipo de mensaje no es compatible. Podés enviar texto, audio o una foto.",
@@ -198,7 +206,7 @@ export async function prepareMessage(
   if (!result) {
     const mediaId = message.image?.id ?? message.audio?.id;
     const media = mediaId ? await downloadWhatsAppMedia(mediaId) : undefined;
-    const simple = text && !media &&
+    const simple = text && !media && !correctionIntent &&
       !/[?¿]|(cu[aá]nto|c[oó]mo|d[oó]nde|por qu[eé]|explicame|ayuda)/i.test(
         text,
       ) &&
@@ -249,6 +257,11 @@ export async function prepareMessage(
       };
     }
     case "add_movements":
+      if (correctionIntent) {
+        return reply(
+          'No pude identificar qué cambiar. Indicá el número y el dato a corregir, por ejemplo: "El 2 fue de 250". No agregué movimientos ni modifiqué la lista.',
+        );
+      }
       // No filtrar silenciosamente parte de un mensaje. BE-08 incorporará la
       // edición de datos faltantes; por ahora pedir el mensaje completo de nuevo.
       if (

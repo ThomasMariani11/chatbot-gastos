@@ -2,6 +2,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFile, readdir } from 'node:fs/promises';
 import { beforeAll, beforeEach, afterEach, afterAll, describe, it, expect, vi } from 'vitest';
 import { readMessages, runActor } from '../supabase/functions/whatsapp-webhook/queue';
+import { parseDraftCorrection } from '../supabase/functions/whatsapp-webhook/draft-corrections';
 import type { Job, QueueDependencies } from '../supabase/functions/whatsapp-webhook/queue';
 
 const db = new PGlite();
@@ -144,6 +145,21 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     await expect(apply(job,{kind:'add',items:[movement(),movement('Inválido',-1)]})).rejects.toThrow();
     expect((await db.query('select count(*)::int as n from public.draft_items')).rows[0]).toEqual({n:0});
     expect((await db.query('select effect_applied from public.whatsapp_message_queue')).rows[0]).toEqual({effect_applied:false});
+  });
+  it('corrige únicamente el monto del número estable sin agregar un movimiento',async()=>{
+    await add('initial',[movement('Uno',101),movement('Dos',202),{...movement('Tres',303),kind:'income',currency:'USD'}]);
+    const before=(await db.query<{id:string;position:number;description:string;amount:string;kind:string;currency:string}>('select id,position,description,amount::text as amount,kind,currency from public.draft_items order by position')).rows;
+    await enqueue(message('correction','synthetic-a','el 2 fue de 250'));
+    const editJob=(await next())!;
+    const action=parseDraftCorrection('el 2 fue de 250')!;
+    await apply(editJob,action);await apply(editJob,action);await finish(editJob);
+    const after=(await db.query('select id,position,description,amount::text as amount,kind,currency from public.draft_items order by position')).rows;
+    expect(after).toEqual(before.map((row,index)=>index===1?{...row,amount:'250.00'}:row));
+    expect((await db.query('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
+    await enqueue(message('nonexistent','synthetic-a','el 99 fue de 500'));
+    const absent=(await next())!;const outcome=await apply(absent,parseDraftCorrection('el 99 fue de 500')!);await finish(absent);
+    expect(outcome.reply_text).toContain('No encontré');
+    expect((await db.query('select id,position,description,amount::text as amount,kind,currency from public.draft_items order by position')).rows).toEqual(after);
   });
   it('conserva números estables y permite agregar después de eliminar',async()=>{
     await add('one',Array.from({length:20},(_,n)=>movement(`Operación ${n+1}`)));
