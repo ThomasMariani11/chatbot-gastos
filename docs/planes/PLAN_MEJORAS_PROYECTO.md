@@ -32,7 +32,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | --- | --- | --- | --- | --- | --- |
 | 1 | INF-01 | Crítica | Permisos de funciones SQL | F01 | Terminada |
 | 2 | INF-02 | Alta | Escrituras e integridad de borradores y cola | F02 | Terminada |
-| 3 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | Pendiente |
+| 3 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | En curso |
 | 4 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Pendiente |
 | 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Pendiente |
 | 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Pendiente |
@@ -65,6 +65,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Cierre:** escrituras directas desde clientes rechazadas; relaciones cruzadas rechazadas por la base; lecturas legítimas y procesamiento del bot verificados.
 
 ### INF-03 — Hacer fiable el procesamiento de la cola
+
+- **Avance al 15/10/2026:** implementación preparada de recepción durable, leases con fencing, mutaciones atómicas, confirmación de la versión mostrada y recuperación con cron. Pruebas aisladas aprobadas; publicación y WhatsApp pendientes. Ocho mensajes fallidos de la versión anterior conservados para revisión manual. [Procedimiento y alcance](VALIDACION_INF_03_BE_06.md).
 
 - [ ] Terminada.
 - **Problema confirmado en código:** el debounce marca mensajes como procesados sin interpretarlos. No hay exclusión duradera por usuario ni recuperación programada declarada. En la auditoría había seis registros pendientes con más de una hora; no se confirmó si sus movimientos ya estaban registrados.
@@ -486,6 +488,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Cierre:** `Pagué 15000 por transferencia al supermercado`, `Cobré 80000 por transferencia`, `Gasté 5000 en la suscripción de Netflix` y `Pagué 5000 del saldo de la tarjeta` se registran como propuestas; consultas reales de renovación y saldo mantienen su respuesta.
 
 ### BE-06 — Serializar mensajes y mutaciones de borradores
+
+- **Avance al 15/10/2026:** En curso, compartido con INF-03. Implementación y pruebas preparadas; falta completar publicación y validación real. [Procedimiento](VALIDACION_INF_03_BE_06.md).
 
 - [ ] Terminada.
 - **Problema confirmado:** debounce que marca mensajes procesados sin interpretarlos; ausencia de exclusión duradera por usuario; posibilidad de grupos abiertos múltiples y posiciones concurrentes. La fixture aceptó dos grupos abiertos del mismo usuario.
