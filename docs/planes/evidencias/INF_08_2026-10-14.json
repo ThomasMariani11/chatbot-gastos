@@ -13,8 +13,11 @@
     "zero_loss_preferred": true,
     "cloud_storage_requested": true,
     "rto_agreed": false,
-    "cloud_provider_selected": false,
-    "paid_resources_approved": false
+    "cloud_provider_selected": true,
+    "paid_resources_approved": false,
+    "cloud_provider": "Google Drive",
+    "additional_budget_usd": 0,
+    "paid_pitr_rejected": true
   },
   "backup_listing": {
     "backups": null,
@@ -33,15 +36,57 @@
     "auth_users_public_function_trigger_count": 1,
     "storage_bucket_count": 0,
     "storage_object_count": 0,
-    "migration_versions": ["001", "002", "003", "004", "005", "006", "007", "008", "009", "010", "011", "012", "013", "014", "015", "016", "017", "018", "019"],
-    "extensions": ["pg_stat_statements", "pgcrypto", "plpgsql", "supabase_vault", "uuid-ossp"],
+    "migration_versions": [
+      "001",
+      "002",
+      "003",
+      "004",
+      "005",
+      "006",
+      "007",
+      "008",
+      "009",
+      "010",
+      "011",
+      "012",
+      "013",
+      "014",
+      "015",
+      "016",
+      "017",
+      "018",
+      "019"
+    ],
+    "extensions": [
+      "pg_stat_statements",
+      "pgcrypto",
+      "plpgsql",
+      "supabase_vault",
+      "uuid-ossp"
+    ],
     "vault_secret_count": 0,
     "vault_secret_values_read": false,
     "cron_extension_present": false,
-    "realtime_public_tables": ["app_settings", "budgets", "transactions", "whatsapp_links"],
-    "auth_users_public_triggers": [{"trigger": "on_auth_user_created", "function": "bootstrap_user"}]
+    "realtime_public_tables": [
+      "app_settings",
+      "budgets",
+      "transactions",
+      "whatsapp_links"
+    ],
+    "auth_users_public_triggers": [
+      {
+        "trigger": "on_auth_user_created",
+        "function": "bootstrap_user"
+      }
+    ]
   },
-  "edge_required_secret_names_present": ["GEMINI_API_KEY", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_VERIFY_TOKEN", "META_APP_SECRET"],
+  "edge_required_secret_names_present": [
+    "GEMINI_API_KEY",
+    "WHATSAPP_ACCESS_TOKEN",
+    "WHATSAPP_PHONE_NUMBER_ID",
+    "WHATSAPP_VERIFY_TOKEN",
+    "META_APP_SECRET"
+  ],
   "edge_secret_values_recovered": false,
   "local_restore_environment": {
     "docker_installed": true,
@@ -62,17 +107,16 @@
     "client_rows_exported": false,
     "client_contents_logged_or_committed": false,
     "production_restored_or_modified": false,
-    "cloud_resources_created": false,
+    "cloud_resources_created": true,
     "billing_changed": false,
     "scheduled_backup_enabled": false
   },
   "remaining": [
-    "Elegir proveedor, presupuesto, región y cuenta de almacenamiento",
-    "Acordar RTO, responsables, retención, alertas y custodia de claves",
-    "Habilitar un entorno de restauración aislado operativo",
-    "Configurar protección cloud y obtener una copia real cifrada",
-    "Probar descarga, descifrado, integridad, permisos y tiempos",
-    "Documentar reconciliación de cola antes de activar cualquier restauración"
+    "Configurar OAuth propio drive.file del runner, carpeta accesible por ese cliente, clave de recuperación y credenciales SQL mediante canales seguros",
+    "Medir espacio real y egress compartido de Supabase para mantener costo adicional cero",
+    "Probar un conjunto real y restauración aislada compatible; medir RPO/RTO e integridad",
+    "Acordar responsables, custodia, RTO y retención; implementar rotación y alertas de copias atrasadas",
+    "Habilitar el cron solo después de verificar recuperación y límites; no declarar garantizado el RPO de una hora"
   ],
   "limitations": [
     "backups=null y walg_enabled=true no prueban existencia ni ausencia de todas las copias",
@@ -80,5 +124,39 @@
     "No se midió RPO efectivo ni RTO",
     "La ubicación local de un archivo o Git no equivale a una copia cloud de datos",
     "No hay garantía de pérdida cero ni de RPO de una hora actualmente comprobada"
-  ]
+  ],
+  "zero_cost_preparation": {
+    "recorded_at_utc": "2026-10-15T01:22:23Z",
+    "implementation_base_commit": "ad23bfbdf0caa75d83701662ac3e2708076a43cf",
+    "repository_public_verified": true,
+    "drive_connection_verified": true,
+    "drive_private_test_folder_created": true,
+    "drive_folder_only_owner_permission_verified": true,
+    "drive_test_file_only_owner_permission_verified": true,
+    "synthetic_cipher_bytes": 553,
+    "synthetic_upload_download_hash_verified": true,
+    "synthetic_download_decrypt_plaintext_match": true,
+    "production_data_uploaded": false,
+    "production_recovery_key_created": false,
+    "private_key_uploaded": false,
+    "account_free_space_measured": false,
+    "backup_workflow_prepared": true,
+    "production_export_enabled_by_assistant": false,
+    "production_schedule_enabled_by_assistant": false,
+    "runner_credentials_configured_by_assistant": false,
+    "existing_tests_passed": 106,
+    "new_backup_tests_passed": 8,
+    "real_cli_dryrun_contracts_passed": 6,
+    "new_scripts_eslint_passed": true,
+    "actionlint_version": "1.7.12",
+    "actionlint_passed": true,
+    "bash_syntax_passed": true,
+    "production_backup_created": false,
+    "production_restore_verified": false,
+    "rpo_one_hour_guaranteed": false,
+    "application_source_modified": false,
+    "automatic_remote_deletion_enabled": false,
+    "independent_stale_backup_alert_verified": false,
+    "test_scope": "Guardas y manifiesto, contratos CLI ficticios, sintaxis/lint y recorrido cifrado sintético; no integración completa del job ni restauración de la base"
+  }
 }

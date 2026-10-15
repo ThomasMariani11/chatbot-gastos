@@ -1,0 +1,62 @@
+name: Backups cifrados de Pesito
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/backup/**
+      - .github/workflows/backup-drive.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '7,37 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pesito-backup-drive
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event.repository.private == false && (github.event_name != 'schedule' || (vars.PESITO_BACKUP_ENABLED == 'true' && vars.PESITO_BACKUP_SCHEDULE_ENABLED == 'true'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - run: node --test scripts/backup/backup-drive.test.mjs
+      - run: bash -n scripts/backup/install-backup-tools.sh
+
+  backup:
+    needs: validate
+    if: github.event_name != 'push' && github.ref == 'refs/heads/main' && github.event.repository.private == false && vars.PESITO_BACKUP_ENABLED == 'true' && (github.event_name != 'schedule' || vars.PESITO_BACKUP_SCHEDULE_ENABLED == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - run: bash scripts/backup/install-backup-tools.sh
+      - name: Exportar, cifrar, subir y verificar lectura del archivo cifrado
+        run: node scripts/backup/backup-drive.mjs
+        env:
+          PESITO_BACKUP_ENABLED: ${{ vars.PESITO_BACKUP_ENABLED }}
+          PESITO_BACKUP_FREE_LIMITS_VERIFIED: ${{ vars.PESITO_BACKUP_FREE_LIMITS_VERIFIED }}
+          PESITO_BACKUP_DRIVE_FOLDER: ${{ vars.PESITO_BACKUP_DRIVE_FOLDER }}
+          PESITO_BACKUP_KEY_FINGERPRINT: ${{ vars.PESITO_BACKUP_KEY_FINGERPRINT }}
+          PESITO_BACKUP_PUBLIC_KEY: ${{ secrets.PESITO_BACKUP_PUBLIC_KEY }}
+          PESITO_BACKUP_RCLONE_CONFIG: ${{ secrets.PESITO_BACKUP_RCLONE_CONFIG }}
+          PESITO_BACKUP_DB_CA_PEM: ${{ secrets.PESITO_BACKUP_DB_CA_PEM }}
+          PGHOST: ${{ secrets.PESITO_BACKUP_PGHOST }}
+          PGPORT: '5432'
+          PGDATABASE: postgres
+          PGUSER: ${{ secrets.PESITO_BACKUP_PGUSER }}
+          PGPASSWORD: ${{ secrets.PESITO_BACKUP_PGPASSWORD }}

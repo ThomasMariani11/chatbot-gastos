@@ -4,12 +4,12 @@ Fecha local: 14/10/2026, America/Buenos_Aires. Estado: **en curso; protección y
 
 ## Objetivos y decisiones
 
-- Requisito del propietario: preferir ninguna pérdida; aceptar como máximo **una hora de datos perdidos (RPO <= 1 h)**. Almacenar copias en cloud.
+- Requisito del propietario: preferir ninguna pérdida; aceptar como máximo **una hora de datos perdidos (RPO <= 1 h)**. Decisión posterior: **costo adicional máximo USD 0 y Google Drive**. No se considera acordada una relajación del RPO por elegir la opción gratuita.
 - Un RPO de una hora no equivale a cero pérdida. Tampoco alcanza con programar un backup cada hora: importan la antigüedad de su snapshot, la duración y los fallos de las ejecuciones.
 - Propuesta para copias lógicas: ejecutarlas cada 30 minutos, vigilar desde un servicio independiente la antigüedad del último snapshot recuperable y alertar antes de llegar a una hora. Una programación por sí sola no garantiza ese objetivo.
 - RTO (tiempo máximo para recuperar): **pendiente de acordar y medir**; no hay un tiempo prometido ni ensayado.
 - Responsable propuesto: propietario del proyecto para facturación, custodia y recuperación de claves; operador designado para revisar alertas y practicar restauraciones. Falta confirmar responsables y canal de alertas.
-- No hay autorización específica para contratar planes, crear recursos facturables ni elegir un proveedor cloud en nombre del propietario.
+- PITR y recursos de pago descartados por presupuesto. Google Drive seleccionado por el propietario; usar espacio existente sin contratar almacenamiento. La conexión del chat no se transfiere al runner.
 
 ## Inventario comprobado
 
@@ -59,9 +59,9 @@ supabase db query --linked --project-ref ystyatotldslfmucvgsq --file scripts/ops
 
 ## Alternativas concretas para decidir
 
-### A. PITR administrado en Supabase y copia externa adicional
+### A. PITR administrado — descartado por presupuesto cero
 
-Es la opción propuesta si la prioridad es reducir la pérdida y la operación del archivado. Requiere plan de pago compatible, add-on PITR y al menos compute Small. La documentación permite restauración con granularidad de segundos, pero hay que comprobar el punto recuperable real y ensayar el procedimiento; no prometer cero pérdida.
+Se conserva como referencia de la evaluación inicial; el propietario eligió costo cero y no se contratará esta opción. Requiere plan de pago compatible, add-on PITR y al menos compute Small. La documentación permite restauración con granularidad de segundos, pero hay que comprobar el punto recuperable real y ensayar el procedimiento; no prometer cero pérdida.
 
 Precios públicos consultados el 14/10/2026: Pro desde USD 25/mes, Small USD 15/mes con USD 10 de crédito de compute incluido en planes de pago; PITR de siete días aproximadamente USD 100/mes. Para un único proyecto con ese esquema, estimación de referencia **aproximadamente USD 130/mes**, antes de impuestos, extras y almacenamiento externo. No es una cotización del proyecto ni se comprobó su plan actual. Revisar el total en la consola antes de contratar.
 
@@ -75,7 +75,7 @@ Propuesta de retención a aprobar: copias cada 30 minutos durante 48 horas y una
 
 GitHub Actions puede alojar automatizaciones, pero un cron susceptible a retrasos o ejecuciones omitidas no constituye una garantía de RPO de una hora. No usar un artifact temporal de CI como única estrategia de recuperación ni subir dumps sin cifrar a GitHub.
 
-Pendiente elegir proveedor, región, cuenta propietaria, presupuesto, identidad de acceso y custodia de claves. No se creó bucket, job, secreto ni contratación.
+El propietario eligió Google Drive y presupuesto adicional cero. Se creó una carpeta privada y pasó un ensayo de cifrado, subida, descarga y descifrado con datos sintéticos. El workflow quedó preparado con envío y cron desactivados por defecto. Falta identidad OAuth independiente para el runner, clave de recuperación y credencial SQL segura; ninguna de esas credenciales se configuró ni se contrató un servicio. Ver [configuración y límites de la opción gratuita](CONFIGURAR_BACKUP_GRATUITO.md).
 
 ## Procedimiento de backup lógico
 
@@ -108,14 +108,15 @@ Declarar incidente, designar operador y pausar recepción/procesamiento antes de
 
 - [x] Inventario productivo de solo lectura y límites documentados.
 - [x] RPO máximo de una hora y preferencia de cloud indicados por el propietario.
-- [ ] Proveedor, presupuesto, responsables, retención, RTO y custodia de claves acordados.
+- [x] Proveedor Google Drive y presupuesto adicional cero elegidos por el propietario.
+- [ ] Responsables, retención, RTO y custodia de claves acordados.
 - [ ] Copias cloud cifradas y programación independiente operativas; accesos comprobados.
 - [ ] Recuperación de secretos/Vault/configuración externa cubierta según su uso efectivo.
 - [ ] Descarga, descifrado y restauración de una copia real aprobados en un entorno aislado.
 - [ ] Integridad, permisos, RPO y tiempos de recuperación medidos y registrados.
 - [ ] Alertas de falta de copias y runbook ejercitados; reconciliación de cola documentada.
 
-No se exportaron datos de clientes, no se restauró ninguna base, no se modificó producción y no se contrató un servicio. Docker Desktop se intentó iniciar para el ensayo; el motor no quedó operativo. Esto es avance de inventario y preparación, no cierre de INF-08.
+No se exportaron datos de clientes, no se restauró ninguna base, no se modificó producción y no se contrató un servicio. Docker Desktop se intentó iniciar; el motor no quedó operativo. Sí se creó una carpeta privada de Drive y se comprobó un archivo sintético cifrado de 553 bytes, incluyendo descarga y descifrado. Ocho tests de los scripts, seis contratos de dry-run real de CLI, lint, actionlint y 106 tests existentes aprobados; no equivalen a recuperación de la base. El código de automatización aún requiere credenciales, medición de cuotas, ensayo real y activación explícita. INF-08 permanece en curso.
 
 ## Fuentes oficiales consultadas
 
