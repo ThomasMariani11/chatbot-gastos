@@ -27,7 +27,8 @@ export type GeminiParsedOutput = {
     | "confirm"
     | "cancel"
     | "summary"
-    | "unknown";
+    | "unknown"
+    | "request_text"; // Checkpoint interno: nunca vuelve a invocar IA.
   movements: ExtractedMovement[];
   edit?: {
     targetPosition?: number | null;
@@ -447,11 +448,14 @@ Mensaje del usuario: ${input.text ?? ""}`;
     });
   }
 
-  // Modelos candidatos ordenados por rapidez y capacidad (gemini-3.8-flash y gemini-3.1-flash-lite)
-  const candidateModels = [{ id: "gemini-3.8-flash", label: "flash" }, {
-    id: "gemini-3.1-flash-lite",
-    label: "flash_lite",
-  }] as const;
+  // Flash Lite primero; Flash como respaldo. Los medios necesitan más margen.
+  const candidateModels = [
+    { id: "gemini-3.1-flash-lite", label: "flash_lite" },
+    {
+      id: "gemini-3.8-flash",
+      label: "flash",
+    },
+  ] as const;
   let lastError: Error | null = null;
 
   for (const model of candidateModels) {
@@ -463,7 +467,7 @@ Mensaje del usuario: ${input.text ?? ""}`;
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          signal: AbortSignal.timeout(3500), // Timeout ágil de 3.5s para no demorar al usuario
+          signal: AbortSignal.timeout(input.mediaBase64 ? 10000 : 3500),
           body: JSON.stringify({
             contents: [{ role: "user", parts }],
             generationConfig: {

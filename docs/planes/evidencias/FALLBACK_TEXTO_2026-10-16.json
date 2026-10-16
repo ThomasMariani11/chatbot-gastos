@@ -1,0 +1,37 @@
+{
+  "observedAt": "2026-10-16T17:47:37.104Z",
+  "sourceCommit": "3d8600daf3904e8e5270a0a1fc0c86ed60299e9a",
+  "pullRequest": 6,
+  "ciRun": 38941917400,
+  "checks": [
+    "Frontend",
+    "Webhook",
+    "PostgreSQL",
+    "Ensayo de release"
+  ],
+  "tests": {
+    "vitest": 198,
+    "deno": 21,
+    "releaseGuards": 6
+  },
+  "rehearsal": {
+    "artifact": 12062579029,
+    "migrations": 25,
+    "cleanupPassed": true,
+    "externalMessages": 0,
+    "databaseRestore": false
+  },
+  "edge": {
+    "version": 43,
+    "status": "ACTIVE",
+    "verifyJwt": false
+  },
+  "smoke": {
+    "unsignedWebhook": 401,
+    "unsignedWorker": 401
+  },
+  "databaseChanged": false,
+  "historicalMessagesReplayed": false,
+  "whatsappAcceptance": "pending",
+  "originalPreservation": "webhook payload and media reference; no permanent binary copy"
+}

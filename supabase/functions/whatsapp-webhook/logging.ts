@@ -26,7 +26,8 @@ type Event =
   | "http_request"
   | "http_request_failed"
   | "worker_interrupted"
-  | "ai_attempt";
+  | "ai_attempt"
+  | "interpretation_fallback";
 type Validator = (value: unknown) => boolean;
 const numeric = (maximum: number, integer = false): Validator => (value) =>
   typeof value === "number" && Number.isFinite(value) && value >= 0 &&
@@ -62,6 +63,7 @@ const failureSchema = {
   status: (v: unknown) => numeric(599, true)(v) && (v as number) >= 100,
 };
 const schemas: Record<Event, Record<string, Validator>> = {
+  interpretation_fallback: { ...failureSchema },
   ai_attempt: {
     ...failureSchema,
     model: oneOf("flash", "flash_lite"),
@@ -75,6 +77,7 @@ const schemas: Record<Event, Record<string, Validator>> = {
   queue_send: { duration_ms: duration },
   queue_message: { duration_ms: duration, attempts },
   queue_retry: {
+    ...failureSchema,
     attempts,
     stage: oneOf("interpret", "checkpoint", "apply", "send", "finish"),
   },

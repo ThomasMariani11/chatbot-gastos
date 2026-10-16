@@ -1,5 +1,6 @@
 import type { DatabaseOperation } from "./failures.ts";
-import { OperationalFailure } from "./failures.ts";
+import { failureMetadata, OperationalFailure } from "./failures.ts";
+import { writeOperationalLog } from "./logging.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.114.0";
 import type { Job } from "./queue.ts";
 import { classifyTextQuery } from "./intent.ts";
@@ -218,30 +219,61 @@ export async function prepareMessage(
   }
   let result = job.parsed_result as GeminiParsedOutput | null;
   if (!result) {
-    const mediaId = message.image?.id ?? message.audio?.id;
-    const media = mediaId ? await downloadWhatsAppMedia(mediaId) : undefined;
-    const simple = text && !media && !correctionIntent &&
-      !/[?¿]|(cu[aá]nto|c[oó]mo|d[oó]nde|por qu[eé]|explicame|ayuda)/i.test(
-        text,
-      ) &&
-      !/^(el\s+\d|cambi[aá]|correg[ií]|modific[aá]|sac[aá]|quit[aá]|borr[aá])/i
-        .test(text);
-    const direct = simple
-      ? parseDeterministicMovements(text, localDate())
-      : null;
-    result = direct?.length
-      ? { intent: "add_movements", movements: direct }
-      : await extractFromGemini({
-        text,
-        mediaBase64: media?.base64,
-        mimeType: media?.mimeType,
-        activeDraftContext: formatDraftList(
-          (draft?.items ?? []) as DraftListItem[],
-        ),
-      });
+    try {
+      const mediaId = message.image?.id ?? message.audio?.id;
+      const media = mediaId ? await downloadWhatsAppMedia(mediaId) : undefined;
+      const simple = text && !media && !correctionIntent &&
+        !/[?¿]|(cu[aá]nto|c[oó]mo|d[oó]nde|por qu[eé]|explicame|ayuda)/i.test(
+          text,
+        ) &&
+        !/^(el\s+\d|cambi[aá]|correg[ií]|modific[aá]|sac[aá]|quit[aá]|borr[aá])/i
+          .test(text);
+      const direct = simple
+        ? parseDeterministicMovements(text, localDate())
+        : null;
+      result = direct?.length
+        ? { intent: "add_movements", movements: direct }
+        : await extractFromGemini({
+          text,
+          mediaBase64: media?.base64,
+          mimeType: media?.mimeType,
+          activeDraftContext: formatDraftList(
+            (draft?.items ?? []) as DraftListItem[],
+          ),
+        });
+    } catch (error) {
+      const failure = failureMetadata(error);
+      if (failure.provider !== "gemini" && failure.provider !== "meta_media") {
+        throw error;
+      }
+      writeOperationalLog("interpretation_fallback", failure);
+      result = { intent: "request_text", movements: [] };
+    }
+    // Conservar la solicitud en la cola, sin bloquear el próximo texto ni
+    // reintentar la IA si falla el guardado de la respuesta o su envío.
+    if (
+      result.intent === "unknown" ||
+      (result.intent === "add_movements" &&
+        (!Array.isArray(result.movements) || !result.movements.length ||
+          result.movements.some((m) =>
+            !Number.isFinite(m.totalAmountArs) || Number(m.totalAmountArs) <= 0
+          )))
+    ) {
+      result = { intent: "request_text", movements: [] };
+    }
     await checkpoint(result);
   }
+  const requestText = () =>
+    reply(
+      message.audio?.id
+        ? 'No pude interpretar tu audio. Escribime el gasto o ingreso con el concepto y el monto, por ejemplo: "Gasté 1500 en supermercado". Si eran varios, mandalos todos en texto. Todavía no cargué nada de ese audio.'
+        : message.image?.id
+        ? "No pude interpretar la imagen. Escribime el gasto o ingreso con el concepto y el monto. Si eran varios, mandalos todos en texto. Todavía no cargué nada de esa imagen."
+        : 'No pude interpretar todos los datos. Escribime el gasto o ingreso con el concepto y el monto, por ejemplo: "Gasté 1500 en supermercado". Si eran varios, mandalos todos en texto. No cargué nada de ese mensaje.',
+    );
   switch (result.intent) {
+    case "request_text":
+      return requestText();
     case "confirm":
       return { kind: "confirm" };
     case "cancel":
@@ -290,9 +322,6 @@ export async function prepareMessage(
       }
       return { kind: "add", items: result.movements };
     default:
-      return reply(
-        result.clarification ||
-          "No identifiqué una operación clara. Indicame el concepto y el importe.",
-      );
+      return requestText();
   }
 }

@@ -477,3 +477,29 @@ describe('INF-04 / BE-10: trabajador con SQL real y fallos de entrega',()=>{
     expect(await confirmed()).toHaveLength(4);
   });
 });
+
+describe('audio no interpretado: respuesta durable y reemplazo por texto',()=>{
+  it('conserva payload y checkpoint; un fallo de envío reintenta solo la respuesta y permite texto',async()=>{
+    const audio:IncomingMessage={id:'fallback-audio',from:'synthetic-a',type:'audio',audio:{id:'synthetic-media'}};
+    await enqueue(audio);
+    let clock=Date.now(),failSend=true;
+    const deps:QueueDependencies={rpc,prepare:vi.fn(async(job,checkpoint)=>{
+      if(job.payload.type==='audio') {await checkpoint({intent:'request_text',movements:[]});return {kind:'reply',text:'Escribime el gasto en texto. No cargué el audio.'};}
+      await checkpoint({intent:'add_movements',movements:[movement()]});return {kind:'add',items:[movement()]};
+    }),send:vi.fn(async()=>{if(failSend){failSend=false;throw Error('synthetic-delivery-failure');}}),format:()=> 'Resumen',now:()=>clock,sleep:async ms=>{clock+=ms;},token:()=>t1,metric:vi.fn()};
+    await runActor('synthetic-a',deps);
+    const first=(await db.query<{payload:unknown;parsed_result:unknown;effect_applied:boolean}>("select payload,parsed_result,effect_applied from public.whatsapp_message_queue where wa_message_id='fallback-audio'")).rows[0];
+    expect(first).toMatchObject({payload:audio,parsed_result:{intent:'request_text',movements:[]},effect_applied:true});
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.draft_items')).rows[0].n).toBe(0);
+    await db.exec('update public.whatsapp_message_queue set scheduled_for=clock_timestamp()');
+    await runActor('synthetic-a',deps);
+    expect(deps.prepare).toHaveBeenCalledTimes(1);
+    expect((await db.query("select status,pause_reason from public.whatsapp_message_queue where wa_message_id='fallback-audio'")).rows[0]).toEqual({status:'processed',pause_reason:null});
+    await enqueue(audio,message('replacement-text')); // Meta reenvía: no reabre el audio.
+    await runActor('synthetic-a',deps);
+    expect(deps.prepare).toHaveBeenCalledTimes(2);
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.draft_items')).rows[0].n).toBe(1);
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+    expect((await db.query<{n:number}>("select count(*)::int as n from public.whatsapp_message_queue where wa_message_id='fallback-audio'")).rows[0].n).toBe(1);
+  });
+});

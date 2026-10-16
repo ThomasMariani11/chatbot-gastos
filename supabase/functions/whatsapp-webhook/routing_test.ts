@@ -188,12 +188,13 @@ Deno.test("dos correcciones juntas piden aclarar y conservan la lista", async ()
   );
 });
 
-Deno.test("audio real: error de descarga informa Meta sin checkpoint ni interpretación", async () => {
+Deno.test("audio: descarga fallida pide texto con checkpoint, sin interpretación", async () => {
   const previousFetch = globalThis.fetch,
     previousToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
   try {
     Deno.env.set("WHATSAPP_ACCESS_TOKEN", "PRIVATE_TEST_TOKEN");
-    let calls = 0, checkpoints = 0;
+    let calls = 0;
+    const checkpoints: unknown[] = [];
     globalThis.fetch = (() => {
       calls++;
       return Promise.resolve(
@@ -207,27 +208,19 @@ Deno.test("audio real: error de descarga informa Meta sin checkpoint ni interpre
       type: "audio",
       audio: { id: "PRIVATE_MEDIA_ID" },
     };
-    let failure: unknown;
-    try {
-      await prepareMessage(database().db, fixture, () => {
-        checkpoints++;
-        return Promise.resolve();
-      });
-    } catch (error) {
-      failure = error;
-    }
+    const result = await prepareMessage(database().db, fixture, (value) => {
+      checkpoints.push(value);
+      return Promise.resolve();
+    });
     assert(
-      JSON.stringify(failureMetadata(failure)) ===
-        JSON.stringify({
-          reason: "authentication",
-          provider: "meta_media",
-          status: 403,
-        }),
-      "Diagnóstico de Meta incorrecto",
+      result.kind === "reply" && String(result.text).includes("Escribime"),
+      "No pidió texto",
     );
     assert(
-      calls === 1 && checkpoints === 0,
-      "No debe interpretar ni persistir una descarga fallida",
+      calls === 1 &&
+        JSON.stringify(checkpoints) ===
+          JSON.stringify([{ intent: "request_text", movements: [] }]),
+      "Checkpoint incorrecto",
     );
   } finally {
     globalThis.fetch = previousFetch;
@@ -276,11 +269,11 @@ Deno.test("Gemini real: 429 activa respaldo y logs no contienen solicitud ni cre
     const entries = lines.map((line) => JSON.parse(line));
     assert(
       entries[0].reason === "rate_limit" && entries[0].status === 429 &&
-        entries[0].model === "flash",
+        entries[0].model === "flash_lite",
       "Falta motivo permitido del primer modelo",
     );
     assert(
-      entries[1].result === "success" && entries[1].model === "flash_lite",
+      entries[1].result === "success" && entries[1].model === "flash",
       "Falta resultado del respaldo",
     );
     assert(!lines.join("").includes("PRIVATE"), "Se filtró contenido o clave");
@@ -366,4 +359,274 @@ Deno.test("procesador real: fallo de RPC se diferencia de Gemini y no interpreta
       }),
     "Se perdió la operación interna segura",
   );
+});
+
+Deno.test("audio: 503 en ambos modelos conserva checkpoint y pide texto sin reintentar IA", async () => {
+  const previousFetch = globalThis.fetch,
+    previousLog = console.log,
+    previousTimeout = AbortSignal.timeout;
+  const key = Deno.env.get("GEMINI_API_KEY"),
+    token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+  const logs: string[] = [];
+  const models: string[] = [];
+  const timeouts: number[] = [];
+  try {
+    Deno.env.set("GEMINI_API_KEY", "PRIVATE_KEY");
+    Deno.env.set("WHATSAPP_ACCESS_TOKEN", "PRIVATE_TOKEN");
+    console.log = (line: unknown) => logs.push(String(line));
+    AbortSignal.timeout = ((ms: number) => {
+      timeouts.push(ms);
+      return new AbortController().signal;
+    }) as typeof AbortSignal.timeout;
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("graph.facebook.com")) {
+        return Promise.resolve(
+          Response.json({
+            url: "https://media.example.invalid/audio",
+            mime_type: "audio/ogg",
+          }),
+        );
+      }
+      if (url.includes("media.example.invalid")) {
+        return Promise.resolve(new Response(new Uint8Array([1, 2, 3])));
+      }
+      models.push(url.split("/models/")[1].split(":")[0]);
+      return Promise.resolve(new Response("PRIVATE_ERROR", { status: 503 }));
+    }) as typeof fetch;
+    const fixture = job("");
+    fixture.payload = {
+      id: "synthetic-audio",
+      from: "synthetic-route",
+      type: "audio",
+      audio: { id: "PRIVATE_MEDIA" },
+    };
+    let checkpoint: unknown;
+    const result = await prepareMessage(database().db, fixture, (value) => {
+      checkpoint = value;
+      return Promise.resolve();
+    });
+    assert(
+      result.kind === "reply" && String(result.text).includes("Escribime") &&
+        String(result.text).includes("Todavía no cargué"),
+      "No pidió reemplazo textual",
+    );
+    assert(
+      models.join(",") === "gemini-3.1-flash-lite,gemini-3.8-flash",
+      "Orden de modelos incorrecto",
+    );
+    assert(
+      timeouts.slice(-2).join(",") === "10000,10000",
+      "Audio con timeout de texto",
+    );
+    assert(
+      JSON.stringify(checkpoint) ===
+        JSON.stringify({ intent: "request_text", movements: [] }),
+      "No conserva decisión",
+    );
+    fixture.parsed_result = checkpoint;
+    globalThis.fetch = (() => {
+      throw new Error("NO_NETWORK_ON_RETRY");
+    }) as typeof fetch;
+    const retried = await prepareMessage(database().db, fixture, () => {
+      throw new Error("NO_NEW_CHECKPOINT");
+    });
+    assert(
+      JSON.stringify(result) === JSON.stringify(retried),
+      "Reintento cambió respuesta",
+    );
+    const replacement = await prepareMessage(
+      database().db,
+      job("Gasté 123 en prueba audio"),
+      () => Promise.resolve(),
+    );
+    assert(
+      replacement.kind === "add" &&
+        (replacement.items as unknown[]).length === 1,
+      "Texto de reemplazo no se procesa",
+    );
+    assert(!logs.join("").includes("PRIVATE"), "Filtró datos del audio");
+  } finally {
+    globalThis.fetch = previousFetch;
+    console.log = previousLog;
+    AbortSignal.timeout = previousTimeout;
+    if (key === undefined) Deno.env.delete("GEMINI_API_KEY");
+    else Deno.env.set("GEMINI_API_KEY", key);
+    if (token === undefined) Deno.env.delete("WHATSAPP_ACCESS_TOKEN");
+    else Deno.env.set("WHATSAPP_ACCESS_TOKEN", token);
+  }
+});
+
+Deno.test("audio ambiguo o con monto faltante pide texto sin cargar parcialmente", async () => {
+  const prev = globalThis.fetch,
+    key = Deno.env.get("GEMINI_API_KEY"),
+    token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+  try {
+    Deno.env.set("GEMINI_API_KEY", "synthetic-key");
+    Deno.env.set("WHATSAPP_ACCESS_TOKEN", "synthetic-token");
+    for (
+      const parsed of [
+        {
+          intent: "unknown",
+          movements: [],
+          clarification: "PRIVATE_CLARIFICATION",
+        },
+        {
+          intent: "add_movements",
+          movements: [{
+            kind: "expense",
+            description: "Completo",
+            totalAmountArs: 123,
+          }, {
+            kind: "income",
+            description: "Incompleto",
+            totalAmountArs: null,
+          }],
+        },
+      ]
+    ) {
+      globalThis.fetch = ((url: RequestInfo | URL) =>
+        Promise.resolve(
+          String(url).includes("graph.facebook.com")
+            ? Response.json({
+              url: "https://media.example.invalid",
+              mime_type: "audio/ogg",
+            })
+            : String(url).includes("media.example.invalid")
+            ? new Response(new Uint8Array([1]))
+            : Response.json({
+              candidates: [{
+                content: { parts: [{ text: JSON.stringify(parsed) }] },
+              }],
+            }),
+        )) as typeof fetch;
+      const fixture = job("");
+      fixture.payload = {
+        id: "audio",
+        from: "synthetic-route",
+        type: "audio",
+        audio: { id: "media" },
+      };
+      let saved: unknown;
+      const result = await prepareMessage(database().db, fixture, (v) => {
+        saved = v;
+        return Promise.resolve();
+      });
+      assert(
+        result.kind === "reply" && String(result.text).includes("Escribime"),
+        "No pide texto",
+      );
+      assert(
+        JSON.stringify(saved) ===
+          JSON.stringify({ intent: "request_text", movements: [] }),
+        "Se conservó una extracción parcial para guardar",
+      );
+      assert(
+        !String(result.text).includes("PRIVATE"),
+        "Repitió respuesta cruda",
+      );
+    }
+  } finally {
+    globalThis.fetch = prev;
+    if (key === undefined) Deno.env.delete("GEMINI_API_KEY");
+    else Deno.env.set("GEMINI_API_KEY", key);
+    if (token === undefined) Deno.env.delete("WHATSAPP_ACCESS_TOKEN");
+    else Deno.env.set("WHATSAPP_ACCESS_TOKEN", token);
+  }
+});
+
+Deno.test("audio válido sigue creando propuesta y no se convierte en pedido de texto", async () => {
+  const prev = globalThis.fetch,
+    key = Deno.env.get("GEMINI_API_KEY"),
+    token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+  try {
+    Deno.env.set("GEMINI_API_KEY", "synthetic-key");
+    Deno.env.set("WHATSAPP_ACCESS_TOKEN", "synthetic-token");
+    const parsed = {
+      intent: "add_movements",
+      movements: [{
+        kind: "income",
+        description: "Diseño",
+        totalAmountArs: 80,
+        currency: "USD",
+        installments: 1,
+        missingFields: [],
+      }],
+    };
+    globalThis.fetch = ((url: RequestInfo | URL) =>
+      Promise.resolve(
+        String(url).includes("graph.facebook.com")
+          ? Response.json({
+            url: "https://media.example.invalid",
+            mime_type: "audio/ogg",
+          })
+          : String(url).includes("media.example.invalid")
+          ? new Response(new Uint8Array([1]))
+          : Response.json({
+            candidates: [{
+              content: { parts: [{ text: JSON.stringify(parsed) }] },
+            }],
+          }),
+      )) as typeof fetch;
+    const fixture = job("");
+    fixture.payload = {
+      id: "audio-valid",
+      from: "synthetic-route",
+      type: "audio",
+      audio: { id: "media" },
+    };
+    let saved: unknown;
+    const result = await prepareMessage(database().db, fixture, (v) => {
+      saved = v;
+      return Promise.resolve();
+    });
+    assert(
+      result.kind === "add" &&
+        JSON.stringify(result.items) === JSON.stringify(parsed.movements),
+      "Audio válido perdido",
+    );
+    assert(
+      JSON.stringify(saved) === JSON.stringify(parsed),
+      "Checkpoint alterado",
+    );
+  } finally {
+    globalThis.fetch = prev;
+    if (key === undefined) Deno.env.delete("GEMINI_API_KEY");
+    else Deno.env.set("GEMINI_API_KEY", key);
+    if (token === undefined) Deno.env.delete("WHATSAPP_ACCESS_TOKEN");
+    else Deno.env.set("WHATSAPP_ACCESS_TOKEN", token);
+  }
+});
+Deno.test("un fallo del checkpoint no se oculta como error de IA", async () => {
+  const prev = globalThis.fetch, token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+  try {
+    Deno.env.set("WHATSAPP_ACCESS_TOKEN", "synthetic-token");
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response("synthetic", { status: 503 }),
+      )) as typeof fetch;
+    const fixture = job("");
+    fixture.payload = {
+      id: "audio",
+      from: "synthetic-route",
+      type: "audio",
+      audio: { id: "media" },
+    };
+    let error: unknown;
+    try {
+      await prepareMessage(database().db, fixture, () => {
+        throw Error("CHECKPOINT_UNAVAILABLE");
+      });
+    } catch (e) {
+      error = e;
+    }
+    assert(
+      error instanceof Error && error.message === "CHECKPOINT_UNAVAILABLE",
+      "Ocultó fallo de persistencia",
+    );
+  } finally {
+    globalThis.fetch = prev;
+    if (token === undefined) Deno.env.delete("WHATSAPP_ACCESS_TOKEN");
+    else Deno.env.set("WHATSAPP_ACCESS_TOKEN", token);
+  }
 });
