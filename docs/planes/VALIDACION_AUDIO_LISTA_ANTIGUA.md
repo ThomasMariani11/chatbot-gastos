@@ -1,6 +1,6 @@
 # Incidente: audio retenido al cancelar una lista antigua
 
-Fecha: 16/10/2026. Estado: corrección y pruebas locales completas; publicación y prueba de audio pendientes.
+Fecha: 16/10/2026. Estado: 025 y webhook v42 publicados y verificados; integración documental final y prueba de audio pendientes.
 
 ## Hallazgo confirmado
 
@@ -29,7 +29,6 @@ Se conserva el orden de modelos y los timeouts existentes; esta corrección no a
 - 197 Vitest; 17 Deno; 12 escenarios SQL; seis controles Node de release, tipos/lint/build aprobados.
 - Pruebas Deno con red denegada y claves ficticias: descarga rechazada, 429 con respaldo exitoso, timeout, JSON inválido y fallo RPC. Verifican que los canarios privados no aparecen en logs.
 - PostgreSQL nativo y ensayo completo Supabase local deben aprobar en el PR antes de publicar.
-- La interrupción anterior de pruebas provino de un límite de uso de la revisión automática; la acción no se ejecutó. Se retomó mediante el mismo mecanismo aprobado, sin bypass.
 
 ## Publicación y aceptación
 
@@ -40,3 +39,11 @@ Se conserva el orden de modelos y los timeouts existentes; esta corrección no a
 5. Pedir al usuario un audio nuevo o reenvío explícito. Comprobar propuesta y diagnóstico saneado. No confirmar movimientos automáticamente ni reenviar por cuenta propia el audio cancelado. Si falla, usar proveedor/motivo/estado para corregir la causa concreta.
 
 BE-11 e INF-14 siguen abiertos en su alcance general. INF-11 permanece como siguiente punto de infraestructura; backups continúan al final.
+
+## Publicación observada
+
+El código 561198a aprobó los cuatro checks en la [ejecución 38937851487](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38937851487), incluida la instalación aislada de las 25 migraciones y el rollback compatible. Se exigieron historial 024 y huellas de definición/propiedades antes de aplicar 025; la migración y su registro de historial se ejecutaron en una transacción. La lectura posterior confirma 025, condiciones corregidas y propiedades preservadas.
+
+CLI 2.120.0 publicó únicamente whatsapp-webhook, v42 ACTIVE, con JWT false y secretos existentes. POST sin firma y worker sin secreto responden 401. La cola permanece habilitada, sin trabajos v2 fallidos o procesándose en la lectura de control. Los dos mensajes anteriores siguen cerrados: no se reencolaron ni confirmaron.
+
+[Evidencia saneada](evidencias/AUDIO_LISTA_ANTIGUA_2026-10-16.json). La revisión final del [PR 5](https://github.com/ThomasMariani11/chatbot-gastos/pull/5) debe aprobar nuevamente los checks antes del merge. La causa original de interpretación sigue sin atribución exacta y requiere un audio nuevo enviado explícitamente por el usuario para validar el proveedor con los nuevos códigos.

@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-16",
+  "sourceCommit": "561198a7f171ff76536422cb070dbdade3fea81b",
+  "pullRequest": "https://github.com/ThomasMariani11/chatbot-gastos/pull/5",
+  "validatedCi": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38937851487",
+  "tests": {
+    "vitest": 197,
+    "deno": 17,
+    "sqlScenarios": 12,
+    "releaseGuards": 6,
+    "preFixRegressionFailed": true,
+    "postFixRegressionPassed": true
+  },
+  "deployment": {
+    "migrationHead": "025",
+    "migrationRecordedAtomically": true,
+    "cancelGuardFixed": true,
+    "propertiesPreserved": true,
+    "edgeVersion": 42,
+    "edgeStatus": "ACTIVE",
+    "verifyJwt": false,
+    "unsignedWebhook": 401,
+    "unsignedWorker": 401
+  },
+  "queue": {
+    "enabled": true,
+    "processingV2": 0,
+    "failedV2": 0,
+    "oldClosedMessagesReplayed": false,
+    "financialWritesByMigration": false
+  },
+  "acceptance": {
+    "newAudioPending": true,
+    "historicalInterpretationCause": "not_recorded",
+    "liveGenerationCallsByAudit": 0
+  }
+}
