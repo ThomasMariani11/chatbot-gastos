@@ -8,6 +8,9 @@
     "rules": {
       "exclude": [
         "no-import-prefix"
+      ],
+      "include": [
+        "no-console"
       ]
     }
   },

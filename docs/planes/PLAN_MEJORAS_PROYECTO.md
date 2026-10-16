@@ -37,7 +37,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Terminada |
 | 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Terminada |
 | 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Terminada |
-| 8 | INF-09 | Media | Privacidad de logs | F09 | Pendiente |
+| 8 | INF-09 | Media | Privacidad de logs | F09 | Terminada |
 | 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | Pendiente |
 | 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Pendiente |
 | 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Pendiente |
@@ -126,7 +126,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-09 — Evitar datos personales y financieros en logs
 
-- [ ] Terminada.
+- **Cierre al 16/10/2026:** migración 024 aplicada y registrada atómicamente; webhook v41 activo. Logger con campos permitidos y no-console en CI; advertencia de alta con evento/SQLSTATE, sin UUID ni SQLERRM. 185 tests, 13 Deno, 12 SQL, tipos/lint/build y concurrencia nativa aprobados. Probes sin credenciales: 401 sin encolar; dos eventos HTTP observados sin campos prohibidos; cola/cron sanos. Revisados un Owner, retención Supabase de un día y drains deshabilitados. Historial CI revisado de forma acotada; retención exacta de GitHub y logging administrado por plataforma quedan fuera de la garantía del código propio. Sin borrar históricos ni datos. [Procedimiento y límites](VALIDACION_INF_09.md) y [evidencia](evidencias/INF_09_2026-10-16.json).
+
+- [x] Terminada.
 - **Problema confirmado en código:** se imprimen texto financiero completo, teléfonos y respuestas crudas de proveedores.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:97`, `:349`, `:375`.
 - **Trabajo:** usar eventos estructurados con tiempos, estado, cantidades y códigos seguros. Evitar textos, comprobantes, destinatarios y credenciales. Revisar accesos y retención de logs.
@@ -665,3 +667,5 @@ Completar una entrada al cerrar cada tarea:
 | 16/10/2026 | INF-06 | CI para PR/main y protección real de main | Checkout limpio: 173 tests, 12 SQL, tipos/lint/build; 12 Deno sin red; actionlint; CI inicial aprobado; ensayo fallido bloqueó PR sin publicar | Publicación de Pages depende de tres checks; sin secretos productivos ni deploy del webhook | Integrar solo revisión final aprobada; INF-07 siguiente |
 
 | 16/10/2026 | INF-07 | Parche Vite y transitivas; audit obligatorio en Frontend | Audit completo/producción sin alertas; 173 tests, 12 SQL, tipos/lint/build; smoke Windows con rechazo ADS; CI y actionlint aprobados | Sin dependencias productivas, datos, migraciones ni webhook modificados | Integrar solo revisión aprobada y verificar Pages; INF-09 siguiente; backups al final |
+
+| 16/10/2026 | INF-09 | Logger permitido, no-console y advertencia SQL privada; 024 + webhook v41 | 185 tests, 13 Deno, 12 SQL, tipos/lint/build y CI nativo; 401 sintéticos, dos logs HTTP saneados, cola/cron sanos | Sin altas fallidas, mensajes reales, purgas ni datos financieros modificados; límites de históricos/plataforma explícitos | Integrar revisión documental aprobada; INF-10 siguiente; BE-13 e INF-14 abiertos |

@@ -8,10 +8,11 @@ import {
 import type { DraftListItem } from "./helpers.ts";
 import { readMessages, runActor } from "./queue.ts";
 import { prepareMessage } from "./processor.ts";
+import { writeOperationalLog } from "./logging.ts";
 
 declare const EdgeRuntime: { waitUntil: (task: Promise<unknown>) => void };
 
-export async function handleRequest(request: Request): Promise<Response> {
+async function routeRequest(request: Request): Promise<Response> {
   const url = new URL(request.url);
   if (request.method === "GET") {
     const verify = Deno.env.get("WHATSAPP_VERIFY_TOKEN");
@@ -51,13 +52,16 @@ export async function handleRequest(request: Request): Promise<Response> {
           now: Date.now,
           sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
           token: () => crypto.randomUUID(),
-          metric: (event, data) =>
-            console.log(JSON.stringify({ event, ...data })),
+          metric: writeOperationalLog,
         })
       ),
     );
     if (results.some((result) => result.status === "rejected")) {
-      console.error("QUEUE_WORKER_INTERRUPTED");
+      writeOperationalLog("worker_interrupted", {
+        workers: results.filter((result) =>
+          result.status === "rejected"
+        ).length,
+      });
     }
   };
   if (url.searchParams.get("action") === "worker") {
@@ -107,6 +111,37 @@ export async function handleRequest(request: Request): Promise<Response> {
     return json({ received: true });
   } catch {
     return json({ error: "Recepción no disponible. Reintentar." }, 503);
+  }
+}
+
+export async function handleRequest(request: Request): Promise<Response> {
+  const started = performance.now();
+  let route: "webhook" | "worker" | "test_send" | "verification" = "webhook";
+  try {
+    const action = new URL(request.url).searchParams.get("action");
+    route = action === "worker"
+      ? "worker"
+      : action === "test-send"
+      ? "test_send"
+      : request.method === "GET"
+      ? "verification"
+      : "webhook";
+    const response = await routeRequest(request);
+    writeOperationalLog("http_request", {
+      route,
+      status: response.status,
+      duration_ms: performance.now() - started,
+    });
+    return response;
+  } catch {
+    // Interceptar también errores de lectura/SDK sin exponer stack, URL o body
+    // al logger automático de excepciones no manejadas del runtime.
+    writeOperationalLog("http_request_failed", {
+      route,
+      status: 503,
+      duration_ms: performance.now() - started,
+    });
+    return json({ error: "Servicio no disponible. Reintentar." }, 503);
   }
 }
 

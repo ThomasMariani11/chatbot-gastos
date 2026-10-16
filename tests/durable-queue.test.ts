@@ -1,3 +1,4 @@
+import { createLogWriter } from '../supabase/functions/whatsapp-webhook/logging';
 import { PGlite } from '@electric-sql/pglite';
 import { readFile, readdir } from 'node:fs/promises';
 import { beforeAll, beforeEach, afterEach, afterAll, describe, it, expect, vi } from 'vitest';
@@ -413,5 +414,19 @@ describe('INF-04 / BE-10: trabajador con SQL real y fallos de entrega',()=>{
     const {deps}=worker();await runActor('synthetic-a',deps);
     expect(await confirmed()).toHaveLength(4);
     expect(vi.mocked(deps.send).mock.calls.map(call=>call[1]).filter(body=>body.includes('Se guardaron'))).toHaveLength(1);
+  });
+  it('un fallo del destino de logs no reabre el guardado ni duplica la respuesta',async()=>{
+    await seed();const {deps}=worker();deps.metric=createLogWriter(()=>{throw new Error('SYNTHETIC_LOG_SINK_FAILURE');});
+    await runActor('synthetic-a',deps);await runActor('synthetic-a',deps);
+    expect(await confirmed()).toHaveLength(4);expect(deps.send).toHaveBeenCalledOnce();
+    expect((await db.query<{status:string}>("select status from public.whatsapp_message_queue where wa_message_id='outbox-confirm'")).rows[0].status).toBe('processed');
+  });
+  it('un error crudo del proveedor conserva reintento y fase sin registrar su contenido',async()=>{
+    await seed();const {deps}=worker();const lines:string[]=[];deps.metric=createLogWriter(line=>lines.push(line));
+    deps.send=vi.fn(async()=>{throw new Error('PRIVATE_PROVIDER_CANARY synthetic-phone synthetic-key synthetic-receipt');});
+    await runActor('synthetic-a',deps);
+    expect(lines.join('')).not.toContain('PRIVATE_PROVIDER_CANARY');
+    expect(lines.map(line=>JSON.parse(line)).find(event=>event.event==='queue_retry')).toMatchObject({stage:'send',attempts:1});
+    expect(await confirmed()).toHaveLength(4);
   });
 });

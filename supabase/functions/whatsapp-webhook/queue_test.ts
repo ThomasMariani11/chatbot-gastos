@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-console -- Esta fixture intercepta console para verificar que no escapa contenido privado.
 // Sin red ni credenciales reales: deno test --allow-env --deny-net queue_test.ts
 import { readMessages } from "./queue.ts";
 import { parseDeterministicMovements, validSignature } from "./helpers.ts";
@@ -173,4 +174,117 @@ Deno.test("endpoint real acusa recibo solo después de persistir y devuelve 503 
     if (runtime) Object.defineProperty(globalThis, "EdgeRuntime", runtime);
     else Reflect.deleteProperty(globalThis, "EdgeRuntime");
   }
+});
+
+Deno.test("logs del endpoint conservan estado sin cuerpos, tokens, URL ni excepciones", async () => {
+  const names = [
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "META_APP_SECRET",
+    "WHATSAPP_VERIFY_TOKEN",
+  ] as const;
+  const previousEnv = names.map((name) => Deno.env.get(name));
+  const previousServe = Deno.serve;
+  const previous = {
+    log: console.log,
+    error: console.error,
+    warn: console.warn,
+  };
+  const captured: unknown[][] = [];
+  const canaries = [
+    "PRIVATE_BODY_CANARY",
+    "PRIVATE_VERIFY_CANARY",
+    "PRIVATE_ERROR_CANARY",
+    "PRIVATE_KEY_CANARY",
+    "5490000000000",
+    "PRIVATE_RECEIPT_CANARY",
+  ];
+  let completed = false;
+  try {
+    Deno.env.set("SUPABASE_URL", "https://example.invalid");
+    Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "synthetic-key");
+    Deno.env.set("META_APP_SECRET", "synthetic-secret");
+    Deno.env.set("WHATSAPP_VERIFY_TOKEN", canaries[1]);
+    Deno.serve = (() => ({})) as unknown as typeof Deno.serve;
+    const { handleRequest } = await import("./index.ts");
+    console.log = (...args) => {
+      captured.push(args);
+    };
+    console.error = (...args) => {
+      captured.push(args);
+    };
+    console.warn = (...args) => {
+      captured.push(args);
+    };
+    const verified = await handleRequest(
+      new Request(
+        `https://example.invalid/?hub.mode=subscribe&hub.verify_token=${
+          canaries[1]
+        }&hub.challenge=${canaries[0]}`,
+      ),
+    );
+    assert(
+      verified.status === 200 && await verified.text() === canaries[0],
+      "Verificación alterada",
+    );
+    const denied = await handleRequest(
+      new Request(`https://example.invalid/?key=${canaries[3]}`, {
+        method: "POST",
+        headers: { authorization: canaries[3] },
+        body: JSON.stringify({
+          text: canaries[0],
+          from: canaries[4],
+          receipt: canaries[5],
+        }),
+      }),
+    );
+    assert(denied.status === 401, "Firma inválida no rechazada");
+    const broken = new Request("https://example.invalid/", {
+      method: "POST",
+      body: "{}",
+    });
+    Object.defineProperty(broken, "text", {
+      value: () => Promise.reject(new Error(canaries.join(" "))),
+    });
+    const unavailable = await handleRequest(broken);
+    assert(
+      unavailable.status === 503,
+      "Error imprevisto debe responder sin exponer excepción",
+    );
+    assert(
+      !(await unavailable.text()).includes(canaries[2]),
+      "Error crudo en respuesta",
+    );
+    completed = true;
+  } finally {
+    console.log = previous.log;
+    console.error = previous.error;
+    console.warn = previous.warn;
+    Deno.serve = previousServe;
+    names.forEach((name, index) => {
+      const value = previousEnv[index];
+      if (value === undefined) Deno.env.delete(name);
+      else Deno.env.set(name, value);
+    });
+  }
+  assert(completed && captured.length === 3, "Eventos de petición incompletos");
+  for (const canary of canaries) {
+    assert(
+      !JSON.stringify(captured).includes(canary),
+      "Canario privado expuesto",
+    );
+  }
+  const events = captured.map((args) => JSON.parse(String(args[0])));
+  assert(
+    events.map((event) => event.status).join(",") === "200,401,503",
+    "Estados diagnósticos perdidos",
+  );
+  assert(
+    events.every((event) =>
+      Object.keys(event).every((key) =>
+        ["event", "route", "status", "duration_ms"].includes(key)
+      )
+    ),
+    "Campo no autorizado en logs",
+  );
 });
