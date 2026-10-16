@@ -1,0 +1,25 @@
+# Solo para el workdir descartable generado por scripts/rehearse-release.mjs.
+project_id = "pesito-rehearsal"
+[api]
+port = 54321
+[db]
+port = 54322
+major_version = 17
+[db.seed]
+enabled = false
+[studio]
+enabled = false
+[inbucket]
+enabled = true
+port = 54324
+[auth]
+site_url = "http://127.0.0.1:5173/chatbot-gastos/"
+additional_redirect_urls = ["http://127.0.0.1:5173/chatbot-gastos/**"]
+[auth.email]
+enable_confirmations = false
+[functions.whatsapp-webhook]
+verify_jwt = false
+[analytics]
+enabled = false
+[storage]
+enabled = false

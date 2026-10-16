@@ -12,7 +12,11 @@
     "lint": "eslint src vite.config.ts",
     "test": "vitest run",
     "test:sql": "node tests/renewals.integration.mjs",
-    "test:concurrency": "node tests/durable-queue-concurrency.mjs"
+    "test:concurrency": "node tests/durable-queue-concurrency.mjs",
+    "release:manifest": "node scripts/release-manifest.mjs",
+    "test:release": "node scripts/rehearse-release.mjs",
+    "local:prepare": "node scripts/prepare-local.mjs",
+    "test:release:guards": "node --test scripts/release-tools.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.114.0",

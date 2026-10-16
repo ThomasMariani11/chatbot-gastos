@@ -36,6 +36,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run test:sql
+      - run: npm run test:release:guards
       - run: npm run build
         env:
           GITHUB_SHA: ${{ github.sha }}
@@ -107,10 +108,35 @@ jobs:
           PGPASSWORD: synthetic-ci-only
           PESITO_TEST_PSQL: /usr/bin/psql
 
+  rehearsal:
+    name: Ensayo de release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Registrar candidato sin credenciales
+        run: npm run release:manifest -- local
+      - name: Instalar, probar y volver a una versión compatible en Supabase local
+        run: npm run test:release
+      - name: Publicar evidencia saneada
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ensayo-release
+          path: .temp/release-rehearsal.json
+          retention-days: 7
+          if-no-files-found: error
+
   deploy:
     name: Publicar
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [frontend, webhook, postgres]
+    needs: [frontend, webhook, postgres, rehearsal]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

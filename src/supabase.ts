@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
+import type { resolveEnvironment } from './environment';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ystyatotldslfmucvgsq.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_iSIVZw0DBeQqn6dKvJpvRw_50_DcK_w';
+declare const __APP_CONFIG__: ReturnType<typeof resolveEnvironment>;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+const config = __APP_CONFIG__;
+export const supabase = createClient(config.supabaseUrl, config.supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
