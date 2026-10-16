@@ -32,7 +32,7 @@ El alcance, las limitaciones de la fixture y el procedimiento de publicación pe
 
 ## Controles antes de publicar
 
-Usar la versión de Node indicada en `.node-version` y Deno 2.9.6. Los comandos reproducibles son `npm ci`, `npm run lint`, `npm test`, `npm run test:sql` y `npm run build`. Para el webhook: desde `supabase/functions/whatsapp-webhook`, ejecutar `deno cache --frozen index.ts queue_test.ts routing_test.ts`, `deno task check`, `deno task lint` y `deno task test`. Sus pruebas no tienen acceso a la red.
+Usar la versión de Node indicada en `.node-version` y Deno 2.9.6. Los comandos reproducibles son `npm ci`, `npm run lint`, `npm test`, `npm run test:sql` y `npm run build`. Para el webhook: desde `supabase/functions/whatsapp-webhook`, ejecutar `deno cache --config deno.ci.json --frozen index.ts queue_test.ts routing_test.ts`, `deno task --config deno.ci.json check`, `deno task --config deno.ci.json lint` y `deno task --config deno.ci.json test`. Sus pruebas no tienen acceso a la red.
 
 Cada pull request a `main` ejecuta los checks Frontend, Webhook y PostgreSQL. El último usa una base PostgreSQL 17.11 descartable y datos sintéticos para probar concurrencia; nunca se conecta a Supabase. Pages publica exclusivamente desde `main` cuando los tres jobs aprueban. La publicación del webhook y de migraciones sigue siendo un procedimiento separado.
 

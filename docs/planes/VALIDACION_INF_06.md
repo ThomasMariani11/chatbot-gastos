@@ -14,9 +14,11 @@ No se cambian lógica de negocio, modelos IA, migraciones ni secretos. La contra
 
 ## Reproducibilidad
 
-Node 22.20.0 fijado en .node-version. Deno usa su grafo independiente con nodeModulesDir none; no toma dependencias de una instalación npm manual. La única regla de lint excluida es no-import-prefix: los imports npm inline existentes tienen versión exacta y ahora integridad verificada por deno.lock; se conserva la resolución usada por Supabase y no se reescribe el runtime para satisfacer una preferencia de estilo. El resto del lint y los tipos se exige sin omitir errores.
+Node 22.20.0 fijado en .node-version. Deno usa su grafo independiente con nodeModulesDir none; no toma dependencias de una instalación npm manual. La única regla de lint excluida es no-import-prefix: los imports npm inline existentes tienen versión exacta y ahora integridad verificada por deno.ci.lock; se conserva la resolución usada por Supabase y no se reescribe el runtime para satisfacer una preferencia de estilo. El resto del lint y los tipos se exige sin omitir errores.
 
 La prueba renewals.integration.mjs importa PGlite desde la dependencia ya fijada en package-lock; no requiere node_modules/.renewal-validation. Los comandos están en README y package.json.
+
+La configuración y el lock de pruebas se llaman deno.ci.json y deno.ci.lock y se seleccionan explícitamente con --config. No se agrega un deno.json/deno.lock autodetectado por el despliegue de Supabase: CI no modifica la configuración del runtime productivo ni su grafo de imports. La compatibilidad de publicación del webhook conserva su procedimiento separado.
 
 ## Protección aplicada
 

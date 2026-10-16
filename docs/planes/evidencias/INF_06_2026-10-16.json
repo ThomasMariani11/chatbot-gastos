@@ -85,5 +85,12 @@
     "The negative test uses a protected pull request. No failed production push or production deployment was intentionally triggered."
   ],
   "production_credentials_in_ci": false,
-  "integration_policy": "Final pull request revision must pass all three checks; merge by squash with expected head SHA. Observe main deployment before reporting completion."
+  "integration_policy": "Final pull request revision must pass all three checks; merge by squash with expected head SHA. Observe main deployment before reporting completion.",
+  "webhook_config": {
+    "ci_only": true,
+    "config": "deno.ci.json",
+    "lock": "deno.ci.lock",
+    "selected_explicitly": true,
+    "production_auto_discovery_unchanged": true
+  }
 }
