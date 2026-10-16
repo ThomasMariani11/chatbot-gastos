@@ -1,6 +1,6 @@
 # INF-10 — Entornos, deploy y rollback
 
-Fecha: 16/10/2026. Estado: ensayo completo aprobado en CI; integración final por PR pendiente.
+Fecha: 16/10/2026. Estado: terminada la implementación y el ensayo completo; el PR debe aprobar los cuatro checks antes de integrarse y publicar Pages.
 
 ## Implementación
 
@@ -28,3 +28,7 @@ Se detiene el stack en finally y se publica solo evidencia saneada por siete dí
 No se ejecutaron migraciones, restauraciones, cambios de secretos ni despliegue del webhook en producción en este punto. El [ensayo 38932608913](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38932608913) aprobó las seis fases con Supabase local real: instalación de 24 migraciones (53 s), Auth/permisos, candidato (11 s) y rollback compatible (12 s), sin restaurar datos ni enviar mensajes. El checkout probado es el merge sintético 06555f3 de GitHub para el head e36d850; no se confunde con un despliegue productivo. Los otros tres checks también aprobaron. [Evidencia](evidencias/INF_10_2026-10-16.json).
 
 La revisión final añade verificación del motor Docker por socket local, versiones observadas y evidencia escrita solo tras detener el stack. Debe aprobar nuevamente CI antes del merge. No se requiere instalar WSL en esta PC.
+
+## Cierre y publicación
+
+El [PR 4](https://github.com/ThomasMariani11/chatbot-gastos/pull/4) reúne código, runbook y evidencia. La lectura final de protección debe exigir Frontend, Webhook, PostgreSQL y Ensayo de release de GitHub Actions, con reglas existentes conservadas. El cierre operativo requiere comprobar los cuatro checks del head final, merge protegido y publicación main; leer version.json con el SHA integrado. Este cambio no necesita una migración ni otro despliegue Edge productivo: el runtime permanece v41 y la base en 024. El siguiente punto es INF-11; backups siguen últimos.

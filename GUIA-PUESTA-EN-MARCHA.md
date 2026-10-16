@@ -53,7 +53,7 @@ npm run release:manifest -- local
 npm run test:release
 ```
 
-La última prueba requiere Docker y Git con el commit de rollback disponible (en CI checkout usa fetch-depth 0). Rechaza un árbol sucio, un stack pesito-rehearsal existente y cualquier URL remota. Extrae candidato y versión anterior con git archive, instala Supabase local con todas las migraciones, verifica Auth/perfil/categorías y RPC privadas, sirve y compila PWA/webhook, y vuelve a la versión anterior conservando un movimiento sintético. Cambia SW y version.json juntos.
+La última prueba requiere Docker y Git con el commit de rollback disponible (en CI checkout usa fetch-depth 0). Rechaza un árbol sucio, un stack pesito-rehearsal existente, un motor Docker remoto y cualquier URL remota. Verifica las versiones de Node/CLI y registra PostgreSQL/Docker observados. Extrae candidato y versión anterior con git archive, instala Supabase local con todas las migraciones, verifica Auth/perfil/categorías y RPC privadas, sirve y compila PWA/webhook, y vuelve a la versión anterior conservando un movimiento sintético. Cambia SW y version.json juntos.
 
 Usa secretos aleatorios de prueba, valida firma Meta y secreto del worker con payloads vacíos; no envía mensajes ni interpreta comprobantes. No prueba entregas reales, el cron alojado, MFA del proveedor ni sincronización de PWA en teléfonos (FE-07 sigue abierto). Las pruebas de negocio/concurrencia complementan este smoke test.
 

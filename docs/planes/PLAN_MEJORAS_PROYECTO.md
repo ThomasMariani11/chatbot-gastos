@@ -38,7 +38,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Terminada |
 | 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Terminada |
 | 8 | INF-09 | Media | Privacidad de logs | F09 | Terminada |
-| 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | En curso |
+| 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | Terminada |
 | 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Pendiente |
 | 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Pendiente |
 | 12 | INF-14 | Media | Observabilidad y retención | F14 | Pendiente |
@@ -136,9 +136,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-10 — Documentar y reproducir entornos, deploy y rollback
 
-- **Avance al 16/10/2026:** destinos separados, CLI fijada, instalación 001–024 y runbook compatible; 190 tests + seis controles de ensayo, 12 SQL, lint/tipos/build aprobados. Ensayo completo en CI Linux 38932608913 aprobado con instalación 001–024 y rollback sin restauración; revisión final del PR pendiente. [Validación](VALIDACION_INF_10.md) y [runbook](../operaciones/DEPLOY_Y_ROLLBACK.md).
+- **Cierre al 16/10/2026:** destinos separados, CLI fijada, instalación 001–024 y runbook compatible; 190 tests + seis controles de ensayo, 12 SQL, lint/tipos/build aprobados. Ensayo completo en CI Linux 38932608913 aprobado con instalación 001–024 y rollback sin restauración; integración condicionada a los cuatro checks del PR y publicación de Pages verificada antes de informar el cierre. [Validación](VALIDACION_INF_10.md) y [runbook](../operaciones/DEPLOY_Y_ROLLBACK.md).
 
-- [ ] Terminada.
+- [x] Terminada.
 - **Problema confirmado:** la guía indica ejecutar solo la migración inicial, aunque el webhook requiere migraciones posteriores. Web, base y Edge Function se publican por mecanismos separados; no hay staging ni procedimiento de rollback declarados.
 - **Archivos:** `GUIA-PUESTA-EN-MARCHA.md:32`, `:42`; `src/supabase.ts:3`; `supabase/config.toml:1`.
 - **Trabajo:** actualizar la instalación completa; fijar versiones de herramientas de deploy; separar configuración por entorno y evitar que pruebas apunten a producción inadvertidamente. Definir el orden migración, verificación, webhook, smoke test y activación. Registrar commit, versión Edge, migraciones y rollback compatible.
@@ -671,3 +671,5 @@ Completar una entrada al cerrar cada tarea:
 | 16/10/2026 | INF-07 | Parche Vite y transitivas; audit obligatorio en Frontend | Audit completo/producción sin alertas; 173 tests, 12 SQL, tipos/lint/build; smoke Windows con rechazo ADS; CI y actionlint aprobados | Sin dependencias productivas, datos, migraciones ni webhook modificados | Integrar solo revisión aprobada y verificar Pages; INF-09 siguiente; backups al final |
 
 | 16/10/2026 | INF-09 | Logger permitido, no-console y advertencia SQL privada; 024 + webhook v41 | 185 tests, 13 Deno, 12 SQL, tipos/lint/build y CI nativo; 401 sintéticos, dos logs HTTP saneados, cola/cron sanos | Sin altas fallidas, mensajes reales, purgas ni datos financieros modificados; límites de históricos/plataforma explícitos | Integrar revisión documental aprobada; INF-10 siguiente; BE-13 e INF-14 abiertos |
+
+| 16/10/2026 | INF-10 | Entornos explícitos, CLI 2.120.0 y runbook SQL/Edge/Pages con rollback compatible | 190 Vitest + seis controles Node, 12 SQL, lint/tipos/build; ensayo Supabase local completo 38932608913 | 24 migraciones reproducidas; rollback conserva registro sintético; sin SQL ni webhook productivos modificados | Integrar con cuatro checks aprobados; INF-11 siguiente; backups al final |
