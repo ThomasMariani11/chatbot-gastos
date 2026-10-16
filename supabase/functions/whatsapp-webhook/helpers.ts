@@ -1,3 +1,11 @@
+import {
+  failureMetadata,
+  httpFailure,
+  OperationalFailure,
+  providerFailure,
+} from "./failures.ts";
+import { writeOperationalLog } from "./logging.ts";
+
 export type ExtractedMovement = {
   kind: "expense" | "income";
   description: string;
@@ -145,28 +153,36 @@ export async function sendWhatsAppText(to: string, body: string) {
 }
 
 export async function downloadWhatsAppMedia(mediaId: string) {
-  const token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
-  if (!token) throw new Error("WhatsApp no está configurado.");
-  const metadata = await fetch(`${graphBase}/${mediaId}`, {
-    headers: { authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!metadata.ok) {
-    throw new Error("No se pudo obtener el archivo de WhatsApp.");
+  try {
+    const token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+    if (!token) throw new OperationalFailure("configuration", "meta_media");
+    const metadata = await fetch(`${graphBase}/${mediaId}`, {
+      headers: { authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!metadata.ok) {
+      await metadata.body?.cancel().catch(() => {});
+      throw httpFailure(metadata.status, "meta_media");
+    }
+    const { url, mime_type: mimeType } = await metadata.json() as {
+      url: string;
+      mime_type: string;
+    };
+    const file = await fetch(url, {
+      headers: { authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!file.ok) {
+      await file.body?.cancel().catch(() => {});
+      throw httpFailure(file.status, "meta_media");
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return { base64: btoa(binary), mimeType };
+  } catch (error) {
+    throw providerFailure(error, "meta_media", "network");
   }
-  const { url, mime_type: mimeType } = await metadata.json() as {
-    url: string;
-    mime_type: string;
-  };
-  const file = await fetch(url, {
-    headers: { authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!file.ok) throw new Error("No se pudo descargar el archivo de WhatsApp.");
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return { base64: btoa(binary), mimeType };
 }
 
 const multiResponseJsonSchema = {
@@ -388,7 +404,7 @@ export async function extractFromGemini(input: {
   activeDraftContext?: string;
 }): Promise<GeminiParsedOutput> {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
-  if (!apiKey) throw new Error("Gemini no está configurado.");
+  if (!apiKey) throw new OperationalFailure("configuration", "gemini");
 
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Argentina/Buenos_Aires",
@@ -432,13 +448,18 @@ Mensaje del usuario: ${input.text ?? ""}`;
   }
 
   // Modelos candidatos ordenados por rapidez y capacidad (gemini-3.8-flash y gemini-3.1-flash-lite)
-  const candidateModels = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
+  const candidateModels = [{ id: "gemini-3.8-flash", label: "flash" }, {
+    id: "gemini-3.1-flash-lite",
+    label: "flash_lite",
+  }] as const;
   let lastError: Error | null = null;
 
   for (const model of candidateModels) {
+    const started = performance.now();
+    let phase: "request" | "parse" = "request";
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -455,15 +476,16 @@ Mensaje del usuario: ${input.text ?? ""}`;
       );
 
       if (!response.ok) {
-        await response.body?.cancel();
-        throw new Error(`Gemini respondió ${response.status}.`);
+        await response.body?.cancel().catch(() => {});
+        throw httpFailure(response.status, "gemini");
       }
 
+      phase = "parse";
       const payload = await response.json() as {
         candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
       };
       const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!raw) throw new Error("Gemini no devolvió respuesta.");
+      if (!raw) throw new OperationalFailure("invalid_response", "gemini");
       const parsed = JSON.parse(raw) as GeminiParsedOutput;
 
       if (parsed.movements && Array.isArray(parsed.movements)) {
@@ -472,9 +494,26 @@ Mensaje del usuario: ${input.text ?? ""}`;
         }
       }
 
+      writeOperationalLog("ai_attempt", {
+        model: model.label,
+        provider: "gemini",
+        result: "success",
+        status: response.status,
+        duration_ms: performance.now() - started,
+      });
       return parsed;
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
+      lastError = providerFailure(
+        err,
+        "gemini",
+        phase === "request" ? "network" : "invalid_response",
+      );
+      writeOperationalLog("ai_attempt", {
+        model: model.label,
+        result: "failure",
+        duration_ms: performance.now() - started,
+        ...failureMetadata(lastError),
+      });
     }
   }
 
@@ -489,7 +528,7 @@ Mensaje del usuario: ${input.text ?? ""}`;
     }
   }
 
-  throw lastError ?? new Error("Gemini no pudo procesar la solicitud.");
+  throw lastError ?? new OperationalFailure("unknown", "gemini");
 }
 
 export function formatDraftList(items: DraftListItem[]): string {

@@ -4,13 +4,15 @@ import { readFile, readdir } from 'node:fs/promises';
 import { beforeAll, beforeEach, afterEach, afterAll, describe, it, expect, vi } from 'vitest';
 import { readMessages, runActor } from '../supabase/functions/whatsapp-webhook/queue';
 import { parseDraftCorrection } from '../supabase/functions/whatsapp-webhook/draft-corrections';
-import type { Job, QueueDependencies } from '../supabase/functions/whatsapp-webhook/queue';
+import type { Job, QueueDependencies, IncomingMessage } from '../supabase/functions/whatsapp-webhook/queue';
 
 const db = new PGlite();
 const a='30000000-0000-4000-8000-000000000001', b='30000000-0000-4000-8000-000000000002';
 const admin='30000000-0000-4000-8000-000000000003';
 const t1='31000000-0000-4000-8000-000000000001', t2='31000000-0000-4000-8000-000000000002';
 const migrationUrl = new URL('../supabase/migrations/', import.meta.url);
+let applyPropertiesBefore: unknown;
+const applyPropertiesSql = "select proowner,proacl::text,prosecdef,proconfig from pg_proc where oid='public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure";
 const movement = (description='Supermercado', amount=100) => ({kind:'expense',description,totalAmountArs:amount,currency:'ARS',occurredOn:'2026-10-15',installments:1,confidence:1,missingFields:[]});
 const message = (id:string, from='synthetic-a', body='Gasté 100 en supermercado') => ({id,from,type:'text',timestamp:String(Math.floor(Date.now()/1000)),text:{body}});
 
@@ -26,7 +28,7 @@ async function rpc<T=Record<string,unknown>>(name:string, args:Record<string,unk
     await db.exec('rollback to savepoint queue_call; release savepoint queue_call'); throw error;
   }
 }
-const enqueue=(...messages:ReturnType<typeof message>[])=>rpc('enqueue_whatsapp_messages',{p_messages:messages});
+const enqueue=(...messages:IncomingMessage[])=>rpc('enqueue_whatsapp_messages',{p_messages:messages});
 const claim=(wa='synthetic-a', token=t1)=>rpc<boolean>('claim_whatsapp_actor',{p_wa_id:wa,p_token:token});
 const next=(wa='synthetic-a',token=t1)=>rpc<Job|null>('next_whatsapp_job',{p_wa_id:wa,p_token:token});
 const apply=(job:Job,action:Record<string,unknown>,token=t1)=>rpc<Job>('apply_whatsapp_job',{p_id:job.id,p_token:token,p_action:action});
@@ -93,6 +95,8 @@ beforeAll(async()=>{
   const privateTransport=(await readFile(new URL('022_whatsapp_recovery_private_transport.sql',migrationUrl),'utf8')).replace(/^create extension[^\n]+\n/gm,'');
   await db.exec(privateTransport);
   await db.exec(await readFile(new URL('023_idempotent_whatsapp_delivery.sql',migrationUrl),'utf8'));
+  applyPropertiesBefore = (await db.query(applyPropertiesSql)).rows;
+  await db.exec(await readFile(new URL('025_cancel_stale_list_preserve_messages.sql',migrationUrl),'utf8'));
 },30000);
 beforeEach(async()=>{await db.exec('begin; update public.whatsapp_queue_control set enabled=true');});
 afterEach(async()=>{await db.exec('rollback');});
@@ -202,6 +206,49 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     await enqueue(message('resume','synthetic-a','retomar')); const resume=(await next())!;
     await apply(resume,{kind:'resume'}); await finish(resume);
     expect((await next())?.payload.id).toBe('two');
+  });
+  it('CANCELAR ante una lista antigua descarta solo esa lista y recupera el audio retenido',async()=>{
+    await add('old');
+    const old=(await db.query<{id:string}>("select id from public.draft_groups where status='open'")).rows[0].id;
+    await db.exec("update public.draft_groups set last_activity_at=clock_timestamp()-interval '25 hours'");
+    await enqueue({id:'new-audio',from:'synthetic-a',type:'audio',timestamp:String(Math.floor(Date.now()/1000)),audio:{id:'synthetic-media'}});
+    const held=(await next())!; await apply(held,{kind:'summary'}); await finish(held);
+    await enqueue(message('cancel-old','synthetic-a','cancelar'));
+    const cancel=(await next())!; expect(cancel.payload.id).toBe('cancel-old');
+    const outcome=await apply(cancel,{kind:'cancel'}); await finish(outcome);
+    expect(outcome.reply_text).toContain('Lista anterior descartada');
+    expect((await db.query("select status from public.draft_groups where id=$1",[old])).rows[0]).toEqual({status:'discarded'});
+    expect((await db.query("select status,effect_applied,pause_reason from public.whatsapp_message_queue where id=$1",[held.id])).rows[0]).toEqual({status:'pending',effect_applied:false,pause_reason:null});
+    const audio=(await next())!; expect(audio.payload.id).toBe('new-audio');
+    await apply(audio,{kind:'add',items:[movement('Audio nuevo',999)]}); await finish(audio);
+    expect(await next()).toBeNull(); // CANCELAR no vuelve a ejecutarse después del audio.
+    expect((await db.query("select d.description from public.draft_items d join public.draft_groups g on g.id=d.group_id where g.status='open'")).rows).toEqual([{description:'Audio nuevo'}]);
+    expect((await db.query<{n:number}>("select count(*)::int as n from public.transactions")).rows[0].n).toBe(0);
+  });
+  it('CANCELAR una lista reciente sigue descartando todo y no confirma movimientos',async()=>{
+    await add('current');
+    await enqueue(message('cancel-current','synthetic-a','cancelar'));
+    const cancel=(await next())!; const outcome=await apply(cancel,{kind:'cancel'}); await finish(outcome);
+    expect(outcome.reply_text).toContain('Se descartaron los movimientos');
+    expect((await db.query<{n:number}>("select count(*)::int as n from public.draft_groups where status='open'")).rows[0].n).toBe(0);
+    expect((await db.query<{n:number}>("select count(*)::int as n from public.transactions where status='confirmed'")).rows[0].n).toBe(0);
+  });
+
+  it('025 conserva propietario, ACL, SECURITY DEFINER y search_path y es idempotente',async()=>{
+    expect((await db.query(applyPropertiesSql)).rows).toEqual(applyPropertiesBefore);
+    const definition=(await db.query<{body:string}>("select pg_get_functiondef('public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure) as body")).rows[0].body;
+    const sql=(await readFile(new URL('025_cancel_stale_list_preserve_messages.sql',migrationUrl),'utf8')).replace(/^begin;$/m,'').replace(/^commit;$/m,'');
+    await db.exec(sql);
+    expect((await db.query<{body:string}>("select pg_get_functiondef('public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure) as body")).rows[0].body).toBe(definition);
+    expect((await db.query(applyPropertiesSql)).rows).toEqual(applyPropertiesBefore);
+  });
+  it('025 rechaza una definición inesperada en vez de reemplazarla silenciosamente',async()=>{
+    const definition=(await db.query<{body:string}>("select pg_get_functiondef('public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure) as body")).rows[0].body;
+    const changed=definition.replace("and action not in ('resume','discard','cancel') then","and action not in ('resume','discard','cancel','unexpected') then");
+    expect(changed).not.toBe(definition);
+    await db.exec(changed);
+    const sql=(await readFile(new URL('025_cancel_stale_list_preserve_messages.sql',migrationUrl),'utf8')).replace(/^begin;$/m,'').replace(/^commit;$/m,'');
+    await expect(db.exec(sql)).rejects.toThrow('STALE_CANCEL_DEFINITION_UNEXPECTED');
   });
   it('bloquea mutaciones financieras si la cuenta fue suspendida después de interpretar',async()=>{
     await enqueue(message('one')); await claim(); const job=(await next())!;

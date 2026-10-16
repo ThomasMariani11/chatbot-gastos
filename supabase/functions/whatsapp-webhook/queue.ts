@@ -1,3 +1,4 @@
+import { failureMetadata } from "./failures.ts";
 import type {
   FailureStage,
   QueueMetricData,
@@ -194,10 +195,14 @@ async function processJob(
       attempts: job.attempts,
     });
     return true;
-  } catch {
+  } catch (error) {
     // No registrar mensajes, teléfonos, comprobantes, respuestas del proveedor
     // ni excepciones que puedan incluir credenciales o contenido del usuario.
-    deps.metric("queue_retry", { attempts: job.attempts, stage });
+    deps.metric("queue_retry", {
+      attempts: job.attempts,
+      stage,
+      ...failureMetadata(error),
+    });
     await deps.rpc("fail_whatsapp_job", { p_id: job.id, p_token: token });
     return false;
   }

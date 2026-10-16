@@ -39,6 +39,7 @@ for (const name of (await readdir(migrations)).filter(name => /^\d+.*\.sql$/.tes
 }
 await execute(await readFile(new URL('023_idempotent_whatsapp_delivery.sql', migrations),'utf8'));
 await execute(await readFile(new URL('024_private_bootstrap_warning.sql', migrations),'utf8'));
+await execute(await readFile(new URL('025_cancel_stale_list_preserve_messages.sql', migrations),'utf8'));
 await execute(`insert into public.invitation_codes(code,duration_days) values('NATIVE-QUEUE',30);
   insert into auth.users(id,email,raw_user_meta_data) values('${a}','a@example.invalid','{"invitation_code":"NATIVE-QUEUE"}');
   update public.whatsapp_links set wa_id='synthetic-native',status='active' where user_id='${a}';

@@ -549,6 +549,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-11 — Retener mensajes ante listas antiguas o falta de capacidad
 
+- **Incidente 16/10/2026:** CANCELAR ante una lista de más de 24 h se retenía junto con el audio nuevo. Corrección 025 y diagnóstico seguro de preparación implementados; 197 tests + 17 Deno aprobados. 025 aplicada y webhook v42 activo tras cuatro checks aprobados; pendiente prueba de audio con diagnóstico nuevo. El alcance general de BE-11 sigue abierto. [Detalle](VALIDACION_AUDIO_LISTA_ANTIGUA.md).
+
 - [ ] Terminada.
 - **Problema confirmado:** el gasto nuevo que llega con una lista antigua no queda retenido para retomarlo; los excedentes no tienen transición de recuperación. El límite depende de la posición máxima incluyendo eliminados, no de la cantidad activa.
 - **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:588`, `:863`; `supabase/migrations/014_draft_movement_batches.sql:24`.
@@ -673,3 +675,5 @@ Completar una entrada al cerrar cada tarea:
 | 16/10/2026 | INF-09 | Logger permitido, no-console y advertencia SQL privada; 024 + webhook v41 | 185 tests, 13 Deno, 12 SQL, tipos/lint/build y CI nativo; 401 sintéticos, dos logs HTTP saneados, cola/cron sanos | Sin altas fallidas, mensajes reales, purgas ni datos financieros modificados; límites de históricos/plataforma explícitos | Integrar revisión documental aprobada; INF-10 siguiente; BE-13 e INF-14 abiertos |
 
 | 16/10/2026 | INF-10 | Entornos explícitos, CLI 2.120.0 y runbook SQL/Edge/Pages con rollback compatible | 190 Vitest + seis controles Node, 12 SQL, lint/tipos/build; ensayo Supabase local completo 38932608913 | 24 migraciones reproducidas; rollback conserva registro sintético; sin SQL ni webhook productivos modificados | Integrar con cuatro checks aprobados; INF-11 siguiente; backups al final |
+
+| 16/10/2026 | Incidente BE-11 / diagnóstico INF-14 | CANCELAR resuelve la lista antigua conservando el mensaje nuevo; errores técnicos permitidos por proveedor | Regresión reproducida; 197 Vitest, 17 Deno, 12 SQL, seis controles Node, tipos/lint/build | Sin reprocesar audios cancelados, guardar movimientos ni cambiar modelos/timeouts | 025 + webhook v42 publicados y verificados; integrar revisión documental tras CI y validar audio nuevo; INF-11 después |

@@ -18,7 +18,8 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "useDefineForClassFields": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true
   },
   "include": [
     "src",
