@@ -34,8 +34,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 2 | INF-02 | Alta | Escrituras e integridad de borradores y cola | F02 | Terminada |
 | 3 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | Terminada |
 | 4 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Terminada |
-| 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | En curso |
-| 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Pendiente |
+| 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Terminada |
+| 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Terminada |
 | 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Pendiente |
 | 8 | INF-09 | Media | Privacidad de logs | F09 | Pendiente |
 | 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | Pendiente |
@@ -88,9 +88,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-05 — Exigir TLS y limitar acceso SQL por red
 
-- **Avance al 15/10/2026:** TLS obligatorio y dos reglas IPv4 /32 para orígenes SQL observados desde la PC; sin acceso mundial ni addons. Rechazo de plaintext y de una fuente fuera de la regla comprobados; TLS 1.3 con CA/hostname válido en los poolers. Administración HTTPS, worker, REST, Auth y cron sanos. Falta prueba normal app/WhatsApp del propietario; endpoint directo ENOTFOUND desde esta red, a verificar. [Runbook y límites](VALIDACION_INF_05.md) y [evidencia](evidencias/INF_05_2026-10-15.json).
+- **Cierre al 16/10/2026:** terminada para la arquitectura vigente. TLS obligatorio, rechazo sin cifrar y de origen no autorizado, acceso por ambos poolers con CA/hostname válidos y administración HTTPS comprobados. Refrescada únicamente la /32 SQL actual; tres /32 propias observadas, sin rangos mundiales ni costo. El propietario confirma datos visibles y respuesta del bot. El endpoint directo resuelve solo a IPv6 y la PC carece de ruta IPv6 (ENETUNREACH): no se usa en esta arquitectura; para SQL nativo se admite el pooler IPv4. No se afirma autenticación nativa ni TLS directo IPv6 probados. [Runbook y límites](VALIDACION_INF_05.md), [evidencia inicial](evidencias/INF_05_2026-10-15.json) y [cierre](evidencias/INF_05_cierre_2026-10-16.json).
 
-- [ ] Terminada.
+- [x] Terminada.
 - **Problema confirmado en Supabase:** permitidas `0.0.0.0/0` y `::/0`; exigencia de SSL desactivada, aunque SSL está disponible.
 - **Ubicación:** configuración remota de Supabase; no existe una línea equivalente en el repositorio. Proyecto asociado en `supabase/config.toml:1`.
 - **Trabajo:** inventariar orígenes legítimos de conexiones SQL, exigir TLS y definir una lista de redes permitidas. Preparar acceso de recuperación para evitar bloquear la administración.
@@ -98,7 +98,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-06 — Proteger main y agregar validaciones de CI
 
-- [ ] Terminada.
+- [x] Terminada.
 - **Problema confirmado:** `main` figura sin protección. El workflow publica sin ejecutar pruebas o lint; el webhook queda fuera del chequeo TypeScript y del lint actuales.
 - **Archivos:** `.github/workflows/deploy-pages.yml:4`, `:27`; `tsconfig.json:16`; `eslint.config.mjs:6`; `tests/renewals.integration.mjs:4`.
 - **Trabajo:** validar pull requests, exigir checks antes de publicar e incorporar lint, pruebas, build y validación del webhook con Deno. Formalizar la dependencia de PGlite y las pruebas de migraciones para que no dependan de una instalación manual ignorada por Git.
@@ -657,3 +657,7 @@ Completar una entrada al cerrar cada tarea:
 | 15/10/2026 | Cierre INF-04 / BE-10 | Migración 023 y evidencia de aceptación; sin cambios de código o deploy en este cierre | Propietario confirma prueba correcta; un único gasto de prueba de 1 ARS y cero pendientes; cola v2 sin fallos ni procesamiento | Lectura agregada sin modificar datos | INF-05 siguiente; resto de auditoría abierto; backups al final |
 
 | 15/10/2026 | INF-05 | TLS obligatorio y allowlist de dos /32 propias; script manual y runbook de recuperación por HTTPS | Protocolos sin credenciales, denegación de red, CA/hostname, salud HTTP/SQL/cron | Configuración aplicada sin addon ni cambios de app/bot/migraciones | Prueba normal del propietario; ruta directa no disponible desde esta red; IPs dinámicas se actualizan por control HTTPS |
+
+| 16/10/2026 | Cierre INF-05 | TLS obligatorio y tres /32 SQL observadas; ruta nativa admitida por pooler IPv4 | DNS A/AAAA, IPv6 ENETUNREACH sin ruta, denegación antes de autorizar /32, ambos poolers con TLS verificado, salud SQL/cron/HTTP y aceptación del propietario | Sin cambios de datos, contraseñas, facturación ni deploys; TLS/autenticación directa IPv6 no ensayados | INF-06 siguiente; reevaluar IPv6 solo si se incorpora un consumidor directo |
+
+| 16/10/2026 | INF-06 | CI para PR/main y protección real de main | Checkout limpio: 173 tests, 12 SQL, tipos/lint/build; 12 Deno sin red; actionlint; CI inicial aprobado; ensayo fallido bloqueó PR sin publicar | Publicación de Pages depende de tres checks; sin secretos productivos ni deploy del webhook | Integrar solo revisión final aprobada; INF-07 siguiente |

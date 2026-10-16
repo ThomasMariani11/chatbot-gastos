@@ -10,7 +10,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint src vite.config.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:sql": "node tests/renewals.integration.mjs",
+    "test:concurrency": "node tests/durable-queue-concurrency.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.114.0",
