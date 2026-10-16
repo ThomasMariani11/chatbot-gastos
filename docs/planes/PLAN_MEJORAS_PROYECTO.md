@@ -549,6 +549,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-11 — Retener mensajes ante listas antiguas o falta de capacidad
 
+- **Seguimiento de audio 16/10/2026:** la prueba nueva confirmó 503 en ambos modelos. Se implementa pedido de texto inmediato tras agotar los dos modelos, con checkpoint persistente y sin reintentos de IA en la cola. Flash Lite primero; medios con 10 s por intento. No se crean movimientos del audio fallido. Ver [validación](VALIDACION_FALLBACK_TEXTO.md). Publicación y prueba real pendientes; INF-11 sigue después.
+
 - **Incidente 16/10/2026:** CANCELAR ante una lista de más de 24 h se retenía junto con el audio nuevo. Corrección 025 y diagnóstico seguro de preparación implementados; 197 tests + 17 Deno aprobados. 025 aplicada y webhook v42 activo tras cuatro checks aprobados; pendiente prueba de audio con diagnóstico nuevo. El alcance general de BE-11 sigue abierto. [Detalle](VALIDACION_AUDIO_LISTA_ANTIGUA.md).
 
 - [ ] Terminada.
