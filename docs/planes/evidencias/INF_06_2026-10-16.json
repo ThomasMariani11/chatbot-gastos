@@ -14,7 +14,7 @@
     "typescript": true,
     "build": true,
     "local_node": "24.21.0",
-    "ci_node": "22.20.0",
+    "ci_node": "22.20.0 (initial CI)",
     "deno": "2.9.6",
     "deno_cache_initially_empty": true,
     "deno_frozen_lock": true,
@@ -35,7 +35,8 @@
       "PostgreSQL": "success",
       "Publicar": "skipped"
     },
-    "postgres_image": "postgres:17.11@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3"
+    "postgres_image": "postgres:17.11@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3",
+    "node": "22.20.0"
   },
   "protection": {
     "strict": true,
@@ -81,7 +82,7 @@
     "No deliberately failing commit is pushed to main or deployed.",
     "The workflow validates the webhook but does not deploy it or database migrations.",
     "Existing Vite bundle-size warning remains for the frontend improvement plan.",
-    "Node clean-checkout validation runs locally on 24.21.0; hosted CI validates pinned 22.20.0.",
+    "Node clean-checkout validation runs locally on 24.21.0; initial hosted CI validated 22.20.0 and final revision requires 22.23.3.",
     "The negative test uses a protected pull request. No failed production push or production deployment was intentionally triggered."
   ],
   "production_credentials_in_ci": false,
@@ -92,5 +93,7 @@
     "lock": "deno.ci.lock",
     "selected_explicitly": true,
     "production_auto_discovery_unchanged": true
-  }
+  },
+  "final_ci_node": "22.23.3",
+  "node_version_source": "https://nodejs.org/dist/index.json"
 }

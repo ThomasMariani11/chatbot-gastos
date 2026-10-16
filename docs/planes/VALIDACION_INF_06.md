@@ -14,7 +14,7 @@ No se cambian lógica de negocio, modelos IA, migraciones ni secretos. La contra
 
 ## Reproducibilidad
 
-Node 22.20.0 fijado en .node-version. Deno usa su grafo independiente con nodeModulesDir none; no toma dependencias de una instalación npm manual. La única regla de lint excluida es no-import-prefix: los imports npm inline existentes tienen versión exacta y ahora integridad verificada por deno.ci.lock; se conserva la resolución usada por Supabase y no se reescribe el runtime para satisfacer una preferencia de estilo. El resto del lint y los tipos se exige sin omitir errores.
+Node 22.23.3 fijado en .node-version, último parche de la línea 22 LTS del índice oficial consultado el 16/10/2026. Deno usa su grafo independiente con nodeModulesDir none; no toma dependencias de una instalación npm manual. La única regla de lint excluida es no-import-prefix: los imports npm inline existentes tienen versión exacta y ahora integridad verificada por deno.ci.lock; se conserva la resolución usada por Supabase y no se reescribe el runtime para satisfacer una preferencia de estilo. El resto del lint y los tipos se exige sin omitir errores.
 
 La prueba renewals.integration.mjs importa PGlite desde la dependencia ya fijada en package-lock; no requiere node_modules/.renewal-validation. Los comandos están en README y package.json.
 
@@ -26,7 +26,7 @@ Requerir pull request con los tres checks reales y rama actualizada; aplicar tam
 
 ## Resultados de validación
 
-1. Copia limpia mediante clone local sin hardlinks ni archivos ignorados: npm ci, lint, 173 tests en 11 archivos, 12 escenarios SQL, TypeScript y build aprobados. Node local 24.21.0; CI verifica Node 22.20.0.
+1. Copia limpia mediante clone local sin hardlinks ni archivos ignorados: npm ci, lint, 173 tests en 11 archivos, 12 escenarios SQL, TypeScript y build aprobados. Node local 24.21.0; CI inicial verificó Node 22.20.0. La revisión final usa el parche 22.23.3 y debe aprobar nuevamente antes de integrar.
 2. Deno 2.9.6 con caché inicialmente vacía: cache --frozen, tipos, lint de ocho archivos y 12 tests con permisos de entorno acotados y red denegada, aprobados. actionlint 1.7.12 oficial, binario validado por SHA256: sin errores.
 3. [CI inicial](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38922024227): Frontend, Webhook y PostgreSQL aprobados; Publicar omitido al ser PR. La concurrencia SQL se ejecutó en PostgreSQL 17.11 real sobre Linux. No se usa Supabase para las fixtures.
 4. [Ensayo negativo](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38922296104): una aserción deliberadamente falsa en tests/inf06-gate-probe.test.ts hizo fallar npm test. Los otros dos checks aprobaron; Publicar quedó skipped y el PR mostró mergeable_state blocked bajo la protección activa. No se intentó forzar una integración ni publicar un commit fallido. El archivo temporal se elimina de la revisión final y nunca se integra a main.
