@@ -1,3 +1,9 @@
+import type {
+  FailureStage,
+  QueueMetricData,
+  QueueMetricEvent,
+} from "./logging.ts";
+
 export type IncomingMessage = {
   id: string;
   from: string;
@@ -61,7 +67,7 @@ export type QueueDependencies = {
   now: () => number;
   sleep: (ms: number) => Promise<void>;
   token: () => string;
-  metric: (event: string, data: Record<string, number | string>) => void;
+  metric: (event: QueueMetricEvent, data: QueueMetricData) => void;
 };
 
 export async function runActor(
@@ -150,21 +156,25 @@ async function processJob(
   if (Number.isFinite(received)) {
     deps.metric("queue_wait", { duration_ms: Math.max(0, start - received) });
   }
+  let stage: FailureStage = "interpret";
   try {
     let applied = job;
     if (!job.effect_applied) {
       const interpretStart = deps.now();
       const action = await deps.prepare(job, async (result) => {
+        stage = "checkpoint";
         await deps.rpc("checkpoint_whatsapp_job", {
           p_id: job.id,
           p_token: token,
           p_result: result,
         });
+        stage = "interpret";
       });
       deps.metric("queue_interpret", {
         duration_ms: deps.now() - interpretStart,
         operations: Array.isArray(action.items) ? action.items.length : 0,
       });
+      stage = "apply";
       applied = await deps.rpc<Job>("apply_whatsapp_job", {
         p_id: job.id,
         p_token: token,
@@ -172,10 +182,12 @@ async function processJob(
       });
     }
     if (applied.reply_text) {
+      stage = "send";
       const sendStart = deps.now();
       await deps.send(job.wa_id, applied.reply_text);
       deps.metric("queue_send", { duration_ms: deps.now() - sendStart });
     }
+    stage = "finish";
     await deps.rpc("finish_whatsapp_job", { p_id: job.id, p_token: token });
     deps.metric("queue_message", {
       duration_ms: deps.now() - start,
@@ -185,7 +197,7 @@ async function processJob(
   } catch {
     // No registrar mensajes, teléfonos, comprobantes, respuestas del proveedor
     // ni excepciones que puedan incluir credenciales o contenido del usuario.
-    deps.metric("queue_retry", { attempts: job.attempts });
+    deps.metric("queue_retry", { attempts: job.attempts, stage });
     await deps.rpc("fail_whatsapp_job", { p_id: job.id, p_token: token });
     return false;
   }

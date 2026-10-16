@@ -37,7 +37,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Terminada |
 | 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Terminada |
 | 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Terminada |
-| 8 | INF-09 | Media | Privacidad de logs | F09 | Pendiente |
+| 8 | INF-09 | Media | Privacidad de logs | F09 | En curso |
 | 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | Pendiente |
 | 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Pendiente |
 | 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Pendiente |
@@ -125,6 +125,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Cierre:** evidencia de una restauración exitosa, integridad de datos y tiempos medidos; objetivos de recuperación acordados y runbook disponible. No restaurar sobre producción durante la prueba.
 
 ### INF-09 — Evitar datos personales y financieros en logs
+
+- **Avance al 16/10/2026:** los logs crudos del webhook se habían eliminado en INF-03. Confirmada advertencia activa de bootstrap_user con UUID y SQLERRM: preparada 024 que cambia solo el mensaje. Logger con campos permitidos, no-console en CI y frontera de errores sin stack/URL/body. 185 tests, 13 Deno, 12 SQL, lint/tipos/build aprobados. Un Owner y retención Supabase de un día; drains deshabilitados. Revisión acotada de diez jobs CI sin patrones buscados de credenciales. Pendientes CI nativo y publicación; límites explícitos, sin borrar históricos. [Procedimiento](VALIDACION_INF_09.md) y [evidencia](evidencias/INF_09_2026-10-16.json).
 
 - [ ] Terminada.
 - **Problema confirmado en código:** se imprimen texto financiero completo, teléfonos y respuestas crudas de proveedores.

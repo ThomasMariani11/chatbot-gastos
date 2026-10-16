@@ -1,0 +1,189 @@
+{
+  "date": "2026-10-16",
+  "scope": "INF-09",
+  "state": "validated_locally_pending_ci_and_publication",
+  "baseline_commit": "112bfb00b59a8962cdbbeca71e6b61fd67d6a769",
+  "confirmed_findings": {
+    "legacy_webhook_console_removed_by_prior_work": true,
+    "active_bootstrap_warning_exposes_id_and_sqlerrm": true,
+    "bootstrap_definition_hash_before": "6e0669697bf52d8a24bd5892e32457f6"
+  },
+  "local_validation": {
+    "vitest_tests": 185,
+    "vitest_files": 12,
+    "sql_renewal_scenarios": 12,
+    "deno_tests": 13,
+    "deno_check": true,
+    "deno_lint": true,
+    "lint": true,
+    "typescript": true,
+    "build": true,
+    "raw_console_negative_lint_check": true,
+    "privacy_canaries": true,
+    "sql_warning_reproduced_and_fixed": true,
+    "bootstrap_body_otherwise_identical": true,
+    "bootstrap_acl_owner_and_search_path_preserved": true,
+    "log_sink_failure_does_not_duplicate_financial_effects": true
+  },
+  "cloud_review": {
+    "member_count": 1,
+    "roles": {
+      "Owner": 1
+    },
+    "features": {
+      "log.retention_days": {
+        "enabled": true,
+        "config": {
+          "enabled": true,
+          "value": 1,
+          "unlimited": false,
+          "unit": "days"
+        }
+      },
+      "log_drains": {
+        "enabled": false,
+        "config": {
+          "enabled": false
+        }
+      },
+      "audit_log_drains": {
+        "enabled": false,
+        "config": {
+          "enabled": false
+        }
+      }
+    },
+    "log_window_minutes": 60,
+    "aggregates": [
+      {
+        "events": 144,
+        "source": "postgres_logs",
+        "credential_pattern_events": 0,
+        "legacy_bootstrap_events": 0
+      }
+    ],
+    "raw_logs_saved": false,
+    "drains_list_http": 403,
+    "drains_feature_disabled": true
+  },
+  "ci_log_review": {
+    "date": "2026-10-16",
+    "scope": "bounded_ci_log_review",
+    "reviewed_runs": [
+      38926182612,
+      38923285948,
+      38819959514
+    ],
+    "jobs": [
+      {
+        "id": 117058194717,
+        "run": 38926182612,
+        "name": "Frontend",
+        "available": true,
+        "bytes": 26571,
+        "credential_prefix_matches": 0,
+        "legacy_raw_message_log_markers": 0
+      },
+      {
+        "id": 117058194838,
+        "run": 38926182612,
+        "name": "PostgreSQL",
+        "available": true,
+        "bytes": 28777,
+        "credential_prefix_matches": 0,
+        "legacy_raw_message_log_markers": 0
+      },
+      {
+        "id": 117058194957,
+        "run": 38926182612,
+        "name": "Webhook",
+        "available": true,
+        "bytes": 17539,
+        "credential_prefix_matches": 0,
+        "legacy_raw_message_log_markers": 0
+      },
+      {
+        "id": 117058389762,
+        "run": 38926182612,
+        "name": "Publicar",
+        "available": true,
+        "bytes": 4582,
+        "credential_prefix_matches": 0,
+        "legacy_raw_message_log_markers": 0
+      },
+      {
+        "id": 117048348579,
+        "run": 38923285948,
+        "name": "Frontend",
+        "available": true,
+        "bytes": 26663,
+        "credential_prefix_matches": 0,
+        "legacy_raw_message_log_markers": 0
+      },
+      {
+        "id": 117048348722,
+        "run": 38923285948,
+        "name": "Webhook",
+        "available": true,
+        "bytes": 17538,
+        "credential_prefix_matches": 0,
+        "legacy_raw_message_log_markers": 0
+      },
+      {
+        "id": 117048348783,
+        "run": 38923285948,
+        "name": "PostgreSQL",
+        "available": true,
+        "bytes": 28713,
+        "credential_prefix_matches": 0,
+        "legacy_raw_message_log_markers": 0
+      },
+      {
+        "id": 117048540318,
+        "run": 38923285948,
+        "name": "Publicar",
+        "available": true,
+        "bytes": 3951,
+        "credential_prefix_matches": 0,
+        "legacy_raw_message_log_markers": 0
+      },
+      {
+        "id": 116713857478,
+        "run": 38819959514,
+        "name": "build",
+        "available": true,
+        "bytes": 21503,
+        "credential_prefix_matches": 0,
+        "legacy_raw_message_log_markers": 0
+      },
+      {
+        "id": 116713959015,
+        "run": 38819959514,
+        "name": "deploy",
+        "available": true,
+        "bytes": 3879,
+        "credential_prefix_matches": 0,
+        "legacy_raw_message_log_markers": 0
+      }
+    ],
+    "raw_logs_saved": false,
+    "raw_logs_printed": false,
+    "limits": [
+      "Selected recent runs only; not an exhaustive review of all 117 main runs.",
+      "Pattern matches are heuristic signals, not proof of absence of all sensitive data."
+    ]
+  },
+  "limits": [
+    "CI history review is bounded, not an exhaustive scan of all runs.",
+    "Supabase platform request/database logs can include provider-controlled metadata and error details outside this application logger. Global PostgreSQL logging settings are not altered.",
+    "Historical logs are not deleted and cannot be retroactively sanitized by changing application code.",
+    "GitHub repository log-retention duration was not verified; no retention settings are changed.",
+    "The existing incomplete-signup behavior remains BE-13; only its diagnostic warning changes.",
+    "Payload/draft retention and monitoring remain INF-14; no pending customer data is deleted."
+  ],
+  "production": {
+    "migration_024_applied": false,
+    "webhook_version_before": 40,
+    "webhook_deployed": false
+  }
+}
