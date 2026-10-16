@@ -43,6 +43,11 @@ export function localUrl(value) {
   return url.origin;
 }
 
+export function localDockerEndpoint(value) {
+  if (!/^(unix|npipe):\/\//.test(value)) throw new Error('El ensayo requiere un motor Docker local mediante socket o named pipe.');
+  return value;
+}
+
 export function localEnvironment(source = process.env) {
   return Object.fromEntries(Object.entries(source).filter(([key]) => !/^(SUPABASE_|VITE_|GEMINI_|WHATSAPP_|META_|PG)/i.test(key)));
 }

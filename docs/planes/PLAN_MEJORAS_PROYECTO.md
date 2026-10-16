@@ -136,7 +136,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-10 — Documentar y reproducir entornos, deploy y rollback
 
-- **Avance al 16/10/2026:** destinos separados, CLI fijada, instalación 001–024 y runbook compatible; 190 tests + cinco controles de ensayo, 12 SQL, lint/tipos/build aprobados. Ensayo completo en CI Linux pendiente; no se marca cerrado. [Validación](VALIDACION_INF_10.md) y [runbook](../operaciones/DEPLOY_Y_ROLLBACK.md).
+- **Avance al 16/10/2026:** destinos separados, CLI fijada, instalación 001–024 y runbook compatible; 190 tests + seis controles de ensayo, 12 SQL, lint/tipos/build aprobados. Ensayo completo en CI Linux 38932608913 aprobado con instalación 001–024 y rollback sin restauración; revisión final del PR pendiente. [Validación](VALIDACION_INF_10.md) y [runbook](../operaciones/DEPLOY_Y_ROLLBACK.md).
 
 - [ ] Terminada.
 - **Problema confirmado:** la guía indica ejecutar solo la migración inicial, aunque el webhook requiere migraciones posteriores. Web, base y Edge Function se publican por mecanismos separados; no hay staging ni procedimiento de rollback declarados.

@@ -6,7 +6,7 @@ import { mkdtemp, mkdir, cp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { run, stop, localUrl, localEnvironment, stampDistribution, digestFiles } from './release-tools.mjs';
+import { run, stop, localUrl, localDockerEndpoint, localEnvironment, stampDistribution, digestFiles } from './release-tools.mjs';
 import { prepareLocal } from './prepare-local.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -16,6 +16,7 @@ assert.ok(npmCli?.endsWith('npm-cli.js'), 'Ejecutar mediante npm run test:releas
 const tools = JSON.parse(await readFile(join(root, 'config/environments.json'), 'utf8'));
 const cliVersion = (await readFile(join(root, '.supabase-version'), 'utf8')).trim();
 assert.match(cliVersion, /^\d+\.\d+\.\d+$/);
+assert.equal(process.versions.node, (await readFile(join(root, '.node-version'), 'utf8')).trim(), 'Usar Node de .node-version.');
 assert.match(tools.release.rollbackCommit, /^[a-f0-9]{40}$/);
 assert.equal(await run('git', ['status', '--porcelain'], { cwd: root }), '', 'Se requiere checkout limpio.');
 const current = await run('git', ['rev-parse', 'HEAD'], { cwd: root });
@@ -32,7 +33,7 @@ async function step(name, action) {
   console.log(JSON.stringify({ phase: name, passed: true }));
   return value;
 }
-const cli = args => run(process.execPath, [npmCli, 'exec', '--yes', '--package=supabase@' + cliVersion, '--', 'supabase', '--workdir', work, ...args], { cwd: root, env, timeout: 480000 });
+const cli = (args, timeout = 480000) => run(process.execPath, [npmCli, 'exec', '--yes', '--package=supabase@' + cliVersion, '--', 'supabase', '--workdir', work, ...args], { cwd: root, env, timeout });
 async function archive(commit, directory) {
   await mkdir(directory);
   const tar = directory + '.tar';
@@ -109,7 +110,9 @@ async function buildAndSmoke(directory, commit, api, anon) {
 }
 try {
   await step('docker', async () => {
-    await run('docker', ['info', '--format', '{{.ServerVersion}}'], { env, timeout: 20000 });
+    if (env.DOCKER_HOST) localDockerEndpoint(env.DOCKER_HOST);
+    localDockerEndpoint(await run('docker', ['context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'], { env, timeout: 15000 }));
+    evidence.tools = { node: process.versions.node, docker: await run('docker', ['info', '--format', '{{.ServerVersion}}'], { env, timeout: 20000 }), supabase: cliVersion };
     const containers = await run('docker', ['ps', '-a', '--format', '{{.Names}}'], { env, timeout: 15000 });
     assert.ok(!containers.split('\n').some(name => name.endsWith('_' + project)), 'No se reutiliza ni detiene un stack local existente.');
   });
@@ -121,12 +124,14 @@ try {
     await writeFile(join(temp, 'synthetic.env'), 'META_APP_SECRET=' + metaSecret + '\nWHATSAPP_WORKER_SECRET=' + workerSecret + '\nWHATSAPP_VERIFY_TOKEN=synthetic-verify\n', { mode: 0o600 });
   });
   await step('instalacion_completa', async () => {
+    assert.equal(await cli(['--version']), cliVersion);
     stackAttempted = true;
     await cli(['start', '--exclude', 'studio,imgproxy,storage-api,logflare,vector,supavisor']);
     const versions = JSON.parse(await sql('select json_agg(version order by version) from supabase_migrations.schema_migrations;'));
     const expected = (await digestFiles(join(candidate, 'supabase/migrations'), n => n.endsWith('.sql'))).map(f => f.file.split('_')[0]);
     assert.deepEqual(versions, [...expected, '99999999999999']);
     evidence.migrationCount = expected.length;
+    evidence.tools.postgres = await sql('show server_version;');
     assert.equal(await sql('select not enabled from public.whatsapp_queue_control;'), 't');
     assert.equal(await sql("select count(*) from cron.job where jobname='pesito-whatsapp-queue-recovery';"), '0');
   });
@@ -173,16 +178,20 @@ try {
   evidence.completedAt = new Date().toISOString();
   evidence.externalMessages = 0;
   evidence.databaseRestore = false;
-  await mkdir(join(root, '.temp'), { recursive: true });
-  await writeFile(join(root, '.temp/release-rehearsal.json'), JSON.stringify(evidence, null, 2) + '\n');
+
 } catch {
   console.error(JSON.stringify({ phase, passed: false, reason: 'Consultar requisitos/herramientas del runbook; se omiten credenciales y logs crudos.' }));
   process.exitCode = 1;
 } finally {
-  await stopWorker();
+  try { await stopWorker(); } catch { process.exitCode = 1; console.error('No se pudo detener el worker local propio.'); }
   if (stackAttempted) {
-    try { await cli(['stop', '--no-backup']); }
+    try { await cli(['stop', '--no-backup'], 60000); }
     catch { console.error('No se pudo detener el stack local pesito-rehearsal; revisar antes de repetir.'); process.exitCode = 1; }
+  }
+  if (evidence.completedAt && process.exitCode !== 1) {
+    evidence.cleanupPassed = true;
+    await mkdir(join(root, '.temp'), { recursive: true });
+    await writeFile(join(root, '.temp/release-rehearsal.json'), JSON.stringify(evidence, null, 2) + '\n');
   }
   // Conservar directorio temporal fuera del repo para diagnóstico privado; no publicar status ni synthetic.env.
 }

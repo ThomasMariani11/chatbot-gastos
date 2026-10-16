@@ -1,6 +1,6 @@
 # INF-10 — Entornos, deploy y rollback
 
-Fecha: 16/10/2026. Estado: en curso; controles locales aprobados, ensayo completo de Supabase pendiente de CI.
+Fecha: 16/10/2026. Estado: ensayo completo aprobado en CI; integración final por PR pendiente.
 
 ## Implementación
 
@@ -19,10 +19,12 @@ Se detiene el stack en finally y se publica solo evidencia saneada por siete dí
 ## Validaciones observadas hasta ahora
 
 - 190 tests Vitest (13 archivos), incluidos cinco casos de destinos/credenciales.
-- Cinco controles Node del ensayo: loopback, limpieza de variables heredadas, ocultación de salida de comandos fallidos, SW/version coherentes y rechazo de sobrescritura.
+- Seis controles Node del ensayo: loopback, limpieza de variables heredadas, ocultación de salida de comandos fallidos, SW/version coherentes y rechazo de sobrescritura y motor Docker exclusivamente local.
 - 12 escenarios SQL, ESLint, TypeScript y build aprobados.
 - actionlint 1.7.12 aprobado; SHA upload-artifact v4.6.2 verificado contra la referencia oficial.
 - El motor Docker Desktop local devuelve error 500 al consultar su API; no se instaló WSL ni se cambió la configuración del sistema. Se usa CI Linux para el ensayo completo.
 - El aviso de bundle >500 kB continúa en el backlog frontend.
 
-No se ejecutaron migraciones, restauraciones, cambios de secretos ni despliegue del webhook en producción en este punto. El plan no se marca terminado antes del ensayo completo.
+No se ejecutaron migraciones, restauraciones, cambios de secretos ni despliegue del webhook en producción en este punto. El [ensayo 38932608913](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38932608913) aprobó las seis fases con Supabase local real: instalación de 24 migraciones (53 s), Auth/permisos, candidato (11 s) y rollback compatible (12 s), sin restaurar datos ni enviar mensajes. El checkout probado es el merge sintético 06555f3 de GitHub para el head e36d850; no se confunde con un despliegue productivo. Los otros tres checks también aprobaron. [Evidencia](evidencias/INF_10_2026-10-16.json).
+
+La revisión final añade verificación del motor Docker por socket local, versiones observadas y evidencia escrita solo tras detener el stack. Debe aprobar nuevamente CI antes del merge. No se requiere instalar WSL en esta PC.

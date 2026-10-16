@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { localUrl, localEnvironment, stampDistribution, run } from './release-tools.mjs';
+import { localUrl, localDockerEndpoint, localEnvironment, stampDistribution, run } from './release-tools.mjs';
 import { prepareLocal } from './prepare-local.mjs';
 
 test('el ensayo rechaza todo destino remoto y URLs con credenciales', () => {
@@ -39,4 +39,10 @@ test('preparar local no sobrescribe un entorno ni el config de producción', asy
     await assert.rejects(prepareLocal(root, directory), /ya existe/);
     assert.equal(await readFile(join(directory, 'supabase/config.toml'), 'utf8'), 'do-not-overwrite');
   } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('el motor Docker debe ser local; rechaza contextos TCP o SSH remotos', () => {
+  assert.equal(localDockerEndpoint('unix:///var/run/docker.sock'), 'unix:///var/run/docker.sock');
+  assert.ok(localDockerEndpoint('npipe:////./pipe/dockerDesktopLinuxEngine'));
+  for (const endpoint of ['ssh://server', 'tcp://server:2376', 'tcp://127.0.0.1:2375']) assert.throws(() => localDockerEndpoint(endpoint));
 });

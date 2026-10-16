@@ -1,0 +1,51 @@
+{
+  "sourceCommit": "06555f3a677b7fe6ee524ff0e7fd7b244f86878d",
+  "rollbackCommit": "894e1a096817d5cf8214dabe79ee078b88c86fde",
+  "isolated": true,
+  "phases": [
+    {
+      "name": "docker",
+      "passed": true,
+      "durationMs": 341
+    },
+    {
+      "name": "checkout_limpio",
+      "passed": true,
+      "durationMs": 66
+    },
+    {
+      "name": "instalacion_completa",
+      "passed": true,
+      "durationMs": 53094
+    },
+    {
+      "name": "auth_sql_y_datos_sinteticos",
+      "passed": true,
+      "durationMs": 410
+    },
+    {
+      "name": "candidato_webhook_y_pwa",
+      "passed": true,
+      "durationMs": 11408
+    },
+    {
+      "name": "rollback_compatible_sin_restaurar_datos",
+      "passed": true,
+      "durationMs": 12086
+    }
+  ],
+  "migrationCount": 24,
+  "completedAt": "2026-10-16T16:32:52.465Z",
+  "externalMessages": 0,
+  "databaseRestore": false,
+  "pullRequest": 4,
+  "sourceHead": "e36d85084aebbd56d90934f09d3d734fa9be4288",
+  "ciRun": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38932608913",
+  "scope": {
+    "realSupabaseLocal": true,
+    "productionSqlChanged": false,
+    "productionWebhookChanged": false,
+    "metaGemini": false,
+    "installedDevice": false
+  }
+}
