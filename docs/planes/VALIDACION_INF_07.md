@@ -1,6 +1,6 @@
 # INF-07 — Dependencias vulnerables de desarrollo
 
-Fecha: 16/10/2026. Estado: en curso; audit corregido, validación funcional pendiente.
+Fecha: 16/10/2026. Estado: dependencias y desarrollo Windows validados. La revisión final del PR debe aprobar los controles obligatorios antes de integrarse; observar la publicación de main antes de comunicar finalización. Esta evidencia registra comprobaciones anteriores a esa publicación, sin anticipar su resultado.
 
 ## Cambio y criterio de selección
 
@@ -39,9 +39,12 @@ CI agrega npm audit --audit-level=high después de npm ci. Alertas altas/crític
 
 - Audit tras npm ci: cero alertas en el grafo completo y en producción.
 - actionlint: sin errores en el workflow modificado.
-- Pendiente: checkout limpio con lint, tests y build; desarrollo en Windows con arranque, transformación y rechazo de un archivo sintético bajo fs.deny; tres checks del PR y publicación de main.
+- Copia limpia sin archivos ignorados: npm ci, lint, 173 tests Vitest en 11 archivos, 12 escenarios SQL, TypeScript y build aprobados. Versiones e integridad del grafo productivo verificadas contra main: sin cambios.
+- Windows con Node 24.21.0 y Vite 8.0.16: HTML, cliente Vite y transformación TSX responden 200. Tanto .env sintético como su variante ::$DATA?raw responden 403 sin exponer el canario. Servidor en loopback cerrado y archivo sintético retirado al finalizar. No se probaron interfaz interactiva, HMR ni alias 8.3.
+- [CI inicial](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38925659394): Frontend (con audit nuevo), Webhook (12 tests Deno) y PostgreSQL concurrente aprobados con Node 22.23.3; Publicar omitido porque es PR.
+- [PR 2](https://github.com/ThomasMariani11/chatbot-gastos/pull/2): integrar únicamente la revisión final aprobada, por squash con SHA esperado; observar después el workflow de main y version.json publicado. Los resultados posteriores se consultan en GitHub.
 
-La prueba Windows utilizará únicamente un archivo sintético y un servidor en loopback. No se leerán archivos .env reales ni se harán intentos de conexión UNC/SMB. No se ejecutan ataques de agotamiento de recursos ni pruebas contra producción.
+La prueba Windows utilizó únicamente un archivo sintético y un servidor en loopback. No se leyeron archivos .env reales ni se hicieron intentos UNC/SMB. No se ejecutaron ataques de agotamiento de recursos ni pruebas contra producción.
 
 ## Límites y recuperación
 

@@ -36,7 +36,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 4 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Terminada |
 | 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Terminada |
 | 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Terminada |
-| 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | En curso |
+| 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Terminada |
 | 8 | INF-09 | Media | Privacidad de logs | F09 | Pendiente |
 | 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | Pendiente |
 | 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Pendiente |
@@ -106,7 +106,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-07 — Actualizar dependencias vulnerables de desarrollo
 
-- [ ] Terminada.
+- **Cierre al 16/10/2026:** Vite 8.0.13 → 8.0.16, brace-expansion 1.1.18 → 1.1.21 / 5.0.9 → 5.0.12 y source-map-js 1.2.1 → 1.2.2, sin --force ni overrides. Audit completo y de producción: cero alertas conocidas; versiones e integridad productivas sin cambios. Copia limpia: 173 tests, 12 SQL, tipos/lint/build aprobados; Windows: arranque, transformación TSX y rechazo 403 de .env sintético y variante NTFS ADS. Actionlint y tres checks de GitHub aprobados, incluido audit nuevo en Frontend; toda revisión final debe aprobar antes de integrar. Sin cambios de negocio, base ni webhook. Se conserva el aviso de soporte de ESLint como deuda de mantenimiento y los límites de audit/Windows. [Procedimiento](VALIDACION_INF_07.md) y [evidencia](evidencias/INF_07_2026-10-16.json).
+
+- [x] Terminada.
 - **Problema confirmado por npm audit:** alertas altas en Vite `8.0.13`, brace-expansion `1.1.18` / `5.0.9` y source-map-js `1.2.1`. La auditoría de dependencias de producción no reportó alertas.
 - **Archivo:** `package-lock.json:1069`, `:1385`, `:2580`, `:2822`.
 - **Trabajo:** verificar avisos vigentes, actualizar versiones compatibles y revisar el diff del lockfile. Evitar actualizaciones forzadas sin revisar compatibilidad.
@@ -661,3 +663,5 @@ Completar una entrada al cerrar cada tarea:
 | 16/10/2026 | Cierre INF-05 | TLS obligatorio y tres /32 SQL observadas; ruta nativa admitida por pooler IPv4 | DNS A/AAAA, IPv6 ENETUNREACH sin ruta, denegación antes de autorizar /32, ambos poolers con TLS verificado, salud SQL/cron/HTTP y aceptación del propietario | Sin cambios de datos, contraseñas, facturación ni deploys; TLS/autenticación directa IPv6 no ensayados | INF-06 siguiente; reevaluar IPv6 solo si se incorpora un consumidor directo |
 
 | 16/10/2026 | INF-06 | CI para PR/main y protección real de main | Checkout limpio: 173 tests, 12 SQL, tipos/lint/build; 12 Deno sin red; actionlint; CI inicial aprobado; ensayo fallido bloqueó PR sin publicar | Publicación de Pages depende de tres checks; sin secretos productivos ni deploy del webhook | Integrar solo revisión final aprobada; INF-07 siguiente |
+
+| 16/10/2026 | INF-07 | Parche Vite y transitivas; audit obligatorio en Frontend | Audit completo/producción sin alertas; 173 tests, 12 SQL, tipos/lint/build; smoke Windows con rechazo ADS; CI y actionlint aprobados | Sin dependencias productivas, datos, migraciones ni webhook modificados | Integrar solo revisión aprobada y verificar Pages; INF-09 siguiente; backups al final |

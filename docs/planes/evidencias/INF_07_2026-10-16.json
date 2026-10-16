@@ -1,7 +1,7 @@
 {
   "date": "2026-10-16",
   "scope": "INF-07",
-  "state": "in_progress_pending_application_checks",
+  "state": "dependency_and_windows_validation_verified",
   "baseline_commit": "c569e2140223d21f5c471f4110211709351fb849",
   "audit_before": {
     "info": 0,
@@ -224,8 +224,82 @@
   "limits": [
     "npm audit reports known advisories in the npm lockfile as of this date; it is not proof that the application is free of vulnerabilities.",
     "The independent Deno CI lockfile is unchanged and was not separately scanned with npm audit.",
-    "Existing ESLint unsupported-version notice is maintenance debt; no npm advisory remains for the installed graph."
+    "Existing ESLint unsupported-version notice is maintenance debt; no npm advisory remains for the installed graph.",
+    "Windows smoke checks HTTP startup, TSX transform and synthetic fs.deny/NTFS ADS requests. It does not cover browser interaction, HMR, 8.3 aliases or UNC credential-disclosure attempts."
   ],
   "data_modified": false,
-  "webhook_deployed": false
+  "webhook_deployed": false,
+  "production_versions_and_integrity_unchanged": true,
+  "clean_checkout": {
+    "commit": "354ae2af76701abecabfec489c32f175204d8ee2",
+    "ignored_files_copied": false,
+    "npm_ci": true,
+    "local_node": "24.21.0",
+    "ci_node": "22.23.3",
+    "lint": true,
+    "typescript": true,
+    "vitest_files": 11,
+    "vitest_tests": 173,
+    "renewal_sql_scenarios": 12,
+    "build": true,
+    "bundle_kb": 809.1,
+    "gzip_kb": 230.97,
+    "existing_bundle_warning": true
+  },
+  "windows_smoke": {
+    "os": "win32",
+    "node": "v24.21.0",
+    "vite": "8.0.16",
+    "loopback_only": true,
+    "clean_checkout": true,
+    "checks": [
+      {
+        "check": "html",
+        "status": 200
+      },
+      {
+        "check": "vite_client",
+        "status": 200
+      },
+      {
+        "check": "tsx_transform",
+        "status": 200
+      },
+      {
+        "check": "standard_env_deny",
+        "status": 403,
+        "canary_exposed": false
+      },
+      {
+        "check": "ntfs_ads_deny",
+        "status": 403,
+        "canary_exposed": false
+      }
+    ],
+    "server_closed": true,
+    "synthetic_fixture_removed": true,
+    "production_files_read": false,
+    "external_unc_requests_sent": false,
+    "browser_ui_test": false
+  },
+  "actionlint": {
+    "version": "1.7.12",
+    "success": true
+  },
+  "initial_ci": {
+    "run_id": 38925659394,
+    "url": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38925659394",
+    "conclusion": "success",
+    "jobs": {
+      "Frontend": "success",
+      "Webhook": "success",
+      "PostgreSQL": "success",
+      "Publicar": "skipped"
+    },
+    "npm_audit_step": "success",
+    "deno_tests": 12,
+    "postgres_concurrency": true
+  },
+  "pull_request": "https://github.com/ThomasMariani11/chatbot-gastos/pull/2",
+  "integration_policy": "Require all checks on final PR head, integrate by squash with expected SHA, observe main publication and served version before reporting completion. This snapshot does not claim future deployment success."
 }
