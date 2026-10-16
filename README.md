@@ -13,6 +13,7 @@ PWA de finanzas personales con React, TypeScript, Vite, Recharts y Supabase. La 
 
 ```bash
 npm ci
+# Preparar Supabase y .env.local según la guía antes de dev
 npm run dev
 npm test
 npm run build
@@ -34,6 +35,10 @@ El alcance, las limitaciones de la fixture y el procedimiento de publicación pe
 
 Usar la versión de Node indicada en `.node-version` y Deno 2.9.6. Los comandos reproducibles son `npm ci`, `npm run lint`, `npm test`, `npm run test:sql` y `npm run build`. Para el webhook: desde `supabase/functions/whatsapp-webhook`, ejecutar `deno cache --config deno.ci.json --frozen index.ts queue_test.ts routing_test.ts`, `deno task --config deno.ci.json check`, `deno task --config deno.ci.json lint` y `deno task --config deno.ci.json test`. Sus pruebas no tienen acceso a la red.
 
-Cada pull request a `main` ejecuta los checks Frontend, Webhook y PostgreSQL. El último usa una base PostgreSQL 17.11 descartable y datos sintéticos para probar concurrencia; nunca se conecta a Supabase. Pages publica exclusivamente desde `main` cuando los tres jobs aprueban. La publicación del webhook y de migraciones sigue siendo un procedimiento separado.
+Cada pull request a `main` ejecuta Frontend, Webhook, PostgreSQL y Ensayo de release. PostgreSQL usa una base PostgreSQL 17.11 descartable y datos sintéticos para probar concurrencia; nunca se conecta a Supabase. Pages publica exclusivamente desde `main` cuando los cuatro jobs aprueban. La publicación del webhook y de migraciones sigue siendo un procedimiento separado.
 
 Las reglas, el procedimiento de cambio y la evidencia están en [Validación INF-06](docs/planes/VALIDACION_INF_06.md).
+
+## Entornos y recuperación
+
+Desarrollo requiere Supabase local explícito; no hereda producción. Ver [puesta en marcha](GUIA-PUESTA-EN-MARCHA.md) y [deploy/rollback compatible](docs/operaciones/DEPLOY_Y_ROLLBACK.md). El ensayo `npm run test:release` instala desde un checkout limpio, ejecuta smoke y vuelve a una versión compatible con datos ficticios, sin restaurar producción ni enviar mensajes. Herramienta de deploy fijada en .supabase-version; manifiesto de solo lectura con `npm run release:manifest -- production`.

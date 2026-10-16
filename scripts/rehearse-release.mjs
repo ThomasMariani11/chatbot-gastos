@@ -1,0 +1,205 @@
+// Ensayo real de Supabase local. Sin secretos de proveedores ni llamadas al proyecto alojado.
+import assert from 'node:assert/strict';
+import { createHmac, randomBytes } from 'node:crypto';
+import { createServer } from 'node:http';
+import { mkdtemp, mkdir, cp, readFile, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { resolve, join, sep, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { run, stop, localUrl, localDockerEndpoint, localEnvironment, stampDistribution, digestFiles } from './release-tools.mjs';
+import { prepareLocal } from './prepare-local.mjs';
+
+const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const env = localEnvironment();
+const npmCli = process.env.npm_execpath;
+assert.ok(npmCli?.endsWith('npm-cli.js'), 'Ejecutar mediante npm run test:release.');
+const tools = JSON.parse(await readFile(join(root, 'config/environments.json'), 'utf8'));
+const cliVersion = (await readFile(join(root, '.supabase-version'), 'utf8')).trim();
+assert.match(cliVersion, /^\d+\.\d+\.\d+$/);
+assert.equal(process.versions.node, (await readFile(join(root, '.node-version'), 'utf8')).trim(), 'Usar Node de .node-version.');
+assert.match(tools.release.rollbackCommit, /^[a-f0-9]{40}$/);
+assert.equal(await run('git', ['status', '--porcelain'], { cwd: root }), '', 'Se requiere checkout limpio.');
+const current = await run('git', ['rev-parse', 'HEAD'], { cwd: root });
+const temp = await mkdtemp(join(tmpdir(), 'pesito-release-'));
+const work = join(temp, 'stack');
+const project = 'pesito-rehearsal';
+const evidence = { sourceCommit: current, rollbackCommit: tools.release.rollbackCommit, isolated: true, phases: [] };
+let serving, stackAttempted = false, phase = 'docker';
+async function step(name, action) {
+  phase = name;
+  const started = Date.now();
+  const value = await action();
+  evidence.phases.push({ name, passed: true, durationMs: Date.now() - started });
+  console.log(JSON.stringify({ phase: name, passed: true }));
+  return value;
+}
+const cli = (args, timeout = 480000) => run(process.execPath, [npmCli, 'exec', '--yes', '--package=supabase@' + cliVersion, '--', 'supabase', '--workdir', work, ...args], { cwd: root, env, timeout });
+async function archive(commit, directory) {
+  await mkdir(directory);
+  const tar = directory + '.tar';
+  await run('git', ['archive', '--format=tar', '--output', tar, commit], { cwd: root, env });
+  await run('tar', ['-xf', tar, '-C', directory], { env });
+}
+async function sql(query) {
+  return run('docker', ['exec', '-i', 'supabase_db_' + project, 'psql', '-U', 'postgres', '-d', 'postgres', '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1'], { env, input: query, timeout: 30000 });
+}
+async function request(api, path, { key, body, headers = {}, method = body === undefined ? 'GET' : 'POST' } = {}) {
+  const response = await fetch(localUrl(api) + path, {
+    method, headers: { ...(key ? { apikey: key, Authorization: 'Bearer ' + key } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers },
+    body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
+    signal: AbortSignal.timeout(20000),
+  });
+  return response;
+}
+const metaSecret = randomBytes(32).toString('hex'), workerSecret = randomBytes(32).toString('hex');
+async function startWorker(api) {
+  serving = run(process.execPath, [npmCli, 'exec', '--yes', '--package=supabase@' + cliVersion, '--', 'supabase', '--workdir', work, 'functions', 'serve', 'whatsapp-webhook', '--no-verify-jwt', '--env-file', join(temp, 'synthetic.env')], { cwd: root, env, timeout: 600000, background: true });
+  const deadline = Date.now() + 120000;
+  while (Date.now() < deadline) {
+    if (serving.exitCode !== null) throw new Error('No se pudo servir el webhook local.');
+    try {
+      const response = await request(api, '/functions/v1/whatsapp-webhook?hub.mode=subscribe&hub.verify_token=synthetic-verify&hub.challenge=local-ok');
+      if (response.status === 200 && await response.text() === 'local-ok') return;
+    } catch { /* arranque local todavía en curso */ }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  throw new Error('Webhook local no disponible dentro del plazo.');
+}
+async function stopWorker() {
+  await stop(serving);
+  if (serving && serving.exitCode === null && !serving.signalCode) {
+    await new Promise(resolve => { serving.once('close', resolve); setTimeout(resolve, 10000); });
+  }
+  serving = undefined;
+}
+async function smokeWorker(api) {
+  const path = '/functions/v1/whatsapp-webhook';
+  assert.equal((await request(api, path, { body: '{}' })).status, 401);
+  const signature = 'sha256=' + createHmac('sha256', metaSecret).update('{}').digest('hex');
+  assert.equal((await request(api, path, { body: '{}', headers: { 'x-hub-signature-256': signature } })).status, 200);
+  assert.equal((await request(api, path + '?action=worker', { body: '{}' })).status, 401);
+  assert.equal((await request(api, path + '?action=worker', { body: '{}', headers: { 'x-worker-secret': workerSecret } })).status, 200);
+}
+async function buildAndSmoke(directory, commit, api, anon) {
+  const buildEnv = { ...env, VITE_APP_ENV: 'local', VITE_SUPABASE_URL: localUrl(api), VITE_SUPABASE_ANON_KEY: anon, GITHUB_SHA: commit };
+  await run(process.execPath, [npmCli, 'ci', '--no-audit', '--no-fund'], { cwd: directory, env: buildEnv, timeout: 180000 });
+  await run(process.execPath, [npmCli, 'run', 'build'], { cwd: directory, env: buildEnv, timeout: 180000 });
+  const dist = join(directory, 'dist');
+  await stampDistribution(dist, commit);
+  const server = createServer(async (req, res) => {
+    try {
+      const url = new URL(req.url, 'http://127.0.0.1');
+      const relative = decodeURIComponent(url.pathname).replace(/^\/chatbot-gastos\//, '');
+      const file = resolve(dist, relative || 'index.html');
+      if (!file.startsWith(dist + sep)) { res.writeHead(404).end(); return; }
+      const mime = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png' };
+      res.setHeader('Content-Type', mime[extname(file)] || 'application/octet-stream');
+      res.end(await readFile(file));
+    } catch { res.writeHead(404).end(); }
+  });
+  try {
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    const base = 'http://127.0.0.1:' + server.address().port;
+    const indexResponse = await fetch(base + '/chatbot-gastos/');
+    assert.equal(indexResponse.status, 200);
+    assert.equal(indexResponse.headers.get('content-type'), 'text/html');
+    const index = await indexResponse.text();
+    const script = index.match(/<script\b[^>]*\bsrc="([^"]+)"/)?.[1];
+    assert.ok(script, 'Falta bundle de la PWA.');
+    const bundleResponse = await fetch(base + script);
+    assert.equal(bundleResponse.status, 200);
+    assert.equal(bundleResponse.headers.get('content-type'), 'application/javascript');
+    const bundle = await bundleResponse.text();
+    assert.ok(bundle.includes(localUrl(api)), 'El build del ensayo debe usar el backend local.');
+    assert.ok(!bundle.includes(tools.production.publishableKey), 'No se debe insertar la clave de producción en el ensayo.');
+    assert.equal((await (await fetch(base + '/chatbot-gastos/version.json')).json()).version, commit);
+    assert.ok((await (await fetch(base + '/chatbot-gastos/sw.js')).text()).includes(commit));
+  } finally { await new Promise(resolve => server.close(resolve)); }
+}
+try {
+  await step('docker', async () => {
+    if (env.DOCKER_HOST) localDockerEndpoint(env.DOCKER_HOST);
+    localDockerEndpoint(await run('docker', ['context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'], { env, timeout: 15000 }));
+    evidence.tools = { node: process.versions.node, docker: await run('docker', ['info', '--format', '{{.ServerVersion}}'], { env, timeout: 20000 }), supabase: cliVersion };
+    const containers = await run('docker', ['ps', '-a', '--format', '{{.Names}}'], { env, timeout: 15000 });
+    assert.ok(!containers.split('\n').some(name => name.endsWith('_' + project)), 'No se reutiliza ni detiene un stack local existente.');
+  });
+  const candidate = join(temp, 'candidate'), previous = join(temp, 'previous');
+  await step('checkout_limpio', async () => {
+    await archive(current, candidate);
+    await archive(tools.release.rollbackCommit, previous);
+    await prepareLocal(candidate, work);
+    await writeFile(join(temp, 'synthetic.env'), 'META_APP_SECRET=' + metaSecret + '\nWHATSAPP_WORKER_SECRET=' + workerSecret + '\nWHATSAPP_VERIFY_TOKEN=synthetic-verify\n', { mode: 0o600 });
+  });
+  await step('instalacion_completa', async () => {
+    assert.equal(await cli(['--version']), cliVersion);
+    stackAttempted = true;
+    await cli(['start', '--exclude', 'studio,imgproxy,storage-api,logflare,vector,supavisor']);
+    const versions = JSON.parse(await sql('select json_agg(version order by version) from supabase_migrations.schema_migrations;'));
+    const expected = (await digestFiles(join(candidate, 'supabase/migrations'), n => n.endsWith('.sql'))).map(f => f.file.split('_')[0]);
+    assert.deepEqual(versions, [...expected, '99999999999999']);
+    evidence.migrationCount = expected.length;
+    evidence.tools.postgres = await sql('show server_version;');
+    assert.equal(await sql('select not enabled from public.whatsapp_queue_control;'), 't');
+    assert.equal(await sql("select count(*) from cron.job where jobname='pesito-whatsapp-queue-recovery';"), '0');
+  });
+  const status = JSON.parse(await cli(['status', '-o', 'json']));
+  const api = localUrl(status.API_URL);
+  assert.ok(status.ANON_KEY && status.SERVICE_ROLE_KEY, 'Faltan credenciales exclusivamente locales.');
+  const id = await step('auth_sql_y_datos_sinteticos', async () => {
+    await sql("insert into public.invitation_codes(code,duration_days) values('INF10-LOCAL',30);");
+    const created = await request(api, '/auth/v1/admin/users', { key: status.SERVICE_ROLE_KEY, body: {
+      email: 'inf10@example.invalid', password: randomBytes(32).toString('hex'), email_confirm: true,
+      user_metadata: { invitation_code: 'INF10-LOCAL', first_name: 'Ensayo', last_name: 'Local' },
+    } });
+    assert.equal(created.status, 200);
+    const user = await created.json();
+    assert.match(user.id, /^[a-f0-9-]{36}$/);
+    const profile = await (await request(api, '/rest/v1/profiles?id=eq.' + user.id + '&select=role,subscription_status,first_name', { key: status.SERVICE_ROLE_KEY })).json();
+    assert.deepEqual(profile, [{ role: 'client', subscription_status: 'active', first_name: 'Ensayo' }]);
+    assert.equal(await sql("select count(*) from public.categories where user_id='" + user.id + "';"), '16');
+    await sql("insert into public.transactions(user_id,kind,description,amount_ars,occurred_on,status,source) values('" + user.id + "','expense','Solo ensayo local',100,current_date,'confirmed','pwa');");
+    assert.equal(await sql("select has_function_privilege('anon','public.get_active_draft_group(uuid)','EXECUTE');"), 'f');
+    const denied = await request(api, '/rest/v1/rpc/get_active_draft_group', { key: status.ANON_KEY, body: { p_user_id: user.id } });
+    assert.ok([401, 403, 404].includes(denied.status), 'La RPC privada no debe estar habilitada a anon.');
+    return user.id;
+  });
+  await step('candidato_webhook_y_pwa', async () => {
+    await startWorker(api);
+    await smokeWorker(api);
+    await buildAndSmoke(candidate, current, api, status.ANON_KEY);
+  });
+  await step('rollback_compatible_sin_restaurar_datos', async () => {
+    await stopWorker();
+    // Borrar solo la función generada en nuestro directorio temporal, nunca el checkout.
+    const target = resolve(work, 'supabase/functions/whatsapp-webhook');
+    assert.ok(target.startsWith(resolve(temp) + sep));
+    await rm(target, { recursive: true, force: true });
+    await cp(join(previous, 'supabase/functions/whatsapp-webhook'), target, { recursive: true });
+    await startWorker(api);
+    await smokeWorker(api);
+    await buildAndSmoke(previous, tools.release.rollbackCommit, api, status.ANON_KEY);
+    assert.equal(await sql("select count(*) from public.transactions where user_id='" + id + "' and amount_ars=100 and status='confirmed';"), '1');
+    assert.equal(await sql('select count(*) from public.whatsapp_message_queue;'), '0');
+    assert.equal(await sql("select count(*) from supabase_migrations.schema_migrations where version='" + tools.release.minimumMigration + "';"), '1');
+  });
+  evidence.completedAt = new Date().toISOString();
+  evidence.externalMessages = 0;
+  evidence.databaseRestore = false;
+
+} catch {
+  console.error(JSON.stringify({ phase, passed: false, reason: 'Consultar requisitos/herramientas del runbook; se omiten credenciales y logs crudos.' }));
+  process.exitCode = 1;
+} finally {
+  try { await stopWorker(); } catch { process.exitCode = 1; console.error('No se pudo detener el worker local propio.'); }
+  if (stackAttempted) {
+    try { await cli(['stop', '--no-backup'], 60000); }
+    catch { console.error('No se pudo detener el stack local pesito-rehearsal; revisar antes de repetir.'); process.exitCode = 1; }
+  }
+  if (evidence.completedAt && process.exitCode !== 1) {
+    evidence.cleanupPassed = true;
+    await mkdir(join(root, '.temp'), { recursive: true });
+    await writeFile(join(root, '.temp/release-rehearsal.json'), JSON.stringify(evidence, null, 2) + '\n');
+  }
+  // Conservar directorio temporal fuera del repo para diagnóstico privado; no publicar status ni synthetic.env.
+}

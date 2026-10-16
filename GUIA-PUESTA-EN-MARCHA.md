@@ -1,116 +1,77 @@
-# Guía de puesta en marcha — Pesito
+# Puesta en marcha de Pesito
 
-La aplicación usa GitHub Pages para la PWA y Supabase para autenticación, base de datos y el webhook de WhatsApp. Nunca publiques claves privadas ni las agregues al repositorio.
+Esta guía reemplaza el procedimiento antiguo que ejecutaba únicamente 001. La instalación necesita **todas las migraciones 001–024, en orden**. En producción ya están registradas: no volver a ejecutarlas.
 
-## 1. Publicar la PWA en GitHub Pages
+## Entornos y herramientas
 
-- Repositorio: `https://github.com/ThomasMariani11/chatbot-gastos`
-- URL pública: `https://thomasmariani11.github.io/chatbot-gastos/`
-- El workflow `.github/workflows/deploy-pages.yml` compila y publica automáticamente cada cambio enviado a `main`.
-- En GitHub, abrir **Settings > Pages** y elegir **GitHub Actions** como origen si todavía no está seleccionado.
-- Revisar la pestaña **Actions** hasta que el despliegue figure en verde.
+- Producción: GitHub Pages, Supabase `ystyatotldslfmucvgsq`, Meta y Gemini. Configuración pública en [config/environments.json](config/environments.json); secretos exclusivamente en Supabase/Vault.
+- Desarrollo/ensayo: Supabase en Docker y PWA en loopback, datos ficticios, sin credenciales de Meta/Gemini. [Configuración local](ops/local/config.toml).
+- No existe un staging alojado independiente. El ensayo local en CI no contrata servicios ni requiere facturación.
+- Node: [.node-version](.node-version); Deno **2.9.6**; Supabase CLI: [.supabase-version](.supabase-version), **2.120.0**. Usar `npx --yes supabase@2.120.0` en los ejemplos siguientes. Docker con motor Linux funcional es requisito del stack local. npm ci respeta package-lock.json.
 
-La URL y la publishable key de Supabase que usa el navegador ya están configuradas. Son datos públicos y están protegidos por las políticas RLS. Ninguna clave privada debe agregarse al frontend.
+El servidor Vite y el build validan el destino antes de arrancar. Desarrollo no hereda producción. Solo admite HTTP loopback y clave pública; rechaza service role. El build normal de producción mantiene los valores públicos actuales. No poner secretos en variables VITE_: se incorporan al navegador.
 
-## 2. Configurar las URLs de Supabase Auth
+## Desarrollo aislado
 
-En **Supabase > Authentication > URL Configuration**:
-
-```text
-Site URL: https://thomasmariani11.github.io/chatbot-gastos/
-Redirect URL: https://thomasmariani11.github.io/chatbot-gastos/**
-```
-
-Para desarrollo local se puede agregar también:
-
-```text
-http://localhost:5173/**
-```
-
-## 3. Preparar la base de datos
-
-- En **Supabase > SQL Editor**, ejecutar `supabase/migrations/001_initial.sql` si aún no se hizo.
-- Confirmar que existen `categories`, `budgets`, `transactions`, `whatsapp_links`, `app_settings` e `inbound_events`.
-- Mantener activadas las políticas Row Level Security incluidas en la migración.
-
-## 4. Desplegar el webhook en Supabase
-
-Desde una terminal ubicada en la carpeta del proyecto:
+Desde un checkout limpio del repositorio:
 
 ```powershell
-npx supabase login
-npx supabase functions deploy whatsapp-webhook --project-ref ystyatotldslfmucvgsq --no-verify-jwt
+npm ci
+npm run local:prepare
+npx --yes supabase@2.120.0 --workdir .temp/local start --exclude studio,imgproxy,storage-api,logflare,vector,supavisor
+npx --yes supabase@2.120.0 --workdir .temp/local status
 ```
 
-El webhook público será:
+El preparador crea un workdir nuevo; se detiene si ya existe, para no pisar datos locales. Copia las migraciones originales sin editarlas. Añade únicamente en ese workdir una migración local que desprograma la recuperación y bloquea cualquier despacho HTTP externo. La cola queda deshabilitada y no se cargan secretos reales.
 
-```text
-https://ystyatotldslfmucvgsq.supabase.co/functions/v1/whatsapp-webhook
+Crear `.env.local` (ignorado por Git) con la URL y **anon key local** que devuelve status:
+
+```dotenv
+VITE_APP_ENV=local
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=REEMPLAZAR_POR_ANON_KEY_LOCAL
 ```
 
-## 5. Cargar los secretos del webhook
+Luego `npm run dev`; abrir `http://127.0.0.1:5173/chatbot-gastos/`. No copiar service role, DB_PASSWORD ni claves de producción. status muestra credenciales locales: no pegar su salida en chats, issues ni logs. Para parar conservando la base: `npx --yes supabase@2.120.0 --workdir .temp/local stop`.
 
-Configurar en Supabase estos secretos, usando sus valores reales:
+Esta instalación está pensada para base **vacía**. 005 promueve usuarios preexistentes a admin; BE-13 sigue pendiente. No ejecutar 005 sobre cuentas existentes ni crear usuarios hasta terminar las migraciones. El administrador de una nueva instalación debe seleccionarse explícitamente por UUID aprobado, con procedimiento revisado; no usar la promoción masiva de 005 como herramienta administrativa.
 
-```text
-GEMINI_API_KEY
-WHATSAPP_ACCESS_TOKEN
-WHATSAPP_PHONE_NUMBER_ID
-WHATSAPP_VERIFY_TOKEN
-META_APP_SECRET
+Auth local usa localhost/loopback, sin cambiar los redirects de producción. Para cuentas sintéticas generar una invitación local y registrar el usuario con ella; comprobar perfil, suscripción y categorías, dado el comportamiento pendiente de BE-13. El correo de desarrollo se recibe en Mailpit local, puerto 54324.
+
+No usar `db reset --linked`, no copiar datos de clientes y no enlazar .temp/local a un proyecto remoto. Si cambian migraciones, preparar otro workdir o reconstruir solo la base descartable después de detenerla e identificarla; no reutilizar el config de producción.
+
+## Validación repetible desde checkout limpio
+
+```powershell
+npm ci
+npm run lint
+npm test
+npm run test:sql
+npm run test:release:guards
+npm run build
+npm run release:manifest -- local
+npm run test:release
 ```
 
-Se pueden cargar desde **Supabase > Edge Functions > Secrets** o con `npx supabase secrets set`. No se necesitan `SUPABASE_URL` ni `SUPABASE_SERVICE_ROLE_KEY`: Supabase los proporciona automáticamente a la función.
+La última prueba requiere Docker y Git con el commit de rollback disponible (en CI checkout usa fetch-depth 0). Rechaza un árbol sucio, un stack pesito-rehearsal existente, un motor Docker remoto y cualquier URL remota. Verifica las versiones de Node/CLI y registra PostgreSQL/Docker observados. Extrae candidato y versión anterior con git archive, instala Supabase local con todas las migraciones, verifica Auth/perfil/categorías y RPC privadas, sirve y compila PWA/webhook, y vuelve a la versión anterior conservando un movimiento sintético. Cambia SW y version.json juntos.
 
-Después de cambiar un token de WhatsApp, actualizar `WHATSAPP_ACCESS_TOKEN` en Supabase. No hace falta volver a publicar la PWA.
+Usa secretos aleatorios de prueba, valida firma Meta y secreto del worker con payloads vacíos; no envía mensajes ni interpreta comprobantes. No prueba entregas reales, el cron alojado, MFA del proveedor ni sincronización de PWA en teléfonos (FE-07 sigue abierto). Las pruebas de negocio/concurrencia complementan este smoke test.
 
-## 6. Registrar el webhook en Meta
+La evidencia saneada queda en .temp/release-rehearsal.json; CI publica solo ese archivo durante siete días. Nunca subir status, synthetic.env ni el workdir. El stack se detiene en finally con --no-backup; si falla la limpieza, corregirla antes de repetir. Los directorios temporales son privados y descartables; pueden borrarse tras identificar y detener ese stack, nunca con una ruta calculada sin verificar.
 
-En la configuración de WhatsApp/Webhooks de Meta:
+## Publicar o recuperar
 
-```text
-Callback URL: https://ystyatotldslfmucvgsq.supabase.co/functions/v1/whatsapp-webhook
-Verify token: el mismo valor guardado como WHATSAPP_VERIFY_TOKEN
-```
+Seguir [el runbook de deploy y rollback](docs/operaciones/DEPLOY_Y_ROLLBACK.md). Cada componente tiene su propia publicación:
 
-- Completar la verificación.
-- Suscribir únicamente el campo `messages` para recibir mensajes entrantes.
-- El App Secret de Meta debe coincidir con `META_APP_SECRET` para validar la firma de cada evento.
+1. Migraciones compatibles y verificación de historial/permisos.
+2. Webhook, smoke sin mensajes y registro de versión Edge.
+3. PR con los checks aprobados, merge a main y publicación de Pages.
+4. Activación de cola únicamente si estaba deshabilitada por el cambio, revisión funcional y registro de versiones.
 
-## 7. Entrar y vincular WhatsApp
+GitHub Pages: `https://thomasmariani11.github.io/chatbot-gastos/`. Auth productivo mantiene Site URL igual y redirect `https://thomasmariani11.github.io/chatbot-gastos/**`. No agregar localhost a producción para realizar estas pruebas.
 
-- Abrir `https://thomasmariani11.github.io/chatbot-gastos/`.
-- Escribir el correo y abrir el enlace mágico recibido.
-- En **Configuración**, seleccionar **Generar código**.
-- Enviar al número de prueba de Meta `VINCULAR 123456`, reemplazando los números por el código mostrado.
-- Esperar la respuesta de vinculación exitosa.
+Los secretos necesarios son GEMINI_API_KEY, WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_VERIFY_TOKEN, META_APP_SECRET y WHATSAPP_WORKER_SECRET. Supabase inyecta SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY. El worker requiere además la misma credencial en Vault bajo whatsapp_worker_secret; no imprimirla, no llevarla a Git ni ponerla en SQL en un log público.
 
-## 8. Probar el circuito completo
+Meta callback: `https://ystyatotldslfmucvgsq.supabase.co/functions/v1/whatsapp-webhook`. Suscribir messages; verify token para GET y App Secret para firma POST. JWT deshabilitado en esta función permite llegar a la verificación HMAC; no significa que los mensajes estén autorizados sin firma.
 
-Probar primero texto y después audio e imagen:
-
-```text
-Gasté 18.500 pesos en supermercado hoy
-Cobré 900.000 de sueldo
-Compré una notebook por 1.200.000 en 12 cuotas
-```
-
-- Revisar la propuesta recibida.
-- Responder `CONFIRMAR` para guardarla o `CANCELAR` para descartarla.
-- Verificar que el movimiento y el gráfico se actualicen automáticamente en la PWA.
-- Cargar el presupuesto mensual desde el panel.
-- Enviar un audio y una foto de comprobante, confirmando ambos resultados.
-
-## 9. Instalarla en el celular
-
-- Abrir la URL pública en Chrome o Safari.
-- Elegir **Agregar a pantalla de inicio** o **Instalar aplicación**.
-- Si ya estaba instalada con la URL anterior, eliminar esa instalación e instalar la nueva para evitar que abra el sitio que dejó de existir.
-
-## 10. Seguridad y costos
-
-- La publishable/anon key de Supabase puede estar en el navegador; la service-role key, el token de WhatsApp, Gemini y el App Secret nunca.
-- El token de prueba de Meta es temporal. Para producción, reemplazarlo por una credencial permanente.
-- Mantener desactivada la opción **Autorizar mensajes pagos**.
-- Pesito bloquea las respuestas el 30 de septiembre de 2026 a las 23:50, hora de Buenos Aires, salvo autorización explícita.
-- Hay un recordatorio previsto antes del 1 de octubre de 2026 para revisar y desactivar cualquier mensaje de servicio pago.
+No se afirma un bloqueo global por la fecha antigua de septiembre ni un recordatorio vigente. Los costos y los mensajes pagos dependen de la configuración efectiva y las políticas de los proveedores (INF-15). Mantener sin autorizar los mensajes pagos; no habilitar complementos ni planes. Los backups continúan postergados al final (INF-08).

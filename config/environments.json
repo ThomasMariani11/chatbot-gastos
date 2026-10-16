@@ -1,0 +1,13 @@
+{
+  "production": {
+    "projectRef": "ystyatotldslfmucvgsq",
+    "supabaseUrl": "https://ystyatotldslfmucvgsq.supabase.co",
+    "publishableKey": "sb_publishable_iSIVZw0DBeQqn6dKvJpvRw_50_DcK_w",
+    "siteUrl": "https://thomasmariani11.github.io/chatbot-gastos/"
+  },
+  "release": {
+    "minimumMigration": "024",
+    "rollbackCommit": "894e1a096817d5cf8214dabe79ee078b88c86fde",
+    "rollbackMinimumMigration": "024"
+  }
+}
