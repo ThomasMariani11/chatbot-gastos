@@ -31,6 +31,8 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - name: Auditar dependencias
+        run: npm audit --audit-level=high
       - run: npm run lint
       - run: npm test
       - run: npm run test:sql
