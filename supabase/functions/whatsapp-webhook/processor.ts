@@ -1,3 +1,5 @@
+import type { DatabaseOperation } from "./failures.ts";
+import { OperationalFailure } from "./failures.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.114.0";
 import type { Job } from "./queue.ts";
 import { classifyTextQuery } from "./intent.ts";
@@ -14,8 +16,13 @@ import {
 } from "./helpers.ts";
 import type { DraftListItem, GeminiParsedOutput } from "./helpers.ts";
 
-function checked<T>(result: { data: T; error: unknown }, code: string): T {
-  if (result.error) throw new Error(code);
+function checked<T>(
+  result: { data: T; error: unknown },
+  code: DatabaseOperation,
+): T {
+  if (result.error) {
+    throw new OperationalFailure("database_read", "database", undefined, code);
+  }
   return result.data;
 }
 const localDate = () =>
@@ -63,7 +70,14 @@ export async function prepareMessage(
     ).eq("id", link.user_id).maybeSingle(),
     "QUEUE_PROFILE_READ",
   );
-  if (!profile) throw new Error("QUEUE_PROFILE_UNAVAILABLE");
+  if (!profile) {
+    throw new OperationalFailure(
+      "database_read",
+      "database",
+      undefined,
+      "QUEUE_PROFILE_UNAVAILABLE",
+    );
+  }
   const support = async () => {
     const settings = checked(
       await db.from("system_config").select("key,value").in("key", [

@@ -1,6 +1,6 @@
 # Puesta en marcha de Pesito
 
-Esta guía reemplaza el procedimiento antiguo que ejecutaba únicamente 001. La instalación necesita **todas las migraciones 001–024, en orden**. En producción ya están registradas: no volver a ejecutarlas.
+Esta guía reemplaza el procedimiento antiguo que ejecutaba únicamente 001. La instalación necesita **todas las migraciones 001–025, en orden**. Consultar el historial real antes de publicar; no volver a ejecutar las ya registradas.
 
 ## Entornos y herramientas
 

@@ -1,3 +1,5 @@
+import type { FailureMetadata } from "./failures.ts";
+
 // La salida acepta solo eventos y campos operativos conocidos. Nunca serializar
 // errores, request/response, teléfonos, IDs, URLs, prompts ni contenido financiero.
 export type QueueMetricEvent =
@@ -13,7 +15,7 @@ export type FailureStage =
   | "apply"
   | "send"
   | "finish";
-export type QueueMetricData = {
+export type QueueMetricData = Partial<FailureMetadata> & {
   duration_ms?: number;
   operations?: number;
   attempts?: number;
@@ -23,7 +25,8 @@ type Event =
   | QueueMetricEvent
   | "http_request"
   | "http_request_failed"
-  | "worker_interrupted";
+  | "worker_interrupted"
+  | "ai_attempt";
 type Validator = (value: unknown) => boolean;
 const numeric = (maximum: number, integer = false): Validator => (value) =>
   typeof value === "number" && Number.isFinite(value) && value >= 0 &&
@@ -32,7 +35,40 @@ const duration = numeric(2147483647);
 const attempts = numeric(1000000, true);
 const oneOf = (...allowed: string[]): Validator => (value) =>
   typeof value === "string" && allowed.includes(value);
+const failureSchema = {
+  operation: oneOf(
+    "QUEUE_LINK_READ",
+    "QUEUE_PROFILE_READ",
+    "QUEUE_PROFILE_UNAVAILABLE",
+    "QUEUE_CONFIG_READ",
+    "QUEUE_SETTINGS_READ",
+    "QUEUE_BALANCE_READ",
+    "QUEUE_BUDGET_READ",
+    "QUEUE_DRAFT_READ",
+  ),
+  reason: oneOf(
+    "configuration",
+    "timeout",
+    "authentication",
+    "rate_limit",
+    "unavailable",
+    "request_rejected",
+    "network",
+    "invalid_response",
+    "database_read",
+    "unknown",
+  ),
+  provider: oneOf("gemini", "meta_media", "database"),
+  status: (v: unknown) => numeric(599, true)(v) && (v as number) >= 100,
+};
 const schemas: Record<Event, Record<string, Validator>> = {
+  ai_attempt: {
+    ...failureSchema,
+    model: oneOf("flash", "flash_lite"),
+    result: oneOf("success", "failure"),
+    duration_ms: duration,
+  },
+
   queue_worker: { duration_ms: duration },
   queue_wait: { duration_ms: duration },
   queue_interpret: { duration_ms: duration, operations: numeric(20, true) },

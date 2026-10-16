@@ -1,3 +1,6 @@
+// deno-lint-ignore-file no-console -- Captura de logs para verificar ausencia de datos privados.
+import { failureMetadata } from "./failures.ts";
+import { extractFromGemini } from "./helpers.ts";
 import { prepareMessage } from "./processor.ts";
 import { parseDeterministicMovements } from "./helpers.ts";
 import type { Job } from "./queue.ts";
@@ -182,5 +185,185 @@ Deno.test("dos correcciones juntas piden aclarar y conservan la lista", async ()
   assert(
     result.kind === "reply" && String(result.text).includes("No modifiqué"),
     "Se aceptó parcialmente una instrucción ambigua",
+  );
+});
+
+Deno.test("audio real: error de descarga informa Meta sin checkpoint ni interpretación", async () => {
+  const previousFetch = globalThis.fetch,
+    previousToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+  try {
+    Deno.env.set("WHATSAPP_ACCESS_TOKEN", "PRIVATE_TEST_TOKEN");
+    let calls = 0, checkpoints = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      return Promise.resolve(
+        new Response("PRIVATE_PROVIDER_BODY", { status: 403 }),
+      );
+    }) as typeof fetch;
+    const fixture = job("");
+    fixture.payload = {
+      id: "synthetic-audio",
+      from: "synthetic-route",
+      type: "audio",
+      audio: { id: "PRIVATE_MEDIA_ID" },
+    };
+    let failure: unknown;
+    try {
+      await prepareMessage(database().db, fixture, () => {
+        checkpoints++;
+        return Promise.resolve();
+      });
+    } catch (error) {
+      failure = error;
+    }
+    assert(
+      JSON.stringify(failureMetadata(failure)) ===
+        JSON.stringify({
+          reason: "authentication",
+          provider: "meta_media",
+          status: 403,
+        }),
+      "Diagnóstico de Meta incorrecto",
+    );
+    assert(
+      calls === 1 && checkpoints === 0,
+      "No debe interpretar ni persistir una descarga fallida",
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousToken === undefined) Deno.env.delete("WHATSAPP_ACCESS_TOKEN");
+    else Deno.env.set("WHATSAPP_ACCESS_TOKEN", previousToken);
+  }
+});
+
+Deno.test("Gemini real: 429 activa respaldo y logs no contienen solicitud ni credenciales", async () => {
+  const previousFetch = globalThis.fetch,
+    previousKey = Deno.env.get("GEMINI_API_KEY"),
+    previousLog = console.log;
+  const lines: string[] = [];
+  try {
+    Deno.env.set("GEMINI_API_KEY", "PRIVATE_TEST_KEY");
+    console.log = (line: unknown) => lines.push(String(line));
+    let calls = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      return Promise.resolve(
+        calls === 1
+          ? new Response("PRIVATE_PROVIDER_BODY", { status: 429 })
+          : Response.json({
+            candidates: [{
+              content: {
+                parts: [{
+                  text: JSON.stringify({
+                    intent: "unknown",
+                    movements: [],
+                    clarification: "Indicar operación",
+                  }),
+                }],
+              },
+            }],
+          }),
+      );
+    }) as typeof fetch;
+    const result = await extractFromGemini({
+      text: "PRIVATE_FINANCIAL_TEXT",
+      activeDraftContext: "PRIVATE_DRAFT",
+    });
+    assert(
+      result.intent === "unknown" && calls === 2,
+      "No utilizó el respaldo",
+    );
+    const entries = lines.map((line) => JSON.parse(line));
+    assert(
+      entries[0].reason === "rate_limit" && entries[0].status === 429 &&
+        entries[0].model === "flash",
+      "Falta motivo permitido del primer modelo",
+    );
+    assert(
+      entries[1].result === "success" && entries[1].model === "flash_lite",
+      "Falta resultado del respaldo",
+    );
+    assert(!lines.join("").includes("PRIVATE"), "Se filtró contenido o clave");
+  } finally {
+    globalThis.fetch = previousFetch;
+    console.log = previousLog;
+    if (previousKey === undefined) Deno.env.delete("GEMINI_API_KEY");
+    else Deno.env.set("GEMINI_API_KEY", previousKey);
+  }
+});
+
+Deno.test("Gemini real: timeout y respuesta inválida quedan diferenciados sin cuerpos crudos", async () => {
+  const previousFetch = globalThis.fetch,
+    previousKey = Deno.env.get("GEMINI_API_KEY"),
+    previousLog = console.log;
+  const lines: string[] = [];
+  try {
+    Deno.env.set("GEMINI_API_KEY", "PRIVATE_TEST_KEY");
+    console.log = (line: unknown) => lines.push(String(line));
+    let calls = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      if (calls === 1) throw new DOMException("PRIVATE_ERROR", "TimeoutError");
+      return Promise.resolve(
+        Response.json({
+          candidates: [{
+            content: { parts: [{ text: "PRIVATE_INVALID_JSON" }] },
+          }],
+        }),
+      );
+    }) as typeof fetch;
+    let failure: unknown;
+    try {
+      await extractFromGemini({ text: "PRIVATE_INPUT" });
+    } catch (error) {
+      failure = error;
+    }
+    assert(
+      failureMetadata(failure).reason === "invalid_response",
+      "Falta diagnóstico de respuesta inválida",
+    );
+    const entries = lines.map((line) => JSON.parse(line));
+    assert(
+      entries[0].reason === "timeout" &&
+        entries[1].reason === "invalid_response",
+      "Se confundieron las causas",
+    );
+    assert(
+      calls === 2 && !lines.join("").includes("PRIVATE"),
+      "Llamada o log inesperado",
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    console.log = previousLog;
+    if (previousKey === undefined) Deno.env.delete("GEMINI_API_KEY");
+    else Deno.env.set("GEMINI_API_KEY", previousKey);
+  }
+});
+
+Deno.test("procesador real: fallo de RPC se diferencia de Gemini y no interpreta", async () => {
+  const fixture = database();
+  fixture.db.rpc = (() =>
+    Promise.resolve({
+      data: null,
+      error: { message: "PRIVATE_DATABASE_ERROR" },
+    })) as unknown as typeof fixture.db.rpc;
+  let failure: unknown;
+  try {
+    await prepareMessage(
+      fixture.db,
+      job("Consulta sintética"),
+      () => Promise.resolve(),
+    );
+  } catch (error) {
+    failure = error;
+  }
+  assert(
+    JSON.stringify(failureMetadata(failure)) ===
+      JSON.stringify({
+        reason: "database_read",
+        provider: "database",
+        operation: "QUEUE_DRAFT_READ",
+      }),
+    "Se perdió la operación interna segura",
   );
 });

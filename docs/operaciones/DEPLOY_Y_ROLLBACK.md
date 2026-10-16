@@ -18,7 +18,7 @@ La publicación de Pages no despliega Edge Functions ni aplica SQL. Los tres com
 2. Usar Node de .node-version, Deno 2.9.6 y CLI de .supabase-version. Ejecutar los checks de README y exigir el ensayo de release del PR. El manifiesto de solo lectura se genera con `npm run release:manifest -- production`; guarda SHA del código, herramientas y hashes de cada SQL/archivo runtime en .temp/release-production.json.
 3. Leer estado real: historial supabase_migrations.schema_migrations; versión/estado de whatsapp-webhook y verify_jwt; cola habilitada; trabajos en procesamiento/fallidos y cron. Solo conteos, sin payloads ni secretos.
 4. Registrar fuera del bundle: SHA candidato/anterior, enlace a CI, migrations antes/después, versión Edge anterior/nueva, hora, smoke y estado previo de cola. observedDeployment del manifiesto empieza con null/false: **no es evidencia de haber desplegado**; completarlo solo con lecturas verificadas.
-5. La base actual llega a 024 y el contrato de la cola v2 comienza en 020, con idempotencia 023. El rollback ensayado está fijado en config/environments.json: 894e1a0 (webhook equivalente a v41), compatible con 024. Revisar ese contrato ante cada cambio de esquema. No retroceder a workers anteriores a 020, ni restaurar permisos inseguros de 017 o advertencias privadas anteriores a 024.
+5. La versión anterior validada llega a 024; esta publicación requiere 025 y el contrato de la cola v2 comienza en 020, con idempotencia 023. El rollback ensayado está fijado en config/environments.json: a4be403 (webhook equivalente a v41), compatible con 024 y la expansión 025. Revisar ese contrato ante cada cambio de esquema. No retroceder a workers anteriores a 020, ni restaurar permisos inseguros de 017 o advertencias privadas anteriores a 024.
 
 Consulta de solo lectura para el estado:
 
@@ -36,7 +36,7 @@ No reenviar trabajos v1 fallidos ni eliminar pendientes para que los conteos que
 
 ## Instalación nueva y migraciones posteriores
 
-- Instalación vacía: aplicar **001–024 completas en orden**, con Auth y publicación supabase_realtime preparados por Supabase. No usar un PostgreSQL común sin esquemas/extensiones como si fuera Supabase. El ensayo CI verifica el stack real con datos sintéticos.
+- Instalación vacía: aplicar **todas las migraciones completas en orden (actualmente 001–025)**, con Auth y publicación supabase_realtime preparados por Supabase. No usar un PostgreSQL común sin esquemas/extensiones como si fuera Supabase. El ensayo CI verifica el stack real con datos sintéticos.
 - Instalación existente: comparar el historial real con los archivos y sus hashes; aplicar únicamente las migraciones nuevas aprobadas, sin reescribir las ya aplicadas. Si hay deriva, parar y revisarla.
 - Preparar primero la expansión compatible del esquema; validar permisos, índices y dependencias antes de publicar el consumidor. Cualquier cambio destructivo requiere otro plan, no un down automático.
 - Antes de usar CLI remoto, verificar el contenido de supabase/.temp/project-ref coincide exactamente con ystyatotldslfmucvgsq. link solo cuando corresponda y nunca en el workdir local. Mantener SSL y restricciones de red; no abrir 0.0.0.0/0 ni resetear contraseña por un problema de conexión.
