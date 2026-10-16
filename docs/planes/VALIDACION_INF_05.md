@@ -1,6 +1,6 @@
 # INF-05 — TLS obligatorio y acceso SQL por red
 
-Fecha: 15/10/2026. Estado: configuración aplicada y comprobaciones técnicas aprobadas en las rutas accesibles; falta la prueba normal del propietario. El endpoint directo sigue a verificar desde una red con resolución/ruta adecuada. Sin cambios de facturación, addons, contraseñas de base, migraciones ni despliegues de app/webhook.
+Inicio: 15/10/2026. Cierre: 16/10/2026. Estado: terminada para la arquitectura vigente; pruebas técnicas de las rutas necesarias y prueba normal del propietario aprobadas. SQL nativo desde esta PC: pooler IPv4. La conexión directa IPv6 no está disponible desde esta red y no la usa la app ni el bot. Sin cambios de facturación, addons, contraseñas, datos, migraciones ni despliegues.
 
 ## Inventario y alcance
 
@@ -11,7 +11,7 @@ Supabase restringe por IP Postgres y sus poolers, no las APIs HTTPS de Auth, RES
 ## Configuración aplicada
 
 - TLS: obligatorio, currentConfig.database=true y appliedSuccessfully=true. TLS mínimo del servidor: 1.2; pooler verificado con TLS 1.3, CA oficial y hostname. Ambos modos del pooler rechazan un startup sin cifrar con ESSLREQUIRED.
-- Red: dos reglas IPv4 /32, correspondientes a los orígenes que Supabase observó al conectar desde esta PC. Sin reglas IPv6 ni rangos mundiales. Entitlement allowed y status applied.
+- Red al cierre: tres reglas IPv4 /32, correspondientes a los orígenes que Supabase observó al conectar desde esta PC; la tercera se agregó el 16/10 tras una nueva denegación y verificación del origen mediante la respuesta TLS del pooler. Sin reglas IPv6 ni rangos mundiales. Entitlement allowed y status applied.
 - La dirección de salida HTTPS no coincidía con el origen SQL y este alternó entre dos IPs observadas. La primera regla bloqueó correctamente el protocolo SQL con EADDRNOTALLOWED. Se sustituyó por reglas precisas para esos orígenes, sin abrir el rango del ISP. Las direcciones no están en Git ni en esta evidencia.
 - Metadata privada de operación: %LOCALAPPDATA%\Pesito\infra\inf05-network.json. Archivo/directorio con acceso restringido al usuario; contiene allowed_cidrs y antecedentes de la configuración, sin credenciales. No copiarlo a Git, chat o issues.
 
@@ -25,7 +25,7 @@ Activar TLS produjo el reinicio breve documentado por Supabase. Durante ese inte
 - Después: ambos rechazan plaintext; desde una IP fuera de la primera regla se observó EADDRNOTALLOWED; desde los orígenes autorizados se llega a la petición de autenticación con certificado y hostname verificados. Los probes se detienen allí: no envían contraseña ni ejecutan consultas de datos.
 - PWA, Auth y REST con limit=0: HTTP 200. Worker autenticado: HTTP 200; cron succeeded; cola habilitada y cero trabajos v2 fallidos/en procesamiento.
 - SQL administrativo por Management API HTTPS verificado bajo la red restringida. La CLI enlazada incorpora un preflight TCP antes de usar la API; puede quedar esperando si cambió la IP, aunque la API HTTPS siga disponible.
-- El hostname directo devolvió ENOTFOUND desde esta red. No se afirma haber probado conexión directa IPv6 ni autenticación nativa con contraseña. La configuración de red y TLS aplicada al proyecto quedó leída y verificada; falta comprobar esa ruta desde un entorno con conectividad adecuada.
+- Diagnóstico directo completado el 16/10: el DNS del sistema y un resolver independiente devuelven un registro AAAA y ningún registro A. La conexión TCP explícita a IPv6 devuelve ENETUNREACH. IPv6 está habilitado en adaptadores, pero no hay dirección global ni ruta predeterminada IPv6. Los ENOTFOUND iniciales del probe genérico no demostraban que faltara el registro DNS. No se probó TLS directo ni autenticación SQL con contraseña. Esta ruta no se requiere en la arquitectura vigente: se usa HTTPS y se admite el pooler IPv4 para SQL nativo. Reabrir su validación únicamente si se incorpora un consumidor que necesite conexión directa.
 - No se cambió código de negocio ni se repitió la suite de aplicación de 173 tests, porque no se modificó su implementación. Se comprobó la sintaxis y ejecución del script de diagnóstico, protocolos reales y salud de servicios.
 
 ## Repetir la comprobación
@@ -49,11 +49,21 @@ El script requiere --run-live, usa únicamente los endpoints del proyecto enlaza
 4. No restaurar rangos mundiales como salida automática. La revisión automática rechazó ese rollback amplio; no se ejecutó. La recuperación utilizada conservó la restricción y corrigió solo los dos orígenes observados. No hay bloqueos de aprobación pendientes.
 5. Si la CLI db query --linked queda esperando, cancelar esa consulta de solo lectura y usar SQL Editor/Management API. No cambiar contraseñas ni desactivar TLS para resolver una IP fuera de la lista. No copiar tokens a comandos, repositorio o chat.
 
-## Prueba pendiente del propietario
+## Prueba del propietario
 
-Recargar la app y comprobar que muestra sus datos. Enviar RESUMEN al bot y comprobar respuesta normal. No hace falta crear ni confirmar un gasto para esta validación. Registrar el resultado antes del cierre; conservar explícita la limitación del endpoint directo.
+El 16/10/2026 el propietario confirmó en el chat: «si responde y tengo mis datos cargados». Se registra como aprobada la comprobación de datos visibles en la app y respuesta del bot a RESUMEN. No se solicitó crear ni confirmar movimientos. Esta aceptación no constituye una prueba de conexión SQL nativa. El diagnóstico de red y la vía SQL admitida quedan documentados arriba; no se declara una conexión directa IPv6 exitosa.
+
+## Cierre y operación
+
+[Evidencia final del 16/10](evidencias/INF_05_cierre_2026-10-16.json). Tras refrescar la /32, ambos poolers rechazan plaintext y llegan a autenticación con TLS 1.3, CA y hostname verificados. El control remoto confirma TLS obligatorio. Lectura administrativa: TLS mínimo 1.2, cola habilitada, cero trabajos v2 fallidos o en procesamiento y último cron succeeded. PWA HTTP 200. No se ejecutaron consultas nativas autenticadas ni se modificaron movimientos.
+
+Para mantener costo cero y operar desde esta red, usar Session pooler cuando una herramienta necesite SQL nativo, conservando TLS y la lista de orígenes exactos. El SQL Editor y las APIs HTTPS siguen disponibles. No es necesario contratar IPv4 ni cambiar la red de la PC para el uso actual. Si cambia la salida SQL, seguir la recuperación acotada; no ampliar al rango del proveedor.
+
+El cierre cubre las conexiones necesarias de la arquitectura actual. Una futura conexión directa exige red IPv6 funcional, verificar su origen exacto y autorizar únicamente ese origen, además de repetir TLS y autenticación. El probe genérico puede seguir informando ENOTFOUND para esa ruta en esta PC: consultar el diagnóstico A/AAAA explícito antes de atribuirlo al DNS.
 
 ## Fuentes oficiales
+
+- [Conexión directa IPv6 y alternativa Session pooler IPv4](https://supabase.com/docs/guides/database/connecting-to-postgres).
 
 - [Restricciones de red y alcance sobre APIs HTTPS](https://supabase.com/docs/guides/platform/network-restrictions).
 - [TLS obligatorio, reinicio y verify-full](https://supabase.com/docs/guides/platform/ssl-enforcement).

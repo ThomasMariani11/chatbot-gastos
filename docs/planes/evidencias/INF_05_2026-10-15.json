@@ -1,7 +1,7 @@
 {
   "date": "2026-10-15",
   "scope": "INF-05",
-  "state": "applied_pending_owner_smoke_test",
+  "state": "applied_owner_smoke_test_passed_direct_route_unverified",
   "owner_inventory": "Only Supabase SQL Editor and this PC; no other SQL tools or services",
   "tls": {
     "after_enforced": true,
@@ -132,5 +132,13 @@
     "Observed source IPs can change; administration via HTTPS remains available.",
     "SSL enforcement caused the documented database reboot; no second reboot or database password reset was performed."
   ],
-  "next": "Owner: reload app and send RESUMEN in WhatsApp"
+  "next": "See INF_05_cierre_2026-10-16.json for current configuration and closure",
+  "owner_smoke_test": {
+    "date": "2026-10-16",
+    "source": "owner confirmation in chat",
+    "app_data_visible": true,
+    "whatsapp_summary_responds": true,
+    "direct_sql_connection_verified": false
+  },
+  "follow_up": "INF_05_cierre_2026-10-16.json"
 }

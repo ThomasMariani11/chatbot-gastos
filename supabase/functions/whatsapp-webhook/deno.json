@@ -1,0 +1,19 @@
+{
+  "nodeModulesDir": "none",
+  "lock": {
+    "path": "./deno.lock",
+    "frozen": true
+  },
+  "lint": {
+    "rules": {
+      "exclude": [
+        "no-import-prefix"
+      ]
+    }
+  },
+  "tasks": {
+    "check": "deno check index.ts queue_test.ts routing_test.ts",
+    "lint": "deno lint .",
+    "test": "deno test --cached-only --no-prompt --allow-env=WHATSAPP_GRAPH_API_VERSION,META_APP_SECRET,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,WHATSAPP_VERIFY_TOKEN,WHATSAPP_WORKER_SECRET --deny-net queue_test.ts routing_test.ts"
+  }
+}

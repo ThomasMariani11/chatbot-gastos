@@ -1,7 +1,7 @@
 // Base PostgreSQL efímera en memoria. Nunca conecta con Supabase.
-// npm install --prefix node_modules/.renewal-validation --no-audit --no-fund @electric-sql/pglite
+// npm ci && npm run test:sql
 // node tests/renewals.integration.mjs
-import { PGlite } from '../node_modules/.renewal-validation/node_modules/@electric-sql/pglite/dist/index.js';
+import { PGlite } from '@electric-sql/pglite';
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 

@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-16",
+  "scope": "INF-05",
+  "state": "completed_for_current_architecture",
+  "owner_smoke_test": {
+    "date": "2026-10-16",
+    "source": "owner confirmation in chat",
+    "app_data_visible": true,
+    "whatsapp_summary_responds": true
+  },
+  "direct_route_diagnosis": {
+    "system_dns_A": "ENODATA",
+    "system_dns_AAAA_count": 1,
+    "independent_dns_A": "ENODATA",
+    "independent_dns_AAAA_count": 1,
+    "explicit_ipv6_tcp": "ENETUNREACH",
+    "ipv6_enabled_adapter_count": 4,
+    "ipv6_default_route_count": 0,
+    "preferred_global_ipv6_count": 0,
+    "conclusion": "Direct endpoint is IPv6-only; current PC has no usable IPv6 route. DNS existence is verified. Earlier generic ENOTFOUND is not evidence of a missing hostname.",
+    "operational_route": "IPv4 session pooler for native SQL; HTTPS for app, bot and administration",
+    "direct_tls_verified": false,
+    "direct_sql_authenticated": false,
+    "current_architecture_requires_direct_ipv6": false
+  },
+  "network": {
+    "status": "applied",
+    "entitlement": "allowed",
+    "ipv4_prefix_lengths": [
+      32,
+      32,
+      32
+    ],
+    "ipv6_rule_count": 0,
+    "world_access": false,
+    "refresh_reason": "Current SQL egress changed; exact source obtained from TLS-verified EADDRNOTALLOWED response",
+    "new_exact_ipv4_rules": 1,
+    "previously_observed_rules_retained": 2,
+    "addresses_committed": false,
+    "negative_network_test": "Current source rejected before its exact /32 was added"
+  },
+  "tls": {
+    "enforced": true,
+    "applied_successfully": true,
+    "minimum_server_protocol": "TLSv1.2",
+    "observed_pooler_protocol": "TLSv1.3",
+    "ca_and_hostname_verified": true
+  },
+  "final_probe": {
+    "credentials_sent": false,
+    "data_queries_sent": false,
+    "results": [
+      {
+        "route": "pooler_session",
+        "encrypted": false,
+        "outcome": "plaintext_rejected_tls_required"
+      },
+      {
+        "route": "pooler_session",
+        "encrypted": true,
+        "protocol": "TLSv1.3",
+        "authorized": true,
+        "outcome": "authentication_requested_with_verified_tls"
+      },
+      {
+        "route": "pooler_transaction",
+        "encrypted": false,
+        "outcome": "plaintext_rejected_tls_required"
+      },
+      {
+        "route": "pooler_transaction",
+        "encrypted": true,
+        "protocol": "TLSv1.3",
+        "authorized": true,
+        "outcome": "authentication_requested_with_verified_tls"
+      },
+      {
+        "route": "direct",
+        "encrypted": false,
+        "outcome": "unavailable",
+        "code": "ENOTFOUND"
+      },
+      {
+        "route": "direct",
+        "encrypted": true,
+        "outcome": "unavailable",
+        "code": "ENOTFOUND"
+      }
+    ]
+  },
+  "health": {
+    "management_sql_ok": true,
+    "min_tls": "TLSv1.2",
+    "queue_enabled": true,
+    "v2_failed": 0,
+    "v2_processing": 0,
+    "latest_cron_status": "succeeded",
+    "pwa_https_status": 200
+  },
+  "limits": [
+    "Pooler probes stop at authentication; no database password was sent and no authenticated native SQL query was performed.",
+    "Direct IPv6 TLS/authentication was not tested and is not required by the current architecture. Reassess before adopting a direct-connection consumer.",
+    "Dynamic SQL source addresses may change; update only exact verified sources via HTTPS administration and repeat probes."
+  ],
+  "changes": {
+    "data_modified": false,
+    "billing_changes": false,
+    "password_changes": false,
+    "deployments": false,
+    "network_allowlist_refreshed": true
+  },
+  "official_reference": "https://supabase.com/docs/guides/database/connecting-to-postgres",
+  "next": "INF-06"
+}
