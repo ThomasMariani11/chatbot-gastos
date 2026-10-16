@@ -4,7 +4,7 @@ import { createHmac, randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import { mkdtemp, mkdir, cp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { resolve, join, sep } from 'node:path';
+import { resolve, join, sep, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run, stop, localUrl, localDockerEndpoint, localEnvironment, stampDistribution, digestFiles } from './release-tools.mjs';
 import { prepareLocal } from './prepare-local.mjs';
@@ -92,16 +92,24 @@ async function buildAndSmoke(directory, commit, api, anon) {
       const relative = decodeURIComponent(url.pathname).replace(/^\/chatbot-gastos\//, '');
       const file = resolve(dist, relative || 'index.html');
       if (!file.startsWith(dist + sep)) { res.writeHead(404).end(); return; }
+      const mime = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png' };
+      res.setHeader('Content-Type', mime[extname(file)] || 'application/octet-stream');
       res.end(await readFile(file));
     } catch { res.writeHead(404).end(); }
   });
   try {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const base = 'http://127.0.0.1:' + server.address().port;
-    const index = await (await fetch(base + '/chatbot-gastos/')).text();
+    const indexResponse = await fetch(base + '/chatbot-gastos/');
+    assert.equal(indexResponse.status, 200);
+    assert.equal(indexResponse.headers.get('content-type'), 'text/html');
+    const index = await indexResponse.text();
     const script = index.match(/<script\b[^>]*\bsrc="([^"]+)"/)?.[1];
     assert.ok(script, 'Falta bundle de la PWA.');
-    const bundle = await (await fetch(base + script)).text();
+    const bundleResponse = await fetch(base + script);
+    assert.equal(bundleResponse.status, 200);
+    assert.equal(bundleResponse.headers.get('content-type'), 'application/javascript');
+    const bundle = await bundleResponse.text();
     assert.ok(bundle.includes(localUrl(api)), 'El build del ensayo debe usar el backend local.');
     assert.ok(!bundle.includes(tools.production.publishableKey), 'No se debe insertar la clave de producción en el ensayo.');
     assert.equal((await (await fetch(base + '/chatbot-gastos/version.json')).json()).version, commit);
