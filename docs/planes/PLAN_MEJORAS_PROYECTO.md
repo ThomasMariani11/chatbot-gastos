@@ -36,7 +36,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 4 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Terminada |
 | 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Terminada |
 | 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Terminada |
-| 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Pendiente |
+| 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | En curso |
 | 8 | INF-09 | Media | Privacidad de logs | F09 | Pendiente |
 | 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | Pendiente |
 | 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Pendiente |

@@ -1,0 +1,231 @@
+{
+  "date": "2026-10-16",
+  "scope": "INF-07",
+  "state": "in_progress_pending_application_checks",
+  "baseline_commit": "c569e2140223d21f5c471f4110211709351fb849",
+  "audit_before": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 3,
+    "critical": 0,
+    "total": 3
+  },
+  "audit_after": {
+    "all": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "production": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    }
+  },
+  "updated": {
+    "vite": {
+      "before": "8.0.13",
+      "after": "8.0.16"
+    },
+    "brace_expansion_1": {
+      "before": "1.1.18",
+      "after": "1.1.21"
+    },
+    "brace_expansion_5": {
+      "before": "5.0.9",
+      "after": "5.0.12"
+    },
+    "source_map_js": {
+      "before": "1.2.1",
+      "after": "1.2.2"
+    }
+  },
+  "lockfile_diff": {
+    "changed": [
+      {
+        "path": "node_modules/@emnapi/runtime",
+        "before": "1.11.3",
+        "after": "1.10.0",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@napi-rs/wasm-runtime",
+        "before": "1.2.3",
+        "after": "1.2.5",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@oxc-project/types",
+        "before": "0.130.0",
+        "after": "0.133.0",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-android-arm64",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-darwin-arm64",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-darwin-x64",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-freebsd-x64",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-linux-arm-gnueabihf",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-linux-arm64-gnu",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-linux-arm64-musl",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-linux-ppc64-gnu",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-linux-s390x-gnu",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-linux-x64-gnu",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-linux-x64-musl",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-openharmony-arm64",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-wasm32-wasi",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-wasm32-wasi/node_modules/@emnapi/runtime",
+        "before": "1.10.0",
+        "after": null,
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-win32-arm64-msvc",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@rolldown/binding-win32-x64-msvc",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@tybys/wasm-util",
+        "before": "0.10.3",
+        "after": "0.10.4",
+        "dev": true
+      },
+      {
+        "path": "node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion",
+        "before": "5.0.9",
+        "after": "5.0.12",
+        "dev": true
+      },
+      {
+        "path": "node_modules/brace-expansion",
+        "before": "1.1.18",
+        "after": "1.1.21",
+        "dev": true
+      },
+      {
+        "path": "node_modules/rolldown",
+        "before": "1.0.1",
+        "after": "1.0.3",
+        "dev": true
+      },
+      {
+        "path": "node_modules/source-map-js",
+        "before": "1.2.1",
+        "after": "1.2.2",
+        "dev": true
+      },
+      {
+        "path": "node_modules/vite",
+        "before": "8.0.13",
+        "after": "8.0.16",
+        "dev": true
+      }
+    ],
+    "production_version_changes": 0
+  },
+  "forced_updates": false,
+  "major_version_changes": false,
+  "security_gate": {
+    "job": "Frontend",
+    "command": "npm audit --audit-level=high",
+    "blocks": [
+      "high",
+      "critical"
+    ],
+    "network_failure": "job fails; no bypass"
+  },
+  "advisories": [
+    "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+    "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+    "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+    "https://github.com/advisories/GHSA-68fv-2mgg-jv7q",
+    "https://github.com/advisories/GHSA-v6wh-96g9-6wx3",
+    "https://github.com/advisories/GHSA-fx2h-pf6j-xcff"
+  ],
+  "limits": [
+    "npm audit reports known advisories in the npm lockfile as of this date; it is not proof that the application is free of vulnerabilities.",
+    "The independent Deno CI lockfile is unchanged and was not separately scanned with npm audit.",
+    "Existing ESLint unsupported-version notice is maintenance debt; no npm advisory remains for the installed graph."
+  ],
+  "data_modified": false,
+  "webhook_deployed": false
+}
