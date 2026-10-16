@@ -1,6 +1,6 @@
 # INF-09 — Privacidad de logs
 
-Fecha: 16/10/2026. Estado: validado localmente; faltan CI y publicación.
+Fecha: 16/10/2026. Estado: terminada la privacidad de emisión propia y publicada en Supabase (024, webhook v41). La revisión documental final del PR debe aprobar sus checks antes de integrarse y publicar Pages. Se mantienen los límites de históricos y logging administrado por el proveedor.
 
 ## Hallazgos y alcance
 
@@ -22,7 +22,7 @@ CI activa la regla Deno no-console. Solo se exceptúan la salida validada de log
 - Se reproduce el aviso antiguo y se comprueba que 024 elimina canarios del mensaje y del resto del aviso, mantiene SQLSTATE, privilegios y alta legítima con invitación, nombres y 16 categorías.
 - El fallo del logger no reabre un guardado ni repite la respuesta; un error crudo del proveedor produce reintento con fase send sin imprimir su contenido.
 - 13 tests Deno: el endpoint real responde 200, 401 y 503 sin registrar canarios de cuerpo, token, URL, excepción, teléfono o comprobante. Check/lint Deno, ESLint, tipos, 12 escenarios SQL y build aprobados.
-- La fixture PostgreSQL nativa de CI incorpora 024 antes del alta y conserva las pruebas concurrentes anteriores. Su resultado remoto está pendiente.
+- La fixture PostgreSQL nativa de CI incorpora 024 antes del alta y conserva las pruebas concurrentes anteriores. La ejecución remota 38929053165 aprobó la concurrencia nativa, además de Frontend y Webhook.
 
 ## Acceso y retención revisados
 
@@ -34,7 +34,15 @@ Se revisaron diez logs de jobs de tres ejecuciones CI recientes (15 y 16/10). No
 
 Los ajustes PostgreSQL leídos incluyen log_statement=ddl, log_min_error_statement=error, log_parameter_max_length_on_error=0, pgaudit.log=none y Auth con log_statement=none. No se cambian globalmente: los logs administrados por la plataforma pueden contener metadata de red y detalles de errores que este logger no controla. El cierre se refiere al logging emitido por nuestro código y a la advertencia identificada, no a una garantía sobre todos los logs del proveedor.
 
-## Operación y publicación
+## Publicación verificada
+
+El commit 57dc455 aprobó los tres checks en la [ejecución 38929053165](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38929053165). Se exigieron historial 023 y huella de bootstrap_user antes de aplicar; 024 y su entrada en supabase_migrations.schema_migrations se ejecutaron en una transacción por Management API HTTPS. La lectura posterior confirma 024 registrada, warning inseguro ausente y evento seguro presente. No se cambió el cuerpo restante ni se tocaron filas de clientes.
+
+CLI 2.120 con --use-api publicó solo whatsapp-webhook: v41 ACTIVE, JWT deshabilitado como requiere Meta; HMAC y secreto del worker conservados. Dos POST vacíos, sin firma/secreto, devolvieron 401. No se encolaron mensajes por esas peticiones ni se enviaron mensajes a clientes. Lectura posterior: cola habilitada, cero trabajos v2 fallidos/en procesamiento y último cron succeeded.
+
+La consulta agregada sobre 1439 minutos devolvió 313 eventos function_logs y 3582 postgres_logs. Se observaron los dos eventos HTTP nuevos; cero eventos HTTP con las claves prohibidas buscadas, cero prefijos de credenciales y cero marcadores de warning bootstrap antiguo. Los patrones no garantizan ausencia de todo contenido sensible histórico. No se obtuvieron textos crudos. La revisión final solo modifica documentación respecto del código desplegado y debe aprobar CI antes del merge del [PR 3](https://github.com/ThomasMariani11/chatbot-gastos/pull/3).
+
+## Repetir la validación
 
 1. Exigir los tres checks del PR. Aplicar 024 con registro de historial en la misma transacción y verificar su definición sin imprimirla.
 2. Desplegar solo whatsapp-webhook con los secretos existentes y JWT deshabilitado para Meta; conservar verificación HMAC y secreto del worker.

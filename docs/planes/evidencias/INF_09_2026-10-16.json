@@ -1,7 +1,7 @@
 {
   "date": "2026-10-16",
   "scope": "INF-09",
-  "state": "validated_locally_pending_ci_and_publication",
+  "state": "application_log_privacy_verified_and_deployed",
   "baseline_commit": "112bfb00b59a8962cdbbeca71e6b61fd67d6a769",
   "confirmed_findings": {
     "legacy_webhook_console_removed_by_prior_work": true,
@@ -182,8 +182,68 @@
     "Payload/draft retention and monitoring remain INF-14; no pending customer data is deleted."
   ],
   "production": {
-    "migration_024_applied": false,
+    "migration_024_applied": true,
+    "migration_024_registered": true,
+    "unsafe_warning_removed": true,
+    "safe_warning_present": true,
+    "migration_and_history_single_transaction": true,
+    "prior_definition_hash_checked": true,
     "webhook_version_before": 40,
-    "webhook_deployed": false
-  }
+    "webhook_version_after": 41,
+    "webhook_status": "ACTIVE",
+    "webhook_deployed": true,
+    "deployed_source_commit": "57dc455fe94c2189ada99623e86dcffe09578b25",
+    "verify_jwt": false,
+    "synthetic_unsigned_webhook_status": 401,
+    "synthetic_worker_without_secret_status": 401,
+    "queue_enabled": true,
+    "v2_failed": 0,
+    "v2_processing": 0,
+    "latest_cron_status": "succeeded",
+    "production_signup_failure_injected": false,
+    "customer_messages_sent": false,
+    "financial_records_modified_by_validation": false
+  },
+  "initial_ci": {
+    "run_id": 38929053165,
+    "url": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38929053165",
+    "source_commit": "57dc455fe94c2189ada99623e86dcffe09578b25",
+    "jobs": {
+      "Frontend": "success",
+      "Webhook": "success",
+      "PostgreSQL": "success",
+      "Publicar": "skipped"
+    },
+    "postgres_includes_migration_024": true
+  },
+  "live_log_review": {
+    "verify_jwt": false,
+    "aggregates": [
+      {
+        "structured_http_events": 0,
+        "credential_pattern_events": 0,
+        "legacy_bootstrap_events": 0,
+        "http_forbidden_field_events": 0,
+        "events": 3582,
+        "source": "postgres_logs"
+      },
+      {
+        "structured_http_events": 2,
+        "credential_pattern_events": 0,
+        "legacy_bootstrap_events": 0,
+        "http_forbidden_field_events": 0,
+        "events": 313,
+        "source": "function_logs"
+      }
+    ],
+    "webhook_status": "ACTIVE",
+    "webhook_version": 41,
+    "date": "2026-10-16T16:07:03.6094035Z",
+    "functions_http": 200,
+    "window_minutes": 1439,
+    "logs_query_error": false,
+    "logs_http": 200
+  },
+  "integration_policy": "Final documentation revision must pass the required checks; integrate by squash with expected SHA and verify Pages publication. Runtime source files are unchanged after the tested deployment.",
+  "pull_request": "https://github.com/ThomasMariani11/chatbot-gastos/pull/3"
 }
