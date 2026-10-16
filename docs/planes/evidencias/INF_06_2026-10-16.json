@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-16",
+  "scope": "INF-06",
+  "state": "validation_and_main_protection_verified",
+  "pull_request": "https://github.com/ThomasMariani11/chatbot-gastos/pull/1",
+  "baseline_commit": "6b08463e7aa993285c1d2765bf41754fc0f6966a",
+  "clean_checkout": {
+    "tracked_files_only": true,
+    "npm_ci": true,
+    "lint": true,
+    "vitest_files": 11,
+    "vitest_passed": 173,
+    "renewal_sql_scenarios_passed": 12,
+    "typescript": true,
+    "build": true,
+    "local_node": "24.21.0",
+    "ci_node": "22.20.0",
+    "deno": "2.9.6",
+    "deno_cache_initially_empty": true,
+    "deno_frozen_lock": true,
+    "deno_check": true,
+    "deno_lint": true,
+    "deno_tests_passed": 12,
+    "deno_tests_network_denied": true,
+    "actionlint": "1.7.12",
+    "actionlint_passed": true
+  },
+  "initial_ci": {
+    "run_id": 38922024227,
+    "url": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38922024227",
+    "conclusion": "success",
+    "jobs": {
+      "Frontend": "success",
+      "Webhook": "success",
+      "PostgreSQL": "success",
+      "Publicar": "skipped"
+    },
+    "postgres_image": "postgres:17.11@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3"
+  },
+  "protection": {
+    "strict": true,
+    "checks": [
+      {
+        "context": "Frontend",
+        "app_id": 15368
+      },
+      {
+        "context": "Webhook",
+        "app_id": 15368
+      },
+      {
+        "context": "PostgreSQL",
+        "app_id": 15368
+      }
+    ],
+    "enforce_admins": true,
+    "required_pull_request": true,
+    "approving_reviews": 0,
+    "allow_force_pushes": false,
+    "allow_deletions": false,
+    "linear_history": true,
+    "conversation_resolution": true
+  },
+  "negative_probe": {
+    "branch_only": true,
+    "commit": "65c0062c54d60b3380b8d08190d99979faf998c8",
+    "run_id": 38922296104,
+    "url": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38922296104",
+    "jobs": {
+      "Frontend": "failure",
+      "Webhook": "success",
+      "PostgreSQL": "success",
+      "Publicar": "skipped"
+    },
+    "failed_step": "Run npm test",
+    "mergeable_state": "blocked",
+    "temporary_test_removed": true,
+    "never_merged_to_main": true
+  },
+  "limits": [
+    "No deliberately failing commit is pushed to main or deployed.",
+    "The workflow validates the webhook but does not deploy it or database migrations.",
+    "Existing Vite bundle-size warning remains for the frontend improvement plan.",
+    "Node clean-checkout validation runs locally on 24.21.0; hosted CI validates pinned 22.20.0.",
+    "The negative test uses a protected pull request. No failed production push or production deployment was intentionally triggered."
+  ],
+  "production_credentials_in_ci": false,
+  "integration_policy": "Final pull request revision must pass all three checks; merge by squash with expected head SHA. Observe main deployment before reporting completion."
+}

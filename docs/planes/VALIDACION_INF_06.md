@@ -1,6 +1,6 @@
 # INF-06 — Validaciones y protección de main
 
-Fecha: 16/10/2026. Estado: en curso; no se declara protección aplicada ni CI remoto aprobado hasta comprobarlos.
+Fecha: 16/10/2026. Estado: controles y protección verificados. El PR final se integra únicamente con sus tres checks aprobados; observar la publicación de main antes de comunicar finalización. Este documento registra la validación previa a esa integración, sin atribuir éxito a una ejecución futura.
 
 ## Alcance
 
@@ -18,16 +18,21 @@ Node 22.20.0 fijado en .node-version. Deno usa su grafo independiente con nodeMo
 
 La prueba renewals.integration.mjs importa PGlite desde la dependencia ya fijada en package-lock; no requiere node_modules/.renewal-validation. Los comandos están en README y package.json.
 
-## Protección prevista
+## Protección aplicada
 
-Requerir pull request con los tres checks reales y rama actualizada; aplicar también a administradores. Cero aprobaciones humanas obligatorias para permitir al propietario trabajar solo. Bloquear force push y eliminación de main; resolver conversaciones y mantener historia lineal mediante squash o rebase. Confirmar por lectura posterior de la API antes de darlo por aplicado.
+Requerir pull request con los tres checks reales y rama actualizada; aplicar también a administradores. Cero aprobaciones humanas obligatorias para permitir al propietario trabajar solo. Bloquear force push y eliminación de main; resolver conversaciones y mantener historia lineal mediante squash o rebase. Aplicada y comprobada con GET posterior de la API. Los checks están vinculados a GitHub Actions (app ID 15368).
 
-## Validación prevista
+## Resultados de validación
 
-1. Desde checkout limpio: instalación npm, lint, tests, SQL y build; grafo Deno con caché vacía, check/lint/tests y actionlint.
-2. En GitHub: los tres checks aprueban. Verificar sus nombres e identidad de GitHub Actions antes de exigirlos.
-3. Probar una aserción deliberadamente fallida en la rama del PR: Frontend falla, main queda bloqueada y el PR no publica. Retirar la aserción y volver a validar.
-4. Integrar únicamente el cambio aprobado y observar la ejecución de main y Pages. Guardar IDs/enlaces y los límites del ensayo, sin secretos.
+1. Copia limpia mediante clone local sin hardlinks ni archivos ignorados: npm ci, lint, 173 tests en 11 archivos, 12 escenarios SQL, TypeScript y build aprobados. Node local 24.21.0; CI verifica Node 22.20.0.
+2. Deno 2.9.6 con caché inicialmente vacía: cache --frozen, tipos, lint de ocho archivos y 12 tests con permisos de entorno acotados y red denegada, aprobados. actionlint 1.7.12 oficial, binario validado por SHA256: sin errores.
+3. [CI inicial](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38922024227): Frontend, Webhook y PostgreSQL aprobados; Publicar omitido al ser PR. La concurrencia SQL se ejecutó en PostgreSQL 17.11 real sobre Linux. No se usa Supabase para las fixtures.
+4. [Ensayo negativo](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/38922296104): una aserción deliberadamente falsa en tests/inf06-gate-probe.test.ts hizo fallar npm test. Los otros dos checks aprobaron; Publicar quedó skipped y el PR mostró mergeable_state blocked bajo la protección activa. No se intentó forzar una integración ni publicar un commit fallido. El archivo temporal se elimina de la revisión final y nunca se integra a main.
+5. El [PR 1](https://github.com/ThomasMariani11/chatbot-gastos/pull/1) exige de nuevo los tres checks tras retirar el ensayo. Integrar por squash con SHA esperado y observar el workflow de main. Los resultados posteriores de publicación se consultan en GitHub; esta evidencia no los anticipa.
+
+[Evidencia reproducible sin secretos](evidencias/INF_06_2026-10-16.json).
+
+Se mantiene el aviso existente de bundle superior a 500 kB para el plan frontend. No se actualizan dependencias vulnerables en este punto: INF-07 conserva su alcance. Los límites de prueba y la ausencia de cambios productivos del webhook quedan explícitos.
 
 ## Recuperación
 

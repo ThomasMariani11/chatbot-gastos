@@ -35,7 +35,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 3 | INF-03 | Alta | Cola fiable y exclusión por usuario | F03 | Terminada |
 | 4 | INF-04 | Alta | Reintentos y respuestas persistentes | F04 | Terminada |
 | 5 | INF-05 | Alta | Red SQL y TLS obligatorio | F05 | Terminada |
-| 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | En curso |
+| 6 | INF-06 | Alta | Protección de main y controles de CI | F06 | Terminada |
 | 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Pendiente |
 | 8 | INF-09 | Media | Privacidad de logs | F09 | Pendiente |
 | 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | Pendiente |
@@ -98,7 +98,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-06 — Proteger main y agregar validaciones de CI
 
-- [ ] Terminada.
+- [x] Terminada.
 - **Problema confirmado:** `main` figura sin protección. El workflow publica sin ejecutar pruebas o lint; el webhook queda fuera del chequeo TypeScript y del lint actuales.
 - **Archivos:** `.github/workflows/deploy-pages.yml:4`, `:27`; `tsconfig.json:16`; `eslint.config.mjs:6`; `tests/renewals.integration.mjs:4`.
 - **Trabajo:** validar pull requests, exigir checks antes de publicar e incorporar lint, pruebas, build y validación del webhook con Deno. Formalizar la dependencia de PGlite y las pruebas de migraciones para que no dependan de una instalación manual ignorada por Git.
@@ -659,3 +659,5 @@ Completar una entrada al cerrar cada tarea:
 | 15/10/2026 | INF-05 | TLS obligatorio y allowlist de dos /32 propias; script manual y runbook de recuperación por HTTPS | Protocolos sin credenciales, denegación de red, CA/hostname, salud HTTP/SQL/cron | Configuración aplicada sin addon ni cambios de app/bot/migraciones | Prueba normal del propietario; ruta directa no disponible desde esta red; IPs dinámicas se actualizan por control HTTPS |
 
 | 16/10/2026 | Cierre INF-05 | TLS obligatorio y tres /32 SQL observadas; ruta nativa admitida por pooler IPv4 | DNS A/AAAA, IPv6 ENETUNREACH sin ruta, denegación antes de autorizar /32, ambos poolers con TLS verificado, salud SQL/cron/HTTP y aceptación del propietario | Sin cambios de datos, contraseñas, facturación ni deploys; TLS/autenticación directa IPv6 no ensayados | INF-06 siguiente; reevaluar IPv6 solo si se incorpora un consumidor directo |
+
+| 16/10/2026 | INF-06 | CI para PR/main y protección real de main | Checkout limpio: 173 tests, 12 SQL, tipos/lint/build; 12 Deno sin red; actionlint; CI inicial aprobado; ensayo fallido bloqueó PR sin publicar | Publicación de Pages depende de tres checks; sin secretos productivos ni deploy del webhook | Integrar solo revisión final aprobada; INF-07 siguiente |
