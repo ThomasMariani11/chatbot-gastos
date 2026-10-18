@@ -1,6 +1,6 @@
 # INF-12 — Tamaño de multimedia y presupuestos de trabajo
 
-Fecha: 18/10/2026. Estado: implementada y probada localmente; pendientes CI, publicación y aceptación real de multimedia.
+Fecha: 18/10/2026. Estado: publicada en webhook v44 y verificada; pendiente aceptación real de multimedia.
 
 ## Cambios
 
@@ -24,3 +24,13 @@ Exigir los cuatro checks del PR, incluido PostgreSQL nativo y ensayo Supabase co
 Una prueba real posterior debe recibir un audio corto y una foto pequeña. Revisar que haya propuesta o pedido de texto sin espera prolongada, sin procesar el archivo parcialmente y sin confirmar datos automáticamente. Los excesos y proveedores lentos se ensayan de forma aislada; no hace falta sobrecargar producción.
 
 [Política y procedimiento](../operaciones/LIMITES_MULTIMEDIA.md). [Evidencia](evidencias/INF_12_2026-10-18.json). INF-12 continúa en curso hasta registrar despliegue y aceptación. Después sigue INF-14; backups al final.
+
+## Publicación observada
+
+El [PR 11](https://github.com/ThomasMariani11/chatbot-gastos/pull/11), head d72552b, aprobó Frontend, Webhook, PostgreSQL y Ensayo de release en [39156531097](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/39156531097). Se integró por squash como 3b3ea8c; el runtime integrado coincide con el candidato probado. El ensayo instaló las 25 migraciones y ejecutó candidato y rollback a acde1f8, con limpieza verificada, cero mensajes externos y sin restaurar datos.
+
+CLI 2.120.0 publicó solo los nueve módulos del webhook: versión 44 ACTIVE, verify_jwt=false con HMAC/secreto propios. Peticiones sin firma y worker sin secreto devuelven 401. La comprobación posterior conserva 025, cola habilitada y cero trabajos procesándose en ese instante. No se aplicaron migraciones, no se reabrieron históricos ni se crearon operaciones de prueba.
+
+Falta la prueba real de audio corto y foto pequeña enviados por el usuario. Los rechazos de tamaño/tipo, respuestas lentas y recuperación ya se probaron de forma aislada; no se requiere probar excesos sobre clientes reales. INF-12 sigue en curso únicamente por esta aceptación.
+
+La ejecución de main [39156737331](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/39156737331) aprobó sus cinco jobs, incluida Publicar. Sitio, version.json y sw.js responden 200 y corresponden a 3b3ea8cc78e145446f53ad7ca45f8c2c748d674d.
