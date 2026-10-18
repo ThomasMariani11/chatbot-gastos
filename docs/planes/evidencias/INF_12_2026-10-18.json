@@ -1,6 +1,6 @@
 {
   "date": "2026-10-18",
-  "status": "implemented_pending_ci_deployment_acceptance",
+  "status": "deployed_pending_real_media_acceptance",
   "limits": {
     "imageBytes": 5242880,
     "audioBytes": 10485760,
@@ -30,6 +30,94 @@
   "databaseChanged": false,
   "historicalMessagesReplayed": false,
   "rollbackCommit": "acde1f8e6953be7fce4947b10823770592838f63",
-  "deployment": null,
-  "whatsappAcceptance": "pending"
+  "deployment": {
+    "observedAt": "2026-10-18T19:02:44.688Z",
+    "sourceCommit": "3b3ea8cc78e145446f53ad7ca45f8c2c748d674d",
+    "edgeVersion": 44,
+    "edgeStatus": "ACTIVE",
+    "verifyJwt": false,
+    "cli": "2.120.0",
+    "migrationHead": "025",
+    "queueEnabled": true,
+    "processingAtPostcheck": 0,
+    "unsignedWebhook": 401,
+    "unsignedWorker": 401,
+    "pullRequest": 11,
+    "candidateCommit": "d72552b843117948aecc9909c955482338cc6209",
+    "candidateCiRun": 39156531097,
+    "mainCiRun": 39156737331,
+    "databaseChanged": false,
+    "historicalMessagesReplayed": false,
+    "realMediaAcceptance": "pending",
+    "mainCiPassed": true,
+    "pages": {
+      "commit": "3b3ea8cc78e145446f53ad7ca45f8c2c748d674d",
+      "checks": [
+        {
+          "path": "index",
+          "status": 200
+        },
+        {
+          "path": "version.json",
+          "status": 200,
+          "version": "3b3ea8cc78e145446f53ad7ca45f8c2c748d674d"
+        },
+        {
+          "path": "sw.js",
+          "status": 200,
+          "expectedVersionIncluded": true
+        }
+      ]
+    }
+  },
+  "whatsappAcceptance": "pending",
+  "rehearsal": {
+    "artifact": 12146694917,
+    "sourceCommit": "37c29a51624aff009d702f02037e7fbba81c3205",
+    "rollbackCommit": "acde1f8e6953be7fce4947b10823770592838f63",
+    "isolated": true,
+    "phases": [
+      {
+        "name": "docker",
+        "passed": true,
+        "durationMs": 416
+      },
+      {
+        "name": "checkout_limpio",
+        "passed": true,
+        "durationMs": 68
+      },
+      {
+        "name": "instalacion_completa",
+        "passed": true,
+        "durationMs": 54256
+      },
+      {
+        "name": "auth_sql_y_datos_sinteticos",
+        "passed": true,
+        "durationMs": 409
+      },
+      {
+        "name": "candidato_webhook_y_pwa",
+        "passed": true,
+        "durationMs": 11796
+      },
+      {
+        "name": "rollback_compatible_sin_restaurar_datos",
+        "passed": true,
+        "durationMs": 12381
+      }
+    ],
+    "tools": {
+      "node": "22.23.3",
+      "docker": "28.0.4",
+      "supabase": "2.120.0",
+      "postgres": "17.11"
+    },
+    "migrationCount": 25,
+    "completedAt": "2026-10-18T18:58:55.678Z",
+    "externalMessages": 0,
+    "databaseRestore": false,
+    "cleanupPassed": true
+  }
 }
