@@ -1,6 +1,6 @@
 {
   "date": "2026-10-18",
-  "status": "implemented_pending_ci_and_publication",
+  "status": "completed",
   "actions": [
     {
       "repository": "actions/checkout",
@@ -131,13 +131,42 @@
     "time": "09:00",
     "timezone": "America/Argentina/Buenos_Aires",
     "openVersionPrLimit": 1,
-    "autoMerge": false
+    "autoMerge": false,
+    "initialChecks": [
+      {
+        "run": 39154423456,
+        "result": "success"
+      },
+      {
+        "run": 39154418666,
+        "result": "success"
+      }
+    ],
+    "firstVersionPullRequest": 9,
+    "firstVersionPrMerged": false
   },
   "staticValidation": {
     "actionlint": "1.7.12",
-    "passed": true
+    "passed": true,
+    "yamlParsed": true,
+    "permissionAndPinChecksPassed": true
   },
-  "publication": null,
+  "publication": {
+    "verifiedAt": "2026-10-18T18:32:15.294Z",
+    "commit": "c227cf3c7f5217d90799d32712625efc19b283f0",
+    "checks": [
+      "Frontend",
+      "Webhook",
+      "PostgreSQL",
+      "Ensayo de release",
+      "Publicar"
+    ],
+    "ciRun": 39154414525,
+    "allPassed": true
+  },
   "edgeDeployed": false,
-  "databaseChanged": false
+  "databaseChanged": false,
+  "pullRequest": 8,
+  "candidateCommit": "3f51a77be6d78ccedd67b26f7e3b189c7caa4d15",
+  "candidateCiRun": 39154247417
 }
