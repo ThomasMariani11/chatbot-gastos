@@ -39,7 +39,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Terminada |
 | 8 | INF-09 | Media | Privacidad de logs | F09 | Terminada |
 | 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | Terminada |
-| 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Pendiente |
+| 10 | INF-11 | Media | Actions y permisos mínimos | F11 | En curso |
 | 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Pendiente |
 | 12 | INF-14 | Media | Observabilidad y retención | F14 | Pendiente |
 | 13 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | Pendiente |
@@ -145,6 +145,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Cierre:** despliegue reproducido en un entorno aislado desde un checkout limpio; smoke test y rollback ensayados; documentación suficiente para otro operador.
 
 ### INF-11 — Fijar Actions y aplicar permisos mínimos
+
+- **Avance al 18/10/2026:** SHA contrastados con tags oficiales; permisos de Pages trasladados fuera del build; sustituida dependencia interna móvil de upload-pages-artifact; Dependabot semanal por PR y runbook. actionlint aprobado. Pendientes CI y publicación para el cierre. [Detalle](VALIDACION_INF_11.md).
 
 - [ ] Terminada.
 - **Problema confirmado:** Actions referenciadas mediante tags móviles; permisos de publicación y OIDC definidos globalmente, también para build.
