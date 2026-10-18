@@ -1,4 +1,13 @@
 import {
+  boundedBytes,
+  boundedJson,
+  bytesToBase64,
+  LIMITS,
+  mediaPolicy,
+  timeoutSignal,
+  withinSignal,
+} from "./limits.ts";
+import {
   failureMetadata,
   httpFailure,
   OperationalFailure,
@@ -30,6 +39,7 @@ export type GeminiParsedOutput = {
     | "unknown"
     | "request_text"; // Checkpoint interno: nunca vuelve a invocar IA.
   movements: ExtractedMovement[];
+  requestTextReason?: "size" | "type";
   edit?: {
     targetPosition?: number | null;
     amount?: number | null;
@@ -96,91 +106,135 @@ export async function sha256(value: string) {
   ).join("");
 }
 
-export async function sendWhatsAppText(to: string, body: string) {
+export async function sendWhatsAppText(
+  to: string,
+  body: string,
+  parent?: AbortSignal,
+) {
   const token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
   const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
   if (!token || !phoneNumberId) {
-    throw new Error("WhatsApp no está configurado.");
+    throw new OperationalFailure("configuration", "meta_send");
   }
-  const send = (recipient: string) =>
-    fetch(`${graphBase}/${phoneNumberId}/messages`, {
-      method: "POST",
-      signal: AbortSignal.timeout(10000),
-      headers: {
-        authorization: `Bearer ${token}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to: recipient,
-        type: "text",
-        text: { preview_url: false, body },
-      }),
-    });
-
-  let response = await send(to);
-  let failureJson: { error?: { code?: number } } | null = null;
-
-  if (!response.ok) {
-    failureJson = await response.clone().json().catch(() => null);
-
-    // Si es de Argentina (+54), probar alternando con o sin el '9'
-    if (to.startsWith("549")) {
-      const altTo = to.replace(/^549/, "54");
-      const altResponse = await send(altTo);
-      if (altResponse.ok) {
+  // Un solo presupuesto para envío, respuesta y variante argentina, sin reiniciarlo.
+  const signal = timeoutSignal(LIMITS.sendMs, parent);
+  const recipients = [to];
+  if (to.startsWith("549")) recipients.push(to.replace(/^549/, "54"));
+  else if (to.startsWith("54")) recipients.push(to.replace(/^54/, "549"));
+  let status = 502;
+  try {
+    for (const recipient of recipients) {
+      signal.throwIfAborted();
+      const response = await withinSignal(
+        () =>
+          fetch(`${graphBase}/${phoneNumberId}/messages`, {
+            method: "POST",
+            signal,
+            headers: {
+              authorization: `Bearer ${token}`,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({
+              messaging_product: "whatsapp",
+              recipient_type: "individual",
+              to: recipient,
+              type: "text",
+              text: { preview_url: false, body },
+            }),
+          }),
+        signal,
+      );
+      status = response.status;
+      if (response.ok) {
+        void response.body?.cancel().catch(() => {});
         return;
       }
-      failureJson = (await altResponse.clone().json().catch(() => null)) ||
-        failureJson;
-      response = altResponse;
-    } else if (to.startsWith("54") && !to.startsWith("549")) {
-      const altTo = to.replace(/^54/, "549");
-      const altResponse = await send(altTo);
-      if (altResponse.ok) {
-        return;
+      // Se drena hasta un máximo, sin persistir ni registrar el cuerpo del proveedor.
+      try {
+        await boundedJson(response, LIMITS.sendJsonBytes, signal, "meta_send");
+      } catch {
+        signal.throwIfAborted();
       }
-      failureJson = (await altResponse.clone().json().catch(() => null)) ||
-        failureJson;
-      response = altResponse;
     }
-  }
-
-  if (!response.ok) {
-    const code = failureJson?.error?.code || response.status;
-    throw new Error(`WHATSAPP_SEND_${code}`);
+    throw httpFailure(status, "meta_send");
+  } catch (error) {
+    throw providerFailure(error, "meta_send", "network");
   }
 }
 
-export async function downloadWhatsAppMedia(mediaId: string) {
+export async function downloadWhatsAppMedia(
+  mediaId: string,
+  kind?: "audio" | "image",
+  parent?: AbortSignal,
+) {
+  const signal = timeoutSignal(LIMITS.downloadMs, parent);
   try {
     const token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
     if (!token) throw new OperationalFailure("configuration", "meta_media");
-    const metadata = await fetch(`${graphBase}/${mediaId}`, {
-      headers: { authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(15000),
-    });
+    const metadata = await withinSignal(() =>
+      fetch(`${graphBase}/${mediaId}`, {
+        headers: { authorization: `Bearer ${token}` },
+        signal,
+      }), signal);
     if (!metadata.ok) {
-      await metadata.body?.cancel().catch(() => {});
+      void metadata.body?.cancel().catch(() => {});
       throw httpFailure(metadata.status, "meta_media");
     }
-    const { url, mime_type: mimeType } = await metadata.json() as {
-      url: string;
-      mime_type: string;
-    };
-    const file = await fetch(url, {
-      headers: { authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(15000),
-    });
+    const info = await boundedJson<
+      { url?: unknown; mime_type?: unknown; file_size?: unknown }
+    >(metadata, LIMITS.metadataBytes, signal, "meta_media");
+    const { mimeType, maximum } = mediaPolicy(info.mime_type, kind);
+    if (info.file_size !== undefined) {
+      const size =
+        typeof info.file_size === "string" && /^\d+$/.test(info.file_size)
+          ? Number(info.file_size)
+          : info.file_size;
+      if (typeof size !== "number" || !Number.isSafeInteger(size) || size < 0) {
+        throw new OperationalFailure("invalid_response", "meta_media");
+      }
+      if (size > maximum) {
+        throw new OperationalFailure("media_too_large", "meta_media");
+      }
+    }
+    if (typeof info.url !== "string") {
+      throw new OperationalFailure("invalid_response", "meta_media");
+    }
+    const url = new URL(info.url);
+    if (url.protocol !== "https:" || url.username || url.password) {
+      throw new OperationalFailure("invalid_response", "meta_media");
+    }
+    const file = await withinSignal(() =>
+      fetch(url, {
+        headers: { authorization: `Bearer ${token}` },
+        signal,
+      }), signal);
     if (!file.ok) {
-      await file.body?.cancel().catch(() => {});
+      void file.body?.cancel().catch(() => {});
       throw httpFailure(file.status, "meta_media");
     }
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    let binary = "";
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return { base64: btoa(binary), mimeType };
+    const contentType = file.headers.get("content-type")?.split(";", 1)[0]
+      .trim().toLowerCase();
+    if (
+      contentType && contentType !== "application/octet-stream" &&
+      contentType !== mimeType
+    ) {
+      void file.body?.cancel().catch(() => {});
+      throw new OperationalFailure("unsupported_media", "meta_media");
+    }
+    const bytes = await boundedBytes(file, maximum, signal, "meta_media").catch(
+      (error) => {
+        if (failureMetadata(error).reason === "payload_too_large") {
+          throw new OperationalFailure("media_too_large", "meta_media");
+        }
+        throw error;
+      },
+    );
+    if (!bytes.length) {
+      throw new OperationalFailure("invalid_response", "meta_media");
+    }
+    const base64 = bytesToBase64(bytes);
+    signal.throwIfAborted();
+    return { base64, mimeType };
   } catch (error) {
     throw providerFailure(error, "meta_media", "network");
   }
@@ -403,7 +457,9 @@ export async function extractFromGemini(input: {
   mediaBase64?: string;
   mimeType?: string;
   activeDraftContext?: string;
+  signal?: AbortSignal;
 }): Promise<GeminiParsedOutput> {
+  input.signal?.throwIfAborted();
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) throw new OperationalFailure("configuration", "gemini");
 
@@ -456,38 +512,49 @@ Mensaje del usuario: ${input.text ?? ""}`;
       label: "flash",
     },
   ] as const;
+  const body = JSON.stringify({
+    contents: [{ role: "user", parts }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseJsonSchema: multiResponseJsonSchema,
+      temperature: 0.1,
+    },
+  });
+  if (encoder.encode(body).byteLength > LIMITS.geminiRequestBytes) {
+    throw new OperationalFailure("payload_too_large", "gemini");
+  }
   let lastError: Error | null = null;
 
   for (const model of candidateModels) {
+    input.signal?.throwIfAborted();
     const started = performance.now();
     let phase: "request" | "parse" = "request";
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          signal: AbortSignal.timeout(input.mediaBase64 ? 10000 : 3500),
-          body: JSON.stringify({
-            contents: [{ role: "user", parts }],
-            generationConfig: {
-              responseMimeType: "application/json",
-              responseJsonSchema: multiResponseJsonSchema,
-              temperature: 0.1,
-            },
-          }),
-        },
+      input.signal?.throwIfAborted();
+      const signal = timeoutSignal(
+        input.mediaBase64 ? 10000 : 3500,
+        input.signal,
       );
+      const response = await withinSignal(() =>
+        fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            signal,
+            body,
+          },
+        ), signal);
 
       if (!response.ok) {
-        await response.body?.cancel().catch(() => {});
+        void response.body?.cancel().catch(() => {});
         throw httpFailure(response.status, "gemini");
       }
 
       phase = "parse";
-      const payload = await response.json() as {
+      const payload = await boundedJson<{
         candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-      };
+      }>(response, LIMITS.providerJsonBytes, signal, "gemini");
       const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!raw) throw new OperationalFailure("invalid_response", "gemini");
       const parsed = JSON.parse(raw) as GeminiParsedOutput;
@@ -522,6 +589,7 @@ Mensaje del usuario: ${input.text ?? ""}`;
   }
 
   // Si fallaron los modelos de IA y es un mensaje de texto (ej. 503 sobrecarga de Google), usar parser determinista
+  input.signal?.throwIfAborted();
   if (input.text && !input.mediaBase64) {
     const fallbackMovements = parseDeterministicMovements(input.text, today);
     if (fallbackMovements && fallbackMovements.length > 0) {

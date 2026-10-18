@@ -1,3 +1,4 @@
+import { LIMITS, timeoutSignal } from "./limits.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.114.0";
 import {
   formatDraftList,
@@ -31,12 +32,22 @@ async function routeRequest(request: Request): Promise<Response> {
   }
   const db = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (input, init) =>
+        fetch(input, {
+          ...init,
+          signal: timeoutSignal(LIMITS.rpcMs, init?.signal),
+        }),
+    },
   });
   async function rpc<T>(
     name: string,
     args: Record<string, unknown> = {},
+    signal?: AbortSignal,
   ): Promise<T> {
-    const result = await db.rpc(name, args);
+    const result = await db.rpc(name, args).abortSignal(
+      timeoutSignal(LIMITS.rpcMs, signal),
+    );
     if (result.error) throw new Error(`QUEUE_RPC_${name}`);
     return result.data as T;
   }
@@ -45,7 +56,8 @@ async function routeRequest(request: Request): Promise<Response> {
       [...new Set(actors)].map((waId) =>
         runActor(waId, {
           rpc,
-          prepare: (job, checkpoint) => prepareMessage(db, job, checkpoint),
+          prepare: (job, checkpoint, signal) =>
+            prepareMessage(db, job, checkpoint, signal),
           send: sendWhatsAppText,
           format: (draft) =>
             formatDraftList((draft.items ?? []) as DraftListItem[]),

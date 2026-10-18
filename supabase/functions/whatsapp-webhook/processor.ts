@@ -1,5 +1,10 @@
+import { LIMITS, timeoutSignal } from "./limits.ts";
 import type { DatabaseOperation } from "./failures.ts";
-import { failureMetadata, OperationalFailure } from "./failures.ts";
+import {
+  failureMetadata,
+  OperationalFailure,
+  providerFailure,
+} from "./failures.ts";
 import { writeOperationalLog } from "./logging.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.114.0";
 import type { Job } from "./queue.ts";
@@ -38,6 +43,7 @@ export async function prepareMessage(
   db: SupabaseClient,
   job: Job,
   checkpoint: (result: unknown) => Promise<void>,
+  parent?: AbortSignal,
 ): Promise<Record<string, unknown>> {
   const message = job.payload;
   const text = message.text?.body?.trim() ?? message.image?.caption?.trim() ??
@@ -219,9 +225,16 @@ export async function prepareMessage(
   }
   let result = job.parsed_result as GeminiParsedOutput | null;
   if (!result) {
+    const signal = timeoutSignal(LIMITS.interpretationMs, parent);
     try {
       const mediaId = message.image?.id ?? message.audio?.id;
-      const media = mediaId ? await downloadWhatsAppMedia(mediaId) : undefined;
+      const media = mediaId
+        ? await downloadWhatsAppMedia(
+          mediaId,
+          message.audio?.id ? "audio" : "image",
+          signal,
+        )
+        : undefined;
       const simple = text && !media && !correctionIntent &&
         !/[?¿]|(cu[aá]nto|c[oó]mo|d[oó]nde|por qu[eé]|explicame|ayuda)/i.test(
           text,
@@ -235,6 +248,7 @@ export async function prepareMessage(
         ? { intent: "add_movements", movements: direct }
         : await extractFromGemini({
           text,
+          signal,
           mediaBase64: media?.base64,
           mimeType: media?.mimeType,
           activeDraftContext: formatDraftList(
@@ -242,12 +256,22 @@ export async function prepareMessage(
           ),
         });
     } catch (error) {
-      const failure = failureMetadata(error);
+      const failure = failureMetadata(
+        signal.aborted ? providerFailure(error, "gemini", "timeout") : error,
+      );
       if (failure.provider !== "gemini" && failure.provider !== "meta_media") {
         throw error;
       }
       writeOperationalLog("interpretation_fallback", failure);
-      result = { intent: "request_text", movements: [] };
+      result = {
+        intent: "request_text",
+        movements: [],
+        requestTextReason: failure.reason === "media_too_large"
+          ? "size"
+          : failure.reason === "unsupported_media"
+          ? "type"
+          : undefined,
+      };
     }
     // Conservar la solicitud en la cola, sin bloquear el próximo texto ni
     // reintentar la IA si falla el guardado de la respuesta o su envío.
@@ -261,11 +285,16 @@ export async function prepareMessage(
     ) {
       result = { intent: "request_text", movements: [] };
     }
+    parent?.throwIfAborted();
     await checkpoint(result);
   }
   const requestText = () =>
     reply(
-      message.audio?.id
+      result?.requestTextReason === "size"
+        ? "El archivo es demasiado grande. Podés mandar una foto de hasta 5 MiB o un audio de hasta 10 MiB, o escribirme el concepto y el monto. No cargué movimientos de ese archivo."
+        : result?.requestTextReason === "type"
+        ? "No puedo leer ese formato de archivo. Mandame una foto JPG/PNG o escribime el gasto o ingreso con el concepto y el monto. No cargué movimientos de ese archivo."
+        : message.audio?.id
         ? 'No pude interpretar tu audio. Escribime el gasto o ingreso con el concepto y el monto, por ejemplo: "Gasté 1500 en supermercado". Si eran varios, mandalos todos en texto. Todavía no cargué nada de ese audio.'
         : message.image?.id
         ? "No pude interpretar la imagen. Escribime el gasto o ingreso con el concepto y el monto. Si eran varios, mandalos todos en texto. Todavía no cargué nada de esa imagen."

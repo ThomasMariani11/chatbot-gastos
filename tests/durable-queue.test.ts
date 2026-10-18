@@ -503,3 +503,27 @@ describe('audio no interpretado: respuesta durable y reemplazo por texto',()=>{
     expect((await db.query<{n:number}>("select count(*)::int as n from public.whatsapp_message_queue where wa_message_id='fallback-audio'")).rows[0].n).toBe(1);
   });
 });
+
+describe('INF-12: presupuesto del trabajador y fencing del checkpoint',()=>{
+  it('un presupuesto agotado evita checkpoint tardío y permite recuperar el trabajo sin duplicar',async()=>{
+    await enqueue(message('budget-exhausted'));
+    const controller=new AbortController();const originalTimeout=AbortSignal.timeout;
+    const spy=vi.spyOn(AbortSignal,'timeout').mockImplementation(ms=>ms===60000?controller.signal:originalTimeout(ms));
+    let lateCheckpoint:Promise<void>|undefined,clock=Date.now();
+    const deps:QueueDependencies={rpc,prepare:vi.fn(async(_job,checkpoint,signal)=>{
+      expect(signal).toBeDefined();controller.abort(new DOMException('synthetic-job-deadline','TimeoutError'));
+      lateCheckpoint=checkpoint({intent:'add_movements',movements:[movement()]});
+      await expect(lateCheckpoint).rejects.toMatchObject({name:'TimeoutError'});
+      return {kind:'add',items:[movement()]};
+    }),send:vi.fn(async()=>{}),format:()=> 'Resumen',now:()=>clock,sleep:async ms=>{clock+=ms;},token:()=>t1,metric:vi.fn()};
+    try {await runActor('synthetic-a',deps);if(lateCheckpoint)await lateCheckpoint.catch(()=>{});}finally{spy.mockRestore();}
+    expect((await db.query("select status,parsed_result,effect_applied from public.whatsapp_message_queue where wa_message_id='budget-exhausted'")).rows[0]).toEqual({status:'failed',parsed_result:null,effect_applied:false});
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.draft_items')).rows[0].n).toBe(0);
+    expect(deps.send).not.toHaveBeenCalled();
+    await db.exec('update public.whatsapp_message_queue set scheduled_for=clock_timestamp()');
+    deps.prepare=vi.fn(async(_job,checkpoint)=>{await checkpoint({intent:'add_movements',movements:[movement()]});return {kind:'add',items:[movement()]};});
+    await runActor('synthetic-a',deps);
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.draft_items')).rows[0].n).toBe(1);
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+  });
+});

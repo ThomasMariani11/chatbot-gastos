@@ -7,7 +7,7 @@
   },
   "release": {
     "minimumMigration": "025",
-    "rollbackCommit": "a9c0e65932dbeb158f3512c5c96ed5e5b500c8a4",
+    "rollbackCommit": "acde1f8e6953be7fce4947b10823770592838f63",
     "rollbackMinimumMigration": "025"
   }
 }

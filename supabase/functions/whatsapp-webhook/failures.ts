@@ -9,8 +9,15 @@ export type FailureReason =
   | "network"
   | "invalid_response"
   | "database_read"
-  | "unknown";
-export type FailureProvider = "gemini" | "meta_media" | "database";
+  | "unknown"
+  | "media_too_large"
+  | "payload_too_large"
+  | "unsupported_media";
+export type FailureProvider =
+  | "gemini"
+  | "meta_media"
+  | "meta_send"
+  | "database";
 export type DatabaseOperation =
   | "QUEUE_LINK_READ"
   | "QUEUE_PROFILE_READ"

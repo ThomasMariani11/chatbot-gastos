@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-18",
+  "status": "implemented_pending_ci_deployment_acceptance",
+  "limits": {
+    "imageBytes": 5242880,
+    "audioBytes": 10485760,
+    "metadataBytes": 16384,
+    "providerJsonBytes": 262144,
+    "sendJsonBytes": 16384,
+    "geminiRequestBytes": 19000000,
+    "downloadMs": 10000,
+    "interpretationMs": 30000,
+    "sendMs": 10000,
+    "rpcMs": 5000,
+    "jobMs": 60000
+  },
+  "localValidation": {
+    "vitest": 218,
+    "deno": 31,
+    "sql": 12,
+    "releaseGuards": 6,
+    "typeCheck": true,
+    "lint": true,
+    "build": true,
+    "realNetworkInDeno": false
+  },
+  "migrationHead": "025",
+  "databaseChanged": false,
+  "historicalMessagesReplayed": false,
+  "rollbackCommit": "acde1f8e6953be7fce4947b10823770592838f63",
+  "deployment": null,
+  "whatsappAcceptance": "pending"
+}

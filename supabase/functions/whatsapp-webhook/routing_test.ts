@@ -1,4 +1,6 @@
 // deno-lint-ignore-file no-console -- Captura de logs para verificar ausencia de datos privados.
+import { downloadWhatsAppMedia, sendWhatsAppText } from "./helpers.ts";
+import { LIMITS } from "./limits.ts";
 import { failureMetadata } from "./failures.ts";
 import { extractFromGemini } from "./helpers.ts";
 import { prepareMessage } from "./processor.ts";
@@ -630,3 +632,340 @@ Deno.test("un fallo del checkpoint no se oculta como error de IA", async () => {
     else Deno.env.set("WHATSAPP_ACCESS_TOKEN", token);
   }
 });
+
+// Todas las solicitudes se sustituyen; no envía audios ni mensajes reales.
+async function withMediaFixture(work: () => Promise<void>) {
+  const previousFetch = globalThis.fetch;
+  const names = [
+    "GEMINI_API_KEY",
+    "WHATSAPP_ACCESS_TOKEN",
+    "WHATSAPP_PHONE_NUMBER_ID",
+  ] as const;
+  const previous = names.map((name) => Deno.env.get(name));
+  try {
+    for (const name of names) Deno.env.set(name, "synthetic-fixture");
+    await work();
+  } finally {
+    globalThis.fetch = previousFetch;
+    names.forEach((name, index) => {
+      if (previous[index] === undefined) Deno.env.delete(name);
+      else Deno.env.set(name, previous[index]!);
+    });
+  }
+}
+Deno.test("multimedia: tamaño declarado excesivo pide texto sin descargar ni invocar IA", () =>
+  withMediaFixture(async () => {
+    let calls = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      return Promise.resolve(
+        Response.json({
+          url: "https://media.example.invalid",
+          mime_type: "image/jpeg",
+          file_size: LIMITS.imageBytes + 1,
+        }),
+      );
+    }) as typeof fetch;
+    const fixture = job("");
+    fixture.payload = {
+      id: "synthetic-image",
+      from: "synthetic-route",
+      type: "image",
+      image: { id: "media" },
+    };
+    let checkpoint: unknown;
+    const action = await prepareMessage(database().db, fixture, (v) => {
+      checkpoint = v;
+      return Promise.resolve();
+    });
+    assert(
+      calls === 1 && action.kind === "reply" &&
+        String(action.text).includes("5 MiB"),
+      "No cortó antes de descargar",
+    );
+    assert(
+      JSON.stringify(checkpoint) ===
+        JSON.stringify({
+          intent: "request_text",
+          movements: [],
+          requestTextReason: "size",
+        }),
+      "Perdió estado de tamaño",
+    );
+  }));
+Deno.test("multimedia: tamaño declarado falso no evade límite de bytes ni deja altas parciales", () =>
+  withMediaFixture(async () => {
+    let calls = 0, cancelled = false;
+    globalThis.fetch = (() => {
+      calls++;
+      return Promise.resolve(
+        calls === 1
+          ? Response.json({
+            url: "https://media.example.invalid",
+            mime_type: "image/jpeg",
+            file_size: 1,
+          })
+          : new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(new Uint8Array(LIMITS.imageBytes));
+                controller.enqueue(new Uint8Array(1));
+              },
+              cancel() {
+                cancelled = true;
+              },
+            }),
+            {
+              headers: { "content-type": "image/jpeg", "content-length": "1" },
+            },
+          ),
+      );
+    }) as typeof fetch;
+    const fixture = job("");
+    fixture.payload = {
+      id: "synthetic-image",
+      from: "synthetic-route",
+      type: "image",
+      image: { id: "media" },
+    };
+    let checkpoint: unknown;
+    const action = await prepareMessage(database().db, fixture, (v) => {
+      checkpoint = v;
+      return Promise.resolve();
+    });
+    assert(
+      calls === 2 && cancelled && action.kind === "reply",
+      "No canceló descarga sobredimensionada",
+    );
+    assert(
+      (checkpoint as { requestTextReason?: string }).requestTextReason ===
+        "size",
+      "No conservó pedido de texto",
+    );
+  }));
+Deno.test("multimedia: tipo incorrecto se rechaza antes de descargar", () =>
+  withMediaFixture(async () => {
+    let calls = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      return Promise.resolve(
+        Response.json({
+          url: "https://media.example.invalid",
+          mime_type: "image/jpeg",
+        }),
+      );
+    }) as typeof fetch;
+    let failure: unknown;
+    try {
+      await downloadWhatsAppMedia("synthetic-media", "audio");
+    } catch (e) {
+      failure = e;
+    }
+    assert(
+      calls === 1 && failureMetadata(failure).reason === "unsupported_media",
+      "Aceptó imagen como audio",
+    );
+  }));
+Deno.test("multimedia: descarga válida comparte presupuesto y mantiene contenido y MIME", () =>
+  withMediaFixture(async () => {
+    const signals: AbortSignal[] = [];
+    globalThis.fetch = ((_url: RequestInfo | URL, init?: RequestInit) => {
+      signals.push(init!.signal!);
+      return Promise.resolve(
+        signals.length === 1
+          ? Response.json({
+            url: "https://media.example.invalid",
+            mime_type: "audio/ogg; codecs=opus",
+            file_size: 3,
+          })
+          : new Response(new Uint8Array([1, 2, 3]), {
+            headers: { "content-type": "audio/ogg" },
+          }),
+      );
+    }) as typeof fetch;
+    const media = await downloadWhatsAppMedia("synthetic-media", "audio");
+    assert(
+      media.base64 === "AQID" && media.mimeType === "audio/ogg",
+      "Alteró el audio",
+    );
+    assert(
+      signals.length === 2 && signals[0] === signals[1],
+      "Reinició el timeout entre metadata y archivo",
+    );
+  }));
+Deno.test("multimedia: aborta cuerpo lento y cancela su lectura", () =>
+  withMediaFixture(async () => {
+    const controller = new AbortController();
+    let calls = 0, cancelled = false;
+    globalThis.fetch = (() => {
+      calls++;
+      return Promise.resolve(
+        calls === 1
+          ? Response.json({
+            url: "https://media.example.invalid",
+            mime_type: "audio/ogg",
+          })
+          : new Response(
+            new ReadableStream<Uint8Array>({
+              pull() {
+                setTimeout(
+                  () =>
+                    controller.abort(
+                      new DOMException("synthetic", "TimeoutError"),
+                    ),
+                  0,
+                );
+                return new Promise(() => {});
+              },
+              cancel() {
+                cancelled = true;
+              },
+            }),
+          ),
+      );
+    }) as typeof fetch;
+    let failure: unknown;
+    try {
+      await downloadWhatsAppMedia("media", "audio", controller.signal);
+    } catch (e) {
+      failure = e;
+    }
+    assert(
+      failureMetadata(failure).reason === "timeout" && cancelled,
+      "No interrumpió/canceló el cuerpo lento",
+    );
+  }));
+Deno.test("interpretación: presupuesto agotado evita segundo modelo y conserva pedido de texto", () =>
+  withMediaFixture(async () => {
+    const controller = new AbortController();
+    let calls = 0;
+    globalThis.fetch = ((url: RequestInfo | URL) => {
+      if (String(url).includes("graph.facebook.com")) {
+        return Promise.resolve(
+          Response.json({
+            url: "https://media.example.invalid",
+            mime_type: "audio/ogg",
+          }),
+        );
+      }
+      if (String(url).includes("media.example.invalid")) {
+        return Promise.resolve(new Response(new Uint8Array([1])));
+      }
+      calls++;
+      controller.abort(new DOMException("synthetic", "TimeoutError"));
+      return Promise.resolve(new Response("synthetic", { status: 503 }));
+    }) as typeof fetch;
+    // El padre simula el presupuesto global agotado: el checkpoint no se escribe tarde.
+    const fixture = job("");
+    fixture.payload = {
+      id: "audio",
+      from: "synthetic-route",
+      type: "audio",
+      audio: { id: "media" },
+    };
+    let checkpoints = 0, failure: unknown;
+    try {
+      await prepareMessage(database().db, fixture, () => {
+        checkpoints++;
+        return Promise.resolve();
+      }, controller.signal);
+    } catch (e) {
+      failure = e;
+    }
+    assert(
+      calls === 1 && checkpoints === 0 && failure instanceof DOMException,
+      "Inició respaldo o checkpoint fuera de presupuesto",
+    );
+  }));
+Deno.test("envío: variante argentina comparte timeout y nunca registra el cuerpo del proveedor", () =>
+  withMediaFixture(async () => {
+    const signals: AbortSignal[] = [];
+    let calls = 0;
+    globalThis.fetch = ((_url: RequestInfo | URL, init?: RequestInit) => {
+      calls++;
+      signals.push(init!.signal!);
+      return Promise.resolve(
+        calls === 1
+          ? Response.json({ error: { message: "PRIVATE_PROVIDER_BODY" } }, {
+            status: 400,
+          })
+          : Response.json({ messages: [{ id: "PRIVATE_RESPONSE_ID" }] }),
+      );
+    }) as typeof fetch;
+    await sendWhatsAppText("5491111111111", "synthetic");
+    assert(
+      calls === 2 && signals[0] === signals[1],
+      "Reinició presupuesto de envío",
+    );
+  }));
+Deno.test("envío: timeout no dispara un segundo envío argentino", () =>
+  withMediaFixture(async () => {
+    const controller = new AbortController();
+    let calls = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      controller.abort(new DOMException("synthetic", "TimeoutError"));
+      return new Promise(() => {});
+    }) as typeof fetch;
+    let failure: unknown;
+    try {
+      await sendWhatsAppText("5491111111111", "synthetic", controller.signal);
+    } catch (e) {
+      failure = e;
+    }
+    assert(
+      calls === 1 && failureMetadata(failure).provider === "meta_send" &&
+        failureMetadata(failure).reason === "timeout",
+      "Repitió envío agotado",
+    );
+  }));
+
+Deno.test("interpretación: límite propio de 30 s conserva pedido de texto con presupuesto de trabajo vigente", () =>
+  withMediaFixture(async () => {
+    const controller = new AbortController(),
+      previousTimeout = AbortSignal.timeout;
+    let calls = 0;
+    try {
+      AbortSignal.timeout = ((ms: number) =>
+        ms === LIMITS.interpretationMs
+          ? controller.signal
+          : previousTimeout(ms)) as typeof AbortSignal.timeout;
+      globalThis.fetch = ((url: RequestInfo | URL) => {
+        if (String(url).includes("graph.facebook.com")) {
+          return Promise.resolve(
+            Response.json({
+              url: "https://media.example.invalid",
+              mime_type: "audio/ogg",
+            }),
+          );
+        }
+        if (String(url).includes("media.example.invalid")) {
+          return Promise.resolve(new Response(new Uint8Array([1])));
+        }
+        calls++;
+        controller.abort(
+          new DOMException("synthetic-interpretation-timeout", "TimeoutError"),
+        );
+        return Promise.resolve(new Response("synthetic", { status: 503 }));
+      }) as typeof fetch;
+      const fixture = job("");
+      fixture.payload = {
+        id: "audio",
+        from: "synthetic-route",
+        type: "audio",
+        audio: { id: "media" },
+      };
+      let checkpoint: unknown;
+      const result = await prepareMessage(database().db, fixture, (v) => {
+        checkpoint = v;
+        return Promise.resolve();
+      }, new AbortController().signal);
+      assert(
+        calls === 1 && result.kind === "reply" &&
+          (checkpoint as { intent?: string }).intent === "request_text",
+        "No pidió texto tras el límite de interpretación",
+      );
+    } finally {
+      AbortSignal.timeout = previousTimeout;
+    }
+  }));
