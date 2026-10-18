@@ -1,6 +1,6 @@
 # Audio no interpretado: continuar por texto
 
-Fecha: 16/10/2026. Estado: webhook v43 publicado y smoke aprobado; aceptación real de WhatsApp pendiente.
+Fecha: 16/10/2026. Estado: webhook v43 publicado; aceptación real del pedido de texto y su confirmación aprobada.
 
 ## Problema observado y decisión
 
@@ -24,9 +24,9 @@ Pruebas con red denegada y claves ficticias: Meta 403, ambos modelos 503, timeou
 
 198 Vitest, 21 Deno; lint, tipos, build y controles de release deben aprobar junto a los cuatro checks protegidos del PR. La publicación requiere solo webhook, mantiene migraciones 001–025 y deja rollback a a9c0e65/v42. No reabre audios históricos cancelados o retenidos en revisión manual.
 
-## Prueba real pendiente
+## Prueba real aprobada
 
-Enviar un audio nuevo. Si Gemini falla, debe pedir texto durante esa ejecución, sin cinco ciclos de cola. Enviar el mismo gasto en texto y comprobar una sola propuesta. No confirmar una prueba si no se desea registrarla. Si la lista aún contiene una prueba antigua en revisión manual, resolverla antes mediante CANCELAR, solo si se quiere descartar ese lote.
+El usuario envió un audio nuevo y luego aportó una captura del pedido de texto, la propuesta y su confirmación. La lectura de base verificó un solo intento del audio, checkpoint request_text, respuesta en 3,55 s y cero ítems o transacciones provenientes del audio. El texto de reemplazo generó un único borrador y la confirmación del usuario creó exactamente un gasto confirmado de ARS 123 en un grupo cerrado. No quedaron mensajes retenidos. Ambos modelos devolvieron 503: esta aceptación valida el flujo alternativo, no la disponibilidad ni la extracción exitosa de Gemini.
 
 Este cambio no da por resuelta la disponibilidad de Gemini. INF-11 continúa después de validar el flujo; backups permanecen al final.
 
@@ -36,4 +36,4 @@ Código 3d8600d, [PR 6](https://github.com/ThomasMariani11/chatbot-gastos/pull/6
 
 Supabase CLI 2.120.0 publicó únicamente los ocho módulos del webhook: versión 43 ACTIVE. Webhook sin firma y worker sin secreto responden 401. No se aplicaron migraciones ni se reabrieron mensajes históricos. El audio de la prueba previa quedó en revisión con aviso enviado, sin ítems ni transacciones; ese flujo anterior necesita resolverse antes de repetir una prueba.
 
-[Evidencia de despliegue](evidencias/FALLBACK_TEXTO_2026-10-16.json). La aceptación de audio y reemplazo por texto en WhatsApp permanece pendiente.
+[Evidencia de despliegue](evidencias/FALLBACK_TEXTO_2026-10-16.json). La aceptación del flujo de pedido de texto, reemplazo y confirmación quedó aprobada mediante la prueba real y la lectura de base. Gemini continúa devolviendo 503.

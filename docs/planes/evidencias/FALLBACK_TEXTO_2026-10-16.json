@@ -32,6 +32,31 @@
   },
   "databaseChanged": false,
   "historicalMessagesReplayed": false,
-  "whatsappAcceptance": "pending",
-  "originalPreservation": "webhook payload and media reference; no permanent binary copy"
+  "whatsappAcceptance": "passed",
+  "originalPreservation": "webhook payload and media reference; no permanent binary copy",
+  "acceptance": {
+    "verifiedAt": "2026-10-16T17:53:42.872Z",
+    "evidence": "user screenshot and read-only database checks",
+    "audio": {
+      "queueAttempts": 1,
+      "replySeconds": 3.55,
+      "checkpoint": "request_text",
+      "draftItems": 0,
+      "transactions": 0
+    },
+    "replacement": {
+      "draftItems": 1,
+      "confirmedTransactions": 1,
+      "kind": "expense",
+      "currency": "ARS",
+      "amount": 123
+    },
+    "confirmedGroups": 1,
+    "waitingMessages": 0,
+    "provider": {
+      "flashLite": 503,
+      "flash": 503
+    },
+    "providerAvailability": "unresolved"
+  }
 }
