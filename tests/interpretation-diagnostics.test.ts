@@ -25,3 +25,12 @@ describe('diagnóstico seguro de interpretación',()=>{
     expect(lines.join('')).not.toContain('PRIVATE');
   });
 });
+
+it('INF-12: registra límites y proveedor de envío sin datos del archivo',()=>{
+  const lines:string[]=[];const log=createLogWriter(line=>lines.push(line));
+  log('interpretation_fallback',{reason:'media_too_large',provider:'meta_media',file:'PRIVATE_FILENAME',body:'PRIVATE_CONTENT',url:'https://private.invalid/token'});
+  log('queue_retry',{reason:'timeout',provider:'meta_send',stage:'send',attempts:1,message:'PRIVATE_CONTENT'});
+  expect(JSON.parse(lines[0])).toEqual({event:'interpretation_fallback',reason:'media_too_large',provider:'meta_media'});
+  expect(JSON.parse(lines[1])).toEqual({event:'queue_retry',reason:'timeout',provider:'meta_send',stage:'send',attempts:1});
+  expect(lines.join('')).not.toContain('PRIVATE');
+});

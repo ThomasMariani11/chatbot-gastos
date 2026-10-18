@@ -1,3 +1,4 @@
+import { LIMITS, timeoutSignal, withinSignal } from "./limits.ts";
 import { failureMetadata } from "./failures.ts";
 import type {
   FailureStage,
@@ -58,12 +59,22 @@ export type DraftSnapshot = {
   items?: unknown[];
 };
 export type QueueDependencies = {
-  rpc: <T>(name: string, args?: Record<string, unknown>) => Promise<T>;
+  stopStartingSignal?: AbortSignal;
+  rpc: <T>(
+    name: string,
+    args?: Record<string, unknown>,
+    signal?: AbortSignal,
+  ) => Promise<T>;
   prepare: (
     job: Job,
     checkpoint: (result: unknown) => Promise<void>,
+    signal?: AbortSignal,
   ) => Promise<Record<string, unknown>>;
-  send: (recipient: string, text: string) => Promise<void>;
+  send: (
+    recipient: string,
+    text: string,
+    signal?: AbortSignal,
+  ) => Promise<void>;
   format: (draft: DraftSnapshot) => string;
   now: () => number;
   sleep: (ms: number) => Promise<void>;
@@ -75,6 +86,7 @@ export async function runActor(
   waId: string,
   deps: QueueDependencies,
 ): Promise<void> {
+  if (deps.stopStartingSignal?.aborted) return;
   const token = deps.token();
   const started = deps.now();
   if (
@@ -84,7 +96,7 @@ export async function runActor(
     })
   ) return;
   try {
-    while (deps.now() - started < 45000) {
+    while (deps.now() - started < 45000 && !deps.stopStartingSignal?.aborted) {
       // Renovar y resolver el usuario actual antes de cada mensaje (VINCULAR
       // puede haber cambiado la identidad durante la iteración anterior).
       if (
@@ -114,7 +126,9 @@ export async function runActor(
         }
         // Solo una espera corta como optimización; cron recupera todo lo que
         // quede durable si se termina la instancia durante la espera.
+        if (deps.stopStartingSignal?.aborted) return;
         await deps.sleep(3000);
+        if (deps.stopStartingSignal?.aborted) return;
         const afterWait = await deps.rpc<Job | null>("next_whatsapp_job", {
           p_wa_id: waId,
           p_token: token,
@@ -153,6 +167,16 @@ async function processJob(
   deps: QueueDependencies,
 ): Promise<boolean> {
   const start = deps.now();
+  const signal = timeoutSignal(LIMITS.jobMs);
+  const scoped: QueueDependencies = {
+    ...deps,
+    rpc: <T>(name: string, args?: Record<string, unknown>) =>
+      withinSignal(() => deps.rpc<T>(name, args, signal), signal),
+    prepare: (job, checkpoint) =>
+      withinSignal(() => deps.prepare(job, checkpoint, signal), signal),
+    send: (recipient, text) =>
+      withinSignal(() => deps.send(recipient, text, signal), signal),
+  };
   const received = Date.parse(job.received_at ?? "");
   if (Number.isFinite(received)) {
     deps.metric("queue_wait", { duration_ms: Math.max(0, start - received) });
@@ -162,9 +186,9 @@ async function processJob(
     let applied = job;
     if (!job.effect_applied) {
       const interpretStart = deps.now();
-      const action = await deps.prepare(job, async (result) => {
+      const action = await scoped.prepare(job, async (result) => {
         stage = "checkpoint";
-        await deps.rpc("checkpoint_whatsapp_job", {
+        await scoped.rpc("checkpoint_whatsapp_job", {
           p_id: job.id,
           p_token: token,
           p_result: result,
@@ -176,7 +200,7 @@ async function processJob(
         operations: Array.isArray(action.items) ? action.items.length : 0,
       });
       stage = "apply";
-      applied = await deps.rpc<Job>("apply_whatsapp_job", {
+      applied = await scoped.rpc<Job>("apply_whatsapp_job", {
         p_id: job.id,
         p_token: token,
         p_action: action,
@@ -185,11 +209,11 @@ async function processJob(
     if (applied.reply_text) {
       stage = "send";
       const sendStart = deps.now();
-      await deps.send(job.wa_id, applied.reply_text);
+      await scoped.send(job.wa_id, applied.reply_text);
       deps.metric("queue_send", { duration_ms: deps.now() - sendStart });
     }
     stage = "finish";
-    await deps.rpc("finish_whatsapp_job", { p_id: job.id, p_token: token });
+    await scoped.rpc("finish_whatsapp_job", { p_id: job.id, p_token: token });
     deps.metric("queue_message", {
       duration_ms: deps.now() - start,
       attempts: job.attempts,
@@ -201,7 +225,9 @@ async function processJob(
     deps.metric("queue_retry", {
       attempts: job.attempts,
       stage,
-      ...failureMetadata(error),
+      ...(signal.aborted
+        ? { reason: "timeout" as const }
+        : failureMetadata(error)),
     });
     await deps.rpc("fail_whatsapp_job", { p_id: job.id, p_token: token });
     return false;

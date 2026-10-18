@@ -288,3 +288,60 @@ Deno.test("logs del endpoint conservan estado sin cuerpos, tokens, URL ni excepc
     "Campo no autorizado en logs",
   );
 });
+
+Deno.test("RPC real del endpoint: timeout llega al transporte y devuelve error saneado", async () => {
+  const previousFetch = globalThis.fetch,
+    previousServe = Deno.serve,
+    previousTimeout = AbortSignal.timeout;
+  const names = [
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "WHATSAPP_WORKER_SECRET",
+  ] as const;
+  const previous = names.map((n) => Deno.env.get(n));
+  const controller = new AbortController();
+  let observedSignal: AbortSignal | undefined;
+  try {
+    Deno.env.set("SUPABASE_URL", "https://example.invalid");
+    Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "synthetic-key");
+    Deno.env.set("WHATSAPP_WORKER_SECRET", "synthetic-worker");
+    Deno.serve = (() => ({})) as unknown as typeof Deno.serve;
+    const { handleRequest } = await import("./index.ts");
+    AbortSignal.timeout = ((ms: number) =>
+      ms === 5000
+        ? controller.signal
+        : previousTimeout(ms)) as typeof AbortSignal.timeout;
+    globalThis.fetch = ((_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        observedSignal = init?.signal ?? undefined;
+        assert(observedSignal, "No se propagó presupuesto de RPC");
+        observedSignal.addEventListener("abort", () =>
+          reject(observedSignal!.reason), { once: true });
+        queueMicrotask(() =>
+          controller.abort(
+            new DOMException("PRIVATE_INTERNAL_ERROR", "TimeoutError"),
+          )
+        );
+      })) as typeof fetch;
+    const response = await handleRequest(
+      new Request("https://example.invalid/webhook?action=worker", {
+        method: "POST",
+        headers: { "x-worker-secret": "synthetic-worker" },
+      }),
+    );
+    const body = await response.text();
+    assert(
+      response.status === 503 && observedSignal?.aborted &&
+        !body.includes("PRIVATE"),
+      "No limitó/saneó el RPC",
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    Deno.serve = previousServe;
+    AbortSignal.timeout = previousTimeout;
+    names.forEach((n, i) => {
+      if (previous[i] === undefined) Deno.env.delete(n);
+      else Deno.env.set(n, previous[i]!);
+    });
+  }
+});

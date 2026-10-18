@@ -58,8 +58,11 @@ const failureSchema = {
     "invalid_response",
     "database_read",
     "unknown",
+    "media_too_large",
+    "payload_too_large",
+    "unsupported_media",
   ),
-  provider: oneOf("gemini", "meta_media", "database"),
+  provider: oneOf("gemini", "meta_media", "meta_send", "database"),
   status: (v: unknown) => numeric(599, true)(v) && (v as number) >= 100,
 };
 const schemas: Record<Event, Record<string, Validator>> = {
