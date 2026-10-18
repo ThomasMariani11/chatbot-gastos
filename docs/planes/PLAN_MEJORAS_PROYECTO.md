@@ -39,7 +39,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 7 | INF-07 | Alta; desarrollo | Dependencias vulnerables | F07 | Terminada |
 | 8 | INF-09 | Media | Privacidad de logs | F09 | Terminada |
 | 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | Terminada |
-| 10 | INF-11 | Media | Actions y permisos mínimos | F11 | En curso |
+| 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Terminada |
 | 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Pendiente |
 | 12 | INF-14 | Media | Observabilidad y retención | F14 | Pendiente |
 | 13 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | Pendiente |
@@ -146,9 +146,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-11 — Fijar Actions y aplicar permisos mínimos
 
-- **Avance al 18/10/2026:** SHA contrastados con tags oficiales; permisos de Pages trasladados fuera del build; sustituida dependencia interna móvil de upload-pages-artifact; Dependabot semanal por PR y runbook. actionlint aprobado. Pendientes CI y publicación para el cierre. [Detalle](VALIDACION_INF_11.md).
+- **Cierre al 18/10/2026:** SHA contrastados con tags oficiales; Pages fuera del build y subida sin dependencia interna móvil; Dependabot semanal por PR y runbook. actionlint y YAML aprobados; cuatro checks del PR y publicación main aprobados. Web/version.json/sw.js HTTP 200 con c227cf3. Dependabot inició sus comprobaciones correctamente y abrió el PR 9 de versiones, que queda para revisión. [Detalle](VALIDACION_INF_11.md). Sigue INF-12; backups al final.
 
-- [ ] Terminada.
+- [x] Terminada.
 - **Problema confirmado:** Actions referenciadas mediante tags móviles; permisos de publicación y OIDC definidos globalmente, también para build.
 - **Archivo:** `.github/workflows/deploy-pages.yml:8`, `:21`, `:22`, `:34`, `:35`, `:48`.
 - **Trabajo:** fijar acciones a SHA completo verificado, definir actualización periódica y mover permisos de publicación al job de deploy. Revisar timeout de jobs y exposición de credenciales en los pasos de build.
@@ -681,3 +681,5 @@ Completar una entrada al cerrar cada tarea:
 | 16/10/2026 | INF-10 | Entornos explícitos, CLI 2.120.0 y runbook SQL/Edge/Pages con rollback compatible | 190 Vitest + seis controles Node, 12 SQL, lint/tipos/build; ensayo Supabase local completo 38932608913 | 24 migraciones reproducidas; rollback conserva registro sintético; sin SQL ni webhook productivos modificados | Integrar con cuatro checks aprobados; INF-11 siguiente; backups al final |
 
 | 16/10/2026 | Incidente BE-11 / diagnóstico INF-14 | CANCELAR resuelve la lista antigua conservando el mensaje nuevo; errores técnicos permitidos por proveedor | Regresión reproducida; 197 Vitest, 17 Deno, 12 SQL, seis controles Node, tipos/lint/build | Sin reprocesar audios cancelados, guardar movimientos ni cambiar modelos/timeouts | 025 + webhook v42 publicados y verificados; integrar revisión documental tras CI y validar audio nuevo; INF-11 después |
+
+| 18/10/2026 | INF-11 | Actions por SHA verificado, build solo lectura, publicación aislada y Dependabot semanal | actionlint/YAML, cuatro checks PR, cinco jobs main y HTTP de versión | Publicación c227cf3 verificada; bot y SQL sin cambios en este punto | Terminada; INF-12 siguiente; PR de actualizaciones de Dependabot pendiente de revisión |

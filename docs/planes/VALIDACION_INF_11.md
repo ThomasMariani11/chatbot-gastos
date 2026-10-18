@@ -1,6 +1,6 @@
 # INF-11 — Actions verificadas y permisos mínimos
 
-Fecha: 18/10/2026. Estado: implementada y validada estáticamente; CI y publicación pendientes.
+Fecha: 18/10/2026. Estado: terminada; validación, publicación y primera ejecución de mantenimiento verificadas.
 
 ## Resultado de la revisión
 
@@ -20,3 +20,13 @@ Se agrega Dependabot semanal para Actions, se mueve configure-pages al job de de
 El cierre requiere los cuatro checks en el PR, integración protegida, Publicar aprobado desde main y version.json con el SHA publicado. El runbook explica verificación de origen, revisión de permisos, actualizaciones de major y recuperación mediante PR. La primera ejecución programada de Dependabot y futuras propuestas se revisarán en el repositorio: aún no se atribuye éxito a una ejecución futura.
 
 [Procedimiento](../operaciones/MANTENIMIENTO_ACTIONS.md). [Evidencia de revisión](evidencias/INF_11_2026-10-18.json).
+
+## Cierre observado
+
+El [PR 8](https://github.com/ThomasMariani11/chatbot-gastos/pull/8), head 3f51a77, aprobó Frontend, Webhook, PostgreSQL y Ensayo de release en [39154247417](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/39154247417). Se integró por squash con el SHA esperado como c227cf3, manteniendo la protección.
+
+La ejecución de main [39154414525](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/39154414525) aprobó los cuatro controles y Publicar, incluido configure-pages en deploy y la subida del tar mediante SHA directo. La lectura HTTP devolvió 200 para el sitio, version.json y sw.js; ambos identificadores de versión coinciden con c227cf3c7f5217d90799d32712625efc19b283f0.
+
+Dependabot aceptó la configuración: ejecuciones iniciales 39154423456 y 39154418666 exitosas; abrió el PR 9 con propuestas agrupadas. Las actualizaciones no se integraron: requieren revisión y controles propios. Las futuras ejecuciones semanales aún no se dan por observadas.
+
+INF-11 queda cerrado. Sigue INF-12; backups permanecen al final. Este punto no requirió SQL, secretos nuevos ni despliegue del webhook.
