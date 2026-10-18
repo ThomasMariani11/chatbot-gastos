@@ -13,6 +13,8 @@ export const LIMITS = Object.freeze({
   jobMs: 60_000,
   rpcMs: 5_000,
   sendMs: 10_000,
+  workers: 2,
+  workerWindowMs: 45_000,
 });
 
 export function timeoutSignal(ms: number, parent?: AbortSignal | null) {
@@ -66,7 +68,7 @@ export async function boundedBytes(
         throw new OperationalFailure("payload_too_large", provider);
       }
     }
-    const chunks: Uint8Array[] = [];
+    let buffer = new Uint8Array(Math.min(maximum, 65536));
     let total = 0;
     while (true) {
       const { done, value } = await withinSignal(() => reader.read(), signal);
@@ -79,15 +81,16 @@ export async function boundedBytes(
       if (total > maximum) {
         throw new OperationalFailure("payload_too_large", provider);
       }
-      chunks.push(value);
+      if (total > buffer.length) {
+        const grown = new Uint8Array(
+          Math.min(maximum, Math.max(total, buffer.length * 2)),
+        );
+        grown.set(buffer);
+        buffer = grown;
+      }
+      buffer.set(value, total - value.byteLength);
     }
-    const bytes = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    return bytes;
+    return buffer.subarray(0, total);
   } finally {
     signal.removeEventListener("abort", cancel);
     if (!completed) cancel();
@@ -139,4 +142,33 @@ export function bytesToBase64(bytes: Uint8Array) {
     parts.push(String.fromCharCode(...bytes.subarray(offset, offset + 32768)));
   }
   return btoa(parts.join(""));
+}
+
+// Limita memoria y no inicia actores nuevos cuando termina la ventana. Los no
+// iniciados siguen durables en la cola y los recupera el cron existente.
+export async function processActorsLimited<T>(
+  actors: T[],
+  work: (actor: T) => Promise<void>,
+  now: () => number = () => performance.now(),
+) {
+  const started = now();
+  let cursor = 0, failed = 0;
+  await Promise.all(
+    Array.from(
+      { length: Math.min(LIMITS.workers, actors.length) },
+      async () => {
+        while (
+          cursor < actors.length && now() - started < LIMITS.workerWindowMs
+        ) {
+          const actor = actors[cursor++];
+          try {
+            await work(actor);
+          } catch {
+            failed++;
+          }
+        }
+      },
+    ),
+  );
+  return { failed, started: cursor };
 }

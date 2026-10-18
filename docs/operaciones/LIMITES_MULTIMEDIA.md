@@ -15,7 +15,7 @@ Los límites se definen en supabase/functions/whatsapp-webhook/limits.ts. No req
 
 La política MIME acepta JPEG/PNG y audio AAC, MP4, MPEG/MP3, AMR, OGG, WAV, FLAC, WebM, M4A y Opus. Se normalizan mayúsculas y parámetros como codecs. Se exige que la familia coincida con el tipo de mensaje; un tipo específico en el cuerpo debe coincidir con el MIME de metadatos. Un Content-Type ausente o application/octet-stream se valida usando los metadatos de Meta. No se afirma validar códecs, decodificar contenido o garantizar que todos los modelos acepten todos esos formatos: una incompatibilidad del proveedor continúa mediante el pedido de texto.
 
-Se comprueba el tamaño declarado de los metadatos y Content-Length, pero el límite decisivo cuenta los bytes realmente leídos del stream. Un tamaño ausente o menor al real no evita el corte. Al rechazar o agotar el presupuesto se cancela la lectura; no se trunca el archivo ni se envía una parte a Gemini. La base64 se construye por bloques y solo después de completar una lectura dentro del límite.
+Se comprueba el tamaño declarado de los metadatos y Content-Length, pero el límite decisivo cuenta los bytes realmente leídos del stream. Un tamaño ausente o menor al real no evita el corte. Al rechazar o agotar el presupuesto se cancela la lectura; no se trunca el archivo ni se envía una parte a Gemini. El lector usa un buffer que crece hasta el máximo y evita retener un objeto por cada fragmento. La base64 se construye por bloques y solo después de completar una lectura dentro del límite.
 
 La documentación de Gemini establece un límite inline de 20 MB para audio, incluyendo instrucciones y archivos. El máximo propio de 10 MiB deja margen para la expansión base64 y se verifica además el tamaño del JSON completo. Un archivo admitido por WhatsApp puede superar el límite propio de Pesito; en ese caso se pide un archivo menor o texto, sin subirlo a almacenamiento adicional.
 
@@ -29,6 +29,8 @@ La documentación de Gemini establece un límite inline de 20 MB para audio, inc
 | Envío y variante argentina de número | 10 s compartidos |
 | Petición HTTP de Supabase/RPC | 5 s por petición |
 | Intento de procesamiento de un mensaje | 60 s compartidos |
+
+Por invocación se ejecutan como máximo dos actores en paralelo. La ventana de inicio de 45 s se comparte entre todos: no se reinicia al tomar otro actor ni se inicia un mensaje adicional después de cerrarse. Los trabajos activos terminan con su propio presupuesto y los no iniciados permanecen en la cola para cron.
 
 Los límites se combinan mediante AbortSignal; pasar al siguiente modelo, petición de descarga o número argentino no reinicia el presupuesto exterior. El cuerpo también está dentro del límite: recibir los headers no completa una descarga. Si se agota el intento, se impide iniciar un checkpoint, aplicación o envío tardío. Los RPC de fallo/liberación tienen su propio límite de red para limpiar y conservar la recuperación, con margen respecto del lease de 90 s. La espera y ejecución asíncronas se acotan; esto no es un mecanismo que interrumpa JavaScript síncrono o un COMMIT que PostgreSQL ya haya ejecutado.
 

@@ -527,3 +527,17 @@ describe('INF-12: presupuesto del trabajador y fencing del checkpoint',()=>{
     expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
   });
 });
+
+it('INF-12: la ventana compartida termina el mensaje actual y deja el siguiente para recuperación',async()=>{
+  await enqueue(message('window-first'),message('window-second'));const stop=new AbortController();let clock=Date.now();
+  const deps:QueueDependencies={rpc,stopStartingSignal:stop.signal,prepare:vi.fn(async(_job,checkpoint)=>{
+    await checkpoint({intent:'add_movements',movements:[movement()]});stop.abort();return {kind:'add',items:[movement()]};
+  }),send:vi.fn(async()=>{}),format:()=> 'Resumen',now:()=>clock,sleep:async ms=>{clock+=ms;},token:()=>t1,metric:vi.fn()};
+  await runActor('synthetic-a',deps);
+  expect(deps.prepare).toHaveBeenCalledTimes(1);
+  expect((await db.query('select status from public.whatsapp_message_queue order by enqueue_order')).rows).toEqual([{status:'processed'},{status:'pending'}]);
+  expect((await db.query<{n:number}>('select count(*)::int as n from public.draft_items')).rows[0].n).toBe(1);
+  deps.stopStartingSignal=undefined;await runActor('synthetic-a',deps);
+  expect((await db.query<{n:number}>('select count(*)::int as n from public.draft_items')).rows[0].n).toBe(2);
+  expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+});

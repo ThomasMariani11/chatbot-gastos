@@ -12,10 +12,12 @@
     "interpretationMs": 30000,
     "sendMs": 10000,
     "rpcMs": 5000,
-    "jobMs": 60000
+    "jobMs": 60000,
+    "workersPerInvocation": 2,
+    "sharedWorkerStartWindowMs": 45000
   },
   "localValidation": {
-    "vitest": 218,
+    "vitest": 221,
     "deno": 31,
     "sql": 12,
     "releaseGuards": 6,

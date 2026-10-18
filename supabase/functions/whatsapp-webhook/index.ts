@@ -1,4 +1,4 @@
-import { LIMITS, timeoutSignal } from "./limits.ts";
+import { LIMITS, processActorsLimited, timeoutSignal } from "./limits.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.114.0";
 import {
   formatDraftList,
@@ -52,10 +52,13 @@ async function routeRequest(request: Request): Promise<Response> {
     return result.data as T;
   }
   const run = async (actors: string[]) => {
-    const results = await Promise.allSettled(
-      [...new Set(actors)].map((waId) =>
+    const stopStartingSignal = timeoutSignal(LIMITS.workerWindowMs);
+    const results = await processActorsLimited(
+      [...new Set(actors)],
+      (waId) =>
         runActor(waId, {
           rpc,
+          stopStartingSignal,
           prepare: (job, checkpoint, signal) =>
             prepareMessage(db, job, checkpoint, signal),
           send: sendWhatsAppText,
@@ -65,15 +68,10 @@ async function routeRequest(request: Request): Promise<Response> {
           sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
           token: () => crypto.randomUUID(),
           metric: writeOperationalLog,
-        })
-      ),
+        }),
     );
-    if (results.some((result) => result.status === "rejected")) {
-      writeOperationalLog("worker_interrupted", {
-        workers: results.filter((result) =>
-          result.status === "rejected"
-        ).length,
-      });
+    if (results.failed) {
+      writeOperationalLog("worker_interrupted", { workers: results.failed });
     }
   };
   if (url.searchParams.get("action") === "worker") {

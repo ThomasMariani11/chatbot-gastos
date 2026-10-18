@@ -59,6 +59,7 @@ export type DraftSnapshot = {
   items?: unknown[];
 };
 export type QueueDependencies = {
+  stopStartingSignal?: AbortSignal;
   rpc: <T>(
     name: string,
     args?: Record<string, unknown>,
@@ -85,6 +86,7 @@ export async function runActor(
   waId: string,
   deps: QueueDependencies,
 ): Promise<void> {
+  if (deps.stopStartingSignal?.aborted) return;
   const token = deps.token();
   const started = deps.now();
   if (
@@ -94,7 +96,7 @@ export async function runActor(
     })
   ) return;
   try {
-    while (deps.now() - started < 45000) {
+    while (deps.now() - started < 45000 && !deps.stopStartingSignal?.aborted) {
       // Renovar y resolver el usuario actual antes de cada mensaje (VINCULAR
       // puede haber cambiado la identidad durante la iteración anterior).
       if (
@@ -124,7 +126,9 @@ export async function runActor(
         }
         // Solo una espera corta como optimización; cron recupera todo lo que
         // quede durable si se termina la instancia durante la espera.
+        if (deps.stopStartingSignal?.aborted) return;
         await deps.sleep(3000);
+        if (deps.stopStartingSignal?.aborted) return;
         const afterWait = await deps.rpc<Job | null>("next_whatsapp_job", {
           p_wa_id: waId,
           p_token: token,

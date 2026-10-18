@@ -156,7 +156,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-12 — Limitar tiempos y tamaño de multimedia
 
-- **Avance al 18/10/2026:** lectura de streams acotada (imagen 5 MiB, audio 10 MiB), MIME, presupuestos compartidos de descarga/interpretación/envío y 60 s por intento del trabajador. 218 Vitest, 31 Deno, 12 SQL, seis controles Node, tipos/lint/build aprobados. Pendientes CI, publicación y prueba real de multimedia. [Detalle](VALIDACION_INF_12.md).
+- **Avance al 18/10/2026:** lectura de streams acotada (imagen 5 MiB, audio 10 MiB), MIME, presupuestos compartidos de descarga/interpretación/envío y 60 s por intento del trabajador. 221 Vitest, 31 Deno, 12 SQL, seis controles Node, tipos/lint/build aprobados. Pendientes CI, publicación y prueba real de multimedia. [Detalle](VALIDACION_INF_12.md).
 
 - [ ] Terminada.
 - **Problema confirmado en código:** envío y descarga de WhatsApp sin timeout explícito; descarga sin límite propio de bytes antes de convertir a base64.

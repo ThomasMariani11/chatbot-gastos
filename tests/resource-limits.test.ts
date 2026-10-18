@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { boundedBytes, boundedJson, bytesToBase64, LIMITS, mediaPolicy, withinSignal } from '../supabase/functions/whatsapp-webhook/limits';
+import { boundedBytes, boundedJson, bytesToBase64, LIMITS, mediaPolicy, processActorsLimited, withinSignal } from '../supabase/functions/whatsapp-webhook/limits';
 import { failureMetadata } from '../supabase/functions/whatsapp-webhook/failures';
 
 const neverAborted=()=>new AbortController().signal;
@@ -66,5 +66,22 @@ describe('INF-12: límites reales de streaming y cancelación',()=>{
   });
   it.each(['application/pdf','image/svg+xml','text/html','audio/unknown',null])('no admite formatos ajenos: %s',mime=>{
     try {mediaPolicy(mime);throw Error('unexpected');}catch(error){expect(failureMetadata(error).reason).toBe('unsupported_media');}
+  });
+});
+
+describe('INF-12: concurrencia acotada por invocación',()=>{
+  it('nunca inicia más de dos actores juntos y continúa después de un fallo',async()=>{
+    let active=0,maximum=0;const seen:number[]=[];
+    const result=await processActorsLimited([1,2,3,4,5],async actor=>{
+      active++;maximum=Math.max(maximum,active);seen.push(actor);
+      await Promise.resolve();active--;if(actor===2)throw Error('PRIVATE_PROVIDER_ERROR');
+    });
+    expect(maximum).toBe(2);expect(seen).toEqual([1,2,3,4,5]);expect(result).toEqual({failed:1,started:5});
+    expect(JSON.stringify(result)).not.toContain('PRIVATE');
+  });
+  it('deja sin iniciar los actores que ya no entran en la ventana de trabajo',async()=>{
+    let clock=0;const seen:number[]=[];
+    const result=await processActorsLimited([1,2,3,4],async actor=>{seen.push(actor);await Promise.resolve();clock=LIMITS.workerWindowMs;},()=>clock);
+    expect(seen).toEqual([1,2]);expect(result).toEqual({failed:0,started:2});
   });
 });
