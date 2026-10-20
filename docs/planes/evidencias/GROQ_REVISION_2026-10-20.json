@@ -1,0 +1,228 @@
+{
+  "date": "2026-10-20",
+  "execution": "local_direct_REST",
+  "syntheticOnly": true,
+  "productionChanged": false,
+  "models": {
+    "extraction": "qwen/qwen3.8-27b",
+    "transcription": "whisper-large-v3-turbo"
+  },
+  "results": [
+    {
+      "case": "receipt_single_total",
+      "mode": "original",
+      "http": 200,
+      "extractionMs": 1603,
+      "quota": {
+        "requestsLimit": "1000",
+        "requestsRemaining": "999",
+        "tokensLimit": "8000",
+        "tokensRemaining": "4036"
+      },
+      "rawSchemaErrors": [
+        "/edit:type"
+      ],
+      "adaptedSchemaErrors": [],
+      "intent": "add_movements",
+      "movementCount": 1,
+      "differences": [],
+      "correct": true,
+      "promptTokens": 2404,
+      "completionTokens": 166,
+      "totalMs": 1605
+    },
+    {
+      "case": "currencies_and_installments",
+      "mode": "original",
+      "http": 200,
+      "extractionMs": 1075,
+      "quota": {
+        "requestsLimit": "1000",
+        "requestsRemaining": "998",
+        "tokensLimit": "8000",
+        "tokensRemaining": "5100"
+      },
+      "rawSchemaErrors": [],
+      "adaptedSchemaErrors": [],
+      "intent": "add_movements",
+      "movementCount": 2,
+      "differences": [
+        "kind_amount_currency_installments",
+        "unexpected_missing_fields"
+      ],
+      "correct": false,
+      "promptTokens": 1152,
+      "completionTokens": 237,
+      "totalMs": 1077
+    },
+    {
+      "case": "receipt_single_total",
+      "mode": "strict_candidate",
+      "http": 200,
+      "extractionMs": 951,
+      "quota": {
+        "requestsLimit": "1000",
+        "requestsRemaining": "997",
+        "tokensLimit": "8000",
+        "tokensRemaining": "4227"
+      },
+      "rawSchemaErrors": [
+        "/edit:type"
+      ],
+      "strictSchemaErrors": [],
+      "adaptedSchemaErrors": [],
+      "intent": "add_movements",
+      "movementCount": 1,
+      "differences": [],
+      "correct": true,
+      "promptTokens": 2386,
+      "completionTokens": 118,
+      "totalMs": 951
+    },
+    {
+      "case": "currencies_and_installments",
+      "mode": "strict_candidate",
+      "http": 200,
+      "extractionMs": 988,
+      "quota": {
+        "requestsLimit": "1000",
+        "requestsRemaining": "996",
+        "tokensLimit": "8000",
+        "tokensRemaining": "5113"
+      },
+      "rawSchemaErrors": [
+        "/edit:type"
+      ],
+      "strictSchemaErrors": [],
+      "adaptedSchemaErrors": [],
+      "intent": "add_movements",
+      "movementCount": 2,
+      "differences": [],
+      "correct": true,
+      "promptTokens": 1134,
+      "completionTokens": 206,
+      "totalMs": 988
+    },
+    {
+      "case": "mixed_text",
+      "mode": "strict_candidate",
+      "http": 200,
+      "extractionMs": 1089,
+      "quota": {
+        "requestsLimit": "1000",
+        "requestsRemaining": "995",
+        "tokensLimit": "8000",
+        "tokensRemaining": "6021"
+      },
+      "rawSchemaErrors": [
+        "/edit:type"
+      ],
+      "strictSchemaErrors": [],
+      "adaptedSchemaErrors": [],
+      "intent": "add_movements",
+      "movementCount": 3,
+      "differences": [],
+      "correct": true,
+      "promptTokens": 1138,
+      "completionTokens": 286,
+      "totalMs": 1090
+    },
+    {
+      "case": "audio",
+      "mode": "strict_candidate",
+      "transcriptionHttp": 200,
+      "transcriptionMs": 633,
+      "http": 200,
+      "extractionMs": 683,
+      "quota": {
+        "requestsLimit": "1000",
+        "requestsRemaining": "994",
+        "tokensLimit": "8000",
+        "tokensRemaining": "6597"
+      },
+      "rawSchemaErrors": [
+        "/edit:type"
+      ],
+      "strictSchemaErrors": [],
+      "adaptedSchemaErrors": [],
+      "intent": "add_movements",
+      "movementCount": 1,
+      "differences": [],
+      "correct": true,
+      "promptTokens": 1117,
+      "completionTokens": 116,
+      "totalMs": 1318
+    },
+    {
+      "case": "correction",
+      "mode": "strict_candidate",
+      "http": 200,
+      "extractionMs": 794,
+      "quota": {
+        "requestsLimit": "1000",
+        "requestsRemaining": "993",
+        "tokensLimit": "8000",
+        "tokensRemaining": "6727"
+      },
+      "rawSchemaErrors": [],
+      "strictSchemaErrors": [],
+      "adaptedSchemaErrors": [],
+      "intent": "edit_item",
+      "movementCount": 0,
+      "differences": [],
+      "correct": true,
+      "promptTokens": 1155,
+      "completionTokens": 55,
+      "totalMs": 794
+    },
+    {
+      "case": "missing_amount",
+      "mode": "strict_candidate",
+      "http": 200,
+      "extractionMs": 2125,
+      "quota": {
+        "requestsLimit": "1000",
+        "requestsRemaining": "992",
+        "tokensLimit": "8000",
+        "tokensRemaining": "6653"
+      },
+      "rawSchemaErrors": [
+        "/edit:type"
+      ],
+      "strictSchemaErrors": [],
+      "adaptedSchemaErrors": [],
+      "intent": "add_movements",
+      "movementCount": 1,
+      "differences": [],
+      "correct": true,
+      "promptTokens": 1110,
+      "completionTokens": 122,
+      "totalMs": 2126
+    }
+  ],
+  "assessment": {
+    "baselineCases": 2,
+    "strictCandidateCases": 6,
+    "strictCandidatePassed": 6,
+    "httpResponses": 9,
+    "http200": 9,
+    "productionReady": false,
+    "independentEvaluation": false,
+    "realWhatsAppMediaTested": false,
+    "prototypeOnly": true
+  },
+  "diagnosis": {
+    "receipt": "Original returns edit:null; financial values are correct. Test validator rejected optional-null metadata.",
+    "currencies": "Original reproduced USD amount null and unnecessary date missing flags; corrected prompt explicitly defines historical amount field and defaults.",
+    "compatibility": "Nullable optional fields in strict transport schema; unused edit:null is omitted before legacy schema validation."
+  },
+  "credential": {
+    "displayName": "Pesito - pruebas 4 usuarios",
+    "expiresOn": "2026-10-27",
+    "creationAndEncryptedStorageExplicitlyAuthorized": true,
+    "localProtection": "Windows_DPAPI_CurrentUser",
+    "decryptionVerified": true,
+    "productionSecretConfigured": false,
+    "plaintextFileCreated": false
+  }
+}

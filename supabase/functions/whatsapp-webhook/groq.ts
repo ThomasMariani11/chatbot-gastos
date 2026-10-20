@@ -1,0 +1,548 @@
+import {
+  failureMetadata,
+  httpFailure,
+  OperationalFailure,
+  providerFailure,
+} from "./failures.ts";
+import {
+  boundedJson,
+  LIMITS,
+  timeoutSignal,
+  withinSignal,
+} from "./limits.ts";
+import { looksLikeDraftCorrection } from "./draft-corrections.ts";
+import { parseDeterministicMovements } from "./local-movements.ts";
+import { writeOperationalLog } from "./logging.ts";
+import type { GeminiParsedOutput } from "./helpers.ts";
+
+const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+const WHISPER_MODEL = "whisper-large-v3-turbo";
+const QWEN_MODEL = "qwen/qwen3.8-27b";
+const MIN_QWEN_TOKENS_RESERVE = 1600;
+const MAX_BUDGET_WAIT_MS = 3500;
+const encoder = new TextEncoder();
+
+type SchemaNode = {
+  type?: string | string[];
+  enum?: unknown[];
+  minimum?: number;
+  maximum?: number;
+  properties?: Record<string, SchemaNode>;
+  required?: string[];
+  additionalProperties?: boolean;
+  items?: SchemaNode;
+};
+
+const budgetState = {
+  whisperBlockedUntilMs: 0,
+  qwenBlockedUntilMs: 0,
+};
+
+export function resetGroqBudgetForTests() {
+  budgetState.whisperBlockedUntilMs = 0;
+  budgetState.qwenBlockedUntilMs = 0;
+}
+
+export function buildStrictSchema(node: SchemaNode): SchemaNode {
+  const copy = structuredClone(node);
+  if (copy.properties) {
+    const required = new Set(copy.required || []);
+    for (const [key, value] of Object.entries(copy.properties)) {
+      copy.properties[key] = buildStrictSchema(value);
+      if (!required.has(key)) {
+        const current = copy.properties[key].type;
+        const types = Array.isArray(current)
+          ? current
+          : current
+          ? [current]
+          : [];
+        copy.properties[key].type = [...new Set([...types, "null"])];
+      }
+    }
+    copy.required = Object.keys(copy.properties);
+    copy.additionalProperties = false;
+  }
+  if (copy.items) {
+    copy.items = buildStrictSchema(copy.items);
+  }
+  return copy;
+}
+
+export function validateAgainstSchema(
+  value: unknown,
+  schema: SchemaNode,
+  path = "",
+): string[] {
+  const list: string[] = [];
+  const types = Array.isArray(schema.type)
+    ? schema.type
+    : schema.type
+    ? [schema.type]
+    : [];
+  const actual = value === null
+    ? "null"
+    : Array.isArray(value)
+    ? "array"
+    : typeof value;
+  if (
+    !types.some((t) =>
+      t === actual ||
+      (t === "integer" && actual === "number" && Number.isInteger(value))
+    )
+  ) {
+    return [`${path}:type`];
+  }
+  if (schema.enum && !schema.enum.includes(value)) {
+    list.push(`${path}:enum`);
+  }
+  if (
+    actual === "number" &&
+    (!Number.isFinite(value as number) ||
+      (schema.minimum !== undefined && (value as number) < schema.minimum) ||
+      (schema.maximum !== undefined && (value as number) > schema.maximum))
+  ) {
+    list.push(`${path}:range`);
+  }
+  if (actual === "object" && value !== null) {
+    const record = value as Record<string, unknown>;
+    for (const key of schema.required || []) {
+      if (!Object.hasOwn(record, key)) {
+        list.push(`${path}/${key}:missing`);
+      }
+    }
+    for (const [key, child] of Object.entries(record)) {
+      if (schema.properties?.[key]) {
+        list.push(
+          ...validateAgainstSchema(
+            child,
+            schema.properties[key],
+            `${path}/${key}`,
+          ),
+        );
+      } else if (schema.additionalProperties === false) {
+        list.push(`${path}/${key}:extra`);
+      }
+    }
+  }
+  if (actual === "array" && schema.items) {
+    (value as unknown[]).forEach((item, index) => {
+      list.push(
+        ...validateAgainstSchema(item, schema.items!, `${path}/${index}`),
+      );
+    });
+  }
+  return list;
+}
+
+export function normalizeGroqOutput(
+  parsed: unknown,
+  today: string,
+): GeminiParsedOutput {
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new OperationalFailure("invalid_response", "groq");
+  }
+  const clone = structuredClone(parsed) as Record<string, unknown>;
+  if (clone.edit === null && clone.intent !== "edit_item") {
+    delete clone.edit;
+  }
+  if (Array.isArray(clone.movements)) {
+    for (const item of clone.movements) {
+      if (typeof item === "object" && item !== null) {
+        const mov = item as Record<string, unknown>;
+        if (mov.occurredOn === null) mov.occurredOn = today;
+        if (mov.category === null) mov.category = "Otros";
+      }
+    }
+  }
+  return clone as unknown as GeminiParsedOutput;
+}
+
+function parseDurationHeaderMs(raw: string | null): number | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (/^\d+(\.\d+)?$/.test(trimmed)) {
+    const seconds = Number(trimmed);
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return Math.min(60_000, Math.ceil(seconds * 1000));
+    }
+  }
+  let totalMs = 0;
+  let matched = false;
+  for (
+    const match of trimmed.matchAll(/(\d+(?:\.\d+)?)\s*(ms|s|m|h)/gi)
+  ) {
+    matched = true;
+    const val = Number(match[1]);
+    const unit = match[2].toLowerCase();
+    const factor = unit === "ms"
+      ? 1
+      : unit === "s"
+      ? 1000
+      : unit === "m"
+      ? 60_000
+      : 3_600_000;
+    totalMs += val * factor;
+  }
+  return matched && Number.isFinite(totalMs)
+    ? Math.min(60_000, Math.ceil(totalMs))
+    : undefined;
+}
+
+function parseHeaderInt(raw: string | null): number | undefined {
+  if (!raw || !/^\d+$/.test(raw.trim())) return undefined;
+  const num = Number(raw.trim());
+  return Number.isSafeInteger(num) && num >= 0 ? num : undefined;
+}
+
+function updateGroqBudget(
+  target: "whisper" | "qwen",
+  headers: Headers,
+  status: number,
+) {
+  const retryAfterMs = parseDurationHeaderMs(headers.get("retry-after"));
+  const tokensRemaining = parseHeaderInt(
+    headers.get("x-ratelimit-remaining-tokens"),
+  );
+  const requestsRemaining = parseHeaderInt(
+    headers.get("x-ratelimit-remaining-requests"),
+  );
+  const resetTokensMs = parseDurationHeaderMs(
+    headers.get("x-ratelimit-reset-tokens"),
+  );
+  const resetRequestsMs = parseDurationHeaderMs(
+    headers.get("x-ratelimit-reset-requests"),
+  );
+  let waitMs = 0;
+  if (status === 429) {
+    waitMs = retryAfterMs ?? resetTokensMs ?? resetRequestsMs ?? 5000;
+  } else if (requestsRemaining !== undefined && requestsRemaining <= 0) {
+    waitMs = resetRequestsMs ?? 2000;
+  } else if (
+    target === "qwen" &&
+    tokensRemaining !== undefined &&
+    tokensRemaining < MIN_QWEN_TOKENS_RESERVE
+  ) {
+    waitMs = resetTokensMs ?? 4000;
+  }
+  if (waitMs > 0) {
+    const until = Date.now() + Math.min(60_000, waitMs);
+    if (target === "whisper") {
+      budgetState.whisperBlockedUntilMs = Math.max(
+        budgetState.whisperBlockedUntilMs,
+        until,
+      );
+    } else {
+      budgetState.qwenBlockedUntilMs = Math.max(
+        budgetState.qwenBlockedUntilMs,
+        until,
+      );
+    }
+  }
+  return { retryAfterMs, tokensRemaining, requestsRemaining };
+}
+
+async function waitForGroqBudget(
+  target: "whisper" | "qwen",
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  const blockedUntil = target === "whisper"
+    ? budgetState.whisperBlockedUntilMs
+    : budgetState.qwenBlockedUntilMs;
+  const remainingMs = blockedUntil - Date.now();
+  if (remainingMs <= 0) return;
+  if (remainingMs > MAX_BUDGET_WAIT_MS) {
+    throw new OperationalFailure("rate_limit", "groq", 429);
+  }
+  await withinSignal(
+    () => new Promise<void>((resolve) => setTimeout(resolve, remainingMs)),
+    signal,
+  );
+}
+
+function base64ToBytes(base64: string, maxBytes: number): Uint8Array {
+  let binary: string;
+  try {
+    binary = atob(base64);
+  } catch {
+    throw new OperationalFailure("invalid_response", "meta_media");
+  }
+  if (binary.length === 0 || binary.length > maxBytes) {
+    throw new OperationalFailure("media_too_large", "meta_media");
+  }
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function audioExtension(mimeType: string): string {
+  const subtype = mimeType.split("/")[1]?.split(";")[0]?.trim() || "ogg";
+  if (subtype === "mpeg") return "mp3";
+  if (subtype === "x-m4a") return "m4a";
+  if (subtype === "opus") return "ogg";
+  return subtype;
+}
+
+export const GROQ_COMPATIBILITY_RULES = (today: string) =>
+  `\nREGLAS DE COMPATIBILIDAD DE PESITO:\n- totalAmountArs es un NOMBRE HISTORICO. Siempre contiene el importe numérico en la moneda indicada por currency. Si cobró 100 dólares: totalAmountArs=100 y currency=USD. No conviertas monedas ni dejes ese importe en null.\n- Es el TOTAL de la compra. Si el total es 12000 en 3 cuotas: totalAmountArs=12000 e installments=3. No lo dividas por tres.\n- Si no dice fecha, occurredOn=${today} y no incluyas date en missingFields. Solo preguntá fecha si el usuario indicó una fecha ambigua.\n- Si no se identifica categoría, usá Otros y no incluyas category en missingFields.\n- Sin cuotas: installments=1. Con cuotas y sin mes explícito: firstInstallmentMonth=${
+    today.slice(0, 7)
+  }.\n- Datos esenciales faltantes se conservan: monto desconocido => totalAmountArs=null y missingFields incluye amount. Nunca inventes importes.\n- Un ticket es un movimiento por el total; no conviertas sus productos en movimientos separados.\nDevolvé únicamente el objeto JSON solicitado.`;
+
+export async function extractWithGroq(input: {
+  apiKey: string;
+  today: string;
+  text?: string;
+  mediaBase64?: string;
+  mimeType?: string;
+  activeDraftContext?: string;
+  signal?: AbortSignal;
+  baseSchema: SchemaNode;
+  strictSchema: SchemaNode;
+  buildPrompt: (text: string) => string;
+  cleanDescription: (desc: string, kind: "expense" | "income") => string;
+}): Promise<{ output?: GeminiParsedOutput; transcribedText?: string }> {
+  input.signal?.throwIfAborted();
+  if (!/^gsk_[A-Za-z0-9_-]+$/.test(input.apiKey.trim())) {
+    throw new OperationalFailure("configuration", "groq");
+  }
+  const key = input.apiKey.trim();
+  let effectiveText = input.text?.trim() ?? "";
+  let transcribedText: string | undefined;
+  const isAudio = Boolean(
+    input.mediaBase64 && input.mimeType?.startsWith("audio/"),
+  );
+  const isImage = Boolean(
+    input.mediaBase64 && input.mimeType?.startsWith("image/"),
+  );
+
+  if (isAudio) {
+    await waitForGroqBudget("whisper", input.signal);
+    const started = performance.now();
+    let phase: "request" | "parse" = "request";
+    let status: number | undefined;
+    let quotaMeta: {
+      retryAfterMs?: number;
+      tokensRemaining?: number;
+      requestsRemaining?: number;
+    } = {};
+    try {
+      const audioBytes = base64ToBytes(input.mediaBase64!, LIMITS.audioBytes);
+      const form = new FormData();
+      form.append(
+        "file",
+        new Blob([audioBytes as Uint8Array<ArrayBuffer>], {
+          type: input.mimeType!,
+        }),
+        `audio.${audioExtension(input.mimeType!)}`,
+      );
+      form.append("model", WHISPER_MODEL);
+      form.append("language", "es");
+      form.append("response_format", "json");
+
+      const signal = timeoutSignal(10_000, input.signal);
+      const response = await withinSignal(
+        () =>
+          fetch(`${GROQ_BASE_URL}/audio/transcriptions`, {
+            method: "POST",
+            headers: { authorization: `Bearer ${key}` },
+            body: form,
+            signal,
+          }),
+        signal,
+      );
+      status = response.status;
+      quotaMeta = updateGroqBudget("whisper", response.headers, status);
+      if (!response.ok) {
+        void response.body?.cancel().catch(() => {});
+        throw httpFailure(status, "groq");
+      }
+      phase = "parse";
+      const payload = await boundedJson<{ text?: unknown }>(
+        response,
+        LIMITS.providerJsonBytes,
+        signal,
+        "groq",
+      );
+      if (typeof payload.text !== "string") {
+        throw new OperationalFailure("invalid_response", "groq");
+      }
+      writeOperationalLog("ai_attempt", {
+        model: "whisper",
+        provider: "groq",
+        result: "success",
+        status,
+        duration_ms: performance.now() - started,
+        ...(quotaMeta.requestsRemaining !== undefined
+          ? { requests_remaining: quotaMeta.requestsRemaining }
+          : {}),
+      });
+      effectiveText = payload.text.trim();
+      transcribedText = effectiveText;
+      if (!effectiveText) {
+        return {
+          output: { intent: "unknown", movements: [] },
+          transcribedText: "",
+        };
+      }
+      if (!looksLikeDraftCorrection(effectiveText)) {
+        const direct = parseDeterministicMovements(effectiveText, input.today);
+        if (direct?.length) {
+          writeOperationalLog("local_rule", {
+            rule: "movements",
+            operations: direct.length,
+          });
+          return {
+            output: { intent: "add_movements", movements: direct },
+            transcribedText,
+          };
+        }
+      }
+    } catch (err) {
+      const failure = providerFailure(
+        err,
+        "groq",
+        phase === "request" ? "network" : "invalid_response",
+      );
+      writeOperationalLog("ai_attempt", {
+        model: "whisper",
+        result: "failure",
+        duration_ms: performance.now() - started,
+        ...failureMetadata(failure),
+        ...(quotaMeta.retryAfterMs !== undefined
+          ? { retry_after_ms: quotaMeta.retryAfterMs }
+          : {}),
+        ...(quotaMeta.requestsRemaining !== undefined
+          ? { requests_remaining: quotaMeta.requestsRemaining }
+          : {}),
+      });
+      throw failure;
+    }
+  }
+
+  await waitForGroqBudget("qwen", input.signal);
+  const started = performance.now();
+  let phase: "request" | "parse" = "request";
+  let status: number | undefined;
+  let quotaMeta: {
+    retryAfterMs?: number;
+    tokensRemaining?: number;
+    requestsRemaining?: number;
+  } = {};
+  try {
+    const promptText = input.buildPrompt(effectiveText) +
+      GROQ_COMPATIBILITY_RULES(input.today);
+    const content = isImage
+      ? [
+        { type: "text", text: promptText },
+        {
+          type: "image_url",
+          image_url: {
+            url: `data:${input.mimeType};base64,${input.mediaBase64}`,
+          },
+        },
+      ]
+      : promptText;
+    const body = JSON.stringify({
+      model: QWEN_MODEL,
+      messages: [{ role: "user", content }],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "pesito_movements",
+          strict: true,
+          schema: input.strictSchema,
+        },
+      },
+      max_completion_tokens: 4096,
+      temperature: 0.1,
+    });
+    if (encoder.encode(body).byteLength > LIMITS.geminiRequestBytes) {
+      throw new OperationalFailure("payload_too_large", "groq");
+    }
+    const signal = timeoutSignal(isImage ? 10_000 : 6_000, input.signal);
+    const response = await withinSignal(
+      () =>
+        fetch(`${GROQ_BASE_URL}/chat/completions`, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${key}`,
+            "content-type": "application/json",
+          },
+          body,
+          signal,
+        }),
+      signal,
+    );
+    status = response.status;
+    quotaMeta = updateGroqBudget("qwen", response.headers, status);
+    if (!response.ok) {
+      void response.body?.cancel().catch(() => {});
+      throw httpFailure(status, "groq");
+    }
+    phase = "parse";
+    const payload = await boundedJson<{
+      choices?: Array<{ message?: { content?: unknown } }>;
+    }>(response, LIMITS.providerJsonBytes, signal, "groq");
+    const raw = payload.choices?.[0]?.message?.content;
+    if (typeof raw !== "string" || !raw.trim()) {
+      throw new OperationalFailure("invalid_response", "groq");
+    }
+    const normalized = normalizeGroqOutput(JSON.parse(raw), input.today);
+    const schemaErrors = validateAgainstSchema(normalized, input.baseSchema);
+    if (
+      schemaErrors.length > 0 ||
+      (normalized.intent === "edit_item" &&
+        (!normalized.edit ||
+          typeof normalized.edit.targetPosition !== "number" ||
+          normalized.edit.targetPosition < 1 ||
+          (normalized.edit.amount === null &&
+            normalized.edit.description === null &&
+            normalized.edit.category === null)))
+    ) {
+      throw new OperationalFailure("invalid_response", "groq");
+    }
+    if (Array.isArray(normalized.movements)) {
+      for (const mov of normalized.movements) {
+        mov.description = input.cleanDescription(mov.description, mov.kind);
+      }
+    }
+    writeOperationalLog("ai_attempt", {
+      model: "qwen",
+      provider: "groq",
+      result: "success",
+      status,
+      duration_ms: performance.now() - started,
+      ...(quotaMeta.tokensRemaining !== undefined
+        ? { tokens_remaining: quotaMeta.tokensRemaining }
+        : {}),
+      ...(quotaMeta.requestsRemaining !== undefined
+        ? { requests_remaining: quotaMeta.requestsRemaining }
+        : {}),
+    });
+    return { output: normalized, transcribedText };
+  } catch (err) {
+    const failure = providerFailure(
+      err,
+      "groq",
+      phase === "request" ? "network" : "invalid_response",
+    );
+    writeOperationalLog("ai_attempt", {
+      model: "qwen",
+      result: "failure",
+      duration_ms: performance.now() - started,
+      ...failureMetadata(failure),
+      ...(quotaMeta.retryAfterMs !== undefined
+        ? { retry_after_ms: quotaMeta.retryAfterMs }
+        : {}),
+      ...(quotaMeta.tokensRemaining !== undefined
+        ? { tokens_remaining: quotaMeta.tokensRemaining }
+        : {}),
+      ...(quotaMeta.requestsRemaining !== undefined
+        ? { requests_remaining: quotaMeta.requestsRemaining }
+        : {}),
+    });
+    throw failure;
+  }
+}

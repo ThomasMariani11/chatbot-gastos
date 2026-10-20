@@ -1,5 +1,9 @@
 // deno-lint-ignore-file no-console -- Captura de logs para verificar ausencia de datos privados.
-import { downloadWhatsAppMedia, sendWhatsAppText } from "./helpers.ts";
+import {
+  downloadWhatsAppMedia,
+  resetGroqBudgetForTests,
+  sendWhatsAppText,
+} from "./helpers.ts";
 import { LIMITS } from "./limits.ts";
 import { failureMetadata } from "./failures.ts";
 import { extractFromGemini } from "./helpers.ts";
@@ -1152,5 +1156,204 @@ Deno.test("error de IA no activa un parser permisivo para preguntas o instruccio
     console.log = previousLog;
     if (key === undefined) Deno.env.delete("GEMINI_API_KEY");
     else Deno.env.set("GEMINI_API_KEY", key);
+  }
+});
+
+Deno.test("Groq audio: Whisper transcribe y reglas locales resuelven sin invocar Qwen", async () => {
+  const prev = globalThis.fetch,
+    groqKey = Deno.env.get("GROQ_API_KEY"),
+    token = Deno.env.get("WHATSAPP_ACCESS_TOKEN"),
+    previousLog = console.log;
+  const logs: string[] = [];
+  try {
+    resetGroqBudgetForTests();
+    Deno.env.set("GROQ_API_KEY", "gsk_synthetic_test_key_123456");
+    Deno.env.set("WHATSAPP_ACCESS_TOKEN", "synthetic-token");
+    console.log = (line: unknown) => logs.push(String(line));
+    const endpoints: string[] = [];
+    globalThis.fetch = ((url: RequestInfo | URL) => {
+      const target = String(url);
+      endpoints.push(target);
+      if (target.includes("graph.facebook.com")) {
+        return Promise.resolve(
+          Response.json({
+            url: "https://media.example.invalid/audio",
+            mime_type: "audio/ogg",
+          }),
+        );
+      }
+      if (target.includes("media.example.invalid")) {
+        return Promise.resolve(new Response(new Uint8Array([1, 2, 3])));
+      }
+      if (target.includes("audio/transcriptions")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              text: "Gasté 1500 en super y me ingresó 70mil de transferencia",
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+                "x-ratelimit-remaining-requests": "1999",
+              },
+            },
+          ),
+        );
+      }
+      throw new Error("UNEXPECTED_QWEN_CALL");
+    }) as typeof fetch;
+    const fixture = job("");
+    fixture.payload = {
+      id: "audio-groq-local",
+      from: "synthetic-route",
+      type: "audio",
+      audio: { id: "media" },
+    };
+    const result = await prepareMessage(
+      database().db,
+      fixture,
+      () => Promise.resolve(),
+    );
+    assert(
+      result.kind === "add" && (result.items as unknown[]).length === 2,
+      "Audio claro con Whisper no generó las dos operaciones por reglas locales",
+    );
+    assert(
+      !endpoints.some((u) => u.includes("chat/completions")),
+      "Invocó Qwen innecesariamente para un audio claro",
+    );
+    const parsedLogs = logs.map((l) => JSON.parse(l));
+    assert(
+      parsedLogs.some((e) =>
+        e.event === "ai_attempt" && e.provider === "groq" &&
+        e.model === "whisper" && e.result === "success"
+      ) &&
+        parsedLogs.some((e) =>
+          e.event === "local_rule" && e.rule === "movements" &&
+          e.operations === 2
+        ),
+      "No registró métricas de Whisper + local_rule",
+    );
+  } finally {
+    resetGroqBudgetForTests();
+    globalThis.fetch = prev;
+    console.log = previousLog;
+    if (groqKey === undefined) Deno.env.delete("GROQ_API_KEY");
+    else Deno.env.set("GROQ_API_KEY", groqKey);
+    if (token === undefined) Deno.env.delete("WHATSAPP_ACCESS_TOKEN");
+    else Deno.env.set("WHATSAPP_ACCESS_TOKEN", token);
+  }
+});
+
+Deno.test("Groq imagen y presupuesto: adapta edit=null, preserva USD y bloquea ante 429 largo", async () => {
+  const prev = globalThis.fetch,
+    groqKey = Deno.env.get("GROQ_API_KEY"),
+    gemKey = Deno.env.get("GEMINI_API_KEY"),
+    previousLog = console.log;
+  const logs: string[] = [];
+  try {
+    resetGroqBudgetForTests();
+    Deno.env.set("GROQ_API_KEY", "gsk_synthetic_test_key_123456");
+    Deno.env.delete("GEMINI_API_KEY");
+    console.log = (line: unknown) => logs.push(String(line));
+    let calls = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      if (calls === 1) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              choices: [{
+                message: {
+                  content: JSON.stringify({
+                    intent: "add_movements",
+                    movements: [{
+                      kind: "income",
+                      description: "Cobré diseño",
+                      totalAmountArs: 100,
+                      currency: "USD",
+                      occurredOn: null,
+                      category: null,
+                      installments: 1,
+                      firstInstallmentMonth: null,
+                      confidence: 0.95,
+                      missingFields: [],
+                    }],
+                    edit: null,
+                    removePosition: null,
+                    clarification: null,
+                  }),
+                },
+              }],
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+                "x-ratelimit-remaining-tokens": "6500",
+                "x-ratelimit-remaining-requests": "999",
+              },
+            },
+          ),
+        );
+      }
+      return Promise.resolve(
+        new Response("PRIVATE_RATE_LIMIT_BODY", {
+          status: 429,
+          headers: { "retry-after": "15" },
+        }),
+      );
+    }) as typeof fetch;
+
+    const ok = await extractFromGemini({
+      mediaBase64: "AQID",
+      mimeType: "image/png",
+    });
+    assert(
+      ok.intent === "add_movements" &&
+        ok.edit === undefined &&
+        ok.movements[0].totalAmountArs === 100 &&
+        ok.movements[0].currency === "USD" &&
+        ok.movements[0].category === "Otros" &&
+        typeof ok.movements[0].occurredOn === "string",
+      "No normalizó edit=null, USD o defaults de Qwen",
+    );
+
+    let first429: unknown;
+    try {
+      await extractFromGemini({ text: "¿Gasté 5000 en super?" });
+    } catch (e) {
+      first429 = e;
+    }
+    assert(
+      failureMetadata(first429).provider === "groq" &&
+        failureMetadata(first429).reason === "rate_limit" &&
+        calls === 2,
+      "No clasificó 429 de Groq",
+    );
+
+    let second429: unknown;
+    try {
+      await extractFromGemini({ text: "¿Gasté 6000 en super?" });
+    } catch (e) {
+      second429 = e;
+    }
+    assert(
+      failureMetadata(second429).reason === "rate_limit" && calls === 2,
+      "No respetó la ventana de enfriamiento compartida sin hacer red",
+    );
+    assert(
+      !logs.join("").includes("PRIVATE") && !logs.join("").includes("gsk_"),
+      "Se filtró clave o cuerpo de Groq",
+    );
+  } finally {
+    resetGroqBudgetForTests();
+    globalThis.fetch = prev;
+    console.log = previousLog;
+    if (groqKey === undefined) Deno.env.delete("GROQ_API_KEY");
+    else Deno.env.set("GROQ_API_KEY", groqKey);
+    if (gemKey === undefined) Deno.env.delete("GEMINI_API_KEY");
+    else Deno.env.set("GEMINI_API_KEY", gemKey);
   }
 });

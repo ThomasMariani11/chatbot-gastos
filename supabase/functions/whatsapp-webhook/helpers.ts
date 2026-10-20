@@ -21,6 +21,12 @@ import {
   providerFailure,
 } from "./failures.ts";
 import { writeOperationalLog } from "./logging.ts";
+import {
+  buildStrictSchema,
+  extractWithGroq,
+  resetGroqBudgetForTests,
+} from "./groq.ts";
+export { resetGroqBudgetForTests };
 
 export type GeminiParsedOutput = {
   intent:
@@ -110,7 +116,7 @@ export async function sendWhatsAppText(
   if (!token || !phoneNumberId) {
     throw new OperationalFailure("configuration", "meta_send");
   }
-  // Un solo presupuesto para envío, respuesta y variante argentina, sin reiniciarlo.
+  // Un solo presupuesto para envÃ­o, respuesta y variante argentina, sin reiniciarlo.
   const signal = timeoutSignal(LIMITS.sendMs, parent);
   const recipients = [to];
   if (to.startsWith("549")) recipients.push(to.replace(/^549/, "54"));
@@ -143,7 +149,7 @@ export async function sendWhatsAppText(
         void response.body?.cancel().catch(() => {});
         return;
       }
-      // Se drena hasta un máximo, sin persistir ni registrar el cuerpo del proveedor.
+      // Se drena hasta un mÃ¡ximo, sin persistir ni registrar el cuerpo del proveedor.
       try {
         await boundedJson(response, LIMITS.sendJsonBytes, signal, "meta_send");
       } catch {
@@ -296,6 +302,9 @@ const multiResponseJsonSchema = {
   },
   required: ["intent", "movements"],
 };
+const strictMultiResponseJsonSchema = buildStrictSchema(
+  multiResponseJsonSchema,
+);
 
 export function cleanDescription(
   desc: string,
@@ -303,18 +312,18 @@ export function cleanDescription(
 ): string {
   if (!desc) return kind === "expense" ? "Gasto general" : "Ingreso general";
   let cleaned = desc.trim();
-  // Quitar prefijos de acción comunes como "gasté ... en ", "pagué ... en ", etc.
+  // Quitar prefijos de acciÃ³n comunes como "gastÃ© ... en ", "paguÃ© ... en ", etc.
   cleaned = cleaned.replace(
-    /^(gast[eé]|pagu[eé]|compr[eé]|abone|abon[eé]|carg[uú]e|pagar|gastar)\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dólares)?\s*(en|de)?\s*)?/i,
+    /^(gast[eÃ©]|pagu[eÃ©]|compr[eÃ©]|abone|abon[eÃ©]|carg[uÃº]e|pagar|gastar)\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dÃ³lares)?\s*(en|de)?\s*)?/i,
     "",
   );
   cleaned = cleaned.replace(
-    /^(ingres[oó]|me\s+ingresaron|me\s+ingres[oó]|cobr[eé]|me\s+pagaron|me\s+transfirieron|dep[oó]sito\s+de)\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dólares)?\s*(en|de|por)?\s*)?/i,
+    /^(ingres[oÃ³]|me\s+ingresaron|me\s+ingres[oÃ³]|cobr[eÃ©]|me\s+pagaron|me\s+transfirieron|dep[oÃ³]sito\s+de)\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dÃ³lares)?\s*(en|de|por)?\s*)?/i,
     "",
   );
   cleaned = cleaned.replace(/^(en\s+|de\s+|por\s+)/i, "");
   cleaned = cleaned.replace(
-    /\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dólares)?)$/i,
+    /\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dÃ³lares)?)$/i,
     "",
   );
   cleaned = cleaned.trim();
@@ -331,7 +340,10 @@ export async function extractFromGemini(input: {
 }): Promise<GeminiParsedOutput> {
   input.signal?.throwIfAborted();
   const apiKey = Deno.env.get("GEMINI_API_KEY");
-  if (!apiKey) throw new OperationalFailure("configuration", "gemini");
+  const groqKey = Deno.env.get("GROQ_API_KEY");
+  if (!groqKey && !apiKey) {
+    throw new OperationalFailure("configuration", "gemini");
+  }
 
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Argentina/Buenos_Aires",
@@ -341,29 +353,29 @@ export async function extractFromGemini(input: {
   }).format(new Date());
 
   const prompt = `Fecha local: ${today}.
-Analizá el mensaje o audio del usuario para gestionar sus operaciones financieras (gastos e ingresos) en Pesito.
+AnalizÃ¡ el mensaje o audio del usuario para gestionar sus operaciones financieras (gastos e ingresos) en Pesito.
 
 Borrador actual del usuario:
 ${input.activeDraftContext || "Sin movimientos pendientes actualmente."}
 
 INTENCIONES POSIBLES ("intent"):
-1. "add_movements": El usuario menciona uno o más gastos o ingresos nuevos (ej: "gasté 15000 en el súper y 4000 de nafta", "me entraron 80k de diseño"). Extraé cada uno como un elemento del array "movements".
-2. "edit_item": El usuario pide corregir o cambiar un movimiento existente del borrador (ej: "el 2 fue de 5000", "el 1 no es súper es farmacia", "cambiá el 3 a 12000"). Indicá en "edit" el targetPosition y los campos modificados.
-3. "remove_item": El usuario pide quitar o borrar un movimiento específico del borrador (ej: "quitá el 2", "sacá la nafta", "borrá el 1"). Indicá en "removePosition" el número de la posición.
-4. "confirm": El usuario pide confirmar o guardar (ej: "confirmar", "dale guardá", "listo", "de una").
-5. "cancel": El usuario pide cancelar o descartar todo el borrador (ej: "cancelar", "borrá todo", "descartar").
-6. "summary": El usuario pide ver la lista o el resumen (ej: "resumen", "qué tengo pendiente", "mostrame la lista").
-7. "unknown": Ruido incomprensible, saludo suelto o mensaje que no corresponde a ninguna acción financiera.
+1. "add_movements": El usuario menciona uno o mÃ¡s gastos o ingresos nuevos (ej: "gastÃ© 15000 en el sÃºper y 4000 de nafta", "me entraron 80k de diseÃ±o"). ExtraÃ© cada uno como un elemento del array "movements".
+2. "edit_item": El usuario pide corregir o cambiar un movimiento existente del borrador (ej: "el 2 fue de 5000", "el 1 no es sÃºper es farmacia", "cambiÃ¡ el 3 a 12000"). IndicÃ¡ en "edit" el targetPosition y los campos modificados.
+3. "remove_item": El usuario pide quitar o borrar un movimiento especÃ­fico del borrador (ej: "quitÃ¡ el 2", "sacÃ¡ la nafta", "borrÃ¡ el 1"). IndicÃ¡ en "removePosition" el nÃºmero de la posiciÃ³n.
+4. "confirm": El usuario pide confirmar o guardar (ej: "confirmar", "dale guardÃ¡", "listo", "de una").
+5. "cancel": El usuario pide cancelar o descartar todo el borrador (ej: "cancelar", "borrÃ¡ todo", "descartar").
+6. "summary": El usuario pide ver la lista o el resumen (ej: "resumen", "quÃ© tengo pendiente", "mostrame la lista").
+7. "unknown": Ruido incomprensible, saludo suelto o mensaje que no corresponde a ninguna acciÃ³n financiera.
 
 REGLAS PARA OPERACIONES ("movements"):
-- TIPO ("kind"): "income" (sueldo, cobro, freelance, depósito, transferencia recibida, venta) o "expense" (compras, servicios, pagos, salidas).
-- CONCEPTO / DETALLE ("description"): ÚNICAMENTE el concepto, producto, servicio, comercio o lugar (ej: "Súper", "Carnicería", "Nafta YPF", "Farmacia", "Almuerzo", "Sueldo"). PROHIBIDO incluir verbos de acción ("gasté", "pagué", "cobré") y PROHIBIDO incluir el monto numérico en la descripción.
-- MONEDA Y MONTOS: "USD" si menciona dólares o u$s; por defecto "ARS". Interpretá "lucas" y "k" como miles de ARS (ej: "20 lucas" = 20000, "5k" = 5000). Admití montos con decimales (centavos), ej: "10000,50" o "10000.50" = 10000.5.
-- CATEGORÍAS:
-  * Gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros.
+- TIPO ("kind"): "income" (sueldo, cobro, freelance, depÃ³sito, transferencia recibida, venta) o "expense" (compras, servicios, pagos, salidas).
+- CONCEPTO / DETALLE ("description"): ÃšNICAMENTE el concepto, producto, servicio, comercio o lugar (ej: "SÃºper", "CarnicerÃ­a", "Nafta YPF", "Farmacia", "Almuerzo", "Sueldo"). PROHIBIDO incluir verbos de acciÃ³n ("gastÃ©", "paguÃ©", "cobrÃ©") y PROHIBIDO incluir el monto numÃ©rico en la descripciÃ³n.
+- MONEDA Y MONTOS: "USD" si menciona dÃ³lares o u$s; por defecto "ARS". InterpretÃ¡ "lucas" y "k" como miles de ARS (ej: "20 lucas" = 20000, "5k" = 5000). AdmitÃ­ montos con decimales (centavos), ej: "10000,50" o "10000.50" = 10000.5.
+- CATEGORÃAS:
+  * Gasto: AlimentaciÃ³n, Transporte, Vivienda, Servicios, Salud, EducaciÃ³n, Ocio, Compras, Impuestos, Deudas, Otros.
   * Ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros.
-- CUOTAS: Si es en cuotas, indicá installments y firstInstallmentMonth. De lo contrario installments = 1.
-- COMPROBANTES: Si el usuario envía una imagen de un comprobante o ticket, interpretalo como UNA sola operación por el total del ticket; no dividas sus productos individuales. Si la imagen muestra varios comprobantes separados, extraé cada uno como una operación independiente.
+- CUOTAS: Si es en cuotas, indicÃ¡ installments y firstInstallmentMonth. De lo contrario installments = 1.
+- COMPROBANTES: Si el usuario envÃ­a una imagen de un comprobante o ticket, interpretalo como UNA sola operaciÃ³n por el total del ticket; no dividas sus productos individuales. Si la imagen muestra varios comprobantes separados, extraÃ© cada uno como una operaciÃ³n independiente.
 
 Mensaje del usuario: ${input.text ?? ""}`;
 
@@ -374,7 +386,7 @@ Mensaje del usuario: ${input.text ?? ""}`;
     });
   }
 
-  // Flash Lite primero; Flash como respaldo. Los medios necesitan más margen.
+  // Flash Lite primero; Flash como respaldo. Los medios necesitan mÃ¡s margen.
   const candidateModels = [
     { id: "gemini-3.1-flash-lite", label: "flash_lite" },
     {
@@ -394,6 +406,48 @@ Mensaje del usuario: ${input.text ?? ""}`;
     throw new OperationalFailure("payload_too_large", "gemini");
   }
   let lastError: Error | null = null;
+  if (groqKey) {
+    try {
+      const groqResult = await extractWithGroq({
+        apiKey: groqKey,
+        today,
+        text: input.text,
+        mediaBase64: input.mediaBase64,
+        mimeType: input.mimeType,
+        activeDraftContext: input.activeDraftContext,
+        signal: input.signal,
+        baseSchema: multiResponseJsonSchema,
+        strictSchema: strictMultiResponseJsonSchema,
+        buildPrompt: (text: string) =>
+          prompt.replace(
+            `Mensaje del usuario: ${input.text ?? ""}`,
+            `Mensaje del usuario: ${text}`,
+          ),
+        cleanDescription,
+      });
+      if (groqResult.output) return groqResult.output;
+    } catch (err) {
+      lastError = err instanceof Error
+        ? err
+        : new OperationalFailure("unknown", "groq");
+      if (!apiKey || input.mediaBase64) {
+        input.signal?.throwIfAborted();
+        if (input.text && !input.mediaBase64) {
+          const fallbackMovements = parseDeterministicMovements(
+            input.text,
+            today,
+          );
+          if (fallbackMovements && fallbackMovements.length > 0) {
+            return {
+              intent: "add_movements",
+              movements: fallbackMovements,
+            };
+          }
+        }
+        throw lastError;
+      }
+    }
+  }
 
   for (const model of candidateModels) {
     input.signal?.throwIfAborted();
@@ -476,7 +530,7 @@ Mensaje del usuario: ${input.text ?? ""}`;
 export function formatDraftList(items: DraftListItem[]): string {
   const activeItems = items.filter((it) => it.status === "pending");
   if (activeItems.length === 0) {
-    return "No tenés movimientos pendientes en tu lista.";
+    return "No tenÃ©s movimientos pendientes en tu lista.";
   }
 
   const count = activeItems.length;
@@ -484,11 +538,11 @@ export function formatDraftList(items: DraftListItem[]): string {
     ? "1 movimiento para revisar:"
     : `${count} movimientos para revisar:`;
 
-  let out = `Tenés ${countText}\n\n`;
+  let out = `TenÃ©s ${countText}\n\n`;
 
   for (const it of activeItems) {
     const isUsd = it.currency === "USD";
-    const icon = it.kind === "income" ? "🟢" : "🔴";
+    const icon = it.kind === "income" ? "ðŸŸ¢" : "ðŸ”´";
     const hasDecimals = Math.round(Math.abs(it.amount) * 100) % 100 !== 0;
     const amountStr = isUsd
       ? `US$ ${
@@ -508,10 +562,10 @@ export function formatDraftList(items: DraftListItem[]): string {
       ? ` (${it.installments} cuotas)`
       : "";
     out +=
-      `${it.position}. ${icon} ${it.description} · ${amountStr}${instText}\n`;
+      `${it.position}. ${icon} ${it.description} Â· ${amountStr}${instText}\n`;
   }
 
   out +=
-    `\nPodés seguir agregando, corregir alguno (ej: "el 2 fue de 5.000"), quitar ("quitá el 2") o responder *CONFIRMAR* para guardar todo.`;
+    `\nPodÃ©s seguir agregando, corregir alguno (ej: "el 2 fue de 5.000"), quitar ("quitÃ¡ el 2") o responder *CONFIRMAR* para guardar todo.`;
   return out;
 }

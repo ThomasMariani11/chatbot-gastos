@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-20",
+  "syntheticOnly": true,
+  "productionChanged": false,
+  "customerDataUsed": false,
+  "whatsappMessagesSent": 0,
+  "models": {
+    "extraction": "qwen/qwen3.8-27b",
+    "transcription": "whisper-large-v3-turbo"
+  },
+  "responseMode": "json_object_with_local_schema_validation",
+  "results": [
+    {
+      "case": "mixed_text",
+      "extractionHttp": 200,
+      "extractionMs": 1629,
+      "schemaValid": true,
+      "intent": "add_movements",
+      "movementCount": 3,
+      "correct": true,
+      "promptTokens": 1156,
+      "completionTokens": 357,
+      "totalMs": 1630
+    },
+    {
+      "case": "receipt_single_total",
+      "extractionHttp": 200,
+      "extractionMs": 2281,
+      "schemaValid": false,
+      "intent": "add_movements",
+      "correct": false,
+      "promptTokens": 2404,
+      "completionTokens": 166,
+      "totalMs": 2281
+    },
+    {
+      "case": "audio_transcription_and_extraction",
+      "transcriptionHttp": 200,
+      "transcriptionMs": 1151,
+      "transcriptNonempty": true,
+      "extractionHttp": 200,
+      "extractionMs": 812,
+      "schemaValid": true,
+      "intent": "add_movements",
+      "movementCount": 1,
+      "correct": true,
+      "promptTokens": 1135,
+      "completionTokens": 135,
+      "totalMs": 1966
+    },
+    {
+      "case": "currencies_and_installments",
+      "extractionHttp": 200,
+      "extractionMs": 1107,
+      "schemaValid": true,
+      "intent": "add_movements",
+      "movementCount": 2,
+      "correct": false,
+      "promptTokens": 1152,
+      "completionTokens": 237,
+      "totalMs": 1108
+    },
+    {
+      "case": "correction",
+      "extractionHttp": 200,
+      "extractionMs": 883,
+      "schemaValid": true,
+      "intent": "edit_item",
+      "movementCount": 0,
+      "correct": true,
+      "promptTokens": 1173,
+      "completionTokens": 77,
+      "totalMs": 883
+    },
+    {
+      "case": "missing_amount",
+      "extractionHttp": 200,
+      "extractionMs": 1252,
+      "schemaValid": true,
+      "intent": "add_movements",
+      "movementCount": 1,
+      "correct": true,
+      "promptTokens": 1128,
+      "completionTokens": 154,
+      "totalMs": 1252
+    }
+  ],
+  "account": {
+    "plan": "Free",
+    "monthlySubscriptionUsd": 0,
+    "billingChanged": false,
+    "limitsVerifiedInAuthenticatedUI": true,
+    "extraction": {
+      "rpm": 30,
+      "tpd": 200000,
+      "tpm": 8000,
+      "rpd": 1000
+    },
+    "transcription": {
+      "rpm": 20,
+      "audioSecondsPerDay": 28800,
+      "audioSecondsPerHour": 7200,
+      "rpd": 2000
+    }
+  },
+  "credential": {
+    "displayName": "Pesito - evaluacion IA",
+    "expiresOn": "2026-10-27",
+    "creationExplicitlyAuthorized": true,
+    "productionSecretConfigured": false,
+    "plaintextFileCreated": false,
+    "temporaryEncryptedTransportCleaned": true
+  },
+  "assessment": {
+    "cases": 6,
+    "passedMatcher": 4,
+    "needsReview": 2,
+    "httpResponses": 7,
+    "http200": 7,
+    "productionReady": false,
+    "note": "Muestra sintética pequeña. Los checks de casos completos exigen occurredOn explícito y missingFields vacío; el matcher puede ser más estricto que los defaults del guardado. Los dos rechazos requieren inspeccionar esquema/adaptación y repetir antes de atribuir un error financiero específico."
+  }
+}

@@ -1,6 +1,6 @@
 {
   "date": "2026-10-18",
-  "status": "deployed_pending_real_media_acceptance",
+  "status": "deployed_real_media_fallback_verified_interpretation_pending",
   "limits": {
     "imageBytes": 5242880,
     "audioBytes": 10485760,
@@ -48,7 +48,7 @@
     "mainCiRun": 39156737331,
     "databaseChanged": false,
     "historicalMessagesReplayed": false,
-    "realMediaAcceptance": "pending",
+    "realMediaAcceptance": "fallback_verified_successful_interpretation_pending",
     "mainCiPassed": true,
     "pages": {
       "commit": "3b3ea8cc78e145446f53ad7ca45f8c2c748d674d",
@@ -70,7 +70,7 @@
       ]
     }
   },
-  "whatsappAcceptance": "pending",
+  "whatsappAcceptance": "fallback_verified_successful_interpretation_pending",
   "rehearsal": {
     "artifact": 12146694917,
     "sourceCommit": "37c29a51624aff009d702f02037e7fbba81c3205",
@@ -119,5 +119,34 @@
     "externalMessages": 0,
     "databaseRestore": false,
     "cleanupPassed": true
+  },
+  "realMediaCheck": {
+    "date": "2026-10-20",
+    "observedAt": "2026-10-20T13:55:32Z",
+    "matchingActors": 1,
+    "audio": {
+      "intent": "request_text",
+      "transactions": 0,
+      "secondsToReply": 24.22,
+      "status": "processed",
+      "attempts": 1,
+      "draftItems": 0
+    },
+    "image": {
+      "intent": "request_text",
+      "transactions": 0,
+      "secondsToReply": 9.39,
+      "status": "processed",
+      "attempts": 1,
+      "draftItems": 0
+    },
+    "providerLogWindowMinutes": 60,
+    "providerErrors": [
+      "gemini:503",
+      "gemini:timeout"
+    ],
+    "mediaPolicyRejectionsObserved": false,
+    "successfulInterpretationVerified": false,
+    "note": "Logs agrupados por proveedor/modelo en la ventana; no atribuyen cada error a un mensaje individual. Sin contenido, identificadores ni comprobantes."
   }
 }

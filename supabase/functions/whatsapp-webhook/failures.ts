@@ -15,6 +15,7 @@ export type FailureReason =
   | "unsupported_media";
 export type FailureProvider =
   | "gemini"
+  | "groq"
   | "meta_media"
   | "meta_send"
   | "database";

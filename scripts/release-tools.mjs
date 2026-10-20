@@ -49,7 +49,7 @@ export function localDockerEndpoint(value) {
 }
 
 export function localEnvironment(source = process.env) {
-  return Object.fromEntries(Object.entries(source).filter(([key]) => !/^(SUPABASE_|VITE_|GEMINI_|WHATSAPP_|META_|PG)/i.test(key)));
+  return Object.fromEntries(Object.entries(source).filter(([key]) => !/^(SUPABASE_|VITE_|GEMINI_|GROQ_|WHATSAPP_|META_|PG)/i.test(key)));
 }
 
 export async function stampDistribution(directory, commit) {

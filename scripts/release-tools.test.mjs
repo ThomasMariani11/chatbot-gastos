@@ -13,7 +13,7 @@ test('el ensayo rechaza todo destino remoto y URLs con credenciales', () => {
   }
 });
 test('no hereda secretos ni variables públicas del entorno del operador', () => {
-  assert.deepEqual(localEnvironment({ PATH: 'safe-path', SUPABASE_ACCESS_TOKEN: 'canary', META_APP_SECRET: 'canary', VITE_SUPABASE_URL: 'canary', GEMINI_API_KEY: 'canary', PGPASSWORD: 'canary', WHATSAPP_ACCESS_TOKEN: 'canary' }), { PATH: 'safe-path' });
+  assert.deepEqual(localEnvironment({ PATH: 'safe-path', SUPABASE_ACCESS_TOKEN: 'canary', META_APP_SECRET: 'canary', VITE_SUPABASE_URL: 'canary', GEMINI_API_KEY: 'canary', GROQ_API_KEY: 'canary', PGPASSWORD: 'canary', WHATSAPP_ACCESS_TOKEN: 'canary' }), { PATH: 'safe-path' });
 });
 test('un comando fallido no imprime su respuesta ni stderr', async () => {
   await assert.rejects(run(process.execPath, ['-e', 'console.error("PRIVATE_CANARY"); console.log("PRIVATE_CANARY"); process.exit(1)']), error => !error.message.includes('PRIVATE_CANARY'));
