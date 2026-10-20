@@ -45,13 +45,13 @@ INF-12 permanece en curso hasta verificar interpretación correcta de multimedia
 
 ## Cierre del 20/10/2026 — Groq integrado y aceptación de multimedia en WhatsApp
 
-Se integró `groq.ts` en `whatsapp-webhook` (`whisper-large-v3` para audio + normalización de números hablados + gramática local antes de invocar Qwen + `qwen/qwen3.8-27b` con esquema estricto y validador runtime para imagen y texto ambiguo, con presupuesto compartido de cupo/429). 306 Vitest y 38 Deno con red denegada aprobados.
+Se integró `groq.ts` en `whatsapp-webhook` (`whisper-large-v3-turbo` para audio sin frases de prueba en el prompt + normalización de números hablados preservando `<dígitos> mil` + evaluación de reglas locales de movimientos, comandos y correcciones antes de invocar Qwen + `qwen/qwen3.8-27b` con esquema estricto y validador runtime para imagen y texto ambiguo, con presupuesto compartido de cupo/429). 306 Vitest, 38 Deno con red denegada, 12 escenarios SQL y seis controles Node aprobados.
 
-Con autorización del propietario se configuró `GROQ_API_KEY` en Supabase y se desplegó `whatsapp-webhook` (v47 y corrección UTF-8/montos en v48 ACTIVE, `verify_jwt=false`, smoke 401 verificado).
+Con autorización del propietario para la beta de 4 usuarios se configuró `GROQ_API_KEY` en Supabase (con vencimiento el 27/10/2026) y se desplegó `whatsapp-webhook` desde el checkout limpio de `main` aprobado por los cuatro checks de CI (`verify_jwt=false`, smoke 401 verificado para webhook sin HMAC y worker sin secreto).
 
 Prueba real en WhatsApp del propietario:
-- **Imagen (comprobante de transferencia):** procesada en **3,11 s** en 1 intento via `qwen` (`provider=groq`, `status=200`), proponiendo correctamente el movimiento por el total y fecha del comprobante.
+- **Imagen (comprobante de transferencia):** procesada en **3,11 s** en 1 intento vía `qwen` (`provider=groq`, `status=200`), proponiendo el movimiento por el total y fecha del comprobante.
 - **Audio corto (`Gasté 2500 en panadería`):** procesado en **2,32 s** en 1 intento; `whisper` (`provider=groq`, `status=200`) transcribió el audio, la normalización resolvió el monto exacto (`2500`) y `local_rule` (`rule=movements`, `operations=1`) generó la propuesta **sin consumir tokens de Qwen**.
 - **Cancelación posterior (`CANCELAR`):** descartó el borrador (`discarded`) sin crear transacciones productivas de prueba.
 
-INF-12 queda **cerrada**. Siguiente tarea de infraestructura: INF-14.
+INF-12 y BE-15 quedan **cerradas**. La rotación de la clave beta antes del 27/10/2026 y la revisión de retención/costos quedan registradas para INF-14 e INF-15.

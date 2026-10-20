@@ -17,8 +17,8 @@
     "sharedWorkerStartWindowMs": 45000
   },
   "localValidation": {
-    "vitest": 221,
-    "deno": 31,
+    "vitest": 306,
+    "deno": 38,
     "sql": 12,
     "releaseGuards": 6,
     "typeCheck": true,
@@ -29,7 +29,7 @@
   "migrationHead": "025",
   "databaseChanged": false,
   "historicalMessagesReplayed": false,
-  "rollbackCommit": "acde1f8e6953be7fce4947b10823770592838f63",
+  "rollbackCommit": "3b3ea8cc78e145446f53ad7ca45f8c2c748d674d",
   "deployment": {
     "observedAt": "2026-10-18T19:02:44.688Z",
     "sourceCommit": "3b3ea8cc78e145446f53ad7ca45f8c2c748d674d",
@@ -148,16 +148,21 @@
     "mediaPolicyRejectionsObserved": false,
     "successfulInterpretationVerified": true,
     "groqAcceptance20261020": {
-      "edgeVersion": 48,
+      "edgeVersion": 49,
       "edgeStatus": "ACTIVE",
       "verifyJwt": false,
+      "unsignedWebhook": 401,
+      "unsignedWorker": 401,
+      "whisperModel": "whisper-large-v3-turbo",
+      "qwenModel": "qwen/qwen3.8-27b",
       "imageSecondsToReply": 3.11,
       "imageProvider": "groq:qwen",
       "audioSecondsToReply": 2.32,
       "audioProvider": "groq:whisper+local_rule",
       "qwenCallsOnClearAudio": 0,
       "transactionsCreated": 0,
-      "draftDiscarded": true
+      "draftDiscarded": true,
+      "betaKeyExpiresOn": "2026-10-27"
     },
     "note": "Logs agrupados por proveedor/modelo en la ventana; no atribuyen cada error a un mensaje individual. Sin contenido, identificadores ni comprobantes."
   }
