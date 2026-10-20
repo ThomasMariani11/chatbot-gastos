@@ -1,98 +1,7 @@
-import { describe, expect, it } from 'vitest';
-
-export function parseDeterministicMovement(rawText: string, today: string = '2026-10-13') {
-  const text = rawText.trim();
-  if (!text) return null;
-
-  const isIncome = /^(ingres[oó]|me\s+ingresaron|cobr[eé]|me\s+pagaron|me\s+transfirieron|dep[oó]sito|sueldo|venta)\b/i.test(text);
-  const kind: 'expense' | 'income' = isIncome ? 'income' : 'expense';
-  const isUsd = /\b(usd|d[oó]lares?|u\$s|greens?)\b/i.test(text);
-  const currency: 'ARS' | 'USD' = isUsd ? 'USD' : 'ARS';
-
-  // Buscar monto numérico
-  const amountRegex = /(?:^|\s|\$)(?:usd|u\$s)?\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(k|mil|lucas?)?\s*(?:pesos?|ars|usd|d[oó]lares?)?(?:\s|$)/i;
-  const match = text.match(amountRegex);
-  if (!match) return null;
-
-  let rawNum = match[1];
-  const multiplier = match[2]?.toLowerCase();
-
-  // Normalizar número argentino
-  if (rawNum.includes('.') && rawNum.includes(',')) {
-    rawNum = rawNum.replace(/\./g, '').replace(',', '.');
-  } else if (rawNum.includes('.')) {
-    // Si tiene punto y 3 dígitos al final (ej: 21.000 o 5.000), es separador de miles
-    if (/^\d{1,3}(?:\.\d{3})+$/.test(rawNum)) {
-      rawNum = rawNum.replace(/\./g, '');
-    }
-  } else if (rawNum.includes(',')) {
-    rawNum = rawNum.replace(',', '.');
-  }
-
-  let num = parseFloat(rawNum);
-  if (!Number.isFinite(num) || num <= 0) return null;
-
-  if (multiplier === 'k' || multiplier === 'mil' || multiplier === 'luca' || multiplier === 'lucas') {
-    num *= 1000;
-  }
-
-  // Quitar el monto del texto para obtener la descripción
-  let desc = text.replace(match[0], ' ').trim();
-  desc = desc.replace(/^(gast[eé]|pagu[eé]|compr[eé]|abone|abon[eé]|carg[uú]e|pagar|gastar)\s*/i, '');
-  desc = desc.replace(/^(ingres[oó]|me\s+ingresaron|cobr[eé]|me\s+pagaron|me\s+transfirieron|dep[oó]sito\s+de)\s*/i, '');
-  desc = desc.replace(/^(en\s+|de\s+|por\s+)/i, '');
-  desc = desc.replace(/\s+(en|de|por)\s*$/i, '');
-  desc = desc.trim();
-
-  if (!desc) {
-    desc = kind === 'expense' ? 'Gasto general' : 'Ingreso general';
-  } else {
-    desc = desc.charAt(0).toUpperCase() + desc.slice(1);
-  }
-
-  // Inferir categoría
-  const lowerDesc = desc.toLowerCase();
-  let category = 'Otros';
-  if (kind === 'income') {
-    if (/sueldo|salario|haberes|quincena/.test(lowerDesc)) category = 'Sueldo';
-    else if (/freelance|diseño|proyecto|cliente/.test(lowerDesc)) category = 'Freelance';
-    else if (/venta|vendo|mercadolibre/.test(lowerDesc)) category = 'Ventas';
-  } else {
-    if (/super|chango|coto|vea|dia|disco|carrefour|almacen|verduleria|carniceria|panaderia|comida|almuerzo|cena|merienda|desayuno|cafe|restaurant|pedidosya|rappi|mcdonalds|mostaza|burger|helado|facturas|kiosco|caramelos/.test(lowerDesc)) category = 'Alimentación';
-    else if (/nafta|combustible|ypf|shell|axion|uber|cabify|didi|taxi|colectivo|subte|tren|peaje|estacionamiento|cochera|sube/.test(lowerDesc)) category = 'Transporte';
-    else if (/luz|gas|agua|internet|wifi|fibertel|telecentro|flow|cable|claro|personal|movistar|expensas|edenor|edesur|metrogas/.test(lowerDesc)) category = 'Servicios';
-    else if (/alquiler|inmobiliaria/.test(lowerDesc)) category = 'Vivienda';
-    else if (/farmacia|remedio|medicamento|medico|doctor|dentista|odontologo|psicologo|consulta|analisis|creatina|suplementos?|proteina|optica/.test(lowerDesc)) category = 'Salud';
-    else if (/colegio|facultad|universidad|cuota|curso|taller|capacitacion|libro|apunte/.test(lowerDesc)) category = 'Educación';
-    else if (/cine|teatro|boliche|recital|salida|bar|cerveza|juego|steam|playstation|netflix|spotify|disney|hbo|prime/.test(lowerDesc)) category = 'Ocio';
-    else if (/ropa|zapatillas|remera|pantalon|shopping|zapatos|camisa|buzo|campera/.test(lowerDesc)) category = 'Compras';
-    else if (/afip|rentas|monotributo|arba|iibb|impuesto|tasa|patente/.test(lowerDesc)) category = 'Impuestos';
-    else if (/prestamo|tarjeta|cuota tarjeta|deuda/.test(lowerDesc)) category = 'Deudas';
-  }
-
-  return {
-    kind,
-    description: desc,
-    totalAmountArs: num,
-    currency,
-    occurredOn: today,
-    category,
-    installments: 1,
-    firstInstallmentMonth: null,
-    confidence: 0.95,
-    missingFields: [],
-  };
-}
-
-export function parseDeterministicMovements(text: string, today: string = '2026-10-13') {
-  const parts = text.split(/\n|(?:\s+y\s+)|\s*,\s*/i).map((p) => p.trim()).filter(Boolean);
-  const results = [];
-  for (const part of parts) {
-    const mov = parseDeterministicMovement(part, today);
-    if (mov) results.push(mov);
-  }
-  return results.length > 0 ? results : null;
-}
+import { describe, expect, it } from "vitest";
+import { parseDeterministicMovement as parseOne, parseDeterministicMovements as parseMany } from "../supabase/functions/whatsapp-webhook/local-movements";
+const parseDeterministicMovement = (text: string) => parseOne(text, "2026-10-20");
+const parseDeterministicMovements = (text: string) => parseMany(text, "2026-10-20");
 
 describe('parseDeterministicMovements', () => {
   it('parses Matias exact messages correctly', () => {
@@ -178,4 +87,102 @@ describe('parseDeterministicMovements', () => {
     expect(res![0]).toMatchObject({ description: 'Super', totalAmountArs: 5000 });
     expect(res![1]).toMatchObject({ description: 'Nafta', totalAmountArs: 4000 });
   });
+});
+
+describe("reglas reales: importes, monedas y lotes completos", () => {
+  it.each([
+    ["Pagué $15.000,50 en supermercado", 15000.5, "ARS", "Supermercado"],
+    ["Cobré USD 100 por diseño", 100, "USD", "Diseño"],
+    ["Me ingresó 70mil de una transferencia", 70000, "ARS", "Una transferencia"],
+    ["Recibí US$ 25 por venta", 25, "USD", "Venta"],
+    ["Gasté u$s100 en herramientas", 100, "USD", "Herramientas"],
+    ["Gasté 2,5k en café", 2500, "ARS", "Café"],
+    ["Gasté 20 lucas en nafta", 20000, "ARS", "Nafta"],
+  ])("%s", (text, amount, currency, description) => {
+    expect(parseDeterministicMovement(String(text))).toMatchObject({ totalAmountArs: amount, currency, description });
+  });
+  it("mantiene los decimales y el concepto compuesto", () => {
+    const items = parseDeterministicMovements("Gasté 250,50 en pan y leche y 4000 de nafta");
+    expect(items).toHaveLength(2);
+    expect(items![0]).toMatchObject({ description: "Pan y leche", totalAmountArs: 250.5 });
+  });
+  it("varios gastos e ingresos con monedas independientes", () => {
+    const items = parseDeterministicMovements("Gasté 5000 super, 6000 proteínas y me ingresó 70mil de una transferencia; cobré 100 USD por diseño");
+    expect(items?.map(i => [i.kind, i.totalAmountArs, i.currency])).toEqual([
+      ["expense", 5000, "ARS"], ["expense", 6000, "ARS"], ["income", 70000, "ARS"], ["income", 100, "USD"],
+    ]);
+  });
+  it("listas por renglón con viñetas y numeración", () => {
+    expect(parseDeterministicMovements("1. Gasté 100 en super\n2. Cobré 200 por diseño")?.map(i => i.totalAmountArs)).toEqual([100, 200]);
+    expect(parseDeterministicMovements("- Gasté 100 super\n• Pagué 200 nafta")).toHaveLength(2);
+  });
+  it("no trunca listas mayores al límite SQL", () => {
+    const items = Array.from({ length: 21 }, (_, n) => `Gasté ${n + 1} en super`).join("\n");
+    expect(parseDeterministicMovements(items)).toHaveLength(21);
+  });
+  it("no infiere categorías por fragmentos de otras palabras", () => {
+    expect(parseDeterministicMovement("Gasté 1500 en diario")).toMatchObject({ category: "Otros" });
+    expect(parseDeterministicMovement("Gasté 1500 en cafetería")).toMatchObject({ category: "Otros" });
+    expect(parseDeterministicMovement("Gasté 1500 en proteínas")).toMatchObject({ category: "Salud" });
+  });
+  it.each([
+    "Gasté 5000 super y pagué alquiler",
+    "Gasté 5000 en super y me ingresó una transferencia",
+    "Cobré 100 por diseño y 200 de otra cosa",
+    "Gasté 5000 super, gasté algo en nafta",
+    "Gasté 5000 super\n",
+    "Gasté 5000 super;",
+  ])("rechaza todo el mensaje si no entiende una parte: %s", text => {
+    expect(parseDeterministicMovements(text)).toBeNull();
+  });
+});
+
+describe("fechas y cuotas sin confundirlas con importes", () => {
+  it.each([
+    ["Ayer gasté 100 en super", "2026-10-19"],
+    ["Gasté 100 en super anteayer", "2026-10-18"],
+    ["Gasté 100 en super el 19/10/2026", "2026-10-19"],
+    ["Gasté 100 en super el 19/10", "2026-10-19"],
+    ["Gasté 100 en super 2026-10-01", "2026-10-01"],
+    ["Gasté 100 en super", "2026-10-20"],
+  ])("%s", (text, occurredOn) => {
+    expect(parseDeterministicMovement(text)).toMatchObject({ occurredOn, totalAmountArs: 100, description: "Super" });
+  });
+  it("resuelve ayer al cambiar de mes/año y rechaza fechas imposibles", () => {
+    expect(parseOne("Ayer gasté 100 en super", "2026-01-01")?.occurredOn).toBe("2025-12-31");
+    expect(parseOne("Gasté 100 en super 29/02/2024", "2026-10-20")?.occurredOn).toBe("2024-02-29");
+    for (const date of ["31/02/2026", "29/02/2026", "2026-13-01"]) expect(parseDeterministicMovement(`Gasté 100 en super ${date}`)).toBeNull();
+  });
+  it("conserva el total y el primer mes; no divide el importe de las cuotas", () => {
+    expect(parseDeterministicMovement("Compré silla por un total de 12000 en 3 cuotas")).toMatchObject({
+      totalAmountArs: 12000, description: "Silla", installments: 3, firstInstallmentMonth: "2026-10",
+    });
+    expect(parseDeterministicMovement("Ayer pagué silla total 100 USD en 3 cuotas")).toMatchObject({ totalAmountArs: 100, currency: "USD", installments: 3, occurredOn: "2026-10-19" });
+  });
+});
+
+describe("ante dudas, no inventa movimientos", () => {
+  it.each([
+    "¿Cuánto gasté en super 100?", "El 2 fue de 250", "Quitá el 2", "No gasté 5000 en super",
+    "Tengo que pagar 1500 en super", "Me deben 2000 por diseño", "Quizás gasté 1000 en super",
+    "Transferencia 5000", "Depósito 5000", "Gasté -100 en super", "Gasté 0 en super", "Gasté 1.00.000 en super",
+    "Gasté 99999999999999999999999999 en super", "Gasté 1000000000000 en super",
+    "Gasté 100 EUR en super", "Gasté 100 USD pesos en super", "Gasté 100 en super 200 de nafta",
+    "Gasté 3 cuotas de 4000 en silla", "Compré silla 12000 en 3 cuotas", "Compré silla total 12000 en 61 cuotas",
+    "Cobré total 12000 en 3 cuotas", "Gasté 100 super ayer y hoy", "Gasté 100 super el lunes",
+    "Gasté 100 super el mes pasado", "Gasté 5000 por iphone 15", "El 2 de 100", "100",
+  ])("%s", text => expect(parseDeterministicMovements(text)).toBeNull());
+});
+
+it("reconoce dólar en singular y mantiene cautela con el alcance de fechas y monedas", () => {
+  expect(parseDeterministicMovement("Cobré 1 dólar por diseño")).toMatchObject({ currency: "USD", totalAmountArs: 1 });
+  for (const text of ["Ayer gasté 100 super y 200 nafta", "Gasté 100 USD super y 200 nafta", "Gasté 100 pesos uruguayos en super", "Se me perdió 5000", "Me pasaron 5000"]) {
+    expect(parseDeterministicMovements(text)).toBeNull();
+  }
+});
+
+it("los ingresos conocidos no se convierten en gastos abreviados", () => {
+  expect(parseDeterministicMovement("Vendí 5000 por una bici")).toMatchObject({ kind: "income", totalAmountArs: 5000 });
+  expect(parseDeterministicMovement("Salario 5000")).toMatchObject({ kind: "income", totalAmountArs: 5000 });
+  for (const text of ["Gané 5000 en un sorteo", "Encontré 5000", "Tenía 5000", "Cuál fue el gasto de 5000", "Mostrame el gasto de 5000"]) expect(parseDeterministicMovements(text)).toBeNull();
 });

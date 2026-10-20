@@ -26,6 +26,7 @@ type Event =
   | "http_request"
   | "http_request_failed"
   | "worker_interrupted"
+  | "local_rule"
   | "ai_attempt"
   | "interpretation_fallback";
 type Validator = (value: unknown) => boolean;
@@ -67,6 +68,10 @@ const failureSchema = {
 };
 const schemas: Record<Event, Record<string, Validator>> = {
   interpretation_fallback: { ...failureSchema },
+  local_rule: {
+    rule: oneOf("command", "correction", "movements"),
+    operations: numeric(10000, true),
+  },
   ai_attempt: {
     ...failureSchema,
     model: oneOf("flash", "flash_lite"),

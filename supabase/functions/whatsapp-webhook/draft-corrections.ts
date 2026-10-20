@@ -17,12 +17,13 @@ export function parseDraftCorrection(text: string): Correction | null {
   const match = normalize(text).match(
     /^(?:el\s+(?:movimiento\s+)?(\d+)\s+(?:fue|era|es)(?:\s+de)?|(?:cambia|corregi|modifica)\s+(?:el\s+)?(?:movimiento\s+)?(\d+)\s+(?:a|por))\s+(.+)$/,
   );
-  if (!match) return null;
+  if (!match && !looksLikeDraftCorrection(text)) return null;
   const clarify: Correction = {
     kind: "reply",
     text:
-      'Para cambiar el monto, indicá un movimiento y un importe positivo. Por ejemplo: "El 2 fue de 250". No modifiqué la lista.',
+      'Para cambiar el monto, indicá un movimiento y un importe positivo. Por ejemplo: "El 2 fue de 250". No agregué movimientos. No modifiqué la lista.',
   };
+  if (!match) return clarify;
   const position = Number(match[1] ?? match[2]);
   const money = match[3].match(
     /^\$?\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(k|mil|lucas?)?\s*$/,

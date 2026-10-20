@@ -34,3 +34,13 @@ it('INF-12: registra límites y proveedor de envío sin datos del archivo',()=>{
   expect(JSON.parse(lines[1])).toEqual({event:'queue_retry',reason:'timeout',provider:'meta_send',stage:'send',attempts:1});
   expect(lines.join('')).not.toContain('PRIVATE');
 });
+
+it("las métricas de reglas locales no incluyen contenido ni montos", () => {
+  const lines: string[] = [];
+  const log = createLogWriter(line => lines.push(line));
+  log("local_rule", { rule: "movements", operations: 3, body: "PRIVATE_TEXT", amount: 987654321, phone: "PRIVATE_PHONE" });
+  log("local_rule", { rule: "PRIVATE_TEXT", operations: -1 });
+  expect(lines.map(line => JSON.parse(line))).toEqual([
+    { event: "local_rule", rule: "movements", operations: 3 }, { event: "local_rule" },
+  ]);
+});
