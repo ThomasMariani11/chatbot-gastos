@@ -16,7 +16,7 @@ import { writeOperationalLog } from "./logging.ts";
 import type { GeminiParsedOutput } from "./helpers.ts";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
-const WHISPER_MODEL = "whisper-large-v3-turbo";
+const WHISPER_MODEL = "whisper-large-v3";
 const QWEN_MODEL = "qwen/qwen3.8-27b";
 const MIN_QWEN_TOKENS_RESERVE = 1600;
 const MAX_BUDGET_WAIT_MS = 3500;
@@ -151,6 +151,7 @@ export function normalizeGroqOutput(
         const mov = item as Record<string, unknown>;
         if (mov.occurredOn === null) mov.occurredOn = today;
         if (mov.category === null) mov.category = "Otros";
+        if (mov.installments === 1) mov.firstInstallmentMonth = null;
       }
     }
   }
@@ -285,8 +286,201 @@ function audioExtension(mimeType: string): string {
   return subtype;
 }
 
+const SPANISH_HUNDREDS: Record<string, number> = {
+  cien: 100,
+  ciento: 100,
+  doscientos: 200,
+  doscientas: 200,
+  trescientos: 300,
+  trescientas: 300,
+  cuatrocientos: 400,
+  cuatrocientas: 400,
+  quinientos: 500,
+  quinientas: 500,
+  seiscientos: 600,
+  seiscientas: 600,
+  setecientos: 700,
+  setecientas: 700,
+  ochocientos: 800,
+  ochocientas: 800,
+  novecientos: 900,
+  novecientas: 900,
+};
+
+const SPANISH_TENS: Record<string, number> = {
+  treinta: 30,
+  cuarenta: 40,
+  cincuenta: 50,
+  sesenta: 60,
+  setenta: 70,
+  ochenta: 80,
+  noventa: 90,
+};
+
+const SPANISH_SMALL: Record<string, number> = {
+  un: 1,
+  uno: 1,
+  una: 1,
+  dos: 2,
+  tres: 3,
+  cuatro: 4,
+  cinco: 5,
+  seis: 6,
+  siete: 7,
+  ocho: 8,
+  nueve: 9,
+  diez: 10,
+  once: 11,
+  doce: 12,
+  trece: 13,
+  catorce: 14,
+  quince: 15,
+  dieciseis: 16,
+  diecisiete: 17,
+  dieciocho: 18,
+  diecinueve: 19,
+  veinte: 20,
+  veintiun: 21,
+  veintiuno: 21,
+  veintiuna: 21,
+  veintidos: 22,
+  veintitres: 23,
+  veinticuatro: 24,
+  veinticinco: 25,
+  veintiseis: 26,
+  veintisiete: 27,
+  veintiocho: 28,
+  veintinueve: 29,
+};
+
+function parseUnderThousandWords(words: string[]): {
+  value: number;
+  consumed: number;
+} | null {
+  let i = 0;
+  let total = 0;
+  if (i < words.length && SPANISH_HUNDREDS[words[i]] !== undefined) {
+    total += SPANISH_HUNDREDS[words[i]];
+    i++;
+  }
+  if (i < words.length && SPANISH_TENS[words[i]] !== undefined) {
+    total += SPANISH_TENS[words[i]];
+    i++;
+    if (
+      i + 1 < words.length &&
+      words[i] === "y" &&
+      SPANISH_SMALL[words[i + 1]] !== undefined &&
+      SPANISH_SMALL[words[i + 1]] < 10
+    ) {
+      total += SPANISH_SMALL[words[i + 1]];
+      i += 2;
+    }
+  } else if (i < words.length && SPANISH_SMALL[words[i]] !== undefined) {
+    total += SPANISH_SMALL[words[i]];
+    i++;
+  }
+  return i > 0 ? { value: total, consumed: i } : null;
+}
+
+export function normalizeWhisperTranscript(raw: string): string {
+  // 1. Reemplazar separador de miles con coma estilo inglés (ej. 2,500 -> 2500)
+  let text = raw.trim().replace(/\b(\d{1,3}),(\d{3})(?!\d)/g, "$1$2");
+  // 2. Combinar patrones híbridos de Whisper como "2000 quinientos" o "2 mil 500"
+  text = text.replace(
+    /\b(\d+)\s+mil\s+(\d{1,3})\b/gi,
+    (_, k, rem) => String(Number(k) * 1000 + Number(rem)),
+  );
+  text = text.replace(
+    /\b(\d{1,3})(?:000|\s+mil)\s+(ciento|cien|doscient[oa]s|trescient[oa]s|cuatrocient[oa]s|quinient[oa]s|seiscient[oa]s|setecient[oa]s|ochocient[oa]s|novecient[oa]s)\b/gi,
+    (_, k, hundredWord) => {
+      const key = hundredWord
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+      return String(Number(k) * 1000 + (SPANISH_HUNDREDS[key] ?? 0));
+    },
+  );
+  // 3. Convertir secuencias de números en palabras con "mil" o centenas (ej. "dos mil quinientos" -> "2500")
+  const tokens = text.split(/(\s+)/);
+  const wordIndices: number[] = [];
+  const normWords: string[] = [];
+  for (let idx = 0; idx < tokens.length; idx++) {
+    if (!/^\s+$/.test(tokens[idx])) {
+      wordIndices.push(idx);
+      normWords.push(
+        tokens[idx]
+          .replace(/^[.,;:¡!¿?]+|[.,;:¡!¿?]+$/g, "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase(),
+      );
+    }
+  }
+  let w = 0;
+  while (w < normWords.length) {
+    let consumed = 0;
+    let numericValue = 0;
+    if (normWords[w] === "mil") {
+      numericValue = 1000;
+      consumed = 1;
+      const tail = parseUnderThousandWords(normWords.slice(w + 1));
+      if (tail) {
+        numericValue += tail.value;
+        consumed += tail.consumed;
+      } else if (
+        w + 1 < normWords.length && /^\d{1,3}$/.test(normWords[w + 1])
+      ) {
+        numericValue += Number(normWords[w + 1]);
+        consumed += 1;
+      }
+    } else {
+      const head = parseUnderThousandWords(normWords.slice(w));
+      if (
+        head &&
+        w + head.consumed < normWords.length &&
+        normWords[w + head.consumed] === "mil"
+      ) {
+        numericValue = head.value * 1000;
+        consumed = head.consumed + 1;
+        const tail = parseUnderThousandWords(normWords.slice(w + consumed));
+        if (tail) {
+          numericValue += tail.value;
+          consumed += tail.consumed;
+        } else if (
+          w + consumed < normWords.length &&
+          /^\d{1,3}$/.test(normWords[w + consumed])
+        ) {
+          numericValue += Number(normWords[w + consumed]);
+          consumed += 1;
+        }
+      } else if (head && head.value >= 100) {
+        numericValue = head.value;
+        consumed = head.consumed;
+      }
+    }
+    if (consumed > 0 && numericValue >= 100) {
+      const firstTokenIdx = wordIndices[w];
+      const lastTokenIdx = wordIndices[w + consumed - 1];
+      const trailingPunct =
+        tokens[lastTokenIdx].match(/[.,;:¡!¿?]+$/)?.[0] ?? "";
+      tokens[firstTokenIdx] = String(numericValue) + trailingPunct;
+      for (
+        let clearIdx = firstTokenIdx + 1;
+        clearIdx <= lastTokenIdx;
+        clearIdx++
+      ) {
+        tokens[clearIdx] = "";
+      }
+      w += consumed;
+    } else {
+      w++;
+    }
+  }
+  return tokens.join("").replace(/\s{2,}/g, " ").trim();
+}
+
 export const GROQ_COMPATIBILITY_RULES = (today: string) =>
-  `\nREGLAS DE COMPATIBILIDAD DE PESITO:\n- totalAmountArs es un NOMBRE HISTORICO. Siempre contiene el importe numérico en la moneda indicada por currency. Si cobró 100 dólares: totalAmountArs=100 y currency=USD. No conviertas monedas ni dejes ese importe en null.\n- Es el TOTAL de la compra. Si el total es 12000 en 3 cuotas: totalAmountArs=12000 e installments=3. No lo dividas por tres.\n- Si no dice fecha, occurredOn=${today} y no incluyas date en missingFields. Solo preguntá fecha si el usuario indicó una fecha ambigua.\n- Si no se identifica categoría, usá Otros y no incluyas category en missingFields.\n- Sin cuotas: installments=1. Con cuotas y sin mes explícito: firstInstallmentMonth=${
+  `\nREGLAS DE COMPATIBILIDAD DE PESITO:\n- totalAmountArs es un NOMBRE HISTORICO. Siempre contiene el importe numérico en la moneda indicada por currency. Si cobró 100 dólares: totalAmountArs=100 y currency=USD. No conviertas monedas ni dejes ese importe en null.\n- Respetá el monto exacto mencionado (ej. 2500 o "dos mil quinientos" = 2500; nunca redondees 2500 a 2000).\n- Es el TOTAL de la compra. Si el total es 12000 en 3 cuotas: totalAmountArs=12000 e installments=3. No lo dividas por tres.\n- Si no dice fecha, occurredOn=${today} y no incluyas date en missingFields. Solo preguntá fecha si el usuario indicó una fecha ambigua.\n- Si no se identifica categoría, usá Otros y no incluyas category en missingFields.\n- Sin cuotas: installments=1 y firstInstallmentMonth=null. Con cuotas y sin mes explícito: firstInstallmentMonth=${
     today.slice(0, 7)
   }.\n- Datos esenciales faltantes se conservan: monto desconocido => totalAmountArs=null y missingFields incluye amount. Nunca inventes importes.\n- Un ticket es un movimiento por el total; no conviertas sus productos en movimientos separados.\nDevolvé únicamente el objeto JSON solicitado.`;
 
@@ -339,6 +533,11 @@ export async function extractWithGroq(input: {
       );
       form.append("model", WHISPER_MODEL);
       form.append("language", "es");
+      form.append("temperature", "0");
+      form.append(
+        "prompt",
+        "Gastos e ingresos en pesos argentinos: Gasté 2500 en panadería, pagué 15500 en supermercado, cobré 80000 por transferencia.",
+      );
       form.append("response_format", "json");
 
       const signal = timeoutSignal(10_000, input.signal);
@@ -378,7 +577,7 @@ export async function extractWithGroq(input: {
           ? { requests_remaining: quotaMeta.requestsRemaining }
           : {}),
       });
-      effectiveText = payload.text.trim();
+      effectiveText = normalizeWhisperTranscript(payload.text);
       transcribedText = effectiveText;
       if (!effectiveText) {
         return {
