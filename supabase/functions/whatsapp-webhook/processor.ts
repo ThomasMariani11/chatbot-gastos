@@ -251,9 +251,19 @@ export async function prepareMessage(
         });
     } catch (error) {
       const failure = failureMetadata(
-        signal.aborted ? providerFailure(error, "gemini", "timeout") : error,
+        signal.aborted
+          ? providerFailure(
+            error,
+            Deno.env.get("GROQ_API_KEY") ? "groq" : "gemini",
+            "timeout",
+          )
+          : error,
       );
-      if (failure.provider !== "gemini" && failure.provider !== "meta_media") {
+      if (
+        failure.provider !== "gemini" &&
+        failure.provider !== "groq" &&
+        failure.provider !== "meta_media"
+      ) {
         throw error;
       }
       writeOperationalLog("interpretation_fallback", failure);

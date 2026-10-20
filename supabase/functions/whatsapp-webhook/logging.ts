@@ -63,7 +63,7 @@ const failureSchema = {
     "payload_too_large",
     "unsupported_media",
   ),
-  provider: oneOf("gemini", "meta_media", "meta_send", "database"),
+  provider: oneOf("gemini", "groq", "meta_media", "meta_send", "database"),
   status: (v: unknown) => numeric(599, true)(v) && (v as number) >= 100,
 };
 const schemas: Record<Event, Record<string, Validator>> = {
@@ -74,9 +74,12 @@ const schemas: Record<Event, Record<string, Validator>> = {
   },
   ai_attempt: {
     ...failureSchema,
-    model: oneOf("flash", "flash_lite"),
+    model: oneOf("flash", "flash_lite", "whisper", "qwen"),
     result: oneOf("success", "failure"),
     duration_ms: duration,
+    retry_after_ms: duration,
+    tokens_remaining: numeric(1000000, true),
+    requests_remaining: numeric(1000000, true),
   },
 
   queue_worker: { duration_ms: duration },

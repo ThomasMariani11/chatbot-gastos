@@ -17,6 +17,6 @@
   "tasks": {
     "check": "deno check --config deno.ci.json index.ts queue_test.ts routing_test.ts",
     "lint": "deno lint --config deno.ci.json .",
-    "test": "deno test --config deno.ci.json --cached-only --no-prompt --allow-env=GEMINI_API_KEY,WHATSAPP_ACCESS_TOKEN,WHATSAPP_PHONE_NUMBER_ID,WHATSAPP_GRAPH_API_VERSION,META_APP_SECRET,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,WHATSAPP_VERIFY_TOKEN,WHATSAPP_WORKER_SECRET --deny-net queue_test.ts routing_test.ts"
+    "test": "deno test --config deno.ci.json --cached-only --no-prompt --allow-env=GEMINI_API_KEY,GROQ_API_KEY,WHATSAPP_ACCESS_TOKEN,WHATSAPP_PHONE_NUMBER_ID,WHATSAPP_GRAPH_API_VERSION,META_APP_SECRET,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,WHATSAPP_VERIFY_TOKEN,WHATSAPP_WORKER_SECRET --deny-net queue_test.ts routing_test.ts"
   }
 }
