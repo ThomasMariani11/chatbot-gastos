@@ -487,6 +487,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-04 — Corregir el parser determinista
 
+- **Avance al 20/10/2026:** corregidos millones, centavos y centenas habladas sin truncar expresiones; residuos numéricos se derivan completos y no entran al concepto como si el importe fuera válido. Regresiones de dominio y del procesador real con red denegada. Publicación pendiente de CI; BE-04 conserva sus demás criterios abiertos. [Detalle](CORRECCION_IMPORTES_HABLADOS_2026-10-20.md).
+
 - [ ] Terminada.
 - **Problema reproducido en funciones reales:** `Gasté 10000,50 en supermercado` genera dos gastos; `Cobré 80000 por diseño` se interpreta como gasto; `Compré iPhone 15 por 1200000` usa 15 como importe; cuotas y fechas explícitas se ignoran; una parte incomprensible puede perderse si otra se interpreta.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:200`, `:206`, `:260`, `:262`, `:270`, `:752`.

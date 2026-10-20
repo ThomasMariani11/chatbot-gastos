@@ -1,3 +1,4 @@
+import { hasUnparsedNumberWords } from "./spoken-amounts.ts";
 import type { ExtractedMovement } from "./movement-types.ts";
 import { looksLikeDraftCorrection } from "./draft-corrections.ts";
 
@@ -180,6 +181,8 @@ export function parseDeterministicMovement(
       /\b(gaste|pague|compre|cobre|ingreso|ingresaron|recibi|transferi|deposite|pagar|gastar|cobrar|gastado|pagado|gastamos|pagamos|cobramos|gastos|ingresos)\b/
         .test(normalize(description)))
   ) return null;
+  // No absorber magnitudes/fracciones desconocidas dentro del concepto.
+  if (hasUnparsedNumberWords(description)) return null;
   // Un segundo verbo sin separador puede indicar otra operación incompleta.
   if (
     /\b(gaste|pague|compre|cobre|ingreso|ingresaron|recibi|me pagaron|me transfirieron)\b/

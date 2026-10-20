@@ -1191,7 +1191,8 @@ Deno.test("Groq audio: Whisper transcribe y reglas locales resuelven sin invocar
         return Promise.resolve(
           new Response(
             JSON.stringify({
-              text: "Gasté dos mil quinientos en panadería y me ingresó 70,000 de transferencia",
+              text:
+                "Gasté dos mil quinientos en panadería y me ingresó 70,000 de transferencia",
             }),
             {
               status: 200,
@@ -1430,4 +1431,122 @@ Deno.test("UTF-8 y normalización de montos hablados de Whisper", async () => {
       !summary.includes("\u00f0\u0178"),
     "El resumen de borrador tiene caracteres UTF-8 corruptos",
   );
+});
+
+Deno.test("importes hablados: millones, centavos y centenas completas", () => {
+  for (
+    const [text, amount, currency] of [
+      ["Gasté un millón doscientos mil en alquiler", 1200000, "ARS"],
+      ["Gasté 1 millón 200 mil en alquiler", 1200000, "ARS"],
+      [
+        "Gasté doscientos pesos con cincuenta centavos en panadería",
+        200.5,
+        "ARS",
+      ],
+      ["Gasté cincuenta centavos en panadería", 0.5, "ARS"],
+      ["Cobré cien dólares con veinticinco centavos por diseño", 100.25, "USD"],
+      ["Gasté trescientos y veinte en super", 320, "ARS"],
+    ] as const
+  ) {
+    const items = parseDeterministicMovements(
+      normalizeWhisperTranscript(text),
+      "2026-10-20",
+    );
+    assert(
+      items?.length === 1 && items[0].totalAmountArs === amount &&
+        items[0].currency === currency,
+      `Importe incompleto en ejemplo ficticio; esperado ${amount}`,
+    );
+  }
+});
+
+Deno.test("audio: importes exactos y residuos ambiguos sin propuestas parciales", async () => {
+  const previousFetch = globalThis.fetch, previousLog = console.log;
+  const key = Deno.env.get("GROQ_API_KEY"),
+    token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+  try {
+    Deno.env.set("GROQ_API_KEY", "gsk_synthetic_test_key_123456");
+    Deno.env.set("WHATSAPP_ACCESS_TOKEN", "synthetic-token");
+    console.log = () => {};
+    for (
+      const [transcript, expected] of [
+        ["Gasté un millón doscientos mil en alquiler", 1200000],
+        ["Gasté doscientos pesos con cincuenta centavos en panadería", 200.5],
+        ["Gasté trescientos y veinte en super", 320],
+        ["Gasté un billón doscientos mil en alquiler", null],
+        ["Gasté 100 super y un billón doscientos mil en alquiler", null],
+      ] as const
+    ) {
+      resetGroqBudgetForTests();
+      let extractionCalls = 0;
+      globalThis.fetch = ((url: RequestInfo | URL) => {
+        const target = String(url);
+        if (target.includes("graph.facebook.com")) {
+          return Promise.resolve(
+            Response.json({
+              url: "https://media.example.invalid/audio",
+              mime_type: "audio/ogg",
+            }),
+          );
+        }
+        if (target.includes("media.example.invalid")) {
+          return Promise.resolve(new Response(new Uint8Array([1, 2, 3])));
+        }
+        if (target.includes("audio/transcriptions")) {
+          return Promise.resolve(Response.json({ text: transcript }));
+        }
+        extractionCalls++;
+        return Promise.resolve(
+          Response.json({
+            choices: [{
+              message: {
+                content: JSON.stringify({ intent: "unknown", movements: [] }),
+              },
+            }],
+          }),
+        );
+      }) as typeof fetch;
+      const fixture = job("");
+      fixture.payload = {
+        id: "synthetic-audio",
+        from: "synthetic-route",
+        type: "audio",
+        audio: { id: "synthetic-media" },
+      };
+      let saved: unknown;
+      const action = await prepareMessage(database().db, fixture, (value) => {
+        saved = value;
+        return Promise.resolve();
+      });
+      if (expected === null) {
+        assert(
+          action.kind === "reply" && extractionCalls === 1,
+          "No derivó el mensaje numérico ambiguo completo",
+        );
+        assert(
+          JSON.stringify(saved) ===
+            JSON.stringify({ intent: "request_text", movements: [] }),
+          "Conservó una propuesta parcial",
+        );
+      } else {
+        assert(
+          action.kind === "add" && extractionCalls === 0,
+          "Importe claro consumió Qwen",
+        );
+        const items = action.items as Array<{ totalAmountArs: number }>;
+        assert(
+          items.length === 1 && items[0].totalAmountArs === expected,
+          "Propuso un importe incompleto",
+        );
+      }
+    }
+  } finally {
+    resetGroqBudgetForTests();
+    globalThis.fetch = previousFetch;
+    console.log = previousLog;
+    if (key === undefined) Deno.env.delete("GROQ_API_KEY");
+    else Deno.env.set("GROQ_API_KEY", key);
+    if (token === undefined) Deno.env.delete("WHATSAPP_ACCESS_TOKEN");
+    else Deno.env.set("WHATSAPP_ACCESS_TOKEN", token);
+  }
 });
