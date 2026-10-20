@@ -27,10 +27,16 @@ La normalización anterior podía convertir una parte de un número y dejar el r
 - Regresiones sobre el código real: millones, centavos ARS/USD, centenas con conjunción, formatos numéricos argentinos/ingleses, ingresos de 70 mil, fechas, cuotas y listas mixtas.
 - El procesador completo se ensaya con transcripción ficticia: los importes claros no invocan Qwen; los ambiguos solicitan interpretación y no conservan propuestas parciales.
 - Conservados 12 escenarios SQL y seis guardas de release. Tipos, lint y build aprobados localmente; el aviso previo de tamaño de bundle sigue fuera de este cambio.
-- Suite Vitest completa y cuatro checks del PR deben aprobar antes de desplegar. Las pruebas Deno de rutas se ejecutan sin red; el conjunto completo de endpoints/concurrencia y el ensayo Supabase se valida en CI Linux, por la limitación de caché npm/Deno en Windows ya observada.
+- 354 pruebas Vitest y 35 pruebas Deno de rutas aprobadas localmente. Los cuatro checks del PR deben aprobar antes de desplegar. Las pruebas Deno de rutas se ejecutan sin red; el conjunto completo de endpoints/concurrencia y el ensayo Supabase se valida en CI Linux, por la limitación de caché npm/Deno en Windows ya observada.
 
 Las pruebas no consultan proveedores reales ni crean movimientos de clientes. Esto corrige la interpretación de una transcripción; no recupera palabras o importes que Whisper haya transcrito incorrectamente. Se conserva la revisión y confirmación del usuario.
 
 ## Publicación prevista
 
 Usar una rama y PR con Frontend, Webhook, PostgreSQL y Ensayo de release aprobados. Desplegar únicamente `whatsapp-webhook` desde el commit integrado y checkout limpio. Base requerida 025, cola existente activa, sin reenvíos ni cambios de datos. Rollback al código v49 validado anterior al cambio. Registrar versión real, smoke de autenticación y salud de cola después de publicar.
+
+## Dependencia necesaria para publicar
+
+El primer CI bloqueó el job Frontend durante npm audit: la versión Vite 8.0.16 ahora tiene tres avisos de launch-editor, incluido GHSA-587h-7wmj-h5pm de severidad alta. Se actualiza exclusivamente la dependencia directa de desarrollo Vite a 8.1.6 (versión corregida de la rama más cercana) y su resolución de herramientas opcionales, sin npm audit fix --force ni cambios de dependencias productivas. npm audit vuelve a informar cero vulnerabilidades; se repiten pruebas, build y CI antes de publicar.
+
+Avisos oficiales: [bypass en Windows](https://github.com/vitejs/launch-editor/security/advisories/GHSA-587h-7wmj-h5pm), [argumentos de editor](https://github.com/vitejs/launch-editor/security/advisories/GHSA-r825-w8mm-5pxw) y [escape de porcentajes](https://github.com/vitejs/launch-editor/security/advisories/GHSA-698v-4r3x-3vcv). Esto es una corrección de herramientas de desarrollo; no demuestra un compromiso de la aplicación publicada.
