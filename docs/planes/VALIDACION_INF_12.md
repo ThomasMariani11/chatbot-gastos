@@ -1,6 +1,6 @@
 # INF-12 — Tamaño de multimedia y presupuestos de trabajo
 
-Fecha: 18/10/2026. Estado: publicada en webhook v44 y verificada; pendiente aceptación real de multimedia.
+Fecha: 20/10/2026. Estado: cerrada; publicada en webhook v48 y aceptada con audio y foto reales en WhatsApp.
 
 ## Cambios
 
@@ -42,3 +42,16 @@ El usuario envió un audio y una imagen y recibió el pedido de texto en ambos c
 Los registros agregados de los últimos 60 minutos muestran errores 503 y timeouts de Gemini en Flash Lite y Flash, y dos eventos de fallback de interpretación. No se observaron rechazos de tamaño/formato o errores de Meta en esa consulta. Los registros agrupados no permiten asignar cada error concreto a cada mensaje. La evidencia respalda el manejo del fallo y no una interpretación exitosa. El audio todavía demora hasta agotar los intentos; no se considera una respuesta inmediata.
 
 INF-12 permanece en curso hasta verificar interpretación correcta de multimedia válida. Revisar disponibilidad/configuración efectiva de Gemini antes de nuevos cambios o de pedir otra prueba. No se reenviaron mensajes, no se reabrieron trabajos ni se modificó producción durante esta comprobación.
+
+## Cierre del 20/10/2026 — Groq integrado y aceptación de multimedia en WhatsApp
+
+Se integró `groq.ts` en `whatsapp-webhook` (`whisper-large-v3` para audio + normalización de números hablados + gramática local antes de invocar Qwen + `qwen/qwen3.8-27b` con esquema estricto y validador runtime para imagen y texto ambiguo, con presupuesto compartido de cupo/429). 306 Vitest y 38 Deno con red denegada aprobados.
+
+Con autorización del propietario se configuró `GROQ_API_KEY` en Supabase y se desplegó `whatsapp-webhook` (v47 y corrección UTF-8/montos en v48 ACTIVE, `verify_jwt=false`, smoke 401 verificado).
+
+Prueba real en WhatsApp del propietario:
+- **Imagen (comprobante de transferencia):** procesada en **3,11 s** en 1 intento via `qwen` (`provider=groq`, `status=200`), proponiendo correctamente el movimiento por el total y fecha del comprobante.
+- **Audio corto (`Gasté 2500 en panadería`):** procesado en **2,32 s** en 1 intento; `whisper` (`provider=groq`, `status=200`) transcribió el audio, la normalización resolvió el monto exacto (`2500`) y `local_rule` (`rule=movements`, `operations=1`) generó la propuesta **sin consumir tokens de Qwen**.
+- **Cancelación posterior (`CANCELAR`):** descartó el borrador (`discarded`) sin crear transacciones productivas de prueba.
+
+INF-12 queda **cerrada**. Siguiente tarea de infraestructura: INF-14.

@@ -1,6 +1,6 @@
 {
   "date": "2026-10-18",
-  "status": "deployed_real_media_fallback_verified_interpretation_pending",
+  "status": "closed_deployed_and_whatsapp_media_accepted",
   "limits": {
     "imageBytes": 5242880,
     "audioBytes": 10485760,
@@ -70,7 +70,7 @@
       ]
     }
   },
-  "whatsappAcceptance": "fallback_verified_successful_interpretation_pending",
+  "whatsappAcceptance": "verified",
   "rehearsal": {
     "artifact": 12146694917,
     "sourceCommit": "37c29a51624aff009d702f02037e7fbba81c3205",
@@ -146,7 +146,19 @@
       "gemini:timeout"
     ],
     "mediaPolicyRejectionsObserved": false,
-    "successfulInterpretationVerified": false,
+    "successfulInterpretationVerified": true,
+    "groqAcceptance20261020": {
+      "edgeVersion": 48,
+      "edgeStatus": "ACTIVE",
+      "verifyJwt": false,
+      "imageSecondsToReply": 3.11,
+      "imageProvider": "groq:qwen",
+      "audioSecondsToReply": 2.32,
+      "audioProvider": "groq:whisper+local_rule",
+      "qwenCallsOnClearAudio": 0,
+      "transactionsCreated": 0,
+      "draftDiscarded": true
+    },
     "note": "Logs agrupados por proveedor/modelo en la ventana; no atribuyen cada error a un mensaje individual. Sin contenido, identificadores ni comprobantes."
   }
 }

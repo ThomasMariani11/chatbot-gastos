@@ -1,6 +1,6 @@
 # Evaluación inicial de Groq — 20/10/2026
 
-Estado actual: los dos casos fueron diagnosticados y resueltos en el experimento; seis de seis ejemplos de desarrollo pasan. Se conserva abajo la primera ronda (cuatro de seis) como antecedente. Todavía no está integrado ni publicado en el bot.
+Estado actual: integrado en `whatsapp-webhook` (v48 ACTIVE) y aceptado en WhatsApp real con audio y foto (20/10/2026). Se conserva abajo el registro del experimento inicial y seguimiento.
 
 ## Cuenta y credencial
 

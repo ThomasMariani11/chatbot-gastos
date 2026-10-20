@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-console -- Captura de logs para verificar ausencia de datos privados.
 import {
   downloadWhatsAppMedia,
+  formatDraftList,
   resetGroqBudgetForTests,
   sendWhatsAppText,
 } from "./helpers.ts";
@@ -9,6 +10,7 @@ import { failureMetadata } from "./failures.ts";
 import { extractFromGemini } from "./helpers.ts";
 import { prepareMessage } from "./processor.ts";
 import { parseDeterministicMovements } from "./helpers.ts";
+import { normalizeWhisperTranscript } from "./groq.ts";
 import type { Job } from "./queue.ts";
 
 function assert(value: unknown, message: string): asserts value {
@@ -1189,7 +1191,7 @@ Deno.test("Groq audio: Whisper transcribe y reglas locales resuelven sin invocar
         return Promise.resolve(
           new Response(
             JSON.stringify({
-              text: "Gasté 1500 en super y me ingresó 70mil de transferencia",
+              text: "Gasté dos mil quinientos en panadería y me ingresó 70,000 de transferencia",
             }),
             {
               status: 200,
@@ -1356,4 +1358,43 @@ Deno.test("Groq imagen y presupuesto: adapta edit=null, preserva USD y bloquea a
     if (gemKey === undefined) Deno.env.delete("GEMINI_API_KEY");
     else Deno.env.set("GEMINI_API_KEY", gemKey);
   }
+});
+
+Deno.test("UTF-8 y normalización de montos hablados de Whisper", () => {
+  for (
+    const input of [
+      "Gasté dos mil quinientos en panadería",
+      "Gasté 2000 quinientos en panadería",
+      "Gasté 2,500 en panadería",
+      "Gasté 2 mil 500 en panadería",
+    ]
+  ) {
+    const normalized = normalizeWhisperTranscript(input);
+    const items = parseDeterministicMovements(normalized, "2026-10-20");
+    assert(
+      items?.length === 1 &&
+        items[0].totalAmountArs === 2500 &&
+        items[0].description === "Panadería",
+      `No normalizó a 2500: ${input} -> ${normalized}`,
+    );
+  }
+  const summary = formatDraftList([
+    {
+      position: 1,
+      kind: "expense",
+      description: "Panadería",
+      amount: 2500,
+      currency: "ARS",
+      status: "pending",
+    },
+  ]);
+  assert(
+    summary.includes("Tenés 1 movimiento") &&
+      summary.includes("1. 🔴 Panadería ·") &&
+      summary.includes("Podés seguir agregando") &&
+      summary.includes('("quitá el 2")') &&
+      !summary.includes("Ã") &&
+      !summary.includes("ðŸ"),
+    "El resumen de borrador tiene caracteres UTF-8 corruptos",
+  );
 });
