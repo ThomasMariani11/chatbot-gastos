@@ -1,6 +1,6 @@
 # Reglas locales de WhatsApp para reducir el consumo de IA
 
-Fecha: 20/10/2026. Estado: implementado y validado localmente; pendiente de publicación y prueba WhatsApp. Relacionado con BE-12, BE-15 e INF-12; no cierra esos puntos completos.
+Fecha: 20/10/2026. Estado: publicado en webhook v45 y aceptado en WhatsApp real. Relacionado con BE-12, BE-15 e INF-12; no cierra esos puntos completos.
 
 ## Orden de procesamiento
 
@@ -82,4 +82,12 @@ Con el webhook actualizado, enviar un lote mixto ficticio, corregir un importe, 
 
 Autorizada por el propietario el 20/10/2026. Preflight: main sincronizada con origin/main, webhook v44 ACTIVE, verify_jwt=false, base en 025 y cola habilitada, cero trabajos procesándose en la lectura. Publicación compatible sin SQL nuevo ni cambios de proveedores/secretos. Rollback fijado al código probado 3b3ea8c (v44), con las mismas 25 migraciones.
 
-Controles adicionales previos: 12 escenarios SQL, seis guardas de release y npm audit sin vulnerabilidades. Exigir Frontend, Webhook, PostgreSQL y Ensayo de release del PR. Pendientes integración, despliegue y aceptación WhatsApp; no se adelanta éxito productivo.
+Controles adicionales previos: 12 escenarios SQL, seis guardas de release y npm audit sin vulnerabilidades. Exigir Frontend, Webhook, PostgreSQL y Ensayo de release del PR. Los cuatro controles aprobaron en el PR 13; se integró como ce216ec y se publicó desde un checkout limpio.
+
+## Despliegue verificado
+
+El [PR 13](https://github.com/ThomasMariani11/chatbot-gastos/pull/13) aprobó los cuatro checks en [39455220444](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/39455220444). El árbol del merge sintético del ensayo coincide exactamente con el candidato y con el squash integrado ce216ec3864b418795c97714fd048c8d4eceae59. Ensayo aislado con 25 migraciones, ejecución de candidato y rollback a 3b3ea8c, datos conservados, cero mensajes externos y limpieza aprobada.
+
+CLI 2.120.0 desplegó únicamente los 12 módulos importados de whatsapp-webhook. Lectura posterior 2026-10-20T16:15:59.8762932Z: webhook **v45 ACTIVE**, verify_jwt=false; webhook sin HMAC y worker sin secreto responden 401. Base en 025, cola habilitada, cero trabajos en procesamiento y cero leases activos en esa lectura; última recuperación cron succeeded. Se verificó presencia de los seis secretos requeridos sin revelar valores; Groq no está configurado. Sin migraciones, cambios de credenciales/modelos, reenvíos históricos ni movimientos financieros creados por el agente.
+
+**Aceptación en WhatsApp verificada (20/10/2026 16:54:02Z):** el propietario ejecutó la secuencia de 5 mensajes reales en WhatsApp (lista mixta de 3 operaciones, corrección de importe por posición, eliminación por posición estable, `RESUMEN` y `CANCELAR`). Lectura agregada de solo lectura en los últimos 15 minutos: 5 trabajos recibidos y procesados en 1 intento cada uno (`0,65 s` mín., `1,43 s` prom., `2,27 s` máx.), 5 respuestas entregadas, 1 grupo de borrador descartado (`discarded`), 0 grupos abiertos y 0 transacciones creadas. Métricas operativas de Edge Function en la ventana: `local_rule` registró `movements` (`operations=3`, 1 evento), `correction` (1 evento) y `command` (3 eventos), con **0 eventos `ai_attempt`** y 0 fallbacks. [Evidencia de publicación y aceptación](evidencias/REGLAS_LOCALES_2026-10-20.json).

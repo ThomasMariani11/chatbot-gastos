@@ -1,0 +1,111 @@
+{
+  "date": "2026-10-20",
+  "syntheticOnly": true,
+  "productionChanged": false,
+  "models": [
+    "gemini-3.8-flash",
+    "gemini-3.1-flash-lite"
+  ],
+  "results": [
+    {
+      "model": "gemini-3.8-flash",
+      "case": "minimal",
+      "timeoutMs": 10000,
+      "http": 503,
+      "reason": "UNAVAILABLE",
+      "durationMs": 1073
+    },
+    {
+      "model": "gemini-3.1-flash-lite",
+      "case": "minimal",
+      "timeoutMs": 10000,
+      "http": 503,
+      "reason": "UNAVAILABLE",
+      "durationMs": 898
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "case": "mixed_text_schema",
+      "timeoutMs": 3500,
+      "http": 503,
+      "reason": "UNAVAILABLE",
+      "durationMs": 1706
+    },
+    {
+      "model": "gemini-3.1-flash-lite",
+      "case": "mixed_text_schema",
+      "timeoutMs": 3500,
+      "http": 503,
+      "reason": "UNAVAILABLE",
+      "durationMs": 997
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "case": "synthetic_audio_schema",
+      "timeoutMs": 10000,
+      "reason": "TIMEOUT",
+      "durationMs": 10008
+    },
+    {
+      "model": "gemini-3.1-flash-lite",
+      "case": "synthetic_audio_schema",
+      "timeoutMs": 10000,
+      "reason": "TIMEOUT",
+      "durationMs": 10011
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "case": "synthetic_receipt_schema",
+      "timeoutMs": 10000,
+      "http": 503,
+      "reason": "UNAVAILABLE",
+      "durationMs": 1996
+    },
+    {
+      "model": "gemini-3.1-flash-lite",
+      "case": "synthetic_receipt_schema",
+      "timeoutMs": 10000,
+      "http": 503,
+      "reason": "UNAVAILABLE",
+      "durationMs": 6228
+    }
+  ],
+  "productionKeyDigestMatched": true,
+  "executionLocation": "local_pc_direct_rest_not_supabase_edge",
+  "api": "v1beta_generateContent",
+  "attemptsPerCaseModel": 1,
+  "billingChanged": false,
+  "whatsappMessagesSent": 0,
+  "customerDataUsed": false,
+  "rateLimitObservation": {
+    "source": "authenticated_AI_Studio_UI",
+    "tier": "free",
+    "dataDelayMinutesUpTo": 15,
+    "flash38": {
+      "rpdLimit": 20,
+      "rpmLimit": 5,
+      "lastDayPeakRpmBeforeTest": 2,
+      "last28DaysPeakRpm": 7,
+      "last28DaysPeakRpd": 19,
+      "tpmLimit": 250000,
+      "lastDayPeakRpdBeforeTest": 2
+    },
+    "flash31Lite": {
+      "tpmLimit": 250000,
+      "lastDayPeakRpmBeforeTest": 1,
+      "rpmLimit": 15,
+      "lastDayPeakRpdBeforeTest": 2,
+      "rpdLimit": 500
+    },
+    "note": "Los numeradores son máximos del período seleccionado, no contadores de cupo restante. No se atribuye el 503 a un exceso de cuota."
+  },
+  "evaluationScope": {
+    "minimal": "fixed_OK_prompt_with_32_output_tokens",
+    "text": "synthetic_three_mixed_movements_with_current_prompt_schema_temperature",
+    "audio": "Windows_Helena_Spanish_Spain_TTS_WAV_not_real_WhatsApp_codec",
+    "image": "synthetic_PNG_receipt_two_products_single_total",
+    "adjustedThinkingTested": false,
+    "successfulExtractionObserved": false,
+    "sampleTooSmallForReliabilityEstimate": true
+  }
+}

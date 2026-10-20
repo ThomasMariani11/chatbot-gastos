@@ -34,3 +34,11 @@ CLI 2.120.0 publicó solo los nueve módulos del webhook: versión 44 ACTIVE, ve
 Falta la prueba real de audio corto y foto pequeña enviados por el usuario. Los rechazos de tamaño/tipo, respuestas lentas y recuperación ya se probaron de forma aislada; no se requiere probar excesos sobre clientes reales. INF-12 sigue en curso únicamente por esta aceptación.
 
 La ejecución de main [39156737331](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/39156737331) aprobó sus cinco jobs, incluida Publicar. Sitio, version.json y sw.js responden 200 y corresponden a 3b3ea8cc78e145446f53ad7ca45f8c2c748d674d.
+
+## Prueba real del 20/10/2026 — recuperación verificada, interpretación pendiente
+
+El usuario envió un audio y una imagen y recibió el pedido de texto en ambos casos. Consulta de solo lectura a las 13:55:32 UTC: un actor, dos trabajos procesados, un intento por mensaje, respuesta enviada, cero ítems de borrador y cero transacciones atribuibles a esos mensajes (incluidas las claves con sufijo de posición). Audio: 24,22 s hasta respuesta. Imagen: 9,39 s.
+
+Los registros agregados de los últimos 60 minutos muestran errores 503 y timeouts de Gemini en Flash Lite y Flash, y dos eventos de fallback de interpretación. No se observaron rechazos de tamaño/formato o errores de Meta en esa consulta. Los registros agrupados no permiten asignar cada error concreto a cada mensaje. La evidencia respalda el manejo del fallo y no una interpretación exitosa. El audio todavía demora hasta agotar los intentos; no se considera una respuesta inmediata.
+
+INF-12 permanece en curso hasta verificar interpretación correcta de multimedia válida. Revisar disponibilidad/configuración efectiva de Gemini antes de nuevos cambios o de pedir otra prueba. No se reenviaron mensajes, no se reabrieron trabajos ni se modificó producción durante esta comprobación.

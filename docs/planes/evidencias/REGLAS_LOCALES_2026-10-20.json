@@ -1,0 +1,149 @@
+{
+  "date": "2026-10-20",
+  "status": "deployed_and_whatsapp_accepted",
+  "pullRequest": "https://github.com/ThomasMariani11/chatbot-gastos/pull/13",
+  "candidateCommit": "dbe8f7b9914e39c277e0e947b08120457f06bc34",
+  "ciMergeTree": "f75af342b20b19023de2f6a8c23edcf5509acaa6",
+  "sourceCommit": "ce216ec3864b418795c97714fd048c8d4eceae59",
+  "ciRun": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/39455220444",
+  "checks": [
+    {
+      "name": "Ensayo de release",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Webhook",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "PostgreSQL",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Frontend",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "validation": {
+    "vitest": 306,
+    "deno": 35,
+    "denoNetworkDenied": true,
+    "syntheticLocalProcessorCases": 15,
+    "providerCallsInLocalCases": 0,
+    "sqlScenarios": 12,
+    "releaseGuards": 6,
+    "auditVulnerabilities": 0,
+    "types": true,
+    "lint": true,
+    "build": true
+  },
+  "rehearsal": {
+    "sourceCommit": "f75af342b20b19023de2f6a8c23edcf5509acaa6",
+    "rollbackCommit": "3b3ea8cc78e145446f53ad7ca45f8c2c748d674d",
+    "isolated": true,
+    "phases": [
+      {
+        "name": "docker",
+        "passed": true,
+        "durationMs": 306
+      },
+      {
+        "name": "checkout_limpio",
+        "passed": true,
+        "durationMs": 77
+      },
+      {
+        "name": "instalacion_completa",
+        "passed": true,
+        "durationMs": 68297
+      },
+      {
+        "name": "auth_sql_y_datos_sinteticos",
+        "passed": true,
+        "durationMs": 423
+      },
+      {
+        "name": "candidato_webhook_y_pwa",
+        "passed": true,
+        "durationMs": 10586
+      },
+      {
+        "name": "rollback_compatible_sin_restaurar_datos",
+        "passed": true,
+        "durationMs": 11636
+      }
+    ],
+    "tools": {
+      "node": "22.23.3",
+      "docker": "28.0.4",
+      "supabase": "2.120.0",
+      "postgres": "17.11"
+    },
+    "migrationCount": 25,
+    "completedAt": "2026-10-20T16:13:04.627Z",
+    "externalMessages": 0,
+    "databaseRestore": false,
+    "cleanupPassed": true
+  },
+  "deployment": {
+    "observedAt": "2026-10-20T16:15:59.8762932Z",
+    "unsignedWorker": 401,
+    "manualWhatsAppAcceptance": "verified",
+    "unsignedWebhook": 401,
+    "verifyJwt": false,
+    "edgeVersion": 45,
+    "sourceCommit": "ce216ec3864b418795c97714fd048c8d4eceae59",
+    "edgeStatus": "ACTIVE",
+    "database": {
+      "management_sql_ok": true,
+      "migration_head": "025",
+      "queue_enabled": true,
+      "processing": 0,
+      "active_leases": 0,
+      "last_recovery_status": "succeeded"
+    }
+  },
+  "scope": {
+    "databaseChanged": false,
+    "providerChanged": false,
+    "secretsChanged": false,
+    "groqIntegrated": false,
+    "whatsAppMessagesSentByAgent": 0,
+    "historicalMessagesReplayed": false
+  },
+  "acceptance": {
+    "status": "verified",
+    "observedAt": "2026-10-20T16:54:02.415618Z",
+    "expected": "lista mixta, edición por posición, eliminación estable, resumen y cancelación sin guardar transacciones",
+    "queueAggregate": {
+      "recentJobs": 5,
+      "processedJobs": 5,
+      "failedJobs": 0,
+      "inFlightJobs": 0,
+      "distinctUsers": 1,
+      "maxAttempts": 1,
+      "minSeconds": 0.65,
+      "avgSeconds": 1.43,
+      "maxSeconds": 2.27,
+      "directRepliesSent": 5,
+      "effectsApplied": 5,
+      "jobsWithParsedCheckpoint": 1,
+      "openDraftGroupsRecent": 0,
+      "discardedDraftGroupsRecent": 1,
+      "recentTransactionsCreated": 0
+    },
+    "edgeLogMetrics": {
+      "local_rule_movements_ops_3": 1,
+      "local_rule_correction": 1,
+      "local_rule_command": 3,
+      "ai_attempt": 0,
+      "interpretation_fallback": 0,
+      "queue_retry": 0
+    },
+    "limitations": "Cero llamadas a proveedores demostrado en los 5 mensajes reales de prueba en WhatsApp; no equivale a un porcentaje histórico de ahorro sobre tráfico futuro."
+  }
+}

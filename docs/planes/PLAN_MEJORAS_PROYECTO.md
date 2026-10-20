@@ -156,7 +156,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-12 — Limitar tiempos y tamaño de multimedia
 
-- **Avance al 18/10/2026:** lectura de streams acotada (imagen 5 MiB, audio 10 MiB), MIME, presupuestos compartidos de descarga/interpretación/envío y 60 s por intento del trabajador. 221 Vitest, 31 Deno, 12 SQL, seis controles Node, tipos/lint/build aprobados. Cuatro checks aprobados y webhook v44 ACTIVE publicado; 401 sin firma/secreto, base en 025 y cola habilitada. Pendiente únicamente la prueba real con audio corto y foto pequeña. [Detalle](VALIDACION_INF_12.md).
+- **Avance al 18/10/2026:** lectura de streams acotada (imagen 5 MiB, audio 10 MiB), MIME, presupuestos compartidos de descarga/interpretación/envío y 60 s por intento del trabajador. 221 Vitest, 31 Deno, 12 SQL, seis controles Node, tipos/lint/build aprobados. Cuatro checks aprobados y webhook v44 ACTIVE publicado; 401 sin firma/secreto, base en 025 y cola habilitada. Prueba real del 20/10: audio y foto terminan en pedido de texto, un intento cada uno, cero altas, respuestas en 24,22 s y 9,39 s. Registros de Gemini con 503 y timeout; sin rechazos de tamaño/formato observados. Recuperación verificada; interpretación exitosa pendiente. INF-12 sigue en curso. [Diagnóstico de Gemini y alternativas](REVISION_IA_2026-10-20.md): [comprobación privada completada](VALIDACION_GEMINI_2026-10-20.md): 3.8 tiene 20 RPD y Lite 500 RPD; ocho intentos directos fallaron (seis 503 y dos timeouts). Mantener el orden actual. [Groq Free probado](VALIDACION_GROQ_2026-10-20.md): siete respuestas HTTP 200, cuatro de seis casos pasan el matcher; seguimiento con contrato adaptado e instrucciones explícitas: seis de seis ejemplos de desarrollo correctos, nueve HTTP 200. Los dos casos quedan resueltos en el prototipo; integración y evaluación independiente pendientes. [Capacidad beta de cuatro usuarios](CAPACIDAD_GROQ_4_USUARIOS.md): unas 100 llamadas/día con reserva según la muestra, compartidas. Sin integración productiva ni facturación activada. [Detalle](VALIDACION_INF_12.md).
 
 - [ ] Terminada.
 - **Problema confirmado en código:** envío y descarga de WhatsApp sin timeout explícito; descarga sin límite propio de bytes antes de convertir a base64.
@@ -565,6 +565,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Trabajo compartido:** INF-03; depende de BE-06 y BE-08.
 
 ### BE-12 — Completar correcciones y datos del resumen
+
+- **Avance al 20/10/2026 — ahorro de IA:** comandos ampliados, aclaración de correcciones sin IA y gramática conservadora para textos simples/listas mixtas, fechas y cuotas con total explícito. Tests importan el parser real; métricas permitidas sin contenido. 306 Vitest, 35 Deno sin red, tipos/lint/build aprobados. Publicado: PR 13, commit ce216ec, webhook v45 ACTIVE; cuatro checks CI aprobados, base 025 y cola habilitada. Aceptación WhatsApp verificada (5 mensajes en 0,65–2,27 s, `local_rule` en movimientos/corrección/comandos y cero `ai_attempt`); no cierra los otros campos de BE-12, BE-08 ni INF-12. [Reglas y validación](REGLAS_LOCALES_WHATSAPP.md).
 
 - **Avance al 15/10/2026:** durante la prueba INF-03 se detectó una corrección convertida en un gasto nuevo. Webhook v40 interpreta correcciones explícitas de importe sin IA y bloquea altas desde instrucciones de edición. 163 tests y 12 Deno aprobados. Pendiente repetir WhatsApp y completar los demás campos de BE-12. [Detalle y validación](CORRECCION_PENDIENTES_2026-10-15.md).
 
