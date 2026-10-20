@@ -1,3 +1,4 @@
+import { parseLocalCommand } from "./local-commands.ts";
 import { LIMITS, timeoutSignal } from "./limits.ts";
 import type { DatabaseOperation } from "./failures.ts";
 import {
@@ -147,23 +148,13 @@ export async function prepareMessage(
       `¡Hola! 👋 Para renovar tu membresía en Pesito o consultar planes y medios de pago:${await support()}\n\nComunicate con soporte para activar tu cuenta.`,
     );
   }
-  if (/^retomar$/i.test(text)) return { kind: "resume" };
-  if (/^descartar$/i.test(text)) return { kind: "discard" };
-  if (
-    /^(confirmar|confirmado|confirmo|si|sí|ok|dale|listo|de una|va|sisi|perfecto|👍[🏻🏼🏽🏾🏿]?|✅|✔️|👌[🏻🏼🏽🏾🏿]?)$/i
-      .test(text)
-  ) return { kind: "confirm" };
-  if (
-    /^(cancelar|cancelalo|cancela|cancel|no|borralo|borrar todo|anular|rechazar|❌|🚫)$/i
-      .test(text)
-  ) return { kind: "cancel" };
-  if (/^(resumen|pendientes|ver lista|lista|ver)$/i.test(text)) {
-    return { kind: "summary" };
+  const command = !message.image?.id && !message.audio?.id
+    ? parseLocalCommand(text)
+    : null;
+  if (command) {
+    writeOperationalLog("local_rule", { rule: "command" });
+    return command;
   }
-  const remove = text.match(
-    /^(quit[aá]|borr[aá]|sac[aá]|elimin[aá])\s+(el\s+)?(\d+)$/i,
-  );
-  if (remove) return { kind: "remove", position: Number(remove[3]) };
 
   if (query === "balance") {
     const month = localDate().slice(0, 7);
@@ -217,7 +208,10 @@ export async function prepareMessage(
   );
   if (draft?.is_stale) return { kind: "summary" }; // SQL retiene el mensaje antes de interpretarlo.
   const correction = correctionIntent ? parseDraftCorrection(text) : null;
-  if (correction) return correction;
+  if (correction) {
+    writeOperationalLog("local_rule", { rule: "correction" });
+    return correction;
+  }
   if (!text && !message.image?.id && !message.audio?.id) {
     return reply(
       "Este tipo de mensaje no es compatible. Podés enviar texto, audio o una foto.",
@@ -235,15 +229,15 @@ export async function prepareMessage(
           signal,
         )
         : undefined;
-      const simple = text && !media && !correctionIntent &&
-        !/[?¿]|(cu[aá]nto|c[oó]mo|d[oó]nde|por qu[eé]|explicame|ayuda)/i.test(
-          text,
-        ) &&
-        !/^(el\s+\d|cambi[aá]|correg[ií]|modific[aá]|sac[aá]|quit[aá]|borr[aá])/i
-          .test(text);
-      const direct = simple
+      const direct = text && !media && !correctionIntent
         ? parseDeterministicMovements(text, localDate())
         : null;
+      if (direct?.length) {
+        writeOperationalLog("local_rule", {
+          rule: "movements",
+          operations: direct.length,
+        });
+      }
       result = direct?.length
         ? { intent: "add_movements", movements: direct }
         : await extractFromGemini({
@@ -332,6 +326,11 @@ export async function prepareMessage(
       };
     }
     case "add_movements":
+      if (result.movements?.length > 20) {
+        return reply(
+          "Podés tener hasta 20 movimientos por lista. No agregué ninguno de este mensaje. Dividilo en grupos más chicos; tus pendientes anteriores siguen intactos.",
+        );
+      }
       if (correctionIntent) {
         return reply(
           'No pude identificar qué cambiar. Indicá el número y el dato a corregir, por ejemplo: "El 2 fue de 250". No agregué movimientos ni modifiqué la lista.',

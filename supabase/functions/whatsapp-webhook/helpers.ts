@@ -1,3 +1,10 @@
+import type { ExtractedMovement } from "./movement-types.ts";
+export type { ExtractedMovement } from "./movement-types.ts";
+import { parseDeterministicMovements } from "./local-movements.ts";
+export {
+  parseDeterministicMovement,
+  parseDeterministicMovements,
+} from "./local-movements.ts";
 import {
   boundedBytes,
   boundedJson,
@@ -14,19 +21,6 @@ import {
   providerFailure,
 } from "./failures.ts";
 import { writeOperationalLog } from "./logging.ts";
-
-export type ExtractedMovement = {
-  kind: "expense" | "income";
-  description: string;
-  totalAmountArs: number | null;
-  currency: "ARS" | "USD";
-  occurredOn: string | null;
-  category: string | null;
-  installments: number;
-  firstInstallmentMonth: string | null;
-  confidence: number;
-  missingFields: string[];
-};
 
 export type GeminiParsedOutput = {
   intent:
@@ -326,130 +320,6 @@ export function cleanDescription(
   cleaned = cleaned.trim();
   if (!cleaned) return kind === "expense" ? "Gasto general" : "Ingreso general";
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-}
-
-export function parseDeterministicMovement(
-  rawText: string,
-  today: string,
-): ExtractedMovement | null {
-  const text = rawText.trim();
-  if (!text) return null;
-
-  const isIncome =
-    /^(ingres[oó]|me\s+ingresaron|me\s+ingres[oó]|cobr[eé]|me\s+pagaron|me\s+transfirieron|dep[oó]sito|sueldo|venta)(?=\s|$)/i
-      .test(text);
-  const kind: "expense" | "income" = isIncome ? "income" : "expense";
-  const isUsd = /\b(usd|d[oó]lares?|u\$s|greens?)\b/i.test(text);
-  const currency: "ARS" | "USD" = isUsd ? "USD" : "ARS";
-
-  // Buscar monto numérico
-  const amountRegex =
-    /(?:^|\s|\$)(?:usd|u\$s)?\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(k|mil|lucas?)?\s*(?:pesos?|ars|usd|d[oó]lares?)?(?:\s|$)/i;
-  const match = text.match(amountRegex);
-  if (!match) return null;
-
-  let rawNum = match[1];
-  const multiplier = match[2]?.toLowerCase();
-
-  // Normalizar número argentino
-  if (rawNum.includes(".") && rawNum.includes(",")) {
-    rawNum = rawNum.replace(/\./g, "").replace(",", ".");
-  } else if (rawNum.includes(".")) {
-    if (/^\d{1,3}(?:\.\d{3})+$/.test(rawNum)) {
-      rawNum = rawNum.replace(/\./g, "");
-    }
-  } else if (rawNum.includes(",")) {
-    rawNum = rawNum.replace(",", ".");
-  }
-
-  let num = parseFloat(rawNum);
-  if (!Number.isFinite(num) || num <= 0) return null;
-
-  if (
-    multiplier === "k" || multiplier === "mil" || multiplier === "luca" ||
-    multiplier === "lucas"
-  ) {
-    num *= 1000;
-  }
-
-  // Quitar el monto del texto para obtener la descripción
-  let desc = text.replace(match[0], " ").trim();
-  desc = cleanDescription(desc, kind);
-
-  // Inferir categoría
-  const lowerDesc = desc.toLowerCase();
-  let category = "Otros";
-  if (kind === "income") {
-    if (/sueldo|salario|haberes|quincena/.test(lowerDesc)) category = "Sueldo";
-    else if (/freelance|diseño|proyecto|cliente/.test(lowerDesc)) {
-      category = "Freelance";
-    } else if (/venta|vendo|mercadolibre/.test(lowerDesc)) category = "Ventas";
-  } else {
-    if (
-      /super|chango|coto|vea|dia|disco|carrefour|almacen|verduleria|carniceria|panaderia|comida|almuerzo|cena|merienda|desayuno|cafe|restaurant|pedidosya|rappi|mcdonalds|mostaza|burger|helado|facturas|kiosco|caramelos/
-        .test(lowerDesc)
-    ) category = "Alimentación";
-    else if (
-      /nafta|combustible|ypf|shell|axion|uber|cabify|didi|taxi|colectivo|subte|tren|peaje|estacionamiento|cochera|sube/
-        .test(lowerDesc)
-    ) category = "Transporte";
-    else if (
-      /luz|gas|agua|internet|wifi|fibertel|telecentro|flow|cable|claro|personal|movistar|expensas|edenor|edesur|metrogas/
-        .test(lowerDesc)
-    ) category = "Servicios";
-    else if (/alquiler|inmobiliaria/.test(lowerDesc)) category = "Vivienda";
-    else if (
-      /farmacia|remedio|medicamento|medico|doctor|dentista|odontologo|psicologo|consulta|analisis|creatina|suplementos?|proteina|optica/
-        .test(lowerDesc)
-    ) category = "Salud";
-    else if (
-      /colegio|facultad|universidad|cuota|curso|taller|capacitacion|libro|apunte/
-        .test(lowerDesc)
-    ) category = "Educación";
-    else if (
-      /cine|teatro|boliche|recital|salida|bar|cerveza|juego|steam|playstation|netflix|spotify|disney|hbo|prime/
-        .test(lowerDesc)
-    ) category = "Ocio";
-    else if (
-      /ropa|zapatillas|remera|pantalon|shopping|zapatos|camisa|buzo|campera/
-        .test(lowerDesc)
-    ) category = "Compras";
-    else if (
-      /afip|rentas|monotributo|arba|iibb|impuesto|tasa|patente/.test(lowerDesc)
-    ) category = "Impuestos";
-    else if (/prestamo|tarjeta|cuota tarjeta|deuda/.test(lowerDesc)) {
-      category = "Deudas";
-    }
-  }
-
-  return {
-    kind,
-    description: desc,
-    totalAmountArs: num,
-    currency,
-    occurredOn: today,
-    category,
-    installments: 1,
-    firstInstallmentMonth: null,
-    confidence: 0.95,
-    missingFields: [],
-  };
-}
-
-export function parseDeterministicMovements(
-  text: string,
-  today: string,
-): ExtractedMovement[] | null {
-  const parts = text.split(
-    /\n|(?:\s+y\s+)|,\s*(?=[a-záéíóúñ])|(?<=[^\d]),\s*(?=\d)/i,
-  ).map((p) => p.trim()).filter(Boolean);
-  const results: ExtractedMovement[] = [];
-  for (const part of parts) {
-    const mov = parseDeterministicMovement(part, today);
-    if (!mov) return null;
-    results.push(mov);
-  }
-  return results.length > 0 ? results : null;
 }
 
 export async function extractFromGemini(input: {

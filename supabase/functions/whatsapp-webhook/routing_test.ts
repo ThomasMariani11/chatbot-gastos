@@ -969,3 +969,188 @@ Deno.test("interpretación: límite propio de 30 s conserva pedido de texto con 
       AbortSignal.timeout = previousTimeout;
     }
   }));
+
+Deno.test("reglas locales reales: cero llamadas a proveedores para comandos, correcciones y lotes", async () => {
+  const previousFetch = globalThis.fetch;
+  let calls = 0;
+  try {
+    globalThis.fetch = (() => {
+      calls++;
+      throw new Error("NO_PROVIDER_EXPECTED");
+    }) as typeof fetch;
+    for (
+      const [body, kind] of [
+        ["¡Sí!", "confirm"],
+        ["cancelar todo", "cancel"],
+        ["ver la lista", "summary"],
+        ["retomar", "resume"],
+        ["descartar", "discard"],
+        ["hola", "reply"],
+        ["ayuda", "reply"],
+        ["sacame el movimiento 2", "remove"],
+        ["Quitá el 2 y el 3", "reply"],
+        ["Cambiá la descripción del 2", "reply"],
+        ["El 2 fue de 250", "edit"],
+        ["Gasté 250,50 en pan y leche y 4000 de nafta", "add"],
+        [
+          "Cobré 100 USD por diseño; pagué silla total 12000 en 3 cuotas",
+          "add",
+        ],
+        ["Ayer gasté 100 en super", "add"],
+        [
+          Array.from({ length: 21 }, (_, n) => `Gasté ${n + 1} en super`).join(
+            "\n",
+          ),
+          "reply",
+        ],
+      ]
+    ) {
+      let checkpoints = 0;
+      const result = await prepareMessage(database().db, job(body), () => {
+        checkpoints++;
+        return Promise.resolve();
+      });
+      assert(
+        result.kind === kind,
+        `Ruta inesperada para caso sintético ${kind}`,
+      );
+      assert(
+        checkpoints === (kind === "add" || body.includes("\n") ? 1 : 0),
+        "Checkpoint no esperado",
+      );
+    }
+    assert(calls === 0, "Una regla local consumió IA o descargó medios");
+    for (const body of ["hola", "Gasté 100 super", "si", "El 2 fue de 250"]) {
+      const action = await prepareMessage(
+        database(true).db,
+        job(body),
+        () => Promise.resolve(),
+      );
+      assert(
+        action.kind === "reply" && action.clear_summary === true &&
+          String(action.text).includes("pausa"),
+        "Regla local omitió el bloqueo",
+      );
+    }
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+Deno.test("texto ambiguo usa el respaldo, sin aceptar el primer importe localmente", async () => {
+  const prev = globalThis.fetch, key = Deno.env.get("GEMINI_API_KEY");
+  const previousLog = console.log;
+  try {
+    Deno.env.set("GEMINI_API_KEY", "synthetic-key");
+    console.log = () => {};
+    let calls = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      return Promise.resolve(
+        Response.json({
+          candidates: [{
+            content: {
+              parts: [{
+                text: JSON.stringify({ intent: "unknown", movements: [] }),
+              }],
+            },
+          }],
+        }),
+      );
+    }) as typeof fetch;
+    for (
+      const body of [
+        "Gasté 5000 super y pagué alquiler",
+        "¿Gasté 5000 en super?",
+        "Compré silla 12000 en 3 cuotas",
+      ]
+    ) {
+      const before = calls;
+      const action = await prepareMessage(
+        database().db,
+        job(body),
+        () => Promise.resolve(),
+      );
+      assert(
+        action.kind === "reply" && calls === before + 1,
+        "Mensaje ambiguo aceptado como alta local",
+      );
+    }
+  } finally {
+    globalThis.fetch = prev;
+    console.log = previousLog;
+    if (key === undefined) Deno.env.delete("GEMINI_API_KEY");
+    else Deno.env.set("GEMINI_API_KEY", key);
+  }
+});
+
+Deno.test("caption de imagen no ejecuta un comando local ni omite el comprobante", () =>
+  withMediaFixture(async () => {
+    const previousLog = console.log;
+    try {
+      console.log = () => {};
+      let calls = 0;
+      globalThis.fetch = (() => {
+        calls++;
+        return Promise.resolve(new Response("synthetic", { status: 503 }));
+      }) as typeof fetch;
+      const input = job("");
+      input.payload = {
+        id: "synthetic-image",
+        from: "synthetic-route",
+        type: "image",
+        image: { id: "synthetic-media", caption: "confirmar" },
+      };
+      const action = await prepareMessage(
+        database().db,
+        input,
+        () => Promise.resolve(),
+      );
+      assert(
+        action.kind === "reply" && String(action.text).includes("imagen") &&
+          calls === 1,
+        "Caption confirmó movimientos sin procesar la imagen",
+      );
+    } finally {
+      console.log = previousLog;
+    }
+  }));
+
+Deno.test("error de IA no activa un parser permisivo para preguntas o instrucciones", async () => {
+  const prev = globalThis.fetch,
+    key = Deno.env.get("GEMINI_API_KEY"),
+    previousLog = console.log;
+  try {
+    Deno.env.set("GEMINI_API_KEY", "synthetic-key");
+    console.log = () => {};
+    let calls = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      return Promise.resolve(new Response("synthetic", { status: 503 }));
+    }) as typeof fetch;
+    for (
+      const text of [
+        "¿Gasté 5000 super?",
+        "El 2 fue de 250",
+        "Gasté 5000 super y pagué alquiler",
+      ]
+    ) {
+      let failure: unknown;
+      try {
+        await extractFromGemini({ text });
+      } catch (error) {
+        failure = error;
+      }
+      assert(
+        failureMetadata(failure).reason === "unavailable",
+        "Respaldo convirtió una duda en movimiento",
+      );
+    }
+    assert(calls === 6, "No simuló ambos modelos para cada rechazo");
+  } finally {
+    globalThis.fetch = prev;
+    console.log = previousLog;
+    if (key === undefined) Deno.env.delete("GEMINI_API_KEY");
+    else Deno.env.set("GEMINI_API_KEY", key);
+  }
+});
