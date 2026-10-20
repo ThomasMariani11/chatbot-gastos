@@ -10,13 +10,17 @@ import {
   timeoutSignal,
   withinSignal,
 } from "./limits.ts";
-import { looksLikeDraftCorrection } from "./draft-corrections.ts";
+import {
+  looksLikeDraftCorrection,
+  parseDraftCorrection,
+} from "./draft-corrections.ts";
+import { parseLocalCommand } from "./local-commands.ts";
 import { parseDeterministicMovements } from "./local-movements.ts";
 import { writeOperationalLog } from "./logging.ts";
 import type { GeminiParsedOutput } from "./helpers.ts";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
-const WHISPER_MODEL = "whisper-large-v3";
+const WHISPER_MODEL = "whisper-large-v3-turbo";
 const QWEN_MODEL = "qwen/qwen3.8-27b";
 const MIN_QWEN_TOKENS_RESERVE = 1600;
 const MAX_BUDGET_WAIT_MS = 3500;
@@ -383,24 +387,16 @@ function parseUnderThousandWords(words: string[]): {
 }
 
 export function normalizeWhisperTranscript(raw: string): string {
-  // 1. Reemplazar separador de miles con coma estilo inglés (ej. 2,500 -> 2500)
-  let text = raw.trim().replace(/\b(\d{1,3}),(\d{3})(?!\d)/g, "$1$2");
-  // 2. Combinar patrones híbridos de Whisper como "2000 quinientos" o "2 mil 500"
+  // 1. Reemplazar separador de miles con coma estilo inglés (ej. 2,500 -> 2500; 1,200,000 -> 1200000)
+  let text = raw
+    .trim()
+    .replace(/\b\d{1,3}(?:,\d{3})+\b/g, (m) => m.replaceAll(",", ""));
+  // 2. Combinar patrones híbridos en dígitos como "2 mil 500" -> "2500"
   text = text.replace(
-    /\b(\d+)\s+mil\s+(\d{1,3})\b/gi,
+    /\b(\d{1,3})\s+mil\s+(\d{1,3})\b/gi,
     (_, k, rem) => String(Number(k) * 1000 + Number(rem)),
   );
-  text = text.replace(
-    /\b(\d{1,3})(?:000|\s+mil)\s+(ciento|cien|doscient[oa]s|trescient[oa]s|cuatrocient[oa]s|quinient[oa]s|seiscient[oa]s|setecient[oa]s|ochocient[oa]s|novecient[oa]s)\b/gi,
-    (_, k, hundredWord) => {
-      const key = hundredWord
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase();
-      return String(Number(k) * 1000 + (SPANISH_HUNDREDS[key] ?? 0));
-    },
-  );
-  // 3. Convertir secuencias de números en palabras con "mil" o centenas (ej. "dos mil quinientos" -> "2500")
+  // 3. Convertir secuencias de números hablados con "mil" o centenas (sin romper "70 mil")
   const tokens = text.split(/(\s+)/);
   const wordIndices: number[] = [];
   const normWords: string[] = [];
@@ -420,7 +416,27 @@ export function normalizeWhisperTranscript(raw: string): string {
   while (w < normWords.length) {
     let consumed = 0;
     let numericValue = 0;
-    if (normWords[w] === "mil") {
+    if (/^\d{1,3}000$/.test(normWords[w])) {
+      const tail = parseUnderThousandWords(normWords.slice(w + 1));
+      if (tail) {
+        numericValue = Number(normWords[w]) + tail.value;
+        consumed = 1 + tail.consumed;
+      }
+    } else if (
+      /^\d{1,3}$/.test(normWords[w]) &&
+      w + 1 < normWords.length &&
+      normWords[w + 1] === "mil"
+    ) {
+      const tail = parseUnderThousandWords(normWords.slice(w + 2));
+      if (tail) {
+        numericValue = Number(normWords[w]) * 1000 + tail.value;
+        consumed = 2 + tail.consumed;
+      } else {
+        // Conservar "<dígitos> mil" (ej. "70 mil") sin convertir "mil" en "1000" suelto
+        w += 2;
+        continue;
+      }
+    } else if (normWords[w] === "mil") {
       numericValue = 1000;
       consumed = 1;
       const tail = parseUnderThousandWords(normWords.slice(w + 1));
@@ -534,10 +550,6 @@ export async function extractWithGroq(input: {
       form.append("model", WHISPER_MODEL);
       form.append("language", "es");
       form.append("temperature", "0");
-      form.append(
-        "prompt",
-        "Gastos e ingresos en pesos argentinos: Gasté 2500 en panadería, pagué 15500 en supermercado, cobré 80000 por transferencia.",
-      );
       form.append("response_format", "json");
 
       const signal = timeoutSignal(10_000, input.signal);
@@ -585,7 +597,48 @@ export async function extractWithGroq(input: {
           transcribedText: "",
         };
       }
-      if (!looksLikeDraftCorrection(effectiveText)) {
+      const localCmd = parseLocalCommand(effectiveText);
+      if (
+        localCmd?.kind === "confirm" ||
+        localCmd?.kind === "cancel" ||
+        localCmd?.kind === "summary"
+      ) {
+        writeOperationalLog("local_rule", { rule: "command" });
+        return {
+          output: { intent: localCmd.kind, movements: [] },
+          transcribedText,
+        };
+      }
+      if (localCmd?.kind === "remove") {
+        writeOperationalLog("local_rule", { rule: "command" });
+        return {
+          output: {
+            intent: "remove_item",
+            movements: [],
+            removePosition: localCmd.position,
+          },
+          transcribedText,
+        };
+      }
+      if (looksLikeDraftCorrection(effectiveText)) {
+        const corr = parseDraftCorrection(effectiveText);
+        if (corr?.kind === "edit") {
+          writeOperationalLog("local_rule", { rule: "correction" });
+          return {
+            output: {
+              intent: "edit_item",
+              movements: [],
+              edit: {
+                targetPosition: corr.position,
+                amount: corr.amount,
+                description: null,
+                category: null,
+              },
+            },
+            transcribedText,
+          };
+        }
+      } else {
         const direct = parseDeterministicMovements(effectiveText, input.today);
         if (direct?.length) {
           writeOperationalLog("local_rule", {

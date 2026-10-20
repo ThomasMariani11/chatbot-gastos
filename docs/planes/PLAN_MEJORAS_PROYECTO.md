@@ -40,7 +40,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 8 | INF-09 | Media | Privacidad de logs | F09 | Terminada |
 | 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | Terminada |
 | 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Terminada |
-| 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | En curso |
+| 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Terminada |
 | 12 | INF-14 | Media | Observabilidad y retención | F14 | Pendiente |
 | 13 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | Pendiente |
 | 14 | INF-15 | Media | Controles de costos y documentación | F15 | Pendiente |
@@ -156,9 +156,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-12 — Limitar tiempos y tamaño de multimedia
 
-- **Cierre al 20/10/2026:** lectura de streams acotada (imagen 5 MiB, audio 10 MiB), MIME, presupuestos compartidos de descarga/interpretación/envío y 60 s por intento del trabajador. Ante la indisponibilidad observada en Gemini (ocho fallos 503/timeout documentados en [VALIDACION_GEMINI_2026-10-20.md](VALIDACION_GEMINI_2026-10-20.md)), se evaluó e integró Groq Free (`whisper-large-v3` + normalización de montos hablados + reglas locales previas + `qwen/qwen3.8-27b` con esquema estricto, validador runtime y control compartido de cupo/429). 306 Vitest, 38 Deno sin red, 12 SQL y seis controles Node aprobados. Webhook v48 ACTIVE publicado y smoke 401 verificado. Aceptación real en WhatsApp completada: comprobante en imagen interpretado en **3,11 s** (`qwen`) y audio corto en **2,32 s** (`whisper` + `local_rule` con cero llamadas a `qwen`), seguidos de `CANCELAR` con cero transacciones creadas. [Detalle](VALIDACION_INF_12.md), [evaluación Groq](VALIDACION_GROQ_2026-10-20.md) y [capacidad 4 usuarios](CAPACIDAD_GROQ_4_USUARIOS.md).
+- **Cierre al 20/10/2026:** lectura de streams acotada (imagen 5 MiB, audio 10 MiB), MIME, presupuestos compartidos de descarga/interpretación/envío y 60 s por intento del trabajador. Ante la indisponibilidad observada en Gemini (ocho fallos 503/timeout documentados en [VALIDACION_GEMINI_2026-10-20.md](VALIDACION_GEMINI_2026-10-20.md)), se evaluó e integró Groq Free (`whisper-large-v3-turbo` + normalización de montos hablados preservando `<dígitos> mil` + reglas locales previas para movimientos/comandos/correcciones + `qwen/qwen3.8-27b` con esquema estricto, validador runtime y control compartido de cupo/429). 306 Vitest, 38 Deno sin red, 12 SQL y seis controles Node aprobados. Webhook ACTIVE publicado desde checkout limpio tras CI y smoke 401 verificado. Aceptación real en WhatsApp completada: comprobante en imagen interpretado en **3,11 s** (`qwen`) y audio corto en **2,32 s** (`whisper` + `local_rule` con cero llamadas a `qwen`), seguidos de `CANCELAR` con cero transacciones creadas. La credencial de la beta de 4 usuarios vence el 27/10/2026; la rotación y revisión de retención/costos quedan asociadas a INF-14 e INF-15. [Detalle](VALIDACION_INF_12.md), [evaluación Groq](VALIDACION_GROQ_2026-10-20.md) y [capacidad 4 usuarios](CAPACIDAD_GROQ_4_USUARIOS.md).
 
-- [ ] Terminada.
+- [x] Terminada.
 - **Problema confirmado en código:** envío y descarga de WhatsApp sin timeout explícito; descarga sin límite propio de bytes antes de convertir a base64.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:86`, `:131`, `:134`.
 - **Trabajo:** establecer timeouts y un presupuesto total por trabajo; validar tipos y limitar bytes descargados. Manejar archivos demasiado grandes conservando el estado del trabajo y dando una respuesta útil.
@@ -450,7 +450,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 13 | BE-12 | Media | Correcciones y resumen completo | — | En curso |
 | 14 | BE-13 | Media | Consistencia del alta y bootstrap administrativo | INF-10 | Pendiente |
 | 15 | BE-14 | Media | Vinculación atómica y límites de intentos | — | Pendiente |
-| 16 | BE-15 | Media | Integraciones y límites de multimedia | INF-12 | Pendiente |
+| 16 | BE-15 | Media | Integraciones y límites de multimedia | INF-12 | Terminada |
 | 17 | BE-16 | Media | Logs y errores seguros | INF-09, INF-14 | Pendiente |
 | 18 | BE-18 | Baja | Separación del código y llamadas remotas | — | Pendiente |
 
@@ -596,9 +596,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-15 — Acotar llamadas externas y procesamiento multimedia
 
-- **Cierre al 20/10/2026:** cerrado junto con INF-12 (webhook v48 ACTIVE, validación runtime de esquema, presupuestos compartidos de red/trabajo y aceptación de multimedia en WhatsApp con Groq `whisper-large-v3` + `qwen/qwen3.8-27b`). [Detalle](VALIDACION_INF_12.md).
+- **Cierre al 20/10/2026:** cerrado junto con INF-12 (validación runtime de esquema, presupuestos compartidos de red/trabajo, normalización de montos hablados y aceptación de multimedia en WhatsApp con Groq `whisper-large-v3-turbo` + `qwen/qwen3.8-27b`). [Detalle](VALIDACION_INF_12.md).
 
-- [ ] Terminada.
+- [x] Terminada.
 - **Problema confirmado:** envío/descarga de WhatsApp sin timeout explícito ni límite propio de bytes; Gemini solo tiene timeout por intento. No se confirmó SSRF: la URL de descarga viene de Meta, no directamente del cliente.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:86`, `:131`, `:139`, `:336`.
 - **Trabajo:** presupuesto total del trabajo; límites de tamaño y MIME; descargas acotadas; reintentos selectivos y backoff para errores transitorios. Validar el contrato de proveedores y las respuestas JSON en runtime; comprobar disponibilidad de modelos sin suponer nombres válidos o inválidos.
@@ -689,3 +689,7 @@ Completar una entrada al cerrar cada tarea:
 | 16/10/2026 | Incidente BE-11 / diagnóstico INF-14 | CANCELAR resuelve la lista antigua conservando el mensaje nuevo; errores técnicos permitidos por proveedor | Regresión reproducida; 197 Vitest, 17 Deno, 12 SQL, seis controles Node, tipos/lint/build | Sin reprocesar audios cancelados, guardar movimientos ni cambiar modelos/timeouts | 025 + webhook v42 publicados y verificados; integrar revisión documental tras CI y validar audio nuevo; INF-11 después |
 
 | 18/10/2026 | INF-11 | Actions por SHA verificado, build solo lectura, publicación aislada y Dependabot semanal | actionlint/YAML, cuatro checks PR, cinco jobs main y HTTP de versión | Publicación c227cf3 verificada; bot y SQL sin cambios en este punto | Terminada; INF-12 siguiente; PR de actualizaciones de Dependabot pendiente de revisión |
+
+| 20/10/2026 | BE-12 (reglas locales WhatsApp) | Gramática local conservadora, comandos y correcciones sin IA; PR 13 (ce216ec), webhook v45 ACTIVE | 306 Vitest, 35 Deno sin red, cuatro checks PR y aceptación real en WhatsApp (5 mensajes en 0,65–2,27 s, local_rule y cero ai_attempt) | Sin SQL nuevo ni transacciones de prueba creadas | Resto de campos de edición/resumen de BE-12 y BE-08 siguen abiertos |
+
+| 20/10/2026 | INF-12 / BE-15 | Integración Groq Free (whisper-large-v3-turbo + normalización de montos hablados + reglas locales previas + qwen/qwen3.8-27b con esquema estricto y cupo compartido) | 306 Vitest, 38 Deno sin red, 12 SQL, seis controles Node, cuatro checks CI, smoke 401 y aceptación WhatsApp (imagen 3,11 s, audio 2,32 s + CANCELAR) | Webhook ACTIVE desplegado desde checkout limpio; cero transacciones creadas | Terminada; rotar clave beta antes del 27/10 y continuar con INF-14 / BE-16 |

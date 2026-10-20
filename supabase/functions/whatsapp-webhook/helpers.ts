@@ -376,6 +376,48 @@ REGLAS PARA OPERACIONES ("movements"):
 
 Mensaje del usuario: ${input.text ?? ""}`;
 
+  let lastError: Error | null = null;
+  if (groqKey) {
+    try {
+      const groqResult = await extractWithGroq({
+        apiKey: groqKey,
+        today,
+        text: input.text,
+        mediaBase64: input.mediaBase64,
+        mimeType: input.mimeType,
+        activeDraftContext: input.activeDraftContext,
+        signal: input.signal,
+        baseSchema: multiResponseJsonSchema,
+        strictSchema: buildStrictSchema(multiResponseJsonSchema),
+        buildPrompt: (text: string) =>
+          prompt.replace(
+            `Mensaje del usuario: ${input.text ?? ""}`,
+            () => `Mensaje del usuario: ${text}`,
+          ),
+        cleanDescription,
+      });
+      if (groqResult.output) return groqResult.output;
+    } catch (err) {
+      lastError = err instanceof Error
+        ? err
+        : new OperationalFailure("unknown", "groq");
+      input.signal?.throwIfAborted();
+      if (input.text && !input.mediaBase64) {
+        const fallbackMovements = parseDeterministicMovements(
+          input.text,
+          today,
+        );
+        if (fallbackMovements && fallbackMovements.length > 0) {
+          return {
+            intent: "add_movements",
+            movements: fallbackMovements,
+          };
+        }
+      }
+      throw lastError;
+    }
+  }
+
   const parts: Array<Record<string, unknown>> = [{ text: prompt }];
   if (input.mediaBase64 && input.mimeType) {
     parts.push({
@@ -401,49 +443,6 @@ Mensaje del usuario: ${input.text ?? ""}`;
   });
   if (encoder.encode(body).byteLength > LIMITS.geminiRequestBytes) {
     throw new OperationalFailure("payload_too_large", "gemini");
-  }
-  let lastError: Error | null = null;
-  if (groqKey) {
-    try {
-      const groqResult = await extractWithGroq({
-        apiKey: groqKey,
-        today,
-        text: input.text,
-        mediaBase64: input.mediaBase64,
-        mimeType: input.mimeType,
-        activeDraftContext: input.activeDraftContext,
-        signal: input.signal,
-        baseSchema: multiResponseJsonSchema,
-        strictSchema: buildStrictSchema(multiResponseJsonSchema),
-        buildPrompt: (text: string) =>
-          prompt.replace(
-            `Mensaje del usuario: ${input.text ?? ""}`,
-            `Mensaje del usuario: ${text}`,
-          ),
-        cleanDescription,
-      });
-      if (groqResult.output) return groqResult.output;
-    } catch (err) {
-      lastError = err instanceof Error
-        ? err
-        : new OperationalFailure("unknown", "groq");
-      if (!apiKey || input.mediaBase64) {
-        input.signal?.throwIfAborted();
-        if (input.text && !input.mediaBase64) {
-          const fallbackMovements = parseDeterministicMovements(
-            input.text,
-            today,
-          );
-          if (fallbackMovements && fallbackMovements.length > 0) {
-            return {
-              intent: "add_movements",
-              movements: fallbackMovements,
-            };
-          }
-        }
-        throw lastError;
-      }
-    }
   }
 
   for (const model of candidateModels) {

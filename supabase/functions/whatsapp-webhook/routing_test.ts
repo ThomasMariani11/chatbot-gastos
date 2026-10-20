@@ -1360,23 +1360,56 @@ Deno.test("Groq imagen y presupuesto: adapta edit=null, preserva USD y bloquea a
   }
 });
 
-Deno.test("UTF-8 y normalización de montos hablados de Whisper", () => {
+Deno.test("UTF-8 y normalización de montos hablados de Whisper", async () => {
   for (
-    const input of [
-      "Gasté dos mil quinientos en panadería",
-      "Gasté 2000 quinientos en panadería",
-      "Gasté 2,500 en panadería",
-      "Gasté 2 mil 500 en panadería",
-    ]
+    const [input, expectedAmount, expectedKind] of [
+      ["Gasté dos mil quinientos en panadería", 2500, "expense"],
+      ["Gasté 2000 quinientos en panadería", 2500, "expense"],
+      ["Gasté 2 mil quinientos en panadería", 2500, "expense"],
+      ["Gasté 2,500 en panadería", 2500, "expense"],
+      ["Gasté 2 mil 500 en panadería", 2500, "expense"],
+      ["Gasté 2000 quinientos cincuenta en panadería", 2550, "expense"],
+      ["Me ingresó 70 mil de una transferencia", 70000, "income"],
+      ["Me ingresó setenta mil de una transferencia", 70000, "income"],
+    ] as const
   ) {
     const normalized = normalizeWhisperTranscript(input);
     const items = parseDeterministicMovements(normalized, "2026-10-20");
     assert(
       items?.length === 1 &&
-        items[0].totalAmountArs === 2500 &&
-        items[0].description === "Panadería",
-      `No normalizó a 2500: ${input} -> ${normalized}`,
+        items[0].totalAmountArs === expectedAmount &&
+        items[0].kind === expectedKind,
+      `No normalizó correctamente: ${input} -> ${normalized}`,
     );
+  }
+  const prev = globalThis.fetch,
+    groqKey = Deno.env.get("GROQ_API_KEY");
+  try {
+    resetGroqBudgetForTests();
+    Deno.env.set("GROQ_API_KEY", "gsk_synthetic_test_key_123456");
+    globalThis.fetch = ((url: RequestInfo | URL) => {
+      if (String(url).includes("audio/transcriptions")) {
+        return Promise.resolve(
+          Response.json({ text: "El 2 fue de 6,500" }),
+        );
+      }
+      throw new Error("UNEXPECTED_QWEN_ON_AUDIO_CORRECTION");
+    }) as typeof fetch;
+    const edited = await extractFromGemini({
+      mediaBase64: "AQID",
+      mimeType: "audio/ogg",
+    });
+    assert(
+      edited.intent === "edit_item" &&
+        edited.edit?.targetPosition === 2 &&
+        edited.edit?.amount === 6500,
+      "Audio de corrección no se resolvió localmente tras Whisper",
+    );
+  } finally {
+    resetGroqBudgetForTests();
+    globalThis.fetch = prev;
+    if (groqKey === undefined) Deno.env.delete("GROQ_API_KEY");
+    else Deno.env.set("GROQ_API_KEY", groqKey);
   }
   const summary = formatDraftList([
     {
@@ -1393,8 +1426,8 @@ Deno.test("UTF-8 y normalización de montos hablados de Whisper", () => {
       summary.includes("1. 🔴 Panadería ·") &&
       summary.includes("Podés seguir agregando") &&
       summary.includes('("quitá el 2")') &&
-      !summary.includes("Ã") &&
-      !summary.includes("ðŸ"),
+      !summary.includes("\u00c3") &&
+      !summary.includes("\u00f0\u0178"),
     "El resumen de borrador tiene caracteres UTF-8 corruptos",
   );
 });
