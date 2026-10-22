@@ -18,7 +18,7 @@ La publicación de Pages no despliega Edge Functions ni aplica SQL. Los tres com
 2. Usar Node de .node-version, Deno 2.9.6 y CLI de .supabase-version. Ejecutar los checks de README y exigir el ensayo de release del PR. El manifiesto de solo lectura se genera con `npm run release:manifest -- production`; guarda SHA del código, herramientas y hashes de cada SQL/archivo runtime en .temp/release-production.json.
 3. Leer estado real: historial supabase_migrations.schema_migrations; versión/estado de whatsapp-webhook y verify_jwt; cola habilitada; trabajos en procesamiento/fallidos y cron. Solo conteos, sin payloads ni secretos.
 4. Registrar fuera del bundle: SHA candidato/anterior, enlace a CI, migrations antes/después, versión Edge anterior/nueva, hora, smoke y estado previo de cola. observedDeployment del manifiesto empieza con null/false: **no es evidencia de haber desplegado**; completarlo solo con lecturas verificadas.
-5. La versión anterior validada requiere 025 y esta publicación requiere 026 y el contrato de la cola v2 comienza en 020, con idempotencia 023. El rollback ensayado está fijado en config/environments.json: f856dd9 (webhook v50 con importes hablados completos), compatible con 025 y 026. Revisar ese contrato ante cada cambio de esquema. No retroceder a workers anteriores a 020, ni restaurar permisos inseguros de 017 o advertencias privadas anteriores a 024.
+5. La versión anterior validada requiere 026 y esta publicación requiere 027 y el contrato de la cola v2 comienza en 020, con idempotencia 023. El rollback ensayado está fijado en config/environments.json: 23dbe9eaca2828fadd793845cc27b240d530b07c (webhook v51), compatible con 026 y 027. Revisar ese contrato ante cada cambio de esquema. No retroceder a workers anteriores a 020, ni restaurar permisos inseguros de 017 o advertencias privadas anteriores a 024.
 
 Consulta de solo lectura para el estado:
 
@@ -36,7 +36,7 @@ No reenviar trabajos v1 fallidos ni eliminar pendientes para que los conteos que
 
 ## Instalación nueva y migraciones posteriores
 
-- Instalación vacía: aplicar **todas las migraciones completas en orden (actualmente 001–026)**, con Auth y publicación supabase_realtime preparados por Supabase. No usar un PostgreSQL común sin esquemas/extensiones como si fuera Supabase. El ensayo CI verifica el stack real con datos sintéticos.
+- Instalación vacía: aplicar **todas las migraciones completas en orden (actualmente 001–027)**, con Auth y publicación supabase_realtime preparados por Supabase. No usar un PostgreSQL común sin esquemas/extensiones como si fuera Supabase. El ensayo CI verifica el stack real con datos sintéticos.
 - Instalación existente: comparar el historial real con los archivos y sus hashes; aplicar únicamente las migraciones nuevas aprobadas, sin reescribir las ya aplicadas. Si hay deriva, parar y revisarla.
 - Preparar primero la expansión compatible del esquema; validar permisos, índices y dependencias antes de publicar el consumidor. Cualquier cambio destructivo requiere otro plan, no un down automático.
 - Antes de usar CLI remoto, verificar el contenido de supabase/.temp/project-ref coincide exactamente con ystyatotldslfmucvgsq. link solo cuando corresponda y nunca en el workdir local. Mantener SSL y restricciones de red; no abrir 0.0.0.0/0 ni resetear contraseña por un problema de conexión.
@@ -104,3 +104,7 @@ Si se incluye apikey, una clave incorrecta o una configuración inválida produc
 El aviso requiere destino numérico de 8–16 dígitos y texto explícito no vacío de hasta 4096 unidades UTF-16. Cuerpo inválido: 400 sin enviar. Fallo del adaptador: 502 sin éxito ni reintento automático de la ruta. Una petición aceptada llama una vez al adaptador existente; esto no incorpora idempotencia entre solicitudes HTTP diferentes. Ante timeout o resultado ambiguo, no reenviar sin verificar; 200 indica aceptación del proveedor, no entrega/lectura en el teléfono.
 
 Las pruebas utilizan claves ficticias y transporte interceptado con red denegada. No registrar valores de claves, teléfonos, textos ni respuestas crudas del proveedor. El propietario suspendió el uso operativo de las credenciales reales: preparar/publicar código no autoriza recuperarlas ni probar un envío real; requiere una nueva autorización específica.
+
+## Monitoreo y avisos (027)
+
+Aplicar 027 antes del webhook que registra métricas y entrega avisos. Instala tablas/RPC privadas y dos cron adicionales. Tanto WhatsApp como la limpieza quedan desactivados al instalar. Los avisos requieren destinatario admin vinculado, emisor de prueba aprobado/verificado y ventana entrante; activar solo después de publicar el trabajador. No habilitar la limpieza sin aprobación de la política. El preparador local desprograma recuperación, monitoreo y retención. [Operación y límites](MONITOREO_Y_RETENCION.md).

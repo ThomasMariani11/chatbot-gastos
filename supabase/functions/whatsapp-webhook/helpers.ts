@@ -565,3 +565,32 @@ export function formatDraftList(items: DraftListItem[]): string {
     `\nPodés seguir agregando, corregir alguno (ej: "el 2 fue de 5.000"), quitar ("quitá el 2") o responder *CONFIRMAR* para guardar todo.`;
   return out;
 }
+
+// El operador aprueba un número de prueba concreto. Verificar el remitente real
+// antes de cada aviso evita que cambiar el phoneNumberId active envíos de pago.
+export async function isVerifiedOperationalTestSender(
+  expected: string,
+): Promise<boolean> {
+  if (!/^1555[0-9]{7}$/.test(expected)) return false;
+  const token = Deno.env.get("WHATSAPP_ACCESS_TOKEN"),
+    phone = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
+  if (!token || !phone) return false;
+  const signal = timeoutSignal(LIMITS.rpcMs);
+  try {
+    const response = await fetch(
+      graphBase + "/" + phone + "?fields=display_phone_number",
+      { headers: { authorization: "Bearer " + token }, signal },
+    );
+    if (!response.ok) throw httpFailure(response.status, "meta_send");
+    const data = await boundedJson(
+      response,
+      LIMITS.metadataBytes,
+      signal,
+      "meta_send",
+    ) as { display_phone_number?: unknown };
+    return typeof data.display_phone_number === "string" &&
+      data.display_phone_number.replace(/[^0-9]/g, "") === expected;
+  } catch (error) {
+    throw providerFailure(error, "meta_send", "network");
+  }
+}

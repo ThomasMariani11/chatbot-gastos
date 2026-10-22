@@ -41,7 +41,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 9 | INF-10 | Media | Entornos, deploy y rollback | F10 | Terminada |
 | 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Terminada |
 | 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Terminada |
-| 12 | INF-14 | Media | Observabilidad y retención | F14 | Pendiente |
+| 12 | INF-14 | Media | Observabilidad y retención | F14 | En curso; retención sin activar |
 | 13 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | Pendiente |
 | 14 | INF-15 | Media | Controles de costos y documentación | F15 | Pendiente |
 | 15 | INF-08 | Alta, a verificar | Backups y recuperación | F08 | Pendiente; última del plan |
@@ -176,12 +176,14 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-14 — Agregar observabilidad, alertas y retención
 
-- [ ] Terminada.
+- [ ] Terminada. **En curso:** panel, métricas, alertas y retención protegida preparados; cierre pendiente de publicación y aceptación.
 - **Problema confirmado en el repositorio:** no hay configuración de alertas, métricas de cola/entrega ni política de retención declarada. Servicios externos existentes quedan a verificar.
 - **Archivos:** `supabase/migrations/014_draft_movement_batches.sql:47`; `supabase/functions/whatsapp-webhook/index.ts:926`.
 - **Trabajo:** medir edad de cola, duración de interpretación y envío, cantidad de operaciones y reintentos. Definir alertas de trabajos atascados y fallos repetidos, con responsable y runbook. Definir retención de payloads y logs sin eliminar trabajo pendiente necesario para recuperación. Revisar cuotas y costos con datos reales antes de cambiar recursos o tamaños del pool.
 - **Cierre:** una falla simulada genera una alerta útil; métricas permiten explicar demoras; retención probada y recuperación preservada; contenido sensible excluido de logs.
 - **Dependencias:** INF-03, INF-04 e INF-09.
+
+- **Avance 22/10/2026:** migración 027, agregados por minuto, incidentes de cola/reintentos/revisión/recuperación/pedidos de texto; panel de administrador y bandeja de avisos independiente. El propietario eligió panel y su WhatsApp y confirmó número de prueba de Meta: verificación de emisor antes de cada envío, ventana entrante y bloqueo si cambia. Conservación propuesta 30 días de contenido terminado y 90 días de agregados/avisos enviados o cancelados; **desactivada hasta aprobación**. No se usaron claves backend suspendidas ni se alteraron movimientos. [Runbook y límites](../operaciones/MONITOREO_Y_RETENCION.md).
 
 ### INF-15 — Corregir documentación y controles de costos
 

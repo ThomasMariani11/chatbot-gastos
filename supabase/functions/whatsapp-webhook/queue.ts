@@ -193,6 +193,17 @@ async function processJob(
           p_token: token,
           p_result: result,
         });
+        if (
+          result && typeof result === "object" &&
+          (result as { intent?: unknown }).intent === "request_text"
+        ) {
+          const source = job.payload.type;
+          deps.metric("queue_clarification", {
+            source_kind: source === "audio" || source === "image"
+              ? source
+              : "text",
+          });
+        }
         stage = "interpret";
       });
       deps.metric("queue_interpret", {
