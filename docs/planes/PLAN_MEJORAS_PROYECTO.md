@@ -66,6 +66,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-03 — Hacer fiable el procesamiento de la cola
 
+- **Seguimiento 22/10/2026:** corregir bloqueo por revisión manual y aclarar aviso al cliente, con migración 026 y pruebas de regresión; publicación pendiente de CI. [Alcance y validación](CORRECCION_COLA_REVISION_MANUAL_2026-10-22.md).
+
 - [x] Terminada.
 - **Cierre al 15/10/2026:** webhook v40, migraciones 020–022; 163 tests, 12 Deno y concurrencia PostgreSQL nativa aprobados. Capturas del propietario: eliminación del ítem erróneo y corrección del número 2 sin aumentar la lista. El propietario confirma números estables y descarte con resumen vacío. Agregados de solo lectura: cero pendientes y cero confirmados con nombres de prueba; cero trabajos v2 fallidos o en procesamiento. Recuperación/interrupciones verificadas en aislamiento, no provocadas en producción. Ocho mensajes heredados conservados para revisión autorizada. [Aceptación](evidencias/INF_03_BE_06_aceptacion_2026-10-15.json) y [procedimiento](VALIDACION_INF_03_BE_06.md).
 

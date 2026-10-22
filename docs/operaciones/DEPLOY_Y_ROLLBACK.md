@@ -18,7 +18,7 @@ La publicación de Pages no despliega Edge Functions ni aplica SQL. Los tres com
 2. Usar Node de .node-version, Deno 2.9.6 y CLI de .supabase-version. Ejecutar los checks de README y exigir el ensayo de release del PR. El manifiesto de solo lectura se genera con `npm run release:manifest -- production`; guarda SHA del código, herramientas y hashes de cada SQL/archivo runtime en .temp/release-production.json.
 3. Leer estado real: historial supabase_migrations.schema_migrations; versión/estado de whatsapp-webhook y verify_jwt; cola habilitada; trabajos en procesamiento/fallidos y cron. Solo conteos, sin payloads ni secretos.
 4. Registrar fuera del bundle: SHA candidato/anterior, enlace a CI, migrations antes/después, versión Edge anterior/nueva, hora, smoke y estado previo de cola. observedDeployment del manifiesto empieza con null/false: **no es evidencia de haber desplegado**; completarlo solo con lecturas verificadas.
-5. La versión anterior validada y esta publicación requieren 025 y el contrato de la cola v2 comienza en 020, con idempotencia 023. El rollback ensayado está fijado en config/environments.json: 54cd1fa (webhook v49 con Groq y límites de multimedia), compatible con 025. Revisar ese contrato ante cada cambio de esquema. No retroceder a workers anteriores a 020, ni restaurar permisos inseguros de 017 o advertencias privadas anteriores a 024.
+5. La versión anterior validada requiere 025 y esta publicación requiere 026 y el contrato de la cola v2 comienza en 020, con idempotencia 023. El rollback ensayado está fijado en config/environments.json: f856dd9 (webhook v50 con importes hablados completos), compatible con 025 y 026. Revisar ese contrato ante cada cambio de esquema. No retroceder a workers anteriores a 020, ni restaurar permisos inseguros de 017 o advertencias privadas anteriores a 024.
 
 Consulta de solo lectura para el estado:
 
@@ -36,7 +36,7 @@ No reenviar trabajos v1 fallidos ni eliminar pendientes para que los conteos que
 
 ## Instalación nueva y migraciones posteriores
 
-- Instalación vacía: aplicar **todas las migraciones completas en orden (actualmente 001–025)**, con Auth y publicación supabase_realtime preparados por Supabase. No usar un PostgreSQL común sin esquemas/extensiones como si fuera Supabase. El ensayo CI verifica el stack real con datos sintéticos.
+- Instalación vacía: aplicar **todas las migraciones completas en orden (actualmente 001–026)**, con Auth y publicación supabase_realtime preparados por Supabase. No usar un PostgreSQL común sin esquemas/extensiones como si fuera Supabase. El ensayo CI verifica el stack real con datos sintéticos.
 - Instalación existente: comparar el historial real con los archivos y sus hashes; aplicar únicamente las migraciones nuevas aprobadas, sin reescribir las ya aplicadas. Si hay deriva, parar y revisarla.
 - Preparar primero la expansión compatible del esquema; validar permisos, índices y dependencias antes de publicar el consumidor. Cualquier cambio destructivo requiere otro plan, no un down automático.
 - Antes de usar CLI remoto, verificar el contenido de supabase/.temp/project-ref coincide exactamente con ystyatotldslfmucvgsq. link solo cuando corresponda y nunca en el workdir local. Mantener SSL y restricciones de red; no abrir 0.0.0.0/0 ni resetear contraseña por un problema de conexión.
@@ -86,3 +86,11 @@ El ensayo automatizado usa el mismo esquema durante candidato y rollback. Sirve 
 - [Gestión de entornos](https://supabase.com/docs/guides/deployment/managing-environments).
 
 La evidencia de esta implementación se guarda en [VALIDACION_INF_10.md](../planes/VALIDACION_INF_10.md). No instalar WSL, cambiar BIOS ni contratar un staging para resolver el ensayo; en una PC sin motor Docker funcional, usar el runner Linux aislado del CI gratuito del repositorio público.
+
+## Mensajes en revisión manual (026)
+
+Un mensaje que agota los reintentos conserva payload y aviso durable en waiting/manual_review. No se reintenta automáticamente ni bloquea nuevos mensajes. El aviso pide concepto y monto en texto y explica que el resto de la lista sigue disponible. Las pausas stale/capacity y las desconocidas conservan su bloqueo.
+
+026 reemplaza dos funciones sin alterar filas, propietarios ni permisos. Al aplicarla, el cron normal podrá procesar pendientes v2 antes bloqueados, en su orden original; puede emitir respuestas a sus remitentes. No reproducir mensajes en revisión ni registros v1. Los movimientos siguen requiriendo confirmación del resumen. No es necesario desplegar otra versión de Edge para este cambio SQL. Un rollback del código conserva 026; no restaurar las funciones con el bloqueo anterior.
+
+Si Meta rechaza el envío o WhatsApp no entrega el mensaje, la aplicación no puede garantizar que el cliente vea el aviso. reply_sent_at acredita el cierre del intento de envío, no la lectura por el cliente. El seguimiento de entregas/alertas requiere trabajo adicional.
