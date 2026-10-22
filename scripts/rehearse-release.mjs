@@ -141,7 +141,7 @@ try {
     evidence.migrationCount = expected.length;
     evidence.tools.postgres = await sql('show server_version;');
     assert.equal(await sql('select not enabled from public.whatsapp_queue_control;'), 't');
-    assert.equal(await sql("select count(*) from cron.job where jobname='pesito-whatsapp-queue-recovery';"), '0');
+    assert.equal(await sql("select count(*) from cron.job where jobname in ('pesito-whatsapp-queue-recovery','pesito-whatsapp-observability','pesito-whatsapp-retention');"), '0');
   });
   const status = JSON.parse(await cli(['status', '-o', 'json']));
   const api = localUrl(status.API_URL);

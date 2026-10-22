@@ -1,8 +1,13 @@
+import {
+  createOperationalMetrics,
+  deliverOperationalNotice,
+} from "./operations.ts";
 import { handleAdminSend } from "./admin-send.ts";
 import { LIMITS, processActorsLimited, timeoutSignal } from "./limits.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.114.0";
 import {
   formatDraftList,
+  isVerifiedOperationalTestSender,
   json,
   sendWhatsAppText,
   validSignature,
@@ -54,25 +59,32 @@ async function routeRequest(request: Request): Promise<Response> {
   }
   const run = async (actors: string[]) => {
     const stopStartingSignal = timeoutSignal(LIMITS.workerWindowMs);
-    const results = await processActorsLimited(
-      [...new Set(actors)],
-      (waId) =>
-        runActor(waId, {
-          rpc,
-          stopStartingSignal,
-          prepare: (job, checkpoint, signal) =>
-            prepareMessage(db, job, checkpoint, signal),
-          send: sendWhatsAppText,
-          format: (draft) =>
-            formatDraftList((draft.items ?? []) as DraftListItem[]),
-          now: Date.now,
-          sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-          token: () => crypto.randomUUID(),
-          metric: writeOperationalLog,
-        }),
-    );
-    if (results.failed) {
-      writeOperationalLog("worker_interrupted", { workers: results.failed });
+    const telemetry = createOperationalMetrics();
+    try {
+      const results = await processActorsLimited(
+        [...new Set(actors)],
+        (waId) =>
+          runActor(waId, {
+            rpc,
+            stopStartingSignal,
+            prepare: (job, checkpoint, signal) =>
+              prepareMessage(db, job, checkpoint, signal),
+            send: sendWhatsAppText,
+            format: (draft) =>
+              formatDraftList((draft.items ?? []) as DraftListItem[]),
+            now: Date.now,
+            sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+            token: () => crypto.randomUUID(),
+            metric: telemetry.metric,
+          }),
+      );
+      if (results.failed) {
+        writeOperationalLog("worker_interrupted", { workers: results.failed });
+      }
+    } finally {
+      await telemetry.flush((name, args) =>
+        rpc(name, args, timeoutSignal(2000))
+      );
     }
   };
   if (url.searchParams.get("action") === "worker") {
@@ -82,7 +94,17 @@ async function routeRequest(request: Request): Promise<Response> {
     }
     try {
       const actors = await rpc<string[]>("due_whatsapp_actors");
-      EdgeRuntime.waitUntil(run(actors));
+      EdgeRuntime.waitUntil((async () => {
+        try {
+          await run(actors);
+        } finally {
+          await deliverOperationalNotice(
+            rpc,
+            sendWhatsAppText,
+            isVerifiedOperationalTestSender,
+          );
+        }
+      })());
       return json({ accepted: true });
     } catch {
       return json({ error: "Cola no disponible." }, 503);

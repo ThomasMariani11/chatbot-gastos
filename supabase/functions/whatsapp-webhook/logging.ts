@@ -8,7 +8,8 @@ export type QueueMetricEvent =
   | "queue_interpret"
   | "queue_send"
   | "queue_message"
-  | "queue_retry";
+  | "queue_retry"
+  | "queue_clarification";
 export type FailureStage =
   | "interpret"
   | "checkpoint"
@@ -20,6 +21,7 @@ export type QueueMetricData = Partial<FailureMetadata> & {
   operations?: number;
   attempts?: number;
   stage?: FailureStage;
+  source_kind?: "text" | "audio" | "image";
 };
 type Event =
   | QueueMetricEvent
@@ -28,7 +30,8 @@ type Event =
   | "worker_interrupted"
   | "local_rule"
   | "ai_attempt"
-  | "interpretation_fallback";
+  | "interpretation_fallback"
+  | "ops_error";
 type Validator = (value: unknown) => boolean;
 const numeric = (maximum: number, integer = false): Validator => (value) =>
   typeof value === "number" && Number.isFinite(value) && value >= 0 &&
@@ -82,12 +85,19 @@ const schemas: Record<Event, Record<string, Validator>> = {
     requests_remaining: numeric(1000000, true),
   },
 
+  ops_error: {
+    ...failureSchema,
+    stage: oneOf("metrics", "notification", "monitor"),
+    dropped: numeric(1000000, true),
+  },
+  queue_clarification: { source_kind: oneOf("text", "audio", "image") },
   queue_worker: { duration_ms: duration },
   queue_wait: { duration_ms: duration },
   queue_interpret: { duration_ms: duration, operations: numeric(20, true) },
   queue_send: { duration_ms: duration },
   queue_message: { duration_ms: duration, attempts },
   queue_retry: {
+    duration_ms: duration,
     ...failureSchema,
     attempts,
     stage: oneOf("interpret", "checkpoint", "apply", "send", "finish"),

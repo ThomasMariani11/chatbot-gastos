@@ -1,3 +1,4 @@
+import { BotOperations } from './BotOperations';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabase';
 import { clientSubscriptionMetrics } from './subscription';
@@ -559,6 +560,8 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
           </div>
         </div>
       </section>
+
+      <BotOperations key={userId} />
 
       {/* CORTE GENERAL DEL BOT (EXCLUSIVO ADMIN) */}
       <section

@@ -2,6 +2,7 @@
 import {
   downloadWhatsAppMedia,
   formatDraftList,
+  isVerifiedOperationalTestSender,
   resetGroqBudgetForTests,
   sendWhatsAppText,
 } from "./helpers.ts";
@@ -1548,5 +1549,61 @@ Deno.test("audio: importes exactos y residuos ambiguos sin propuestas parciales"
     else Deno.env.set("GROQ_API_KEY", key);
     if (token === undefined) Deno.env.delete("WHATSAPP_ACCESS_TOKEN");
     else Deno.env.set("WHATSAPP_ACCESS_TOKEN", token);
+  }
+});
+
+Deno.test("avisos operativos: solo el emisor de prueba aprobado, sin red real ni POST", async () => {
+  const previousFetch = globalThis.fetch;
+  const names = ["WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID"];
+  const previous = names.map((name) => Deno.env.get(name));
+  let requests = 0;
+  try {
+    names.forEach((name) => Deno.env.set(name, "synthetic-fixture"));
+    globalThis.fetch = ((url: RequestInfo | URL, init?: RequestInit) => {
+      requests++;
+      assert(!init?.method || init.method === "GET", "No debe enviar mensajes");
+      assert(
+        String(url).includes("fields=display_phone_number"),
+        "Campo inesperado",
+      );
+      return Promise.resolve(
+        Response.json({ display_phone_number: "+1 555 000 0000" }),
+      );
+    }) as typeof fetch;
+    assert(
+      !await isVerifiedOperationalTestSender("5490000000000"),
+      "Número normal habilitado",
+    );
+    assert(requests === 0, "No debe consultar números no aprobados");
+    assert(
+      await isVerifiedOperationalTestSender("15550000000"),
+      "Número aprobado rechazado",
+    );
+    assert(
+      !await isVerifiedOperationalTestSender("15550000001"),
+      "Emisor distinto aprobado",
+    );
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        Response.json({ error: { message: "PRIVATE_ERROR" } }, { status: 401 }),
+      )) as typeof fetch;
+    let rejected = false;
+    try {
+      await isVerifiedOperationalTestSender("15550000000");
+    } catch (error) {
+      rejected = true;
+      assert(
+        !String(error).includes("PRIVATE_ERROR"),
+        "Error privado expuesto",
+      );
+    }
+    assert(rejected, "Error de verificación debe cerrar el envío");
+  } finally {
+    globalThis.fetch = previousFetch;
+    names.forEach((name, i) =>
+      previous[i] === undefined
+        ? Deno.env.delete(name)
+        : Deno.env.set(name, previous[i]!)
+    );
   }
 });

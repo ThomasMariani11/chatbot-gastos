@@ -13,7 +13,7 @@ export async function prepareLocal(source, directory) {
   await cp(join(source, 'supabase/functions'), join(target, 'supabase/functions'), { recursive: true });
   // 021/022 originales se instalan con la cola apagada. Esta migración solo existe localmente.
   await writeFile(join(target, 'supabase/migrations/99999999999999_local_only.sql'), `
-    select cron.unschedule(jobid) from cron.job where jobname='pesito-whatsapp-queue-recovery';
+    select cron.unschedule(jobid) from cron.job where jobname in ('pesito-whatsapp-queue-recovery','pesito-whatsapp-observability','pesito-whatsapp-retention');
     create or replace function public.dispatch_whatsapp_queue_recovery() returns bigint
     language plpgsql security definer set search_path=pg_catalog,public as $$
     begin raise exception 'LOCAL_EXTERNAL_DISPATCH_DISABLED'; end $$;

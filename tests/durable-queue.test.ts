@@ -98,6 +98,9 @@ beforeAll(async()=>{
   applyPropertiesBefore = (await db.query(applyPropertiesSql)).rows;
   await db.exec(await readFile(new URL('025_cancel_stale_list_preserve_messages.sql',migrationUrl),'utf8'));
   await db.exec(await readFile(new URL('026_nonblocking_manual_review.sql',migrationUrl),'utf8'));
+  await db.exec(`alter table cron.job add column jobid bigint generated always as identity, add column active boolean default true;
+    create table cron.job_run_details(jobid bigint,status text,start_time timestamptz default clock_timestamp(),end_time timestamptz);`);
+  await db.exec(await readFile(new URL('027_whatsapp_observability.sql',migrationUrl),'utf8'));
 },30000);
 beforeEach(async()=>{await db.exec('begin; update public.whatsapp_queue_control set enabled=true');});
 afterEach(async()=>{await db.exec('rollback');});
@@ -594,4 +597,94 @@ it('INF-12: la ventana compartida termina el mensaje actual y deja el siguiente 
   deps.stopStartingSignal=undefined;await runActor('synthetic-a',deps);
   expect((await db.query<{n:number}>('select count(*)::int as n from public.draft_items')).rows[0].n).toBe(2);
   expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+});
+
+
+describe('INF-14: observabilidad y retención sin contenido de clientes',()=>{
+  async function healthy(){await db.exec("insert into cron.job_run_details(jobid,status,end_time) select jobid,'succeeded',clock_timestamp() from cron.job where jobname='pesito-whatsapp-queue-recovery'");}
+  async function enableNotices(){await db.query("insert into public.whatsapp_links(user_id,wa_id,status) values($1,'synthetic-admin','active') on conflict(user_id) do update set wa_id='synthetic-admin',status='active'",[admin]);await rpc('configure_whatsapp_ops_alerts',{p_enabled:true});await db.exec("update public.whatsapp_ops_config set verified_test_sender_digits='15550000000'");await enqueue(message('ops-admin-window','synthetic-admin','resumen'));await db.exec("update public.whatsapp_message_queue set status='processed',effect_applied=true,processed_at=clock_timestamp() where wa_message_id='ops-admin-window'");}
+  it('una demora simulada genera alerta útil, sin textos ni identificadores, y se resuelve al terminar',async()=>{
+    await healthy();await enqueue(message('ops-delay'));await db.exec("update public.whatsapp_message_queue set received_at=clock_timestamp()-interval '4 minutes'");
+    await rpc('refresh_whatsapp_ops_health');const dashboard=await rpc<{alerts:Array<{code:string;affected:number}>}>('whatsapp_ops_dashboard');
+    expect(dashboard.alerts).toEqual([expect.objectContaining({code:'queue_delay',affected:1})]);
+    expect(JSON.stringify(dashboard)).not.toContain('synthetic-a');expect(JSON.stringify(dashboard)).not.toContain('Gasté');expect(JSON.stringify(dashboard)).not.toContain('ops-delay');
+    await claim();const job=(await next())!;await apply(job,{kind:'reply',text:'Procesado'});await finish(job);await rpc('refresh_whatsapp_ops_health');
+    expect((await rpc<{alerts:unknown[]}>('whatsapp_ops_dashboard')).alerts).toEqual([]);
+  });
+  it('revisión manual alerta sin bloquear; las pausas intencionales y v1 no son una demora operativa',async()=>{
+    await healthy();await enqueue(message('held'));await db.exec("update public.whatsapp_message_queue set status='waiting',pause_reason='manual_review',received_at=clock_timestamp()-interval '5 days'");
+    await rpc('refresh_whatsapp_ops_health');expect((await rpc<{alerts:Array<{code:string}>}>('whatsapp_ops_dashboard')).alerts.map(a=>a.code)).toEqual(['manual_review']);
+    await db.exec("update public.whatsapp_message_queue set pause_reason='stale'");await enqueue(message('held-behind'));await db.exec("update public.whatsapp_message_queue set received_at=clock_timestamp()-interval '5 days'");
+    await rpc('refresh_whatsapp_ops_health');expect((await rpc<{alerts:unknown[]}>('whatsapp_ops_dashboard')).alerts).toEqual([]);
+  });
+  it('conserva avisos, limita frecuencia y no repite el mismo incidente',async()=>{
+    await healthy();await enableNotices();await enqueue(message('delay'));await db.exec("update public.whatsapp_message_queue set received_at=clock_timestamp()-interval '4 minutes'");
+    await rpc('refresh_whatsapp_ops_health');await rpc('refresh_whatsapp_ops_health');expect((await db.query('select count(*)::int as n from public.whatsapp_ops_notifications')).rows).toEqual([{n:1}]);
+    const notice=await rpc<{id:string;to:string}>('claim_whatsapp_ops_notice',{p_token:t1});expect(notice.to).toBe('synthetic-admin');expect(await rpc('claim_whatsapp_ops_notice',{p_token:t2})).toBeNull();
+    await rpc('finish_whatsapp_ops_notice',{p_id:notice.id,p_token:t1,p_outcome:'sent'});await db.exec("update public.whatsapp_ops_config set last_notice_created_at=clock_timestamp()-interval '1 hour'");await rpc('refresh_whatsapp_ops_health');
+    expect((await db.query('select count(*)::int as n from public.whatsapp_ops_notifications')).rows).toEqual([{n:1}]);
+  });
+  it('un envío interrumpido queda incierto y no vuelve a reclamarse',async()=>{
+    await healthy();await enableNotices();await enqueue(message('delay'));await db.exec("update public.whatsapp_message_queue set received_at=clock_timestamp()-interval '4 minutes'");await rpc('refresh_whatsapp_ops_health');
+    await rpc('claim_whatsapp_ops_notice',{p_token:t1});await db.exec("update public.whatsapp_ops_notifications set lease_until=clock_timestamp()-interval '1 second'");await rpc('refresh_whatsapp_ops_health');
+    expect((await db.query('select state from public.whatsapp_ops_notifications')).rows).toEqual([{state:'uncertain'}]);expect(await rpc('claim_whatsapp_ops_notice',{p_token:t2})).toBeNull();
+  });
+  it('fallos definitivos tienen como máximo tres intentos y reconocidos no se envían',async()=>{
+    await healthy();await enableNotices();await enqueue(message('delay'));await db.exec("update public.whatsapp_message_queue set received_at=clock_timestamp()-interval '4 minutes'");await rpc('refresh_whatsapp_ops_health');
+    for(let i=0;i<3;i++){const n=await rpc<{id:string}>('claim_whatsapp_ops_notice',{p_token:t1});await rpc('finish_whatsapp_ops_notice',{p_id:n.id,p_token:t1,p_outcome:'failed'});await db.exec('update public.whatsapp_ops_notifications set available_at=clock_timestamp()');}
+    expect((await db.query('select state,attempts from public.whatsapp_ops_notifications')).rows).toEqual([{state:'failed',attempts:3}]);expect(await rpc('claim_whatsapp_ops_notice',{p_token:t2})).toBeNull();
+    await rpc('acknowledge_whatsapp_ops_alert',{p_code:'queue_delay'});await db.exec("update public.whatsapp_ops_config set last_notice_created_at=clock_timestamp()-interval '1 hour'");await rpc('refresh_whatsapp_ops_health');expect((await db.query('select count(*)::int as n from public.whatsapp_ops_notifications')).rows).toEqual([{n:1}]);
+  });
+  it('registra solo agregados y conserva promedio/máximo/cantidad',async()=>{
+    await rpc('record_whatsapp_ops_metrics',{p_samples:[{event:'queue_interpret',duration_ms:20,operations:2,text:'PRIVATE_TEXT'},{event:'queue_interpret',duration_ms:40,operations:1}]});
+    expect((await db.query('select samples,duration_total_ms::text as total,duration_max_ms::text as maximum,operations_total from public.whatsapp_ops_metrics')).rows).toEqual([{samples:2,total:'60',maximum:'40',operations_total:3}]);
+    expect(JSON.stringify((await db.query('select to_jsonb(m) as value from public.whatsapp_ops_metrics m')).rows)).not.toContain('PRIVATE_TEXT');
+    await expect(rpc('record_whatsapp_ops_metrics',{p_samples:[{event:'private-secret'}]})).rejects.toThrow('OPS_INVALID_METRIC');
+  });
+  it('tres pedidos de texto recientes detectan degradación de interpretación',async()=>{
+    await healthy();await rpc('record_whatsapp_ops_metrics',{p_samples:Array.from({length:3},()=>({event:'queue_clarification',source_kind:'audio'}))});await rpc('refresh_whatsapp_ops_health');
+    expect((await rpc<{alerts:Array<{code:string}>}>('whatsapp_ops_dashboard')).alerts.map(a=>a.code)).toContain('interpretation_fallback');
+  });
+  it('cron detenido produce una alerta aunque la cola no tenga mensajes',async()=>{
+    await healthy();await db.exec("update cron.job set active=false where jobname='pesito-whatsapp-queue-recovery'");await rpc('refresh_whatsapp_ops_health');
+    expect((await rpc<{alerts:Array<{code:string}>}>('whatsapp_ops_dashboard')).alerts.map(a=>a.code)).toContain('recovery_failure');
+  });
+  it('el dispatch despierta para avisos aunque no existan trabajos financieros',async()=>{
+    await healthy();await enableNotices();await db.exec("update cron.job set active=false where jobname='pesito-whatsapp-queue-recovery';insert into vault.decrypted_secrets values('whatsapp_worker_secret','synthetic-secret')");await rpc('refresh_whatsapp_ops_health');
+    expect(await rpc('dispatch_whatsapp_queue_recovery')).toBe(200);
+  });
+  it('la limpieza nace desactivada y preserva pendientes, revisión, v1 y borradores abiertos',async()=>{
+    await add('open');await enqueue(message('waiting'),message('legacy'));await db.exec("update public.whatsapp_message_queue set received_at=clock_timestamp()-interval '40 days',processed_at=clock_timestamp()-interval '31 days';update public.whatsapp_message_queue set status='waiting',pause_reason='manual_review' where wa_message_id='waiting';update public.whatsapp_message_queue set queue_version=1,status='processed' where wa_message_id='legacy'");
+    const before=(await db.query('select to_jsonb(q) as value from public.whatsapp_message_queue q order by enqueue_order')).rows;
+    expect(await rpc('prune_whatsapp_ops_content')).toBe(0);await db.exec('update public.whatsapp_ops_config set retention_enabled=true');expect(await rpc('prune_whatsapp_ops_content')).toBe(0);
+    expect((await db.query('select to_jsonb(q) as value from public.whatsapp_message_queue q order by enqueue_order')).rows).toEqual(before);
+  });
+  it('redacta solo contenido antiguo terminado; conserva finanzas y deduplicación',async()=>{
+    const original=await add('finished');await show();await enqueue(message('confirm','synthetic-a','confirmar'));const confirm=(await next())!;await apply(confirm,{kind:'confirm'});await finish(confirm);
+    await db.query("update public.whatsapp_message_queue set processed_at=clock_timestamp()-interval '31 days',reply_text='PRIVATE_REPLY',parsed_result='{\"private\":\"PRIVATE_PARSED\"}' where id=$1",[original.id]);
+    const financial=(await db.query('select to_jsonb(t) as value from public.transactions t')).rows;
+    await db.exec('update public.whatsapp_ops_config set retention_enabled=true');expect(await rpc('prune_whatsapp_ops_content')).toBe(1);
+    const row=(await db.query<{payload:Record<string,unknown>;reply_text:null;parsed_result:null}>('select payload,reply_text,parsed_result from public.whatsapp_message_queue where id=$1',[original.id])).rows[0];expect(row.payload).toEqual({id:'finished',from:'synthetic-a',type:'text',redacted:true});expect(row.reply_text).toBeNull();expect(row.parsed_result).toBeNull();
+    await enqueue(message('finished'));expect((await db.query('select count(*)::int as n from public.whatsapp_message_queue')).rows).toEqual([{n:2}]);expect((await db.query('select to_jsonb(t) as value from public.transactions t')).rows).toEqual(financial);
+  });
+  it.each(['anon','authenticated'])('%s no lee tablas ni ejecuta mantenimiento o entregas',async(role)=>{
+    expect((await db.query("select has_table_privilege($1,'public.whatsapp_ops_notifications','select') as allowed",[role])).rows).toEqual([{allowed:false}]);
+    expect((await db.query("select has_function_privilege($1,'public.prune_whatsapp_ops_content()','execute') as allowed",[role])).rows).toEqual([{allowed:false}]);
+    expect((await db.query("select has_function_privilege($1,'public.claim_whatsapp_ops_notice(uuid)','execute') as allowed",[role])).rows).toEqual([{allowed:false}]);
+  });
+  it('un cliente no puede ver métricas globales, reconocer alertas ni cambiar destinatario',async()=>{
+    await db.query("select set_config('request.jwt.claim.sub',$1,true)",[a]);
+    await expect(rpc('whatsapp_ops_dashboard')).rejects.toThrow('OPS_ADMIN_REQUIRED');await expect(rpc('configure_whatsapp_ops_alerts',{p_enabled:true})).rejects.toThrow('OPS_ADMIN_REQUIRED');await expect(rpc('acknowledge_whatsapp_ops_alert',{p_code:'queue_delay'})).rejects.toThrow('OPS_ADMIN_REQUIRED');
+  });
+});
+
+
+describe('INF-14: guardas de ventana, destinatario y política de costos',()=>{
+ async function ready(){await db.exec("insert into cron.job_run_details(jobid,status,end_time) select jobid,'succeeded',clock_timestamp() from cron.job where jobname='pesito-whatsapp-queue-recovery'");await db.query("insert into public.whatsapp_links(user_id,wa_id,status) values($1,'synthetic-operator','active') on conflict(user_id) do update set wa_id='synthetic-operator',status='active'",[admin]);await rpc('configure_whatsapp_ops_alerts',{p_enabled:true});await enqueue(message('ops-delayed'));await db.exec("update public.whatsapp_message_queue set received_at=clock_timestamp()-interval '4 minutes'");}
+ async function window(){await enqueue(message('operator-message','synthetic-operator','resumen'));await db.exec("update public.whatsapp_message_queue set status='processed' where wa_message_id='operator-message'");}
+ it('sin verificar número de prueba conserva alertas del panel sin generar envíos',async()=>{await ready();await window();await rpc('refresh_whatsapp_ops_health');expect((await db.query('select count(*)::int as n from public.whatsapp_ops_notifications')).rows).toEqual([{n:0}]);expect((await rpc<{alerts:unknown[]}>('whatsapp_ops_dashboard')).alerts.length).toBe(1);});
+ it('no envía fuera de 24 horas, ni considera un payload demorado como ventana nueva',async()=>{await ready();await db.exec("update public.whatsapp_ops_config set verified_test_sender_digits='15550000000'");await enqueue({...message('old-operator','synthetic-operator','resumen'),timestamp:String(Math.floor(Date.now()/1000)-86401)});await rpc('refresh_whatsapp_ops_health');expect((await db.query('select count(*)::int as n from public.whatsapp_ops_notifications')).rows).toEqual([{n:0}]);});
+ it('cambiar la cuenta receptora nunca envía al cliente',async()=>{await ready();await window();await db.exec("update public.whatsapp_ops_config set verified_test_sender_digits='15550000000'");await rpc('refresh_whatsapp_ops_health');await db.query("update public.profiles set role='client' where id=$1",[admin]);expect(await rpc('claim_whatsapp_ops_notice',{p_token:t1})).toBeNull();expect((await db.query('select state from public.whatsapp_ops_notifications')).rows).toEqual([{state:'failed'}]);});
+ it('un incidente que cambia antes del envío entrega el resumen actual y no pierde la alerta',async()=>{await ready();await window();await db.exec("update public.whatsapp_ops_config set verified_test_sender_digits='15550000000'");await rpc('refresh_whatsapp_ops_health');await enqueue(message('second-delay'));await db.exec("update public.whatsapp_message_queue set received_at=clock_timestamp()-interval '4 minutes' where wa_message_id='second-delay'");await rpc('refresh_whatsapp_ops_health');const n=await rpc<{snapshot:Array<{affected:number}>}>('claim_whatsapp_ops_notice',{p_token:t1});expect(n.snapshot[0].affected).toBe(2);});
+ it('desactivar avisos cancela los pendientes sin tocar la cola de clientes',async()=>{await ready();await window();await db.exec("update public.whatsapp_ops_config set verified_test_sender_digits='15550000000'");await rpc('refresh_whatsapp_ops_health');await rpc('configure_whatsapp_ops_alerts',{p_enabled:false});expect((await db.query('select state from public.whatsapp_ops_notifications')).rows).toEqual([{state:'cancelled'}]);expect((await db.query("select status from public.whatsapp_message_queue where wa_message_id='ops-delayed'")).rows).toEqual([{status:'pending'}]);});
 });
