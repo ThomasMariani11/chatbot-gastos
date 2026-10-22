@@ -163,7 +163,7 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     await apply(editJob,action);await apply(editJob,action);await finish(editJob);
     const after=(await db.query('select id,position,description,amount::text as amount,kind,currency from public.draft_items order by position')).rows;
     expect(after).toEqual(before.map((row,index)=>index===1?{...row,amount:'250.00'}:row));
-    expect((await db.query('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
     await enqueue(message('nonexistent','synthetic-a','el 99 fue de 500'));
     const absent=(await next())!;const outcome=await apply(absent,parseDraftCorrection('el 99 fue de 500')!);await finish(absent);
     expect(outcome.reply_text).toContain('No encontré');
@@ -180,13 +180,13 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     const first=(await next())!; await apply(first,{kind:'add',items:[movement()]}); await finish(first);
     const confirm=(await next())!; const result=await apply(confirm,{kind:'confirm'}); await finish(confirm);
     expect(result.reply_text).toContain('nuevamente');
-    expect((await db.query('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
   });
   it('confirma solo el resumen enviado y no duplica al reintentar la confirmación',async()=>{
     await add('one',[movement(),{...movement('Ingreso USD',80),kind:'income',currency:'USD'}]); await show();
     await enqueue(message('confirm','synthetic-a','confirmar')); const confirm=(await next())!;
     await apply(confirm,{kind:'confirm'}); await apply(confirm,{kind:'confirm'}); await finish(confirm);
-    expect((await db.query('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:2});
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:2});
   });
   it('no publica resumen antes del silencio ni mientras queda interpretación pendiente',async()=>{
     await add('one');
@@ -198,7 +198,7 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     await add('one'); await show();
     await enqueue({...message('late','synthetic-a','confirmar'),timestamp:'1'});
     const job=(await next())!; expect((await apply(job,{kind:'confirm'})).reply_text).toContain('nuevamente');
-    expect((await db.query('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
   });
   it('retiene el mensaje nuevo hasta resolver una lista antigua y después lo recupera',async()=>{
     await add('one'); await db.exec("update public.draft_groups set last_activity_at=clock_timestamp()-interval '25 hours'");
@@ -294,7 +294,7 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     const text=(await next())!; expect(text.payload.id).toBe('new-text');
     await apply(text,{kind:'reply',text:'Procesado'}); await finish(text);
     expect((await db.query("select status,pause_reason from public.whatsapp_message_queue where wa_message_id='broken'")).rows[0]).toEqual({status:'waiting',pause_reason:'manual_review'});
-    expect((await db.query('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
   });
   it('el aviso agotado explica que no cargó el mensaje, pide texto y permite continuar',async()=>{
     await enqueue(message('broken')); await claim(); await db.exec('update public.whatsapp_message_queue set attempts=5');
@@ -333,7 +333,7 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     expect((await db.query('select to_jsonb(q) as row from public.whatsapp_message_queue q order by enqueue_order')).rows).toEqual(rows);
     expect((await db.query(aclSql)).rows).toEqual(acl);
     expect((await db.query("select has_function_privilege('anon','public.next_whatsapp_job(text,uuid)','execute') as allowed")).rows[0]).toEqual({allowed:false});
-    expect((await db.query('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
   });
   it('las operaciones de otro cliente quedan aisladas',async()=>{
     await add('a'); await enqueue(message('b','synthetic-b')); await claim('synthetic-b',t2);
