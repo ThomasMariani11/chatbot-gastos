@@ -1,3 +1,4 @@
+import { handleAdminSend } from "./admin-send.ts";
 import { LIMITS, processActorsLimited, timeoutSignal } from "./limits.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.114.0";
 import {
@@ -87,18 +88,12 @@ async function routeRequest(request: Request): Promise<Response> {
       return json({ error: "Cola no disponible." }, 503);
     }
   }
-  // Diagnóstico existente; comparación exacta, sin devolver teléfono ni errores del proveedor.
   if (url.searchParams.get("action") === "test-send") {
-    if (request.headers.get("authorization") !== `Bearer ${serviceKey}`) {
-      return json({ error: "No autorizado." }, 401);
-    }
-    try {
-      const data = await request.json();
-      await sendWhatsAppText(data.to, data.body || "Prueba de Pesito");
-      return json({ ok: true });
-    } catch {
-      return json({ error: "Envío no disponible." }, 502);
-    }
+    return handleAdminSend(request, {
+      legacyServiceKey: serviceKey,
+      secretKeysJson: Deno.env.get("SUPABASE_SECRET_KEYS"),
+      send: sendWhatsAppText,
+    });
   }
   const raw = await request.text();
   if (!await validSignature(raw, request.headers.get("x-hub-signature-256"))) {

@@ -94,3 +94,13 @@ Un mensaje que agota los reintentos conserva payload y aviso durable en waiting/
 026 reemplaza dos funciones sin alterar filas, propietarios ni permisos. Al aplicarla, el cron normal podrá procesar pendientes v2 antes bloqueados, en su orden original; puede emitir respuestas a sus remitentes. No reproducir mensajes en revisión ni registros v1. Los movimientos siguen requiriendo confirmación del resumen. No es necesario desplegar otra versión de Edge para este cambio SQL. Un rollback del código conserva 026; no restaurar las funciones con el bloqueo anterior.
 
 Si Meta rechaza el envío o WhatsApp no entrega el mensaje, la aplicación no puede garantizar que el cliente vea el aviso. reply_sent_at acredita el cierre del intento de envío, no la lectura por el cliente. El seguimiento de entregas/alertas requiere trabajo adicional.
+
+## Autenticación del envío administrativo
+
+La ruta POST ?action=test-send acepta la clave secreta **default** vigente del proyecto en el header **apikey** y la compara con SUPABASE_SECRET_KEYS, un objeto JSON que provee el runtime. Es el contrato de servicio a servicio descrito por [Supabase](https://supabase.com/docs/guides/functions/auth#service-to-service-calls). No combinar credenciales: basta ese header; no usar claves públicas, JWT de clientes ni decodificar un role sin verificar.
+
+Si se incluye apikey, una clave incorrecta o una configuración inválida produce 401, sin fallback a otro mecanismo. Sin ese header se conserva la comparación exacta anterior de Authorization: Bearer con SUPABASE_SERVICE_ROLE_KEY, por compatibilidad. La recepción Meta conserva HMAC y la recuperación conserva su propio secreto; no conceden permiso de envío administrativo.
+
+El aviso requiere destino numérico de 8–16 dígitos y texto explícito no vacío de hasta 4096 unidades UTF-16. Cuerpo inválido: 400 sin enviar. Fallo del adaptador: 502 sin éxito ni reintento automático de la ruta. Una petición aceptada llama una vez al adaptador existente; esto no incorpora idempotencia entre solicitudes HTTP diferentes. Ante timeout o resultado ambiguo, no reenviar sin verificar; 200 indica aceptación del proveedor, no entrega/lectura en el teléfono.
+
+Las pruebas utilizan claves ficticias y transporte interceptado con red denegada. No registrar valores de claves, teléfonos, textos ni respuestas crudas del proveedor. El propietario suspendió el uso operativo de las credenciales reales: preparar/publicar código no autoriza recuperarlas ni probar un envío real; requiere una nueva autorización específica.

@@ -345,3 +345,79 @@ Deno.test("RPC real del endpoint: timeout llega al transporte y devuelve error s
     });
   }
 });
+
+Deno.test("envío administrativo real: apikey default válida, sin red ni credenciales reales", async () => {
+  const originalServe = Deno.serve, originalFetch = globalThis.fetch;
+  const names = [
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_SECRET_KEYS",
+    "WHATSAPP_ACCESS_TOKEN",
+    "WHATSAPP_PHONE_NUMBER_ID",
+  ] as const;
+  const previous = names.map((name) => Deno.env.get(name));
+  const apiKey = "sb_secret_synthetic_default_1234567890";
+  try {
+    Deno.env.set("SUPABASE_URL", "https://example.invalid");
+    Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "synthetic-legacy");
+    Deno.env.set("SUPABASE_SECRET_KEYS", JSON.stringify({ default: apiKey }));
+    Deno.env.set("WHATSAPP_ACCESS_TOKEN", "synthetic-meta-token");
+    Deno.env.set("WHATSAPP_PHONE_NUMBER_ID", "synthetic-phone-id");
+    Deno.serve = (() => ({})) as unknown as typeof Deno.serve;
+    const { handleRequest } = await import("./index.ts");
+    let sends = 0;
+    globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      assert(
+        String(input).endsWith("/synthetic-phone-id/messages"),
+        "Llamada externa inesperada",
+      );
+      const data = JSON.parse(String(init?.body));
+      assert(
+        data.to === "5491111111111" && data.text.body === "Aviso sintético",
+        "Aviso alterado",
+      );
+      sends++;
+      return Promise.resolve(
+        Response.json({ messages: [{ id: "synthetic-message" }] }),
+      );
+    }) as typeof fetch;
+    const url = "https://example.invalid?action=test-send";
+    const body = JSON.stringify({
+      to: "5491111111111",
+      body: "Aviso sintético",
+    });
+    for (
+      const key of [undefined, "sb_publishable_publica", "sb_secret_incorrecta"]
+    ) {
+      const response = await handleRequest(
+        new Request(url, {
+          method: "POST",
+          headers: key ? { apikey: key } : {},
+          body,
+        }),
+      );
+      assert(
+        response.status === 401 && sends === 0,
+        "Envió sin autenticación backend válida",
+      );
+    }
+    const sent = await handleRequest(
+      new Request(url, { method: "POST", headers: { apikey: apiKey }, body }),
+    );
+    assert(
+      sent.status === 200 && sends === 1,
+      "No realizó exactamente un envío",
+    );
+    assert(
+      JSON.stringify(await sent.json()) === JSON.stringify({ ok: true }),
+      "Respuesta de éxito inválida",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    Deno.serve = originalServe;
+    names.forEach((name, index) => {
+      if (previous[index] === undefined) Deno.env.delete(name);
+      else Deno.env.set(name, previous[index]!);
+    });
+  }
+});
