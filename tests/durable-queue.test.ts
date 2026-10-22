@@ -97,6 +97,7 @@ beforeAll(async()=>{
   await db.exec(await readFile(new URL('023_idempotent_whatsapp_delivery.sql',migrationUrl),'utf8'));
   applyPropertiesBefore = (await db.query(applyPropertiesSql)).rows;
   await db.exec(await readFile(new URL('025_cancel_stale_list_preserve_messages.sql',migrationUrl),'utf8'));
+  await db.exec(await readFile(new URL('026_nonblocking_manual_review.sql',migrationUrl),'utf8'));
 },30000);
 beforeEach(async()=>{await db.exec('begin; update public.whatsapp_queue_control set enabled=true');});
 afterEach(async()=>{await db.exec('rollback');});
@@ -162,7 +163,7 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     await apply(editJob,action);await apply(editJob,action);await finish(editJob);
     const after=(await db.query('select id,position,description,amount::text as amount,kind,currency from public.draft_items order by position')).rows;
     expect(after).toEqual(before.map((row,index)=>index===1?{...row,amount:'250.00'}:row));
-    expect((await db.query('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
     await enqueue(message('nonexistent','synthetic-a','el 99 fue de 500'));
     const absent=(await next())!;const outcome=await apply(absent,parseDraftCorrection('el 99 fue de 500')!);await finish(absent);
     expect(outcome.reply_text).toContain('No encontré');
@@ -179,13 +180,13 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     const first=(await next())!; await apply(first,{kind:'add',items:[movement()]}); await finish(first);
     const confirm=(await next())!; const result=await apply(confirm,{kind:'confirm'}); await finish(confirm);
     expect(result.reply_text).toContain('nuevamente');
-    expect((await db.query('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
   });
   it('confirma solo el resumen enviado y no duplica al reintentar la confirmación',async()=>{
     await add('one',[movement(),{...movement('Ingreso USD',80),kind:'income',currency:'USD'}]); await show();
     await enqueue(message('confirm','synthetic-a','confirmar')); const confirm=(await next())!;
     await apply(confirm,{kind:'confirm'}); await apply(confirm,{kind:'confirm'}); await finish(confirm);
-    expect((await db.query('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:2});
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:2});
   });
   it('no publica resumen antes del silencio ni mientras queda interpretación pendiente',async()=>{
     await add('one');
@@ -197,7 +198,7 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     await add('one'); await show();
     await enqueue({...message('late','synthetic-a','confirmar'),timestamp:'1'});
     const job=(await next())!; expect((await apply(job,{kind:'confirm'})).reply_text).toContain('nuevamente');
-    expect((await db.query('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
   });
   it('retiene el mensaje nuevo hasta resolver una lista antigua y después lo recupera',async()=>{
     await add('one'); await db.exec("update public.draft_groups set last_activity_at=clock_timestamp()-interval '25 hours'");
@@ -280,6 +281,59 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     await db.exec('update public.whatsapp_message_queue set attempts=5');
     const job=(await next())!; expect(job.effect_applied).toBe(true); expect(job.reply_text).toContain('conservado'); await finish(job);
     expect((await db.query('select status,pause_reason from public.whatsapp_message_queue')).rows[0]).toEqual({status:'waiting',pause_reason:'manual_review'});
+  });
+  it('un audio en revisión no bloquea audios ni textos nuevos ni la recuperación',async()=>{
+    await enqueue({...message('broken'),type:'audio',text:undefined,audio:{id:'synthetic-media'}}); await claim();
+    await db.exec('update public.whatsapp_message_queue set attempts=5');
+    const broken=(await next())!; await finish(broken);
+    await enqueue({...message('next-audio'),type:'audio',text:undefined,audio:{id:'synthetic-next'}},message('new-text'));
+    await rpc('release_whatsapp_actor',{p_wa_id:'synthetic-a',p_token:t1});
+    expect(await rpc('due_whatsapp_actors')).toContain('synthetic-a');
+    await claim(); const audio=(await next())!; expect(audio.payload.id).toBe('next-audio');
+    await apply(audio,{kind:'reply',text:'No interpretado; pasalo en texto'}); await finish(audio);
+    const text=(await next())!; expect(text.payload.id).toBe('new-text');
+    await apply(text,{kind:'reply',text:'Procesado'}); await finish(text);
+    expect((await db.query("select status,pause_reason from public.whatsapp_message_queue where wa_message_id='broken'")).rows[0]).toEqual({status:'waiting',pause_reason:'manual_review'});
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+  });
+  it('el aviso agotado explica que no cargó el mensaje, pide texto y permite continuar',async()=>{
+    await enqueue(message('broken')); await claim(); await db.exec('update public.whatsapp_message_queue set attempts=5');
+    const job=(await next())!;
+    expect(job.reply_text).toContain('no lo cargué');
+    expect(job.reply_text).toContain('texto');
+    expect(job.reply_text).toContain('concepto y el monto');
+    expect(job.reply_text).toContain('Podés seguir');
+    await finish(job);
+  });
+  it('confirma solo movimientos revisados sin incluir ni reintentar el mensaje aislado',async()=>{
+    await enqueue(message('broken')); await claim(); await db.exec('update public.whatsapp_message_queue set attempts=5');
+    const broken=(await next())!; await finish(broken);
+    await add('valid',[movement('Completo',250)]); await show();
+    await enqueue(message('confirm','synthetic-a','confirmar')); const confirmation=(await next())!;
+    await apply(confirmation,{kind:'confirm'}); await finish(confirmation);
+    expect((await db.query('select amount_ars::text as amount,status from public.transactions')).rows).toEqual([{amount:'250.00',status:'confirmed'}]);
+    expect((await db.query("select status,attempts from public.whatsapp_message_queue where wa_message_id='broken'")).rows).toEqual([{status:'waiting',attempts:6}]);
+  });
+  it.each(['stale','capacity',null,'unknown'])('conserva la pausa %s y permite un comando para resolverla',async(reason)=>{
+    await enqueue(message('held')); await db.query("update public.whatsapp_message_queue set status='waiting',pause_reason=$1,effect_applied=true",[reason]);
+    await enqueue(message('ordinary'));
+    expect(await rpc('due_whatsapp_actors')).not.toContain('synthetic-a');
+    await claim(); expect(await next()).toBeNull();
+    await enqueue(message('cancel','synthetic-a','cancelar'));
+    expect((await next())?.payload.id).toBe('cancel');
+  });
+  it('reaplicar la migración conserva mensajes, movimientos y permisos internos',async()=>{
+    await enqueue(message('broken')); await claim(); await db.exec('update public.whatsapp_message_queue set attempts=5');
+    const broken=(await next())!; await finish(broken); await enqueue(message('pending'));
+    const rows=(await db.query('select to_jsonb(q) as row from public.whatsapp_message_queue q order by enqueue_order')).rows;
+    const aclSql="select proname,proowner,proacl::text,prosecdef,proconfig from pg_proc where oid in('public.next_whatsapp_job(text,uuid)'::regprocedure,'public.due_whatsapp_actors()'::regprocedure) order by proname";
+    const acl=(await db.query(aclSql)).rows;
+    // Quitar solo los controles transaccionales del archivo al estar dentro de la transacción del test.
+    await db.exec((await readFile(new URL('026_nonblocking_manual_review.sql',migrationUrl),'utf8')).replace(/^begin;|^commit;/gm,''));
+    expect((await db.query('select to_jsonb(q) as row from public.whatsapp_message_queue q order by enqueue_order')).rows).toEqual(rows);
+    expect((await db.query(aclSql)).rows).toEqual(acl);
+    expect((await db.query("select has_function_privilege('anon','public.next_whatsapp_job(text,uuid)','execute') as allowed")).rows[0]).toEqual({allowed:false});
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
   });
   it('las operaciones de otro cliente quedan aisladas',async()=>{
     await add('a'); await enqueue(message('b','synthetic-b')); await claim('synthetic-b',t2);
