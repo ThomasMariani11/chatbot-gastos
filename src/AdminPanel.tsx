@@ -1,5 +1,5 @@
 import { BotOperations } from './BotOperations';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import { clientSubscriptionMetrics } from './subscription';
 import { useSwipeBack } from './useSwipeBack';
@@ -46,12 +46,13 @@ function generateRandomCode(): string {
 }
 
 function formatDate(dateStr: string | null): string {
-  if (!dateStr) return 'Sin vencimiento (Vitalicio)';
+  if (!dateStr) return 'Sin vencimiento';
   const date = new Date(dateStr);
   return new Intl.DateTimeFormat('es-AR', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    timeZone: 'America/Argentina/Buenos_Aires',
   }).format(date);
 }
 
@@ -70,8 +71,9 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Tabs y Filtros
-  const [activeTab, setActiveTab] = useState<'clients' | 'codes'>('clients');
+  const [activeTab, setActiveTab] = useState<'clients' | 'codes' | 'bot' | 'settings'>('clients');
   const [clientSearch, setClientSearch] = useState('');
+  const [showCodeForm, setShowCodeForm] = useState(false);
   const [codeFilter, setCodeFilter] = useState<'all' | 'available' | 'used'>('all');
 
   // Formulario Generador
@@ -111,18 +113,63 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   // Gesto táctil swipe back para volver deslizando la pantalla
   const { dragOffset, isSwiping } = useSwipeBack({ onBack, enabled: !extendingClient && !suspendingClient });
 
+  const modalRef = useRef<HTMLDivElement>(null);
+  const modalOpen = Boolean(extendingClient || suspendingClient);
+  const modalBusy = isSubmittingExtend || isSubmittingSuspend;
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    const modal = modalRef.current;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    modal?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !modalBusy) {
+        setExtendingClient(null);
+        setSuspendingClient(null);
+      }
+      if (event.key !== 'Tab' || !modal) return;
+      const controls = Array.from(
+        modal.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]',
+        ),
+      ).filter((el) => el.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!first) {
+        event.preventDefault();
+        return;
+      }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === modal)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === modal)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKey);
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, [modalOpen, modalBusy]);
+
   async function loadData() {
     setLoading(true);
     setErrorMsg(null);
 
-    const [profilesRes, codesRes, botPhoneRes, botActiveRes, supportPhoneRes, paymentAliasRes] = await Promise.all([
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-      supabase.from('invitation_codes').select('*').order('created_at', { ascending: false }),
-      supabase.from('system_config').select('value').eq('key', 'whatsapp_bot_phone').maybeSingle(),
-      supabase.from('system_config').select('value').eq('key', 'bot_active').maybeSingle(),
-      supabase.from('system_config').select('value').eq('key', 'support_phone').maybeSingle(),
-      supabase.from('system_config').select('value').eq('key', 'payment_alias').maybeSingle(),
-    ]);
+    const [profilesRes, codesRes, botPhoneRes, botActiveRes, supportPhoneRes, paymentAliasRes] =
+      await Promise.all([
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase.from('invitation_codes').select('*').order('created_at', { ascending: false }),
+        supabase.from('system_config').select('value').eq('key', 'whatsapp_bot_phone').maybeSingle(),
+        supabase.from('system_config').select('value').eq('key', 'bot_active').maybeSingle(),
+        supabase.from('system_config').select('value').eq('key', 'support_phone').maybeSingle(),
+        supabase.from('system_config').select('value').eq('key', 'payment_alias').maybeSingle(),
+      ]);
 
     if (profilesRes.error) {
       setErrorMsg('No se pudieron cargar los perfiles: ' + profilesRes.error.message);
@@ -131,7 +178,9 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     }
 
     if (codesRes.error) {
-      setErrorMsg((prev) => (prev ? prev + ' | ' : '') + 'No se pudieron cargar los códigos: ' + codesRes.error.message);
+      setErrorMsg(
+        (prev) => (prev ? prev + ' | ' : '') + 'No se pudieron cargar los códigos: ' + codesRes.error.message,
+      );
     } else {
       setCodes((codesRes.data ?? []) as InvitationCode[]);
     }
@@ -159,13 +208,11 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     setTogglingBot(true);
     setBotStatusFeedback(null);
     const nextActive = !botActive;
-    const { error } = await supabase
-      .from('system_config')
-      .upsert({
-        key: 'bot_active',
-        value: String(nextActive),
-        updated_at: new Date().toISOString(),
-      });
+    const { error } = await supabase.from('system_config').upsert({
+      key: 'bot_active',
+      value: String(nextActive),
+      updated_at: new Date().toISOString(),
+    });
 
     if (error) {
       setErrorMsg('No se pudo cambiar el estado del bot: ' + error.message);
@@ -174,7 +221,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
       setBotStatusFeedback(
         nextActive
           ? '🟢 Bot reanudado: todos los clientes pueden enviar gastos.'
-          : '🛑 Corte activado: el bot está pausado para los clientes.'
+          : '🛑 Corte activado: el bot está pausado para los clientes.',
       );
       setTimeout(() => setBotStatusFeedback(null), 4000);
     }
@@ -260,13 +307,14 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
     setSavingBotPhone(true);
     setBotPhoneSuccess(null);
     const cleanNumber = botPhone.trim().replace(/[^\d+]/g, '');
-    const { error } = await supabase
-      .from('system_config')
-      .upsert({
+    const { error } = await supabase.from('system_config').upsert(
+      {
         key: 'whatsapp_bot_phone',
         value: cleanNumber,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'key' });
+      },
+      { onConflict: 'key' },
+    );
 
     setSavingBotPhone(false);
     if (error) {
@@ -287,21 +335,29 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
     const cleanAlias = paymentAlias.trim();
 
     const [res1, res2] = await Promise.all([
-      supabase.from('system_config').upsert({
-        key: 'support_phone',
-        value: cleanSupportNumber,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'key' }),
-      supabase.from('system_config').upsert({
-        key: 'payment_alias',
-        value: cleanAlias,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'key' }),
+      supabase.from('system_config').upsert(
+        {
+          key: 'support_phone',
+          value: cleanSupportNumber,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'key' },
+      ),
+      supabase.from('system_config').upsert(
+        {
+          key: 'payment_alias',
+          value: cleanAlias,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'key' },
+      ),
     ]);
 
     setSavingSupportConfig(false);
     if (res1.error || res2.error) {
-      window.alert('Error al guardar la configuración de soporte: ' + (res1.error?.message || res2.error?.message));
+      window.alert(
+        'Error al guardar la configuración de soporte: ' + (res1.error?.message || res2.error?.message),
+      );
     } else {
       setSupportPhone(cleanSupportNumber);
       setPaymentAlias(cleanAlias);
@@ -386,9 +442,10 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
     if (error) {
       setActionToast({ type: 'error', message: 'No se pudo actualizar la suscripción: ' + error.message });
     } else {
-      const msg = selectedDaysOption === 'lifetime'
-        ? `🌟 Plan cambiado a Vitalicio para ${extendingClient.email}.`
-        : `✅ Se sumaron ${daysAdded} días de servicio a ${extendingClient.email}.`;
+      const msg =
+        selectedDaysOption === 'lifetime'
+          ? `🌟 Plan cambiado a Vitalicio para ${extendingClient.email}.`
+          : `✅ Se sumaron ${daysAdded} días de servicio a ${extendingClient.email}.`;
       setActionToast({ type: 'success', message: msg });
       setExtendingClient(null);
       void loadData();
@@ -469,12 +526,12 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
 
   return (
     <main
-      className="admin-page"
+      className="admin-page admin-workspace"
       style={
         dragOffset > 0
           ? {
               transform: `translateX(${dragOffset}px)`,
-              transition: isSwiping ? 'none' : 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+              transition: isSwiping ? 'none' : 'transform 0.18s ease',
               willChange: 'transform',
             }
           : undefined
@@ -483,13 +540,12 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
       <header className="admin-header">
         <div>
           <button className="back-link button-link" type="button" onClick={onBack}>
-            ← Volver a mi Dashboard
+            ← Mi cuenta
           </button>
           <div className="admin-title-row">
-            <span className="admin-badge">ADMIN</span>
-            <h1>Panel de Control · Pesito</h1>
+            <span className="admin-badge">PESITO</span>
+            <h1>Administración</h1>
           </div>
-          <p className="admin-subtitle">Gestión de licencias, clientes y suscripciones del negocio.</p>
         </div>
         <div className="admin-header-actions">
           <button
@@ -498,583 +554,553 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
             onClick={() => void loadData()}
             disabled={loading}
           >
-            <span>{loading ? '⏳' : '🔄'}</span>
-            <span>{loading ? 'Actualizando…' : 'Actualizar'}</span>
+            {loading ? 'Actualizando…' : 'Actualizar'}
           </button>
-          <button
-            type="button"
-            className="admin-header-btn danger"
-            onClick={onSignOut}
-          >
-            <span>🚪</span>
-            <span>Cerrar sesión</span>
+          <button type="button" className="admin-header-btn secondary" onClick={onSignOut}>
+            Cerrar sesión
           </button>
         </div>
       </header>
-
       {errorMsg && (
-        <div className="admin-alert-banner danger">
-          <span>⚠️ {errorMsg}</span>
+        <div className="admin-alert-banner danger" role="alert">
+          {errorMsg}
         </div>
       )}
-
       {actionToast && (
         <div
-          className={`admin-alert-banner ${actionToast.type === 'error' ? 'danger' : ''}`}
-          style={actionToast.type === 'success' ? { background: '#ecfdf5', borderColor: '#a7f3d0', color: '#065f46' } : {}}
+          className={'admin-alert-banner ' + (actionToast.type === 'error' ? 'danger' : 'success')}
+          role={actionToast.type === 'error' ? 'alert' : 'status'}
         >
-          <span>{actionToast.message}</span>
+          {actionToast.message}
         </div>
       )}
-
-      {/* KPI CARDS */}
-      <section className="admin-kpi-grid">
-        <div className="admin-kpi-card">
-          <span className="kpi-icon">👥</span>
-          <div>
-            <strong className="kpi-value">{activeClientsCount}</strong>
-            <span className="kpi-label">Clientes activos</span>
-          </div>
-        </div>
-        <div className="admin-kpi-card">
-          <span className="kpi-icon">⚠️</span>
-          <div>
-            <strong className="kpi-value" style={{ color: expiringSoonCount > 0 ? '#d97706' : 'inherit' }}>
-              {expiringSoonCount}
-            </strong>
-            <span className="kpi-label">Vencen en 7 días</span>
-          </div>
-        </div>
-        <div className="admin-kpi-card">
-          <span className="kpi-icon">🎟️</span>
-          <div>
-            <strong className="kpi-value">{availableCodesCount}</strong>
-            <span className="kpi-label">Códigos disponibles</span>
-          </div>
-        </div>
-        <div className="admin-kpi-card">
-          <span className="kpi-icon">📊</span>
-          <div>
-            <strong className="kpi-value">{clientsOnly.length}</strong>
-            <span className="kpi-label">Total registrados</span>
-          </div>
-        </div>
-      </section>
-
-      <BotOperations key={userId} />
-
-      {/* CORTE GENERAL DEL BOT (EXCLUSIVO ADMIN) */}
-      <section
-        className="admin-generator-card"
-        style={{
-          marginBottom: '24px',
-          border: `1px solid ${botActive ? '#e2e8f0' : '#fca5a5'}`,
-        }}
-      >
-        <div className="generator-header">
-          <div>
-            <p className="eyebrow" style={{ color: 'var(--mint-dark)' }}>CONTROL DE DISPONIBILIDAD</p>
-            <h2>Corte General del Bot (Interruptor Maestro)</h2>
-            <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0' }}>
-              Solo vos como administrador podés activar el corte del bot o reanudar las respuestas para todos los clientes.
-            </p>
-          </div>
-          <div>
-            {botActive ? (
-              <span className="status-pill green" style={{ fontSize: '12px' }}>🟢 Bot Operativo</span>
-            ) : (
-              <span className="status-pill red" style={{ fontSize: '12px' }}>🛑 Corte Activado</span>
-            )}
-          </div>
-        </div>
-
-        <div
-          style={{
-            marginTop: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-            background: botActive ? '#f8fafc' : '#fef2f2',
-            padding: '14px 18px',
-            borderRadius: '12px',
-            border: `1px solid ${botActive ? '#e2e8f0' : '#fecaca'}`,
-          }}
-        >
-          <div>
-            <strong style={{ display: 'block', fontSize: '14px', color: botActive ? '#0f172a' : '#991b1b' }}>
-              {botActive
-                ? 'El bot está procesando mensajes y gastos normalmente'
-                : 'Corte activo: El bot está pausado para clientes'}
-            </strong>
-            <small style={{ color: botActive ? '#64748b' : '#b91c1c' }}>
-              {botActive
-                ? 'Cualquier cliente con membresía activa puede enviar gastos, audios y tickets.'
-                : 'Los mensajes de clientes recibirán un aviso de mantenimiento y no registrarán operaciones.'}
-            </small>
-          </div>
-          <button
-            type="button"
-            className={botActive ? 'danger-button' : 'primary-button'}
-            style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700 }}
-            disabled={togglingBot}
-            onClick={() => void handleToggleBotActive()}
-          >
-            {togglingBot
-              ? 'Guardando…'
-              : botActive
-              ? '🛑 Activar corte del bot'
-              : '🟢 Desactivar corte (Reanudar)'}
+      {!loading && !botActive && (
+        <div className="admin-alert-banner danger admin-paused-banner">
+          <span>Las respuestas del bot están pausadas para todos los clientes.</span>
+          <button type="button" className="action-btn small" onClick={() => setActiveTab('bot')}>
+            Ir al bot
           </button>
         </div>
-        {botStatusFeedback && (
-          <p style={{ margin: '10px 0 0', fontSize: '13px', fontWeight: 600, color: botActive ? '#059669' : '#dc2626' }}>
-            {botStatusFeedback}
-          </p>
-        )}
-      </section>
-
-      {/* CONFIGURACIÓN DEL NÚMERO DE WHATSAPP DEL BOT (FASE 4) */}
-      <section className="admin-generator-card" style={{ marginBottom: '24px' }}>
-        <div className="generator-header">
-          <div>
-            <p className="eyebrow" style={{ color: 'var(--mint-dark)' }}>CONFIGURACIÓN DEL SISTEMA</p>
-            <h2>Número de WhatsApp del Bot</h2>
-            <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0' }}>
-              Este es el número al que tus clientes enviarán sus gastos y audios. El botón <strong>"Conectar mi WhatsApp en 1 toque"</strong> abrirá este chat automáticamente.
-            </p>
-          </div>
+      )}
+      <section className="admin-overview" aria-label="Resumen de administración">
+        <div>
+          <strong>{loading ? '—' : clientsOnly.length}</strong>
+          <span>Clientes</span>
         </div>
-
-        <form onSubmit={handleSaveBotPhone} className="generator-form">
-          <div className="form-grid">
-            <label>
-              Número de WhatsApp (con código de país sin espacios ni signos, ej. 5491122334455 o 15551234567)
-              <input
-                type="text"
-                placeholder="Ej. 5491122334455"
-                value={botPhone}
-                onChange={(e) => setBotPhone(e.target.value)}
-              />
-            </label>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap' }}>
-            <button className="primary-button" type="submit" disabled={savingBotPhone}>
-              {savingBotPhone ? 'Guardando…' : '💾 Guardar número del bot'}
-            </button>
-            {botPhoneSuccess && (
-              <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 700 }}>
-                {botPhoneSuccess}
-              </span>
-            )}
-            {botPhone && (
-              <a
-                href={`https://wa.me/${botPhone.replace(/\D/g, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="button-link"
-                style={{ fontSize: '12px', fontWeight: 700 }}
-              >
-                Probar chat en WhatsApp ↗
-              </a>
-            )}
-          </div>
-        </form>
-      </section>
-
-      {/* CONFIGURACIÓN DE SOPORTE Y VENTAS / RENOVACIONES */}
-      <section className="admin-generator-card" style={{ marginBottom: '24px' }}>
-        <div className="generator-header">
-          <div>
-            <p className="eyebrow" style={{ color: 'var(--mint-dark)' }}>SOPORTE Y RENOVACIONES</p>
-            <h2>WhatsApp de Soporte y Datos de Cobro</h2>
-            <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0' }}>
-              Este es tu número de WhatsApp de soporte/ventas al que tus clientes serán dirigidos cuando toquen <strong>"Renovar por WhatsApp"</strong> o le pregunten al bot cómo pagar.
-            </p>
-          </div>
+        <div>
+          <strong>{loading ? '—' : activeClientsCount}</strong>
+          <span>Activos</span>
         </div>
-
-        <form onSubmit={handleSaveSupportConfig} className="generator-form">
-          <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-            <label>
-              WhatsApp de Soporte / Admin (con código de país sin signos, ej. 5493512345678)
-              <input
-                type="text"
-                placeholder="Ej. 5493512345678"
-                value={supportPhone}
-                onChange={(e) => setSupportPhone(e.target.value)}
-              />
-            </label>
-            <label>
-              Alias o CBU para transferencias (opcional, ej. pesito.app o 00000031...)
-              <input
-                type="text"
-                placeholder="Ej. mi.alias.mp o 00000..."
-                value={paymentAlias}
-                onChange={(e) => setPaymentAlias(e.target.value)}
-              />
-            </label>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap' }}>
-            <button className="primary-button" type="submit" disabled={savingSupportConfig}>
-              {savingSupportConfig ? 'Guardando…' : '💾 Guardar soporte y pagos'}
-            </button>
-            {supportConfigSuccess && (
-              <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 700 }}>
-                {supportConfigSuccess}
-              </span>
-            )}
-            {supportPhone && (
-              <a
-                href={`https://wa.me/${supportPhone.replace(/\D/g, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="button-link"
-                style={{ fontSize: '12px', fontWeight: 700 }}
-              >
-                Probar chat de soporte ↗
-              </a>
-            )}
-          </div>
-        </form>
-      </section>
-
-      {/* GENERADOR DE CÓDIGOS */}
-      <section className="admin-generator-card">
-        <div className="generator-header">
-          <div>
-            <p className="eyebrow" style={{ color: 'var(--mint-dark)' }}>NUEVA LICENCIA</p>
-            <h2>Generar Código de Invitación</h2>
-            <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0' }}>
-              Creá un código de un solo uso para enviarle a un cliente que acaba de abonar.
-            </p>
-          </div>
+        <div className={expiringSoonCount ? 'attention' : ''}>
+          <strong>{loading ? '—' : expiringSoonCount}</strong>
+          <span>Vencen en 7 días</span>
         </div>
-
-        <form onSubmit={handleCreateCode} className="generator-form">
-          <div className="form-grid">
-            <label>
-              Duración del plan
-              <select
-                value={durationDays}
-                onChange={(e) => setDurationDays(e.target.value === 'lifetime' ? 'lifetime' : Number(e.target.value))}
-              >
-                <option value={30}>1 mes (30 días)</option>
-                <option value={90}>3 meses (90 días)</option>
-                <option value={180}>6 meses (180 días)</option>
-                <option value={365}>1 año (365 días)</option>
-                <option value="lifetime">Vitalicio (Sin vencimiento)</option>
-              </select>
-            </label>
-            <label>
-              Nota interna (opcional)
-              <input
-                type="text"
-                placeholder="Ej. Pago Juan Pérez - MP"
-                value={clientNote}
-                onChange={(e) => setClientNote(e.target.value)}
-              />
-            </label>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '12px' }}>
-            <button className="primary-button" type="submit" disabled={isGenerating}>
-              {isGenerating ? 'Generando…' : '✨ Generar Código'}
-            </button>
-          </div>
-        </form>
-
-        {generatedCode && (
-          <div className="generated-code-box">
-            <div className="code-display">
-              <span className="code-label">Código generado listo para enviar:</span>
-              <strong className="code-token">{generatedCode}</strong>
+        <div>
+          <strong>{loading ? '—' : availableCodesCount}</strong>
+          <span>Invitaciones libres</span>
+        </div>
+      </section>
+      <nav className="admin-workspace-nav" aria-label="Secciones de administración">
+        {(
+          [
+            ['clients', 'Clientes'],
+            ['codes', 'Invitaciones'],
+            ['bot', 'Bot'],
+            ['settings', 'Ajustes'],
+          ] as const
+        ).map(([tab, label]) => (
+          <button
+            key={tab}
+            type="button"
+            aria-current={activeTab === tab ? 'page' : undefined}
+            onClick={() => setActiveTab(tab)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      {activeTab === 'clients' && (
+        <section className="admin-workspace-card" aria-labelledby="admin-clients-title">
+          <div className="admin-section-heading">
+            <div>
+              <h2 id="admin-clients-title">Clientes</h2>
+              <p>Consultá su acceso y administrá sus membresías.</p>
             </div>
-            <div className="code-actions">
-              <button
-                type="button"
-                className="primary-button"
-                style={{ background: '#25D366' }}
-                onClick={() => copyWhatsAppMessage(generatedCode)}
-              >
-                📲 Copiar mensaje para WhatsApp
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => copyOnlyLink(generatedCode)}
-              >
-                🔗 Copiar solo enlace
-              </button>
-            </div>
-            {copyFeedback && <p className="copy-feedback">✅ {copyFeedback}</p>}
+            <span className="admin-count-tag">{clientsOnly.length}</span>
           </div>
-        )}
-      </section>
-
-      {/* PESTAÑAS DE NAVEGACIÓN TABULAR */}
-      <section className="admin-content-tabs">
-        <div className="tabs-header">
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'clients' ? 'active' : ''}`}
-            onClick={() => setActiveTab('clients')}
-          >
-            👥 Clientes ({clientsOnly.length})
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'codes' ? 'active' : ''}`}
-            onClick={() => setActiveTab('codes')}
-          >
-            🎟️ Códigos de Invitación ({codes.length})
-          </button>
-        </div>
-
-        {/* TAB 1: CLIENTES */}
-        {activeTab === 'clients' && (
-          <div className="tab-pane">
-            <div className="table-controls">
+          <div className="admin-search-row">
+            <label className="admin-search-label">
+              <span className="admin-visually-hidden">Buscar cliente</span>
               <input
-                type="text"
+                type="search"
                 className="search-input"
-                placeholder="🔍 Buscar cliente por nombre, apellido, email o WhatsApp…"
+                placeholder="Buscar nombre, email o WhatsApp"
                 value={clientSearch}
                 onChange={(e) => setClientSearch(e.target.value)}
               />
-            </div>
-
-            {loading ? (
-              <p className="loading-copy">Cargando clientes…</p>
-            ) : filteredClients.length === 0 ? (
-              <div className="empty-state">
-                <p>No se encontraron clientes registrados aún.</p>
-              </div>
-            ) : (
-              <div className="admin-table-container">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Cliente</th>
-                      <th>WhatsApp</th>
-                      <th>Estado</th>
-                      <th>Vencimiento</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredClients.map((client) => {
-                      const isExpired = client.subscription_until && new Date(client.subscription_until) < now;
-                      const isExpiringSoon =
-                        !isExpired &&
-                        client.subscription_until &&
-                        (new Date(client.subscription_until).getTime() - now.getTime()) / (1000 * 60 * 60 * 24) <= 7;
-
-                      const clientDisplayName = [client.last_name, client.first_name].filter(Boolean).join(', ');
-
-                      return (
-                        <tr key={client.id}>
-                          <td>
-                            {clientDisplayName ? (
-                              <div>
-                                <strong style={{ display: 'block', fontSize: '14px', color: '#0f172a' }}>
-                                  {clientDisplayName}
-                                </strong>
-                                <span style={{ display: 'block', fontSize: '12px', color: '#64748b', marginTop: '1px' }}>
-                                  {client.email ?? 'Sin email'}
-                                </span>
-                                <small className="cell-subtext">Alta: {formatDate(client.created_at)}</small>
-                              </div>
-                            ) : (
-                              <div>
-                                <strong>{client.email ?? 'Sin email'}</strong>
-                                <small className="cell-subtext">Alta: {formatDate(client.created_at)}</small>
-                              </div>
-                            )}
-                          </td>
-                          <td>
-                            {client.phone_number ? (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span className="status-pill green">🟢 {formatPhone(client.phone_number)}</span>
-                                <a
-                                  href={`https://wa.me/${client.phone_number}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="wa-link-btn"
-                                  title="Abrir chat en WhatsApp"
-                                >
-                                  💬
-                                </a>
-                              </div>
-                            ) : (
-                              <span className="status-pill gray">⚪ Sin vincular</span>
-                            )}
-                          </td>
-                          <td>
-                            {client.subscription_status === 'pending_code' ? (
-                              <span className="status-pill orange">🟡 Pendiente activación</span>
-                            ) : client.subscription_status === 'suspended' ? (
-                              <span className="status-pill gray">⏸️ Suspendido</span>
-                            ) : isExpired ? (
-                              <span className="status-pill red">🔴 Vencido</span>
-                            ) : isExpiringSoon ? (
-                              <span className="status-pill orange">⚠️ Vence pronto</span>
-                            ) : (
-                              <span className="status-pill green">🟢 Activo</span>
-                            )}
-                          </td>
-                          <td>
-                            <span>{formatDate(client.subscription_until)}</span>
-                          </td>
-                          <td>
-                            <div className="action-buttons-group">
-                              <button
-                                type="button"
-                                className="action-btn small"
-                                title="Sumar días de suscripción"
-                                onClick={() => handleOpenExtendModal(client)}
-                              >
-                                ＋ Días
-                              </button>
-                              <button
-                                type="button"
-                                className="action-btn small secondary"
-                                onClick={() => handleOpenSuspendModal(client)}
-                              >
-                                {client.subscription_status === 'suspended' ? 'Reactivar' : 'Pausar'}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+            </label>
+            {clientSearch && (
+              <button type="button" className="admin-text-action" onClick={() => setClientSearch('')}>
+                Limpiar
+              </button>
             )}
           </div>
-        )}
-
-        {/* TAB 2: CÓDIGOS DE INVITACIÓN */}
-        {activeTab === 'codes' && (
-          <div className="tab-pane">
-            <div className="table-controls">
-              <div className="filter-pills">
+          {loading ? (
+            <p className="loading-copy" role="status">
+              Cargando clientes…
+            </p>
+          ) : filteredClients.length === 0 ? (
+            <div className="empty-state">
+              <p>
+                {clientSearch ? 'No hay clientes que coincidan con la búsqueda.' : 'Todavía no hay clientes.'}
+              </p>
+              {!clientSearch && (
                 <button
                   type="button"
-                  className={`pill-btn ${codeFilter === 'all' ? 'active' : ''}`}
-                  onClick={() => setCodeFilter('all')}
+                  className="admin-text-action"
+                  onClick={() => {
+                    setActiveTab('codes');
+                    setShowCodeForm(true);
+                  }}
                 >
-                  Todos ({codes.length})
+                  Crear una invitación
                 </button>
-                <button
-                  type="button"
-                  className={`pill-btn ${codeFilter === 'available' ? 'active' : ''}`}
-                  onClick={() => setCodeFilter('available')}
-                >
-                  🟢 Disponibles ({availableCodesCount})
-                </button>
-                <button
-                  type="button"
-                  className={`pill-btn ${codeFilter === 'used' ? 'active' : ''}`}
-                  onClick={() => setCodeFilter('used')}
-                >
-                  ⚪ Usados ({codes.length - availableCodesCount})
-                </button>
-              </div>
+              )}
             </div>
-
-            {loading ? (
-              <p className="loading-copy">Cargando códigos…</p>
-            ) : filteredCodes.length === 0 ? (
-              <div className="empty-state">
-                <p>No hay códigos en este filtro.</p>
-              </div>
-            ) : (
-              <div className="admin-table-container">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Código</th>
-                      <th>Duración</th>
-                      <th>Nota</th>
-                      <th>Estado</th>
-                      <th>Fecha creación</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCodes.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <strong className="code-token-sm">{item.code}</strong>
-                        </td>
-                        <td>
-                          <span>{item.duration_days ? `${item.duration_days} días` : 'Vitalicio'}</span>
-                        </td>
-                        <td>
-                          <span style={{ color: '#64748b' }}>{item.notes ?? '—'}</span>
-                        </td>
-                        <td>
-                          {item.is_used ? (
-                            <span className="status-pill gray">⚪ Canjeado ({formatDate(item.used_at)})</span>
-                          ) : (
-                            <span className="status-pill green">🟢 Disponible</span>
+          ) : (
+            <div className="admin-table-container">
+              <table className="admin-table admin-responsive-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Cliente</th>
+                    <th scope="col">WhatsApp</th>
+                    <th scope="col">Acceso</th>
+                    <th scope="col">Vencimiento</th>
+                    <th scope="col">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredClients.map((client) => {
+                    const isExpired =
+                      client.subscription_status === 'expired' ||
+                      !!(client.subscription_until && new Date(client.subscription_until) < now);
+                    const isExpiringSoon =
+                      !isExpired &&
+                      client.subscription_until &&
+                      (new Date(client.subscription_until).getTime() - now.getTime()) / 86400000 <= 7;
+                    const displayName =
+                      [client.first_name, client.last_name].filter(Boolean).join(' ') ||
+                      client.email ||
+                      'Cliente sin nombre';
+                    const status =
+                      client.subscription_status === 'pending_code'
+                        ? { label: 'Sin activar', tone: 'orange' }
+                        : client.subscription_status === 'suspended'
+                          ? { label: 'Pausado', tone: 'gray' }
+                          : isExpired
+                            ? { label: 'Vencido', tone: 'red' }
+                            : isExpiringSoon
+                              ? { label: 'Por vencer', tone: 'orange' }
+                              : { label: 'Activo', tone: 'green' };
+                    return (
+                      <tr key={client.id}>
+                        <td data-label="Cliente" className="admin-client-cell">
+                          <strong>{displayName}</strong>
+                          {displayName !== client.email && (
+                            <span className="cell-subtext">{client.email || 'Sin email'}</span>
                           )}
                         </td>
-                        <td>
-                          <small>{formatDate(item.created_at)}</small>
+                        <td data-label="WhatsApp">
+                          {client.phone_number ? (
+                            <a
+                              className="admin-client-phone"
+                              href={'https://wa.me/' + client.phone_number}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={'Abrir WhatsApp de ' + displayName}
+                            >
+                              {formatPhone(client.phone_number)} ↗
+                            </a>
+                          ) : (
+                            <span className="admin-muted">Sin vincular</span>
+                          )}
                         </td>
-                        <td>
+                        <td data-label="Acceso">
+                          <span className={'status-pill ' + status.tone}>{status.label}</span>
+                        </td>
+                        <td data-label="Vencimiento">{formatDate(client.subscription_until)}</td>
+                        <td data-label="Acciones" className="admin-row-actions">
                           <div className="action-buttons-group">
                             <button
                               type="button"
                               className="action-btn small"
-                              onClick={() => copyWhatsAppMessage(item.code)}
+                              aria-label={'Extender membresía de ' + displayName}
+                              onClick={() => handleOpenExtendModal(client)}
                             >
-                              📲 WhatsApp
+                              Extender
                             </button>
                             <button
                               type="button"
                               className="action-btn small secondary"
-                              onClick={() => copyOnlyLink(item.code)}
+                              aria-label={
+                                (client.subscription_status === 'suspended' ? 'Reactivar a ' : 'Pausar a ') +
+                                displayName
+                              }
+                              onClick={() => handleOpenSuspendModal(client)}
                             >
-                              🔗 Link
+                              {client.subscription_status === 'suspended' ? 'Reactivar' : 'Pausar'}
                             </button>
-                            {!item.is_used && (
-                              <button
-                                type="button"
-                                className="action-btn small danger"
-                                title="Anular código"
-                                onClick={() => void handleDeleteCode(item)}
-                              >
-                                ✕
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+      {activeTab === 'codes' && (
+        <section className="admin-workspace-card" aria-labelledby="admin-invitations-title">
+          <div className="admin-section-heading">
+            <div>
+              <h2 id="admin-invitations-title">Invitaciones</h2>
+              <p>Un código por cliente para activar su cuenta.</p>
+            </div>
+            <button
+              type="button"
+              className="primary-button admin-compact-primary"
+              aria-expanded={showCodeForm}
+              aria-controls="admin-new-invitation"
+              onClick={() => setShowCodeForm((v) => !v)}
+            >
+              {showCodeForm ? 'Cerrar formulario' : 'Nueva invitación'}
+            </button>
           </div>
-        )}
-      </section>
+          {showCodeForm && (
+            <div id="admin-new-invitation" className="admin-invite-form">
+              <form onSubmit={handleCreateCode}>
+                <div className="form-grid">
+                  <label>
+                    Duración
+                    <select
+                      value={durationDays}
+                      onChange={(e) =>
+                        setDurationDays(e.target.value === 'lifetime' ? 'lifetime' : Number(e.target.value))
+                      }
+                    >
+                      <option value={30}>1 mes · 30 días</option>
+                      <option value={90}>3 meses · 90 días</option>
+                      <option value={180}>6 meses · 180 días</option>
+                      <option value={365}>1 año · 365 días</option>
+                      <option value="lifetime">Sin vencimiento</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>
+                      Nota interna <span className="admin-muted">(opcional)</span>
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Nombre o referencia del pago"
+                      value={clientNote}
+                      onChange={(e) => setClientNote(e.target.value)}
+                    />
+                  </label>
+                </div>
+                <button
+                  type="submit"
+                  className="primary-button admin-compact-primary"
+                  disabled={isGenerating || loading}
+                >
+                  {isGenerating ? 'Creando…' : 'Crear código'}
+                </button>
+              </form>
+            </div>
+          )}
+          {generatedCode && (
+            <div className="generated-code-box">
+              <span className="code-label">Invitación lista</span>
+              <strong className="code-token">{generatedCode}</strong>
+              <div className="code-actions">
+                <button
+                  type="button"
+                  className="action-btn small"
+                  onClick={() => copyWhatsAppMessage(generatedCode)}
+                >
+                  Copiar mensaje
+                </button>
+                <button
+                  type="button"
+                  className="action-btn small secondary"
+                  onClick={() => copyOnlyLink(generatedCode)}
+                >
+                  Copiar enlace
+                </button>
+              </div>
+            </div>
+          )}
+          {copyFeedback && (
+            <p className="admin-copy-feedback" role="status">
+              {copyFeedback}
+            </p>
+          )}
+          <div className="filter-pills admin-code-filters" aria-label="Filtrar invitaciones">
+            {(
+              [
+                ['all', 'Todas', codes.length],
+                ['available', 'Disponibles', availableCodesCount],
+                ['used', 'Usadas', codes.length - availableCodesCount],
+              ] as const
+            ).map(([filter, label, count]) => (
+              <button
+                key={filter}
+                type="button"
+                aria-pressed={codeFilter === filter}
+                className={'pill-btn ' + (codeFilter === filter ? 'active' : '')}
+                onClick={() => setCodeFilter(filter)}
+              >
+                {label} <span>{count}</span>
+              </button>
+            ))}
+          </div>
+          {loading ? (
+            <p className="loading-copy" role="status">
+              Cargando invitaciones…
+            </p>
+          ) : filteredCodes.length === 0 ? (
+            <div className="empty-state">
+              <p>No hay invitaciones en este filtro.</p>
+            </div>
+          ) : (
+            <div className="admin-table-container">
+              <table className="admin-table admin-responsive-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Código</th>
+                    <th scope="col">Duración</th>
+                    <th scope="col">Nota</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCodes.map((item) => (
+                    <tr key={item.id}>
+                      <td data-label="Código" className="admin-client-cell">
+                        <strong className="code-token-sm">{item.code}</strong>
+                        <span className="cell-subtext">Creado {formatDate(item.created_at)}</span>
+                      </td>
+                      <td data-label="Duración">
+                        {item.duration_days ? item.duration_days + ' días' : 'Sin vencimiento'}
+                      </td>
+                      <td data-label="Nota">{item.notes || '—'}</td>
+                      <td data-label="Estado">
+                        <span className={'status-pill ' + (item.is_used ? 'gray' : 'green')}>
+                          {item.is_used ? 'Usada' : 'Disponible'}
+                        </span>
+                        {item.is_used && <span className="cell-subtext">{formatDate(item.used_at)}</span>}
+                      </td>
+                      <td data-label="Acciones" className="admin-row-actions">
+                        {item.is_used ? (
+                          <span className="admin-muted">Ya canjeada</span>
+                        ) : (
+                          <div className="action-buttons-group">
+                            <button
+                              type="button"
+                              className="action-btn small"
+                              aria-label={'Copiar mensaje de ' + item.code}
+                              onClick={() => copyWhatsAppMessage(item.code)}
+                            >
+                              Mensaje
+                            </button>
+                            <button
+                              type="button"
+                              className="action-btn small secondary"
+                              aria-label={'Copiar enlace de ' + item.code}
+                              onClick={() => copyOnlyLink(item.code)}
+                            >
+                              Enlace
+                            </button>
+                            <button
+                              type="button"
+                              className="action-btn small danger"
+                              onClick={() => void handleDeleteCode(item)}
+                            >
+                              Anular
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+      {activeTab === 'bot' && (
+        <div className="admin-bot-view">
+          <BotOperations key={userId} />
+          <section className="admin-workspace-card" aria-labelledby="admin-bot-control-title">
+            <div className="admin-section-heading">
+              <div>
+                <h2 id="admin-bot-control-title">Respuestas a clientes</h2>
+                <p>
+                  {botActive
+                    ? 'El bot está habilitado para atender a tus clientes.'
+                    : 'Las respuestas están pausadas para todos los clientes.'}
+                </p>
+              </div>
+              <span className={'status-pill ' + (botActive ? 'green' : 'red')}>
+                {botActive ? 'Habilitadas' : 'En pausa'}
+              </span>
+            </div>
+            <button
+              type="button"
+              className={(botActive ? 'danger-button' : 'primary-button') + ' admin-compact-primary'}
+              disabled={togglingBot || loading}
+              onClick={() => void handleToggleBotActive()}
+            >
+              {togglingBot ? 'Guardando…' : botActive ? 'Pausar bot' : 'Reanudar bot'}
+            </button>
+            {botStatusFeedback && (
+              <p className="admin-copy-feedback" role="status">
+                {botStatusFeedback}
+              </p>
+            )}
+          </section>
+        </div>
+      )}
+      {activeTab === 'settings' && (
+        <section className="admin-workspace-card" aria-labelledby="admin-settings-title">
+          <div className="admin-section-heading">
+            <div>
+              <h2 id="admin-settings-title">Ajustes</h2>
+              <p>Conexión del bot, soporte y cobros.</p>
+            </div>
+          </div>
+          <details className="admin-settings-group">
+            <summary>
+              WhatsApp del bot<span>Ver y editar</span>
+            </summary>
+            <form onSubmit={handleSaveBotPhone} className="generator-form">
+              <label>
+                Número del bot
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="Ej. 15551234567"
+                  value={botPhone}
+                  onChange={(e) => setBotPhone(e.target.value)}
+                />
+              </label>
+              <p className="admin-field-hint">Incluí el código de país.</p>
+              <div className="admin-form-actions">
+                <button
+                  className="primary-button admin-compact-primary"
+                  type="submit"
+                  disabled={savingBotPhone || loading}
+                >
+                  {savingBotPhone ? 'Guardando…' : 'Guardar número'}
+                </button>
+                {botPhone && (
+                  <a
+                    className="admin-text-action"
+                    href={'https://wa.me/' + botPhone.replace(/\D/g, '')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Abrir chat ↗
+                  </a>
+                )}
+              </div>
+              {botPhoneSuccess && (
+                <p className="admin-copy-feedback" role="status">
+                  {botPhoneSuccess}
+                </p>
+              )}
+            </form>
+          </details>
+          <details className="admin-settings-group">
+            <summary>
+              Soporte y cobros<span>Ver y editar</span>
+            </summary>
+            <form onSubmit={handleSaveSupportConfig} className="generator-form">
+              <div className="form-grid">
+                <label>
+                  WhatsApp de soporte
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="Con código de país"
+                    value={supportPhone}
+                    onChange={(e) => setSupportPhone(e.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>
+                    Alias o CBU <span className="admin-muted">(opcional)</span>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Alias para transferencias"
+                    value={paymentAlias}
+                    onChange={(e) => setPaymentAlias(e.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="admin-form-actions">
+                <button
+                  className="primary-button admin-compact-primary"
+                  type="submit"
+                  disabled={savingSupportConfig || loading}
+                >
+                  {savingSupportConfig ? 'Guardando…' : 'Guardar ajustes'}
+                </button>
+                {supportPhone && (
+                  <a
+                    className="admin-text-action"
+                    href={'https://wa.me/' + supportPhone.replace(/\D/g, '')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Abrir soporte ↗
+                  </a>
+                )}
+              </div>
+              {supportConfigSuccess && (
+                <p className="admin-copy-feedback" role="status">
+                  {supportConfigSuccess}
+                </p>
+              )}
+            </form>
+          </details>
+        </section>
+      )}
+
       {/* MODAL: EXTENDER DÍAS DE SUSCRIPCIÓN */}
       {extendingClient && (
         <div className="admin-modal-backdrop" onClick={() => !isSubmittingExtend && setExtendingClient(null)}>
-          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+          <div
+            className="admin-modal-card"
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-membership-title"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <div className="admin-modal-header">
               <div>
-                <h3>Sumar días de suscripción</h3>
+                <h3 id="admin-membership-title">Extender membresía</h3>
                 <p>
-                  Cliente:{' '}
                   <strong>
                     {[extendingClient.first_name, extendingClient.last_name].filter(Boolean).join(' ')
-                      ? `${[extendingClient.first_name, extendingClient.last_name].filter(Boolean).join(' ')} (${extendingClient.email})`
+                      ? [extendingClient.first_name, extendingClient.last_name].filter(Boolean).join(' ')
                       : extendingClient.email}
                   </strong>
                 </p>
@@ -1082,6 +1108,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               <button
                 type="button"
                 className="admin-modal-close"
+                aria-label="Cerrar"
                 disabled={isSubmittingExtend}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setExtendingClient(null)}
@@ -1091,7 +1118,15 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
             </div>
 
             <div>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '8px' }}>
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: '#475569',
+                  display: 'block',
+                  marginBottom: '8px',
+                }}
+              >
                 Elegí cuánto tiempo querés sumar:
               </span>
               <div className="admin-days-grid">
@@ -1102,8 +1137,8 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                   { value: 90, label: '+90 días', desc: '3 Meses (Trimestre)' },
                   { value: 180, label: '+180 días', desc: '6 Meses (Semestre)' },
                   { value: 365, label: '+365 días', desc: '1 Año' },
-                  { value: 'lifetime', label: '🌟 Vitalicio', desc: 'Sin vencimiento' },
-                  { value: 'custom', label: '✏️ Personalizado', desc: 'Elegir días' },
+                  { value: 'lifetime', label: 'Sin vencimiento', desc: 'Acceso permanente' },
+                  { value: 'custom', label: 'Otra duración', desc: 'Elegir días' },
                 ].map((opt) => (
                   <button
                     key={String(opt.value)}
@@ -1172,20 +1207,32 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
 
       {/* MODAL: PAUSAR / REACTIVAR CUENTA */}
       {suspendingClient && (
-        <div className="admin-modal-backdrop" onClick={() => !isSubmittingSuspend && setSuspendingClient(null)}>
-          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+        <div
+          className="admin-modal-backdrop"
+          onClick={() => !isSubmittingSuspend && setSuspendingClient(null)}
+        >
+          <div
+            className="admin-modal-card"
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-access-title"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <div className="admin-modal-header">
               <div>
-                <h3>
+                <h3 id="admin-access-title">
                   {suspendingClient.subscription_status === 'suspended'
-                    ? '🟢 Reactivar cuenta'
-                    : '⏸️ Pausar cuenta'}
+                    ? 'Reactivar cuenta'
+                    : 'Pausar cuenta'}
                 </h3>
                 <p>
                   Cliente:{' '}
                   <strong>
                     {[suspendingClient.first_name, suspendingClient.last_name].filter(Boolean).join(' ')
-                      ? `${[suspendingClient.first_name, suspendingClient.last_name].filter(Boolean).join(' ')} (${suspendingClient.email})`
+                      ? [suspendingClient.first_name, suspendingClient.last_name].filter(Boolean).join(' ')
                       : suspendingClient.email}
                   </strong>
                 </p>
@@ -1193,6 +1240,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               <button
                 type="button"
                 className="admin-modal-close"
+                aria-label="Cerrar"
                 disabled={isSubmittingSuspend}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setSuspendingClient(null)}
@@ -1201,14 +1249,18 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               </button>
             </div>
 
-            <div className={`admin-date-preview-card ${suspendingClient.subscription_status === 'suspended' ? '' : 'danger'}`}>
+            <div
+              className={`admin-date-preview-card ${suspendingClient.subscription_status === 'suspended' ? '' : 'danger'}`}
+            >
               <span className="preview-label">
-                {suspendingClient.subscription_status === 'suspended' ? 'Efecto de la reactivación' : 'Efecto de la pausa'}
+                {suspendingClient.subscription_status === 'suspended'
+                  ? 'Efecto de la reactivación'
+                  : 'Efecto de la pausa'}
               </span>
               <p style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.5, color: '#334155' }}>
                 {suspendingClient.subscription_status === 'suspended'
-                  ? 'El bot volverá a responder los mensajes de WhatsApp de este cliente y se habilitará su acceso a la app.'
-                  : 'El bot dejará de responder los mensajes de WhatsApp de este cliente y se mostrará un aviso de cuenta pausada al entrar a la app. Podrás reactivarlo en cualquier momento.'}
+                  ? 'Se levantará la pausa. El acceso dependerá de la vigencia de su membresía.'
+                  : 'El cliente no podrá registrar movimientos mientras su cuenta esté pausada. Podés reactivarlo después.'}
               </p>
             </div>
 
@@ -1224,7 +1276,9 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               </button>
               <button
                 type="button"
-                className={suspendingClient.subscription_status === 'suspended' ? 'primary-button' : 'danger-button'}
+                className={
+                  suspendingClient.subscription_status === 'suspended' ? 'primary-button' : 'danger-button'
+                }
                 disabled={isSubmittingSuspend}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => void handleConfirmToggleSuspend()}
@@ -1232,8 +1286,8 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                 {isSubmittingSuspend
                   ? 'Guardando…'
                   : suspendingClient.subscription_status === 'suspended'
-                  ? '🟢 Sí, reactivar cuenta'
-                  : '⏸️ Sí, pausar cuenta'}
+                    ? 'Reactivar cuenta'
+                    : 'Pausar cuenta'}
               </button>
             </div>
           </div>
