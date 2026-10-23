@@ -79,6 +79,15 @@ export function Settings({
   // Gesto táctil swipe back para volver deslizando la pantalla
   const { dragOffset, isSwiping } = useSwipeBack({ onBack });
 
+  const hasProfileChanges =
+    firstNameInput.trim() !== (userProfile?.first_name ?? '').trim() ||
+    lastNameInput.trim() !== (userProfile?.last_name ?? '').trim();
+
+  function navigateToDashboardSection(sectionHash: '#resumen' | '#movimientos' | '#cuotas') {
+    window.history.pushState({ view: 'dashboard' }, '', sectionHash);
+    window.dispatchEvent(new PopStateEvent('popstate', { state: { view: 'dashboard' } }));
+  }
+
   useEffect(() => {
     if (userProfile) {
       setFirstNameInput(userProfile.first_name || '');
@@ -270,231 +279,257 @@ export function Settings({
         <p>Controlá tu cuenta, conexión con WhatsApp y estado de tu membresía.</p>
       </header>
 
-      {/* ACCESO EXCLUSIVO ADMIN */}
-      {isAdmin && onOpenAdmin && (
-        <section className="settings-panel admin-highlight-box" style={{ background: '#0f172a', color: '#ffffff', border: 'none' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+      {/* GRUPO 1: CUENTA */}
+      <section className="settings-group" aria-labelledby="settings-group-cuenta">
+        <h2 className="settings-group-title" id="settings-group-cuenta">Cuenta</h2>
+
+        {/* MI SUSCRIPCIÓN */}
+        <article className="settings-panel">
+          <div className="settings-card-header">
+            <h3>Mi Suscripción</h3>
             <div>
-              <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '1px', color: '#38bdf8', textTransform: 'uppercase' }}>ADMINISTRADOR</span>
-              <h2 style={{ color: '#ffffff', margin: '2px 0 4px', fontSize: '18px' }}>Panel de Control</h2>
-              <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8' }}>Gestioná licencias, códigos y clientes.</p>
+              {subscriptionInfo.isLifetime ? (
+                <span className="status-pill green">Plan sin vencimiento</span>
+              ) : subscriptionInfo.isExpiringSoon ? (
+                <span className="status-pill orange">Vence pronto</span>
+              ) : (
+                <span className="status-pill green">Plan activo</span>
+              )}
+            </div>
+          </div>
+
+          {subscriptionInfo.isLifetime ? (
+            <p className="settings-card-subtitle">
+              Tu cuenta cuenta con acceso ilimitado y permanente a todas las funciones de Pesito.
+            </p>
+          ) : (
+            <div className="settings-subscription-details">
+              <div className="settings-subscription-row">
+                <span>Fecha de vencimiento:</span>
+                <strong>{subscriptionInfo.formattedUntil}</strong>
+              </div>
+              <div className="settings-subscription-row">
+                <span>Días restantes:</span>
+                <strong className={subscriptionInfo.isExpiringSoon ? 'expiring' : 'active'}>
+                  {subscriptionInfo.daysLeft} {subscriptionInfo.daysLeft === 1 ? 'día' : 'días'} de servicio
+                </strong>
+              </div>
+            </div>
+          )}
+
+          <div className="settings-subscription-actions">
+            {!subscriptionInfo.isLifetime && (
+              <a
+                href={whatsappRenewalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="whatsapp-request-btn"
+              >
+                <span><Icon name="message" /></span> Renovar por WhatsApp
+              </a>
+            )}
+            <button
+              type="button"
+              className="button-link renewal-code-link"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setShowRedeemForm(!showRedeemForm)}
+            >
+              {showRedeemForm ? 'Cerrar formulario de código' : '¿Tenés un código de renovación?'}
+            </button>
+          </div>
+
+          {paymentAlias && !subscriptionInfo.isLifetime && (
+            <div className="settings-alias-badge">
+              <Icon name="card" size={16} /> Alias para transferencias: <strong>{paymentAlias}</strong>
+            </div>
+          )}
+
+          {showRedeemForm && (
+            <form onSubmit={handleRedeemRenewal} className="settings-redeem-form">
+              <label className="settings-redeem-label">
+                Ingresá tu código de renovación
+                <input
+                  type="text"
+                  required
+                  className="invite-code-input"
+                  placeholder="PESO-XXXX"
+                  value={renewalCode}
+                  onChange={(e) => setRenewalCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+                />
+              </label>
+              <button
+                type="submit"
+                className="primary-button settings-redeem-submit"
+                disabled={isRedeeming}
+              >
+                {isRedeeming ? 'Validando…' : 'Canjear y extender suscripción'}
+              </button>
+              {redeemFeedback && (
+                <p
+                  className={`form-message ${redeemFeedback.type === 'error' ? 'form-message-error' : 'form-message-success'}`}
+                >
+                  <Icon name={redeemFeedback.type === 'success' ? 'check' : 'alert'} />
+                  {redeemFeedback.message}
+                </p>
+              )}
+            </form>
+          )}
+        </article>
+
+        {/* MIS DATOS PERSONALES */}
+        <article className="settings-panel">
+          <h3>Mis Datos Personales</h3>
+          <p className="settings-card-subtitle">
+            Tu nombre se usará en el saludo de bienvenida y para identificar tu cuenta en Pesito.
+          </p>
+
+          <form onSubmit={handleSaveName} className="settings-profile-form">
+            <div className="settings-name-grid">
+              <label className="settings-label">
+                <span>Nombre</span>
+                <input
+                  type="text"
+                  className="settings-input"
+                  value={firstNameInput}
+                  onChange={(e) => setFirstNameInput(e.target.value)}
+                  placeholder="Ej. María"
+                  autoComplete="given-name"
+                />
+              </label>
+              <label className="settings-label">
+                <span>Apellido</span>
+                <input
+                  type="text"
+                  className="settings-input"
+                  value={lastNameInput}
+                  onChange={(e) => setLastNameInput(e.target.value)}
+                  placeholder="Ej. González"
+                  autoComplete="family-name"
+                />
+              </label>
+            </div>
+
+            <div className="settings-profile-actions">
+              <button
+                className="settings-save-button"
+                type="submit"
+                disabled={savingName || !hasProfileChanges}
+              >
+                {savingName ? 'Guardando…' : 'Guardar mis datos'}
+              </button>
+              {nameSuccess && (
+                <span className="settings-save-feedback">
+                  {nameSuccess}
+                </span>
+              )}
+            </div>
+          </form>
+        </article>
+
+        {/* SESIÓN */}
+        <article className="settings-panel settings-compact-row">
+          <div className="settings-compact-copy">
+            <h3>Sesión</h3>
+            <p>
+              Sesión iniciada con <strong>{userEmail || userProfile?.email || 'Tu correo'}</strong>
+            </p>
+          </div>
+          {onSignOut && (
+            <button className="danger-button" type="button" onClick={onSignOut}>
+              Cerrar sesión
+            </button>
+          )}
+        </article>
+      </section>
+
+      {/* GRUPO 2: INTEGRACIONES */}
+      <section className="settings-group" aria-labelledby="settings-group-integraciones">
+        <h2 className="settings-group-title" id="settings-group-integraciones">Integraciones</h2>
+
+        <article className="settings-panel">
+          <h3>Conexión con WhatsApp</h3>
+          <p className="settings-card-subtitle">
+            Tu WhatsApp te permite enviar audios, fotos y textos para registrar gastos en cualquier momento.
+          </p>
+
+          <div className="settings-wa-box">
+            <div>
+              <span className="settings-wa-label">NÚMERO VINCULADO</span>
+              <strong className="settings-wa-phone">
+                {userProfile?.phone_number ? formatPhone(userProfile.phone_number) : 'Sin vincular todavía'}
+              </strong>
             </div>
             <button
               type="button"
               className="button-secondary"
-              onClick={onOpenAdmin}
+              onClick={() => void connectWhatsAppOneTouch()}
             >
-              <Icon name="shield" /> Abrir Panel Admin
+              <Icon name={userProfile?.phone_number ? 'refresh' : 'message'} /> {userProfile?.phone_number ? 'Cambiar número' : 'Conectar en 1 toque'}
             </button>
           </div>
-        </section>
-      )}
 
-      {/* SECCIÓN 1: MI SUSCRIPCIÓN */}
-      <section className="settings-panel">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
-          <div>
-            <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              MEMBRESÍA
-            </span>
-            <h2 style={{ margin: '4px 0 6px' }}>Mi Suscripción</h2>
-          </div>
-          <div>
-            {subscriptionInfo.isLifetime ? (
-              <span className="status-pill green" style={{ fontSize: '13px' }}>Plan sin vencimiento</span>
-            ) : subscriptionInfo.isExpiringSoon ? (
-              <span className="status-pill orange" style={{ fontSize: '13px' }}>Vence pronto</span>
-            ) : (
-              <span className="status-pill green" style={{ fontSize: '13px' }}>Plan activo</span>
-            )}
-          </div>
-        </div>
-
-        {subscriptionInfo.isLifetime ? (
-          <p style={{ margin: '8px 0 16px' }}>
-            Tu cuenta cuenta con acceso ilimitado y permanente a todas las funciones de Pesito.
-          </p>
-        ) : (
-          <div style={{ margin: '10px 0 16px', background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '13px', color: '#64748b' }}>Fecha de vencimiento:</span>
-              <strong style={{ fontSize: '13px', color: '#0f172a' }}>{subscriptionInfo.formattedUntil}</strong>
+          {code && (
+            <div className="settings-wa-code-wrap">
+              <div className="link-code">
+                VINCULAR {code}
+              </div>
+              {waDirectUrl && (
+                <a
+                  href={waDirectUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="button-secondary"
+                >
+                  <Icon name="message" /> Abrir chat en WhatsApp
+                </a>
+              )}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '13px', color: '#64748b' }}>Días restantes:</span>
-              <strong style={{ fontSize: '13px', color: subscriptionInfo.isExpiringSoon ? '#ea580c' : '#059669' }}>
-                {subscriptionInfo.daysLeft} {subscriptionInfo.daysLeft === 1 ? 'día' : 'días'} de servicio
-              </strong>
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {!subscriptionInfo.isLifetime && (
-            <a
-              href={whatsappRenewalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="whatsapp-request-btn"
-
-            >
-              <span><Icon name="message" /></span> Renovar por WhatsApp
-            </a>
           )}
-          <button
-            type="button"
-            className="button-link renewal-code-link"
-            style={{ fontSize: '13px', fontWeight: 700 }}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setShowRedeemForm(!showRedeemForm)}
-          >
-            {showRedeemForm ? 'Cerrar formulario de código' : '¿Tenés un código de renovación?'}
-          </button>
-        </div>
 
-        {paymentAlias && !subscriptionInfo.isLifetime && (
-          <div style={{
-            marginTop: '10px',
-            padding: '8px 12px',
-            background: '#f8fafc',
-            borderRadius: '8px',
-            fontSize: '13px',
-            color: '#334155',
-            border: '1px solid #e2e8f0',
-            display: 'inline-block',
-          }}>
-            <Icon name="card" size={16} /> Alias para transferencias: <strong style={{ color: '#0f172a' }}>{paymentAlias}</strong>
-          </div>
-        )}
-
-        {/* Formulario colapsable para canjear código */}
-        {showRedeemForm && (
-          <form onSubmit={handleRedeemRenewal} style={{ marginTop: '16px', padding: '14px', background: '#f0fdf4', borderRadius: '12px', border: '1px dashed #86efac' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#166534', marginBottom: '8px' }}>
-              Ingresá tu código de renovación
-              <input
-                type="text"
-                required
-                className="invite-code-input"
-                placeholder="PESO-XXXX"
-                value={renewalCode}
-                onChange={(e) => setRenewalCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
-                style={{ width: '100%', boxSizing: 'border-box', marginTop: '6px' }}
-              />
-            </label>
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={isRedeeming}
-              style={{ marginTop: '8px', width: '100%' }}
-            >
-              {isRedeeming ? 'Validando…' : 'Canjear y extender suscripción'}
-            </button>
-            {redeemFeedback && (
-              <p
-                className={`form-message ${redeemFeedback.type === 'error' ? 'form-message-error' : ''}`}
-                style={redeemFeedback.type === 'success' ? { background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', marginTop: '10px' } : { marginTop: '10px' }}
+          {isAdmin && (
+            <div className="settings-bot-switch-row">
+              <div className="settings-bot-switch-copy">
+                <strong>Respuestas del bot (Modo prueba)</strong>
+                <small>Pausar respuestas automáticas del bot temporalmente para tu cuenta.</small>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={enabled}
+                aria-label="Respuestas del bot (Modo prueba)"
+                className={`settings-switch ${enabled ? 'is-on' : ''}`}
+                onClick={() => void updateBotResponses(!enabled)}
               >
-                <Icon name={redeemFeedback.type === 'success' ? 'check' : 'alert'} />
-                {redeemFeedback.message}
-              </p>
-            )}
-          </form>
-        )}
-      </section>
-
-      {/* SECCIÓN 2: CONEXIÓN WHATSAPP */}
-      <section className="settings-panel">
-        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          INTEGRACIÓN
-        </span>
-        <h2 style={{ margin: '4px 0 6px' }}>Conexión con WhatsApp</h2>
-        <p style={{ margin: '0 0 14px' }}>
-          Tu WhatsApp te permite enviar audios, fotos y textos para registrar gastos en cualquier momento.
-        </p>
-
-        <div style={{ padding: '12px 14px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-          <div>
-            <span style={{ fontSize: '13px', color: '#64748b', display: 'block' }}>NÚMERO VINCULADO</span>
-            <strong style={{ fontSize: '14px', color: '#0f172a' }}>
-              {userProfile?.phone_number ? formatPhone(userProfile.phone_number) : 'Sin vincular todavía'}
-            </strong>
-          </div>
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={() => void connectWhatsAppOneTouch()}
-          >
-            <Icon name={userProfile?.phone_number ? 'refresh' : 'message'} /> {userProfile?.phone_number ? 'Cambiar número' : 'Conectar en 1 toque'}
-          </button>
-        </div>
-
-        {code && (
-          <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div className="link-code">
-              VINCULAR {code}
+                <span className="settings-switch-track">
+                  <span className="settings-switch-thumb" />
+                </span>
+              </button>
             </div>
-            {waDirectUrl && (
-              <a
-                href={waDirectUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="button-secondary"
-
-              >
-                <Icon name="message" /> Abrir chat en WhatsApp
-              </a>
-            )}
-          </div>
-        )}
+          )}
+        </article>
       </section>
 
-      {/* SECCIÓN TÉCNICA (SÓLO ADMINISTRADOR) */}
-      {isAdmin && (
-        <section className="settings-panel warning">
-          <span style={{ fontSize: '13px', fontWeight: 800, color: '#b45309', textTransform: 'uppercase' }}>SÓLO ADMIN</span>
-          <h2 style={{ margin: '2px 0 8px', fontSize: '14px' }}>Control Técnico y Costos (Admin)</h2>
-          <label className="switch-row" style={{ borderTop: 'none', padding: '8px 0 0' }}>
-            <span>
-              <strong>Respuestas del bot (Modo prueba)</strong>
-              <small>Pausar respuestas automáticas del bot temporalmente para tu cuenta.</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={(e) => void updateBotResponses(e.target.checked)}
-            />
-          </label>
+      {/* GRUPO 3: APP (SÓLO SI NO ESTÁ INSTALADA) */}
+      {canInstall && (
+        <section className="settings-group" aria-labelledby="settings-group-app">
+          <h2 className="settings-group-title" id="settings-group-app">App</h2>
+          <article className="settings-panel settings-compact-row">
+            <div className="settings-compact-copy">
+              <h3>Instalar Pesito en tu celular</h3>
+              <p>
+                Instalá Pesito en tu pantalla de inicio para entrar más rápido y en pantalla completa.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={triggerInstall}
+            >
+              <Icon name="smartphone" /> Instalar en este dispositivo
+            </button>
+          </article>
         </section>
       )}
-
-      {/* SECCIÓN: INSTALACIÓN DE LA APP (PWA) */}
-      <section className="settings-panel">
-        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          ACCESO RÁPIDO
-        </span>
-        <h2 style={{ margin: '4px 0 6px' }}><Icon name="smartphone" /> Instalar Pesito en tu celular</h2>
-        <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#64748b' }}>
-          Instalá Pesito en tu pantalla de inicio para entrar más rápido, en pantalla completa y con la experiencia de una app nativa.
-        </p>
-
-        {canInstall ? (
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={triggerInstall}
-            style={{
-    display: 'inline-flex', alignItems: 'center', gap: '8px'
-}}
-          >
-            <Icon name="smartphone" /> Instalar en este dispositivo
-          </button>
-        ) : (
-          <div style={{ padding: '12px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', color: '#166534', fontWeight: 700, fontSize: '13px' }}>
-            <Icon name="check" /> Pesito ya está instalado como app en este dispositivo.
-          </div>
-        )}
-      </section>
 
       <InstallAppModal
         isOpen={showIosModal || showDesktopModal}
@@ -505,71 +540,76 @@ export function Settings({
         isIos={showIosModal}
       />
 
-      {/* SECCIÓN 3: DATOS PERSONALES Y SESIÓN */}
-      <section className="settings-panel">
-        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          PERFIL
-        </span>
-        <h2 style={{ margin: '4px 0 6px' }}>Mis Datos Personales</h2>
-        <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#64748b' }}>
-          Tu nombre se usará en el saludo de bienvenida y para identificar tu cuenta en Pesito.
-        </p>
-
-        <form onSubmit={handleSaveName} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '22px', width: '100%' }}>
-          <div className="settings-name-grid">
-            <label className="settings-label">
-              <span>Nombre</span>
-              <input
-                type="text"
-                className="settings-input"
-                value={firstNameInput}
-                onChange={(e) => setFirstNameInput(e.target.value)}
-                placeholder="Ej. María"
-                autoComplete="given-name"
-              />
-            </label>
-            <label className="settings-label">
-              <span>Apellido</span>
-              <input
-                type="text"
-                className="settings-input"
-                value={lastNameInput}
-                onChange={(e) => setLastNameInput(e.target.value)}
-                placeholder="Ej. González"
-                autoComplete="family-name"
-              />
-            </label>
+      {/* ACCESO EXCLUSIVO ADMIN (FILA COMPACTA AL PIE) */}
+      {isAdmin && onOpenAdmin && (
+        <section className="settings-panel admin-highlight-box settings-admin-row" aria-label="Panel de Control">
+          <div className="settings-compact-copy">
+            <h3>Panel de Control</h3>
+            <p>Gestioná licencias, códigos y clientes.</p>
           </div>
-
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
-            <button className="settings-save-button" type="submit" disabled={savingName}>
-              <Icon name="save" /> {savingName ? 'Guardando…' : 'Guardar mis datos'}
-            </button>
-            {nameSuccess && (
-              <span style={{ fontSize: '13px', color: 'var(--mint-dark)', fontWeight: 700 }}>
-                {nameSuccess}
-              </span>
-            )}
-          </div>
-        </form>
-
-        <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '18px 0' }} />
-
-        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          CUENTA
-        </span>
-        <h2 style={{ margin: '4px 0 6px' }}>Sesión</h2>
-        <p style={{ margin: '0 0 14px' }}>
-          Sesión iniciada con: <strong>{userEmail || userProfile?.email || 'Tu correo'}</strong>
-        </p>
-        {onSignOut && (
-          <button className="danger-button" type="button" onClick={onSignOut}>
-            Cerrar sesión
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={onOpenAdmin}
+          >
+            <Icon name="shield" /> Abrir Panel Admin
           </button>
-        )}
-      </section>
+        </section>
+      )}
 
       {status && <p className="settings-status" role="status">{status}</p>}
+
+      <nav className="mobile-nav" aria-label="Navegación móvil">
+        <a
+          href="#resumen"
+          onClick={(e) => {
+            e.preventDefault();
+            navigateToDashboardSection('#resumen');
+          }}
+        >
+          <Icon name="home" className="nav-icon" />
+          <span>Inicio</span>
+        </a>
+        <a
+          href="#movimientos"
+          onClick={(e) => {
+            e.preventDefault();
+            navigateToDashboardSection('#movimientos');
+          }}
+        >
+          <Icon name="movements" className="nav-icon" />
+          <span>Movimientos</span>
+        </a>
+        <button
+          type="button"
+          aria-label="Agregar movimiento"
+          onClick={() => navigateToDashboardSection('#resumen')}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+        <a
+          href="#cuotas"
+          onClick={(e) => {
+            e.preventDefault();
+            navigateToDashboardSection('#cuotas');
+          }}
+        >
+          <Icon name="card" className="nav-icon" />
+          <span>Cuotas</span>
+        </a>
+        <button
+          type="button"
+          className="active"
+          aria-current="page"
+          aria-label="Ajustes"
+        >
+          <Icon name="settings" className="nav-icon" />
+          <span>Ajustes</span>
+        </button>
+      </nav>
     </main>
   );
 }

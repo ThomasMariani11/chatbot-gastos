@@ -12,8 +12,8 @@ Mantener identidad, voseo, lógica financiera, permisos, datos, endpoints y par�
 | --- | --- | --- |
 | 1 | Base transversal: hover, SVG, categorías, botones y legibilidad | Publicado en PR #24 (98c3dca), CI y verificación web aprobados; aceptación física en dispositivo pendiente |
 | 2 | Resumen: jerarquía de KPIs, presupuesto vacío, dona, movimientos breves y cuotas | Publicado en PR #25 (79a955d), CI y verificación web aprobados; aceptación física en dispositivo pendiente |
-| 3 | Vistas propias de Movimientos y Cuotas con datos existentes | Implementado y validado localmente; revisión visual, CI y publicación pendientes |
-| 4 | Ajustes: agrupación, acciones secundarias, instalación y navegación inferior | Pendiente |
+| 3 | Vistas propias de Movimientos y Cuotas con datos existentes | Publicado en PR #26 (83e3322), CI y verificación web aprobados; aceptación física en dispositivo pendiente |
+| 4 | Ajustes: agrupación, acciones secundarias, instalación y navegación inferior | Implementado y validado localmente; revisión visual, CI y publicación pendientes |
 | 5 | Admin: contadores compactos, pestañas sticky, tarjetas y acciones | Pendiente |
 
 ## Bloque 1 — Implementación
@@ -65,8 +65,22 @@ Mantener identidad, voseo, lógica financiera, permisos, datos, endpoints y par�
   - Comparación por AST de `src/Dashboard.tsx` contra `79a955d`: llamadas y argumentos de Supabase idénticos, sin nuevas consultas ni cambios de permisos.
   - Verificación en Chromium headless (`375 × 812` y `1280 × 960`) con datos sintéticos y escrituras bloqueadas: `docOverflow = 0`, 0 textos menores a 13 px y 0 controles interactivos menores a 44 px.
 
+## Bloque 4 — Implementación y validación
+
+- Agrupación bajo títulos livianos (`.settings-group-title`):
+  - `Cuenta`: `Mi Suscripción` (con enlace de código de renovación en verde de marca), `Mis Datos Personales` (`Guardar mis datos` sin icono ni sombra pesada, deshabilitado hasta detectar cambios en nombre o apellido) y `Sesión` (en tarjeta compacta propia, separada de `Guardar mis datos`, con botón destructivo `Cerrar sesión` conectado al diálogo de confirmación).
+  - `Integraciones`: `Conexión con WhatsApp` (con botón secundario con borde `Cambiar número` / `Conectar en 1 toque`) y, para cuentas administradoras, `Respuestas del bot (Modo prueba)` reemplazando el checkbox nativo por un switch accesible (`role="switch"`, `aria-checked`, área táctil `>= 44 px`).
+  - `App`: se muestra únicamente cuando `canInstall` es verdadero; si Pesito ya está instalado (`!canInstall`), la tarjeta se oculta por completo.
+- Reducción de etiquetas repetidas: se eliminan las etiquetas verdes en mayúsculas repetidas en cada card individual, dejando los encabezados de grupo (`Cuenta`, `Integraciones`, `App`) y títulos limpios por tarjeta.
+- `Panel de Control` (exclusivo admin): convertido en fila compacta oscura (`.settings-admin-row`, texto a la izquierda y botón a la derecha) y ubicado al pie de la pantalla.
+- Navegación móvil en Ajustes: se mantiene visible la barra inferior (`.mobile-nav`) en móvil con `Ajustes` activo (`aria-current="page"`) y navegación directa hacia `Inicio` (`#resumen`), `Movimientos` (`#movimientos`) y `Cuotas` (`#cuotas`).
+- Validación técnica y visual:
+  - ESLint, TypeScript/build y 468 pruebas Vitest aprobadas.
+  - Comparación por AST de `src/Settings.tsx` contra `83e3322`: las 6 llamadas y argumentos de Supabase son 100 % idénticos.
+  - Verificación en Chromium headless (`375 × 920` y `1280 × 1140`) con datos sintéticos y escrituras bloqueadas: `docOverflow = 0`, 0 textos menores a 13 px, 0 controles interactivos menores a 44 px, `.mobile-nav` presente, `role="switch"` activo y `Guardar mis datos` deshabilitado sin cambios.
+
 ## Pendientes explícitos
 
-Ajustes y compactación del admin quedan para los bloques 4 y 5. No se afirma cumplir todavía tres clientes por pantalla en móvil hasta completar el bloque 5.
+Compactación del panel de administración queda para el bloque 5. No se afirma cumplir todavía tres clientes por pantalla en móvil hasta completar el bloque 5.
 
 La aceptación global exige completar los cinco bloques y probar los flujos que cambian visualmente. Publicar únicamente la revisión autorizada y registrar su commit/CI en la PR correspondiente; la aceptación real en teléfono se registra por separado.
