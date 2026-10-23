@@ -42,7 +42,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Terminada |
 | 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Terminada |
 | 12 | INF-14 | Media | Observabilidad y retención | F14 | En curso; retención sin activar |
-| 13 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | Pendiente |
+| 13 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | En curso; CSP validada localmente, cabeceras pendientes |
 | 14 | INF-15 | Media | Controles de costos y documentación | F15 | Pendiente |
 | 15 | INF-08 | Alta, a verificar | Backups y recuperación | F08 | Pendiente; última del plan |
 
@@ -168,6 +168,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-13 — Incorporar CSP y cabeceras de seguridad
 
+- **Avance 23/10/2026:** CSP generada en el build y no-referrer en HTML; 459 tests, lint/tipos/build y navegador aislado aprobados (scripts/eval/orígenes externos bloqueados, Auth health 200, WSS abierto, fuentes/gráficos/PWA compatibles). Publicación y aceptación productiva pendientes. GitHub Pages no permite configurar las cabeceras HTTP requeridas: protección de framing y demás headers siguen abiertos; no se cambia hosting ni se agregan costos. [Validación](VALIDACION_INF_13.md) y [runbook](../operaciones/SEGURIDAD_NAVEGADOR.md).
+
 - [ ] Terminada.
 - **Problema confirmado por HTTP:** la web tiene HSTS, pero no se observaron CSP, X-Content-Type-Options, Referrer-Policy ni protección contra framing. No se identificó un XSS concreto.
 - **Ubicación:** `index.html:3` y configuración del hosting.
@@ -185,7 +187,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 - **Avance 22/10/2026:** migración 027, agregados por minuto, incidentes de cola/reintentos/revisión/recuperación/pedidos de texto; panel de administrador y bandeja de avisos independiente. El propietario eligió panel y su WhatsApp y confirmó número de prueba de Meta: verificación de emisor antes de cada envío, ventana entrante y bloqueo si cambia. Conservación propuesta 30 días de contenido terminado y 90 días de agregados/avisos enviados o cancelados; **desactivada hasta aprobación**. No se usaron claves backend suspendidas ni se alteraron movimientos. [Runbook y límites](../operaciones/MONITOREO_Y_RETENCION.md).
 
-- **Aceptación 22/10/2026:** migración 027 y webhook v52 publicados (PR #20). Prueba ficticia con el propietario: alerta visible, reconocimiento desde el panel y un aviso recibido por WhatsApp; simulación cerrada sin alterar movimientos ni borradores. Se prepara 028 para mostrar cliente, fecha/hora de Argentina y diagnóstico seguro en panel/avisos, por pedido del propietario. Retención desactivada.
+- **Aceptación 22/10/2026:** migración 027 y webhook v52 publicados (PR #20). Prueba ficticia con el propietario: alerta visible, reconocimiento desde el panel y un aviso recibido por WhatsApp; simulación cerrada sin alterar movimientos ni borradores. 028 y webhook v53 ya publicados (PR #21) para mostrar cliente, fecha/hora de Argentina y diagnóstico seguro en panel/avisos. PR #22 publicada el 23/10/2026 (1eb546b): administración por Clientes, Invitaciones, Bot y Ajustes; vista móvil y modales con foco/teclado revisados. Esto no cierra todas las tareas de accesibilidad o membresías concurrentes del frontend. Retención desactivada.
 
 ### INF-15 — Corregir documentación y controles de costos
 
@@ -228,7 +230,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Pendiente |
 | 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Pendiente |
 | 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Pendiente |
-| 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | Pendiente |
+| 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | En curso; validada localmente, publicación pendiente |
 | 21 | FE-20 | Baja | Cancelar navegación pendiente al desmontar | — | Pendiente |
 | 22 | FE-22 | Baja | Cascada CSS de pestañas de acceso | FE-16 | Pendiente |
 
@@ -383,6 +385,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **A verificar:** límite productivo de PostgREST; no hubo acceso a esa configuración en la auditoría frontend. Coordinar agregaciones con BE-09 sin mezclar monedas.
 
 ### FE-19 — Publicar una CSP compatible con el cliente
+
+- **Avance 23/10/2026:** implementación y validación compartidas con INF-13; no se duplica la política. Pendiente de publicación y aceptación productiva. [Validación](VALIDACION_INF_13.md).
 
 - [ ] Terminada.
 - **Categoría:** Seguridad. **Problema confirmado por HTTP y documento:** no hay Content-Security-Policy, variante report-only ni meta CSP. No se encontró una vía de XSS explotable. Las sesiones persistentes de la SPA aumentan el impacto potencial de un script malicioso del mismo origen, pero usar persistencia del SDK no se clasificó por sí solo como vulnerabilidad.
@@ -701,3 +705,5 @@ Completar una entrada al cerrar cada tarea:
 | 20/10/2026 | BE-12 (reglas locales WhatsApp) | Gramática local conservadora, comandos y correcciones sin IA; PR 13 (ce216ec), webhook v45 ACTIVE | 306 Vitest, 35 Deno sin red, cuatro checks PR y aceptación real en WhatsApp (5 mensajes en 0,65–2,27 s, local_rule y cero ai_attempt) | Sin SQL nuevo ni transacciones de prueba creadas | Resto de campos de edición/resumen de BE-12 y BE-08 siguen abiertos |
 
 | 20/10/2026 | INF-12 / BE-15 | Integración Groq Free (whisper-large-v3-turbo + normalización de montos hablados + reglas locales previas + qwen/qwen3.8-27b con esquema estricto y cupo compartido) | 306 Vitest, 38 Deno sin red, 12 SQL, seis controles Node, cuatro checks CI, smoke 401 y aceptación WhatsApp (imagen 3,11 s, audio 2,32 s + CANCELAR) | Webhook ACTIVE desplegado desde checkout limpio; cero transacciones creadas | Terminada; rotar clave beta antes del 27/10 y continuar con INF-14 / BE-16 |
+
+| 23/10/2026 | INF-13 / FE-19 | CSP única en build y meta no-referrer; solo scripts propios y orígenes exactos | 459 tests, lint/tipos/build; copia ficticia con gráficos, administrador, SW, fuentes y bloqueos CSP; Auth health 200/WSS real sin datos | Preparado en rama; sin publicación, SQL ni webhook nuevos | CI/publicación y aceptación; headers exclusivos del hosting abiertos; INF-15 siguiente, retención sin aprobar y backups al final |
