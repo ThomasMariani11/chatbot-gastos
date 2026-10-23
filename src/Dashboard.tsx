@@ -906,7 +906,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             className="nav-item nav-button"
             type="button"
             onClick={triggerInstall}
-            style={{ color: '#059669', fontWeight: 700 }}
+            style={{ color: 'var(--mint-dark)', fontWeight: 700 }}
           >
             <span><Icon name="smartphone" /></span>Instalar app
           </button>

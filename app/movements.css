@@ -76,7 +76,7 @@
 }
 
 .movement-right b.income {
-  color: #129d6f;
+  color: var(--mint-dark);
 }
 
 .movement-chevron {

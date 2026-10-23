@@ -122,7 +122,7 @@ export function Paywall({
 
         {isSuspended ? (
           <>
-            <p className="eyebrow" style={{ color: '#ea580c' }}>CUENTA PAUSADA</p>
+            <p className="eyebrow" style={{ color: '#8a4d08' }}>CUENTA PAUSADA</p>
             <h1>Acceso suspendido ⏸️</h1>
             <p>
               Tu acceso a Pesito se encuentra temporalmente en pausa. Si creés que se trata de un error o deseás reactivarlo, comunicate por WhatsApp.

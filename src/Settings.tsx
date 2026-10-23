@@ -546,7 +546,7 @@ export function Settings({
               <Icon name="save" /> {savingName ? 'Guardando…' : 'Guardar mis datos'}
             </button>
             {nameSuccess && (
-              <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 700 }}>
+              <span style={{ fontSize: '13px', color: 'var(--mint-dark)', fontWeight: 700 }}>
                 {nameSuccess}
               </span>
             )}
