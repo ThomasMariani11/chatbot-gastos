@@ -1,3 +1,5 @@
+import { Icon } from './Icons';
+import { categoryVisual, movementVisual } from './categoryVisuals';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { supabase } from './supabase';
@@ -16,7 +18,6 @@ type Movement = {
   currency: 'ARS' | 'USD';
   date: string;
   kind: 'expense' | 'income';
-  icon: string;
   installmentNumber?: number | null;
   installmentCount?: number | null;
   installmentGroupId?: string | null;
@@ -103,40 +104,10 @@ function todayKey() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date());
 }
 
-function IconHome({ className = 'nav-icon' }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1V9.5z" />
-    </svg>
-  );
-}
-
-function IconMovements({ className = 'nav-icon' }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M7 4v16M7 4L3 8M7 4l4 4M17 20V4M17 20l-4-4M17 20l4-4" />
-    </svg>
-  );
-}
-
-function IconInstallments({ className = 'nav-icon' }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="2" y="5" width="20" height="14" rx="2" />
-      <line x1="2" y1="10" x2="22" y2="10" />
-    </svg>
-  );
-}
-
-function IconSettings({ className = 'nav-icon' }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
-}
-
+function IconHome({ className = 'nav-icon' }: { className?: string }) { return <Icon name="home" className={className} />; }
+function IconMovements({ className = 'nav-icon' }: { className?: string }) { return <Icon name="movements" className={className} />; }
+function IconInstallments({ className = 'nav-icon' }: { className?: string }) { return <Icon name="card" className={className} />; }
+function IconSettings({ className = 'nav-icon' }: { className?: string }) { return <Icon name="settings" className={className} />; }
 
 const PRESET_INSTALLMENT_COUNTS = [2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48];
 
@@ -318,18 +289,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       .forEach((item) => grouped.set(item.category, (grouped.get(item.category) ?? 0) + item.amount));
     return Array.from(grouped, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [filteredMovements]);
-  const chartColors = [
-    '#655ad8', // violeta
-    '#20b984', // menta / verde
-    '#f4b44d', // naranja / ámbar
-    '#ea7172', // salmón / coral
-    '#3b82f6', // azul
-    '#0ea5e9', // celeste / cian
-    '#ec4899', // rosa
-    '#8b5cf6', // púrpura
-    '#10b981', // esmeralda
-    '#64748b', // pizarra
-  ];
+
   const botStatus = {
     active: { title: 'Bot habilitado', detail: 'WhatsApp activo' },
     paused: { title: 'Bot pausado', detail: 'Respuestas desactivadas' },
@@ -394,7 +354,6 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           currency: (row.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
           date: String(row.occurred_on),
           kind: row.kind as 'expense' | 'income',
-          icon: row.kind === 'income' ? '↗' : '•',
           installmentNumber: row.installment_number ? Number(row.installment_number) : null,
           installmentCount: row.installment_count ? Number(row.installment_count) : null,
           installmentGroupId: row.installment_group_id ? String(row.installment_group_id) : null,
@@ -476,7 +435,6 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             categoryId: rowToEdit.category_id ? String(rowToEdit.category_id) : undefined,
             date: String(rowToEdit.occurred_on),
             kind: (rowToEdit.kind || 'expense') as 'expense' | 'income',
-            icon: '•',
             installmentNumber: rowToEdit.installment_number ? Number(rowToEdit.installment_number) : 1,
             installmentCount: totalCount,
             installmentGroupId: groupId,
@@ -853,7 +811,6 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             category: selectedCategory.name,
             categoryId: selectedCategory.id,
             date: dateStr,
-            icon: editKind === 'income' ? '↗' : '•',
             installmentNumber: isInstallmentPlan ? editInstallmentNumber : m.installmentNumber,
             installmentCount: isInstallmentPlan ? editInstallmentCount : m.installmentCount,
           };
@@ -941,7 +898,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         <button className="nav-item nav-button" type="button" onClick={onOpenSettings}><span><IconSettings /></span>Configuración</button>
         {isAdmin && onOpenAdmin && (
           <button className="nav-item nav-button admin-sidebar-nav" type="button" onClick={onOpenAdmin}>
-            <span>🛠️</span>Panel Admin
+            <span><Icon name="shield" /></span>Panel Admin
           </button>
         )}
         {canInstall && (
@@ -951,7 +908,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             onClick={triggerInstall}
             style={{ color: '#059669', fontWeight: 700 }}
           >
-            <span>📲</span>Instalar app
+            <span><Icon name="smartphone" /></span>Instalar app
           </button>
         )}
       </nav>
@@ -986,7 +943,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 cursor: 'pointer',
               }}
             >
-              📲 Instalar app
+              <Icon name="smartphone" /> Instalar app
             </button>
           )}
           {isAdmin && onOpenAdmin && (
@@ -996,7 +953,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               onClick={onOpenAdmin}
               title="Ir al Panel de Administrador"
             >
-              🛠️ Panel Admin
+              <Icon name="shield" /> Panel Admin
             </button>
           )}
           <select aria-label="Mes" value={month} onChange={(event) => setMonth(event.target.value)}>
@@ -1006,14 +963,14 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               </option>
             ))}
           </select>
-          <button aria-label="Notificaciones" className="icon-button">♢</button>
+          <button aria-label="Notificaciones" className="icon-button"><Icon name="bell" /></button>
         </div>
       </header>
 
       {/* WHATSAPP ONBOARDING BANNER (FASE 4) */}
       {botState === 'unlinked' && (
         <section className="whatsapp-onboarding-banner">
-          <div className="onboarding-badge-icon">💬</div>
+          <div className="onboarding-badge-icon"><Icon name="message" size={28} /></div>
           <div className="onboarding-details">
             <span className="onboarding-step-tag">VINCULACIÓN RÁPIDA</span>
             <h2>Conectá tu WhatsApp en 1 toque</h2>
@@ -1027,7 +984,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 onClick={() => void handleConnectWhatsApp()}
                 disabled={isConnectingWa}
               >
-                {isConnectingWa ? 'Generando código…' : '🟢 Conectar mi WhatsApp en 1 toque'}
+                {isConnectingWa ? 'Generando código…' : <><Icon name="message" /> Conectar mi WhatsApp en 1 toque</>}
               </button>
               {waLinkReady && (
                 <a
@@ -1035,7 +992,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                   className="whatsapp-onboarding-btn"
                   style={{ background: '#128c7e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  💬 Abrir WhatsApp ahora (Código: {waLinkReady.code})
+                  <Icon name="message" /> Abrir WhatsApp ahora (Código: {waLinkReady.code})
                 </a>
               )}
             </div>
@@ -1055,7 +1012,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             className={`currency-pill ${activeCurrency === 'ARS' ? 'active' : ''}`}
             onClick={() => setActiveCurrency('ARS')}
           >
-            <span className="currency-flag">🇦🇷</span>
+            <span className="currency-code" aria-hidden="true">ARS</span>
             <span>Pesos (ARS)</span>
           </button>
           <button
@@ -1065,7 +1022,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             className={`currency-pill ${activeCurrency === 'USD' ? 'active' : ''}`}
             onClick={() => setActiveCurrency('USD')}
           >
-            <span className="currency-flag">🇺🇸</span>
+            <span className="currency-code" aria-hidden="true">USD</span>
             <span>Dólares (USD)</span>
           </button>
         </div>
@@ -1073,23 +1030,23 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       <section className="summary-grid" aria-label={`Resumen mensual en ${activeCurrency}`}>
         <article className="summary-card expense">
           <div className="card-heading">
-            <span className="metric-icon">↘</span>
+            <span className="metric-icon"><Icon name="arrowDownRight" /></span>
             <small>GASTOS {activeCurrency}</small>
           </div>
           <strong>{formatMoney(expenses, activeCurrency)}</strong>
-          <p>Actualizado automáticamente</p>
+          
         </article>
         <article className="summary-card income">
           <div className="card-heading">
-            <span className="metric-icon">↗</span>
+            <span className="metric-icon"><Icon name="arrowUpRight" /></span>
             <small>INGRESOS {activeCurrency}</small>
           </div>
           <strong>{formatMoney(income, activeCurrency)}</strong>
-          <p>Actualizado automáticamente</p>
+          
         </article>
         <article className="summary-card balance">
           <div className="card-heading">
-            <span className="metric-icon">◎</span>
+            <span className="metric-icon"><Icon name="wallet" /></span>
             <small>BALANCE {activeCurrency}</small>
           </div>
           <strong>{formatMoney(income - expenses, activeCurrency)}</strong>
@@ -1132,7 +1089,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                   setShowCategoryModal(true);
                 }}
               >
-                Ver detalle ↗
+                Ver detalle <Icon name="externalLink" size={16} />
               </button>
             )}
           </div>
@@ -1165,10 +1122,10 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                     paddingAngle={chartData.length > 1 ? 2 : 0}
                     stroke="none"
                   >
-                    {chartData.map((entry, index) => (
+                    {chartData.map((entry) => (
                       <Cell
                         key={entry.name}
-                        fill={chartColors[index % chartColors.length]}
+                        fill={categoryVisual(entry.name).color}
                         opacity={dashboardActiveCategory && dashboardActiveCategory !== entry.name ? 0.45 : 1}
                         style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
                         onMouseEnter={() => setDashboardActiveCategory(entry.name)}
@@ -1193,7 +1150,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               </div>
             </div>
             <ul className="legend">
-              {chartData.map((entry, index) => (
+              {chartData.map((entry) => (
                 <li
                   key={entry.name}
                   className="interactive-legend-item"
@@ -1213,7 +1170,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                     }
                   }}
                 >
-                  <i style={{ background: chartColors[index % chartColors.length] }} />
+                  <i style={{ background: categoryVisual(entry.name).color }} />
                   <span>{entry.name}</span>
                   <strong>{expenses ? Math.round((entry.value / expenses) * 100) : 0}%</strong>
                 </li>
@@ -1242,7 +1199,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') startEditMovement(item); }}
                   aria-label={`Ver o editar ${item.title}`}
                 >
-                  <span className={`movement-icon ${item.kind}`}>{item.icon}</span>
+                  <span className={`movement-icon ${item.kind}`} style={{ color: movementVisual(item.category, item.kind).color, backgroundColor: movementVisual(item.category, item.kind).background }}><Icon name={movementVisual(item.category, item.kind).icon} /></span>
                   <div className="movement-info">
                     <strong>{item.title}</strong>
                     <small>
@@ -1252,7 +1209,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                   </div>
                   <div className="movement-right">
                     <b className={item.kind}>{item.kind === 'expense' ? '−' : '+'}{formatMoney(item.amount, item.currency)}</b>
-                    <span className="movement-chevron" aria-hidden="true">›</span>
+                    <Icon name="chevronRight" className="movement-chevron ui-icon" size={18} />
                   </div>
                 </div>
               ))
@@ -1269,7 +1226,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           </div>
           {filteredInstallmentPlans.length === 0 ? (
             <div className="installments-empty">
-              <span>✓</span>
+              <span><Icon name="check" size={26} /></span>
               <strong>No tenés cuotas pendientes en {activeCurrency}</strong>
               <small>Cuando registres una compra en cuotas en {activeCurrency}, aparecerá acá.</small>
             </div>
@@ -1307,7 +1264,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                       }}
                       aria-label={`Modificar cuotas de ${plan.description}`}
                     >
-                      ✏️ Modificar cuotas
+                      <Icon name="edit" size={16} /> Modificar cuotas
                     </button>
                     <button
                       type="button"
@@ -1315,7 +1272,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                       onClick={() => setInstallmentDeletePrompt({ plan })}
                       aria-label={`Eliminar plan ${plan.description}`}
                     >
-                      🗑️ Eliminar compra completa
+                      <Icon name="trash" size={16} /> Eliminar compra completa
                     </button>
                   </div>
                 </div>
@@ -1350,7 +1307,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         <span>Ajustes</span>
       </button>
     </nav>
-    <button className="desktop-add" onClick={() => { setManualCurrency(activeCurrency); setShowAdd(true); }}>＋ Agregar movimiento</button>
+    <button className="desktop-add" onClick={() => { setManualCurrency(activeCurrency); setShowAdd(true); }}><Icon name="plus" /> Agregar movimiento</button>
     {showAdd && (
 
       <div className="modal-backdrop" role="presentation" onClick={() => setShowAdd(false)}>
@@ -1373,7 +1330,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 setFormAmount('');
               }}
             >
-              ✕
+              <Icon name="close" />
             </button>
           </div>
           <label>
@@ -1388,8 +1345,8 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 value={manualCurrency}
                 onChange={(e) => setManualCurrency(e.target.value as 'ARS' | 'USD')}
               >
-                <option value="ARS">🇦🇷 Pesos (ARS)</option>
-                <option value="USD">🇺🇸 Dólares (USD)</option>
+                <option value="ARS">Pesos (ARS)</option>
+                <option value="USD">Dólares (USD)</option>
               </select>
             </label>
             <label>
@@ -1482,7 +1439,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                     {PRESET_INSTALLMENT_COUNTS.map((count) => (
                       <option key={count} value={count}>{count} cuotas</option>
                     ))}
-                    <option value="custom">✏️ Personalizada (otra cantidad)...</option>
+                    <option value="custom">Personalizada (otra cantidad)…</option>
                   </select>
                 </label>
                 <label>
@@ -1630,7 +1587,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setEditingMovement(null)}
             >
-              ✕
+              <Icon name="close" />
             </button>
           </div>
           {editingMovement.installmentCount && editingMovement.installmentCount > 1 && (
@@ -1673,7 +1630,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                         {count} cuotas
                       </option>
                     ))}
-                    <option value="custom">✏️ Personalizada (otra cantidad)...</option>
+                    <option value="custom">Personalizada (otra cantidad)…</option>
                   </select>
                 </label>
               </div>
@@ -1738,8 +1695,8 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 value={editCurrency}
                 onChange={(e) => setEditCurrency(e.target.value as 'ARS' | 'USD')}
               >
-                <option value="ARS">🇦🇷 Pesos (ARS)</option>
-                <option value="USD">🇺🇸 Dólares (USD)</option>
+                <option value="ARS">Pesos (ARS)</option>
+                <option value="USD">Dólares (USD)</option>
               </select>
             </label>
             <label>
@@ -1937,7 +1894,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setShowBudgetModal(false)}
             >
-              ✕
+              <Icon name="close" />
             </button>
           </div>
 
@@ -2045,7 +2002,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <div style={{ fontSize: '38px', lineHeight: 1 }}>🗑️</div>
+          <div className="dialog-symbol"><Icon name="trash" size={32} /></div>
           <div>
             <p className="eyebrow" style={{ color: '#ea7172', marginBottom: '4px' }}>ELIMINAR PRESUPUESTO</p>
             <h2 id="delete-budget-title" style={{ margin: 0, fontSize: '19px', fontWeight: 800 }}>
@@ -2121,7 +2078,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setShowCategoryModal(false)}
             >
-              ✕
+              <Icon name="close" />
             </button>
           </div>
 
@@ -2139,13 +2096,13 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                     stroke="none"
                     isAnimationActive={false}
                   >
-                    {chartData.map((entry, index) => {
+                    {chartData.map((entry) => {
                       const isSelected = expandedCategoryInModal === entry.name;
                       const hasSelection = Boolean(expandedCategoryInModal);
                       return (
                         <Cell
                           key={entry.name}
-                          fill={chartColors[index % chartColors.length]}
+                          fill={categoryVisual(entry.name).color}
                           opacity={hasSelection ? (isSelected ? 1 : 0.22) : 1}
                           stroke={isSelected ? '#ffffff' : 'none'}
                           strokeWidth={isSelected ? 3 : 0}
@@ -2178,8 +2135,8 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           </div>
 
           <div className="category-modal-list">
-            {chartData.map((entry, index) => {
-              const color = chartColors[index % chartColors.length];
+            {chartData.map((entry) => {
+              const color = categoryVisual(entry.name).color;
               const percent = expenses ? Math.round((entry.value / expenses) * 100) : 0;
               const isExpanded = expandedCategoryInModal === entry.name;
               const catMovements = filteredMovements.filter((m) => m.kind === 'expense' && m.category === entry.name);

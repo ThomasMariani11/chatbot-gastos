@@ -1,3 +1,4 @@
+import { Icon } from './Icons';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -24,7 +25,7 @@ export function InstallAppModal({ isOpen, onClose, isIos }: Props) {
           cursor: 'default',
         }}
       >
-        <div style={{ fontSize: '42px', marginBottom: '8px' }}>📲</div>
+        <div className="dialog-symbol"><Icon name="smartphone" size={32} /></div>
         <h2 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 8px', color: '#0f172a' }}>
           Instalar Pesito en tu celular
         </h2>
@@ -52,13 +53,13 @@ export function InstallAppModal({ isOpen, onClose, isIos }: Props) {
               <li style={{ marginBottom: '8px' }}>
                 Tocá el botón <strong>Compartir</strong> en la barra inferior de Safari{' '}
                 <span style={{ fontSize: '16px', display: 'inline-block', verticalAlign: 'middle' }}>
-                  (el ícono de la cajita con la flecha ⎋)
+                  <Icon name="share" size={18} />
                 </span>.
               </li>
               <li style={{ marginBottom: '8px' }}>
                 Deslizá hacia abajo y seleccioná{' '}
                 <strong>"Agregar a pantalla de inicio"</strong>{' '}
-                <span style={{ fontSize: '16px' }}>➕</span>.
+                <Icon name="plus" size={18} />.
               </li>
               <li>
                 Tocá <strong>"Agregar"</strong> arriba a la derecha. ¡Listo!
@@ -102,7 +103,7 @@ export function InstallAppModal({ isOpen, onClose, isIos }: Props) {
             onClick={onClose}
             style={{ width: '100%', padding: '12px', borderRadius: '10px' }}
           >
-            Entendido 👍
+            Entendido
           </button>
         </div>
       </div>

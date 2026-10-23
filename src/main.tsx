@@ -7,6 +7,7 @@ import '../app/forms.css';
 import '../app/interactions.css';
 import '../app/movements.css';
 import './styles.css';
+import './ui.css';
 
 initZoomLock();
 

@@ -1,0 +1,6 @@
+/* Base visual compartida; las reglas de dominio permanecen en sus módulos. */
+.ui-icon { display: inline-block; flex: 0 0 auto; vertical-align: -.18em; }
+.movement-icon > .ui-icon { width: 20px; height: 20px; }
+.movement-chevron.ui-icon { width: 18px; height: 18px; padding: 0; }
+.dialog-symbol { display: grid; place-items: center; width: 54px; height: 54px; margin: 0 auto 12px; border-radius: 16px; background: #eaf6ef; color: var(--mint-dark); }
+.currency-code { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 6px; border-radius: 6px; background: #ffffffb3; font-size: 12px; font-weight: 800; letter-spacing: .3px; }

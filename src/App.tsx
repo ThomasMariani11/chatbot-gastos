@@ -1,3 +1,4 @@
+import { Icon } from './Icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { AdminPanel } from './AdminPanel';
@@ -152,7 +153,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <div style={{ fontSize: '38px', lineHeight: 1 }}>🚪</div>
+          <div className="dialog-symbol"><Icon name="logOut" size={32} /></div>
           <div>
             <p className="eyebrow" style={{ color: '#e24b4b', marginBottom: '4px' }}>CERRAR SESIÓN</p>
             <h2 id="logout-confirm-title" style={{ margin: 0, fontSize: '19px', fontWeight: 800 }}>¿Cerrar sesión en Pesito?</h2>

@@ -1,3 +1,4 @@
+import { Icon } from './Icons';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabase';
 import { requestWhatsAppLinkCode } from './whatsappLink';
@@ -284,7 +285,7 @@ export function Settings({
               style={{ background: '#38bdf8', color: '#0f172a', fontWeight: 800, whiteSpace: 'nowrap' }}
               onClick={onOpenAdmin}
             >
-              🛠️ Abrir Panel Admin
+              <Icon name="shield" /> Abrir Panel Admin
             </button>
           </div>
         </section>
@@ -301,11 +302,11 @@ export function Settings({
           </div>
           <div>
             {subscriptionInfo.isLifetime ? (
-              <span className="status-pill green" style={{ fontSize: '12px' }}>🌟 Plan Vitalicio</span>
+              <span className="status-pill green" style={{ fontSize: '12px' }}>Plan sin vencimiento</span>
             ) : subscriptionInfo.isExpiringSoon ? (
-              <span className="status-pill orange" style={{ fontSize: '12px' }}>⚠️ Vence pronto</span>
+              <span className="status-pill orange" style={{ fontSize: '12px' }}>Vence pronto</span>
             ) : (
-              <span className="status-pill green" style={{ fontSize: '12px' }}>🟢 Plan Activo</span>
+              <span className="status-pill green" style={{ fontSize: '12px' }}>Plan activo</span>
             )}
           </div>
         </div>
@@ -338,7 +339,7 @@ export function Settings({
               className="whatsapp-request-btn"
               style={{ padding: '10px 16px', fontSize: '13px' }}
             >
-              <span>💬</span> Renovar por WhatsApp
+              <span><Icon name="message" /></span> Renovar por WhatsApp
             </a>
           )}
           <button
@@ -363,7 +364,7 @@ export function Settings({
             border: '1px solid #e2e8f0',
             display: 'inline-block',
           }}>
-            💸 Alias para transferencias: <strong style={{ color: '#0f172a' }}>{paymentAlias}</strong>
+            <Icon name="card" size={16} /> Alias para transferencias: <strong style={{ color: '#0f172a' }}>{paymentAlias}</strong>
           </div>
         )}
 
@@ -395,7 +396,7 @@ export function Settings({
                 className={`form-message ${redeemFeedback.type === 'error' ? 'form-message-error' : ''}`}
                 style={redeemFeedback.type === 'success' ? { background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', marginTop: '10px' } : { marginTop: '10px' }}
               >
-                {redeemFeedback.type === 'success' ? '✅ ' : '❌ '}
+                <Icon name={redeemFeedback.type === 'success' ? 'check' : 'alert'} />
                 {redeemFeedback.message}
               </p>
             )}
@@ -426,7 +427,7 @@ export function Settings({
             style={{ background: '#25d366', color: '#fff', border: 'none', padding: '9px 15px', fontSize: '12px' }}
             onClick={() => void connectWhatsAppOneTouch()}
           >
-            {userProfile?.phone_number ? '🔄 Cambiar número' : '🟢 Conectar en 1 toque'}
+            <Icon name={userProfile?.phone_number ? 'refresh' : 'message'} /> {userProfile?.phone_number ? 'Cambiar número' : 'Conectar en 1 toque'}
           </button>
         </div>
 
@@ -443,7 +444,7 @@ export function Settings({
                 className="primary-button"
                 style={{ background: '#25d366', color: '#fff', textAlign: 'center', textDecoration: 'none', fontWeight: 800, padding: '10px 16px', display: 'block' }}
               >
-                💬 Abrir chat en WhatsApp
+                <Icon name="message" /> Abrir chat en WhatsApp
               </a>
             )}
           </div>
@@ -474,7 +475,7 @@ export function Settings({
         <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           ACCESO RÁPIDO
         </span>
-        <h2 style={{ margin: '4px 0 6px' }}>📲 Instalar Pesito en tu celular</h2>
+        <h2 style={{ margin: '4px 0 6px' }}><Icon name="smartphone" /> Instalar Pesito en tu celular</h2>
         <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#64748b' }}>
           Instalá Pesito en tu pantalla de inicio para entrar más rápido, en pantalla completa y con la experiencia de una app nativa.
         </p>
@@ -486,11 +487,11 @@ export function Settings({
             onClick={triggerInstall}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 18px', fontSize: '13px' }}
           >
-            📲 Instalar en este dispositivo
+            <Icon name="smartphone" /> Instalar en este dispositivo
           </button>
         ) : (
           <div style={{ padding: '12px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', color: '#166534', fontWeight: 700, fontSize: '13px' }}>
-            ✅ Pesito ya está instalado como app en este dispositivo.
+            <Icon name="check" /> Pesito ya está instalado como app en este dispositivo.
           </div>
         )}
       </section>
@@ -542,7 +543,7 @@ export function Settings({
 
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
             <button className="settings-save-button" type="submit" disabled={savingName}>
-              {savingName ? 'Guardando…' : '💾 Guardar mis datos'}
+              <Icon name="save" /> {savingName ? 'Guardando…' : 'Guardar mis datos'}
             </button>
             {nameSuccess && (
               <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 700 }}>

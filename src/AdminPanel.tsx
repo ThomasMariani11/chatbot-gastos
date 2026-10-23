@@ -1,3 +1,4 @@
+import { Icon } from './Icons';
 import { BotOperations } from './BotOperations';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabase';
@@ -220,8 +221,8 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
       setBotActive(nextActive);
       setBotStatusFeedback(
         nextActive
-          ? '🟢 Bot reanudado: todos los clientes pueden enviar gastos.'
-          : '🛑 Corte activado: el bot está pausado para los clientes.',
+          ? 'Bot reanudado: todos los clientes pueden enviar gastos.'
+          : 'Corte activado: el bot está pausado para los clientes.',
       );
       setTimeout(() => setBotStatusFeedback(null), 4000);
     }
@@ -370,7 +371,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
   const extendPreview = useMemo(() => {
     if (!extendingClient) return null;
     if (selectedDaysOption === 'lifetime') {
-      return { isLifetime: true, text: '🌟 Plan Vitalicio (Permanente sin vencimiento)' };
+      return { isLifetime: true, text: 'Plan sin vencimiento' };
     }
     const days = selectedDaysOption === 'custom' ? Math.max(1, customDays || 1) : selectedDaysOption;
     let baseDate = new Date();
@@ -444,8 +445,8 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
     } else {
       const msg =
         selectedDaysOption === 'lifetime'
-          ? `🌟 Plan cambiado a Vitalicio para ${extendingClient.email}.`
-          : `✅ Se sumaron ${daysAdded} días de servicio a ${extendingClient.email}.`;
+          ? `Plan cambiado a Vitalicio para ${extendingClient.email}.`
+          : `Se sumaron ${daysAdded} días de servicio a ${extendingClient.email}.`;
       setActionToast({ type: 'success', message: msg });
       setExtendingClient(null);
       void loadData();
@@ -475,8 +476,8 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
       setActionToast({ type: 'error', message: 'No se pudo actualizar el estado: ' + error.message });
     } else {
       const msg = isCurrentlySuspended
-        ? `🟢 Cuenta reactivada para ${suspendingClient.email}.`
-        : `⏸️ Cuenta pausada para ${suspendingClient.email}.`;
+        ? `Cuenta reactivada para ${suspendingClient.email}.`
+        : `Cuenta pausada para ${suspendingClient.email}.`;
       setActionToast({ type: 'success', message: msg });
       setSuspendingClient(null);
       void loadData();
@@ -1113,7 +1114,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setExtendingClient(null)}
               >
-                ✕
+                <Icon name="close" />
               </button>
             </div>
 
@@ -1245,7 +1246,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setSuspendingClient(null)}
               >
-                ✕
+                <Icon name="close" />
               </button>
             </div>
 
