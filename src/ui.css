@@ -296,3 +296,7 @@ body :is(.install-app-pill,.admin-topbar-pill) { display: inline-flex; align-ite
 .currency-pills .currency-pill.active { color: var(--mint-dark); }
 
 body :is(input:not([type="checkbox"]):not([type="radio"]),summary) { min-height: var(--control-height); }
+
+/* Mantener la visibilidad original: el botón flotante de escritorio no se duplica en móvil. */
+@media (max-width: 900px) { body .desktop-add { display: none; } }
+@media (max-width: 560px) { body .icon-button { display: none; } }
