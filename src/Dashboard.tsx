@@ -1,5 +1,11 @@
 import { Icon } from './Icons';
-import { nextScheduledInstallment } from './summaryPresentation';
+import {
+  filterMovementsList,
+  groupMovementsByDay,
+  nextScheduledInstallment,
+  normalizeDashboardSection,
+  summarizeMonthlyInstallments,
+} from './summaryPresentation';
 import { categoryVisual, movementVisual } from './categoryVisuals';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
@@ -228,9 +234,12 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     return Array.from(monthsSet).sort();
   }, [currentMonth, month, knownMonths]);
 
-  const [activeSection, setActiveSection] = useState(() => window.location.hash || '#resumen');
+  const [activeSection, setActiveSection] = useState(() => normalizeDashboardSection(window.location.hash));
   useEffect(() => {
-    const syncSection = () => setActiveSection(window.location.hash || '#resumen');
+    const syncSection = () => {
+      setActiveSection(normalizeDashboardSection(window.location.hash));
+      window.scrollTo(0, 0);
+    };
     window.addEventListener('hashchange', syncSection);
     window.addEventListener('popstate', syncSection);
     return () => {
@@ -238,7 +247,24 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       window.removeEventListener('popstate', syncSection);
     };
   }, []);
-  const showAllMovements = activeSection === '#movimientos';
+  const [movementSearch, setMovementSearch] = useState('');
+  const [movementKindFilter, setMovementKindFilter] = useState<'all' | 'expense' | 'income'>('all');
+  const [movementCategoryFilter, setMovementCategoryFilter] = useState('all');
+  const [openInstallmentMenuId, setOpenInstallmentMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openInstallmentMenuId) return;
+    const closeMenu = () => setOpenInstallmentMenuId(null);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenInstallmentMenuId(null);
+    };
+    window.addEventListener('click', closeMenu);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('click', closeMenu);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [openInstallmentMenuId]);
 
   const [activeCurrency, setActiveCurrency] = useState<'ARS' | 'USD'>('ARS');
   const [manualCurrency, setManualCurrency] = useState<'ARS' | 'USD'>('ARS');
@@ -289,8 +315,44 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     return installmentPlans.filter((plan) => (plan.currency || 'ARS') === activeCurrency);
   }, [installmentPlans, activeCurrency]);
 
-  const visibleMovements = showAllMovements ? filteredMovements : filteredMovements.slice(0, 5);
+  const visibleMovements = filteredMovements.slice(0, 5);
   const upcomingPlans = filteredInstallmentPlans.filter(plan => plan.nextScheduled);
+
+  const movementCategoryOptions = useMemo(() => {
+    const names = new Set<string>();
+    filteredMovements.forEach((item) => {
+      if (item.category) names.add(item.category);
+    });
+    categories.forEach((cat) => {
+      if (movementKindFilter === 'all' || cat.kind === movementKindFilter) {
+        names.add(cat.name);
+      }
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b, 'es'));
+  }, [filteredMovements, categories, movementKindFilter]);
+
+  const searchedMovements = useMemo(
+    () =>
+      filterMovementsList(filteredMovements, {
+        query: movementSearch,
+        kind: movementKindFilter,
+        category: movementCategoryFilter,
+      }),
+    [filteredMovements, movementSearch, movementKindFilter, movementCategoryFilter],
+  );
+
+  const groupedMovementsByDay = useMemo(
+    () => groupMovementsByDay(searchedMovements, todayKey()),
+    [searchedMovements],
+  );
+
+  const hasActiveMovementFilters =
+    movementSearch.trim().length > 0 || movementKindFilter !== 'all' || movementCategoryFilter !== 'all';
+
+  const installmentsSummary = useMemo(
+    () => summarizeMonthlyInstallments(filteredMovements, filteredInstallmentPlans.length),
+    [filteredMovements, filteredInstallmentPlans.length],
+  );
 
   const expenses = useMemo(() => filteredMovements.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0), [filteredMovements]);
   const income = useMemo(() => filteredMovements.filter((item) => item.kind === 'income').reduce((sum, item) => sum + item.amount, 0), [filteredMovements]);
@@ -946,9 +1008,25 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     <section className="content" id="resumen">
       <header className="topbar">
         <div>
-          <p className="eyebrow">TU RESUMEN</p>
-          <h1>Hola, {firstName} <span>👋</span></h1>
-          <p>Así vienen tus finanzas este mes.</p>
+          {activeSection === '#movimientos' ? (
+            <>
+              <p className="eyebrow">TUS OPERACIONES</p>
+              <h1>Movimientos</h1>
+              <p>Buscá, filtrá y revisá tus operaciones día por día en {labelForMonth(month).toLowerCase()}.</p>
+            </>
+          ) : activeSection === '#cuotas' ? (
+            <>
+              <p className="eyebrow">COMPRAS FINANCIADAS</p>
+              <h1>Cuotas</h1>
+              <p>Seguimiento de tus compras activas y próximos vencimientos.</p>
+            </>
+          ) : (
+            <>
+              <p className="eyebrow">TU RESUMEN</p>
+              <h1>Hola, {firstName} <span>👋</span></h1>
+              <p>Así vienen tus finanzas este mes.</p>
+            </>
+          )}
         </div>
         <div className="top-actions">
           <select aria-label="Mes" value={month} onChange={(event) => setMonth(event.target.value)}>
@@ -1023,6 +1101,326 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           </button>
         </div>
       </div>
+      {activeSection === '#movimientos' ? (
+        <section className="movements-view" id="movimientos" aria-label={`Movimientos en ${activeCurrency}`}>
+          <div className="movements-sticky-bar">
+            <div className="movements-search-box">
+              <Icon name="search" size={18} className="movements-search-icon" />
+              <input
+                type="search"
+                className={`movements-search-input ${movementSearch ? 'has-value' : ''}`}
+                placeholder="Buscar movimiento o categoría…"
+                aria-label="Buscar movimientos"
+                value={movementSearch}
+                onChange={(event) => setMovementSearch(event.target.value)}
+              />
+              {movementSearch && (
+                <button
+                  type="button"
+                  className="movements-search-clear"
+                  aria-label="Limpiar búsqueda"
+                  onClick={() => setMovementSearch('')}
+                >
+                  <Icon name="close" size={16} />
+                </button>
+              )}
+            </div>
+            <div className="movements-filter-controls">
+              <div className="movements-kind-pills" role="group" aria-label="Filtrar por tipo de movimiento">
+                <button
+                  type="button"
+                  className={`movements-kind-pill ${movementKindFilter === 'all' ? 'active' : ''}`}
+                  aria-pressed={movementKindFilter === 'all'}
+                  onClick={() => setMovementKindFilter('all')}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  className={`movements-kind-pill ${movementKindFilter === 'expense' ? 'active' : ''}`}
+                  aria-pressed={movementKindFilter === 'expense'}
+                  onClick={() => setMovementKindFilter('expense')}
+                >
+                  Gastos
+                </button>
+                <button
+                  type="button"
+                  className={`movements-kind-pill ${movementKindFilter === 'income' ? 'active' : ''}`}
+                  aria-pressed={movementKindFilter === 'income'}
+                  onClick={() => setMovementKindFilter('income')}
+                >
+                  Ingresos
+                </button>
+              </div>
+              <select
+                aria-label="Filtrar por categoría"
+                className="movements-category-select"
+                value={movementCategoryFilter}
+                onChange={(event) => setMovementCategoryFilter(event.target.value)}
+              >
+                <option value="all">Todas las categorías</option>
+                {movementCategoryOptions.map((catName) => (
+                  <option key={catName} value={catName}>
+                    {catName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <article className="panel movements-full-card">
+            {filteredMovements.length === 0 ? (
+              <div className="budget-empty movements-empty-state">
+                <span className="summary-empty-icon"><Icon name="movements" size={24} /></span>
+                <strong>Todavía no hay movimientos en {activeCurrency} este mes</strong>
+                <p>Registrá un gasto o ingreso por WhatsApp o desde el botón de agregar para verlo agrupado por día.</p>
+              </div>
+            ) : groupedMovementsByDay.length === 0 ? (
+              <div className="budget-empty movements-empty-state">
+                <span className="summary-empty-icon"><Icon name="search" size={24} /></span>
+                <strong>No encontramos movimientos con ese filtro</strong>
+                <p>Probá con otra palabra clave, tipo de operación o categoría.</p>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => {
+                    setMovementSearch('');
+                    setMovementKindFilter('all');
+                    setMovementCategoryFilter('all');
+                  }}
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="movements-results-meta">
+                  <span>
+                    Mostrando <strong>{searchedMovements.length}</strong>{' '}
+                    {searchedMovements.length === 1 ? 'operación' : 'operaciones'} de {labelForMonth(month).toLowerCase()}
+                  </span>
+                  {hasActiveMovementFilters && (
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => {
+                        setMovementSearch('');
+                        setMovementKindFilter('all');
+                        setMovementCategoryFilter('all');
+                      }}
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
+                <div className="movements-day-groups">
+                  {groupedMovementsByDay.map((group) => (
+                    <div className="movement-day-group" key={group.date}>
+                      <div className="movement-day-header">
+                        <strong className="movement-day-title">{group.label}</strong>
+                        <span className={`movement-day-subtotal ${group.netAmount < 0 ? 'expense' : group.netAmount > 0 ? 'income' : ''}`}>
+                          Subtotal: {group.netAmount < 0 ? '−' : group.netAmount > 0 ? '+' : ''}
+                          {formatMoney(Math.abs(group.netAmount), activeCurrency)}
+                        </span>
+                      </div>
+                      <div className="movement-list">
+                        {group.items.map((item) => (
+                          <div
+                            className="movement"
+                            key={item.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => startEditMovement(item)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') startEditMovement(item); }}
+                            aria-label={`Ver o editar ${item.title}`}
+                          >
+                            <span
+                              className={`movement-icon ${item.kind}`}
+                              style={{
+                                color: movementVisual(item.category, item.kind).color,
+                                backgroundColor: movementVisual(item.category, item.kind).background,
+                              }}
+                            >
+                              <Icon name={movementVisual(item.category, item.kind).icon} />
+                            </span>
+                            <div className="movement-info">
+                              <strong>{item.title}</strong>
+                              <small>
+                                {item.category}
+                                {item.installmentCount && item.installmentCount > 1
+                                  ? ` · Cuota ${item.installmentNumber ?? 1}/${item.installmentCount}`
+                                  : ''}
+                              </small>
+                            </div>
+                            <div className="movement-right">
+                              <b className={item.kind}>
+                                {item.kind === 'expense' ? '−' : '+'}
+                                {formatMoney(item.amount, item.currency)}
+                              </b>
+                            </div>
+                            <Icon name="chevronRight" className="movement-chevron ui-icon" size={18} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </article>
+        </section>
+      ) : activeSection === '#cuotas' ? (
+        <section className="installments-view" id="cuotas" aria-label={`Compras en cuotas en ${activeCurrency}`}>
+          <div className="summary-grid installments-summary-grid">
+            <article className="summary-card balance installments-kpi-primary">
+              <div className="card-heading">
+                <span className="metric-icon"><Icon name="card" /></span>
+                <small>TOTAL ESTE MES EN CUOTAS ({activeCurrency})</small>
+              </div>
+              <strong>{formatMoney(installmentsSummary.monthlyTotal, activeCurrency)}</strong>
+              <p>
+                {installmentsSummary.monthInstallmentsCount === 0
+                  ? `Sin cuotas registradas en ${labelForMonth(month).toLowerCase()}`
+                  : `${installmentsSummary.monthInstallmentsCount} ${installmentsSummary.monthInstallmentsCount === 1 ? 'cuota registrada' : 'cuotas registradas'} en ${labelForMonth(month).toLowerCase()}`}
+              </p>
+            </article>
+            <article className="summary-card installments-kpi-secondary">
+              <div className="card-heading">
+                <span className="metric-icon"><Icon name="receipt" /></span>
+                <small>COMPRAS ACTIVAS</small>
+              </div>
+              <strong>
+                {installmentsSummary.activePlansCount}{' '}
+                {installmentsSummary.activePlansCount === 1 ? 'compra' : 'compras'}
+              </strong>
+              <p>
+                {upcomingPlans.length > 0
+                  ? `${upcomingPlans.length} con próximo vencimiento programado`
+                  : 'Planes vigentes en el período consultado'}
+              </p>
+            </article>
+          </div>
+
+          <article className="panel installments-full-card">
+            <div className="panel-title">
+              <div>
+                <h2>Compras en cuotas ({activeCurrency})</h2>
+                <p>Progreso de cada compra, próximo vencimiento y monto de cuota</p>
+              </div>
+              <span className="pill">
+                {filteredInstallmentPlans.length}{' '}
+                {filteredInstallmentPlans.length === 1 ? 'activa' : 'activas'}
+              </span>
+            </div>
+
+            {filteredInstallmentPlans.length === 0 ? (
+              <div className="budget-empty installments-empty-state">
+                <span className="summary-empty-icon"><Icon name="card" size={24} /></span>
+                <strong>No tenés compras en cuotas activas en {activeCurrency}</strong>
+                <p>Cuando registres una compra en cuotas, vas a poder seguir su progreso y próximos vencimientos acá.</p>
+              </div>
+            ) : (
+              <div className="installments-list installments-dedicated-list">
+                {filteredInstallmentPlans.map((plan) => {
+                  const targetMov = plan.nextScheduled ?? plan.currentMovement;
+                  const shownQuotaNum = targetMov?.installmentNumber ?? plan.vanCount;
+                  const shownQuotaAmount = targetMov?.amount ?? plan.monthlyAmount;
+                  const catName = targetMov?.category ?? 'Compras';
+                  const vis = categoryVisual(catName);
+                  const progressPct = Math.min(Math.round((shownQuotaNum / plan.installmentCount) * 100), 100);
+                  const remainingAfterThis = Math.max(plan.installmentCount - shownQuotaNum, 0);
+                  const isMenuOpen = openInstallmentMenuId === plan.groupId;
+
+                  return (
+                    <div className="installment-item installment-plan-card" key={plan.groupId}>
+                      <div className="installment-plan-top">
+                        <span
+                          className="movement-icon expense"
+                          style={{ color: vis.color, backgroundColor: `${vis.color}14` }}
+                        >
+                          <Icon name={vis.icon} />
+                        </span>
+                        <div className="installment-info-col">
+                          <strong className="installment-title">{plan.description}</strong>
+                          <small className="installment-subtitle">
+                            {catName} ·{' '}
+                            {plan.nextScheduled
+                              ? `Próximo vencimiento: ${formatScheduledDate(plan.nextScheduled.date)}`
+                              : `Fecha en período: ${formatMovementDate(plan.currentDateStr)}`}
+                          </small>
+                        </div>
+                        <div className="installment-amount-col">
+                          <strong className="installment-amount">{formatMoney(shownQuotaAmount, plan.currency)}</strong>
+                          <span className="installment-cuota-badge">Cuota {shownQuotaNum}/{plan.installmentCount}</span>
+                        </div>
+                        <div className="installment-menu-wrap" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            className="installment-menu-trigger"
+                            aria-label={`Opciones de ${plan.description}`}
+                            aria-haspopup="menu"
+                            aria-expanded={isMenuOpen}
+                            onClick={() => setOpenInstallmentMenuId(isMenuOpen ? null : plan.groupId)}
+                          >
+                            <Icon name="moreHorizontal" size={20} />
+                          </button>
+                          {isMenuOpen && (
+                            <div className="installment-menu-popover" role="menu" aria-label={`Acciones de ${plan.description}`}>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="installment-menu-item"
+                                onClick={() => {
+                                  setOpenInstallmentMenuId(null);
+                                  if (targetMov) startEditMovement(targetMov);
+                                }}
+                              >
+                                <Icon name="edit" size={16} /> Modificar
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="installment-menu-item danger"
+                                onClick={() => {
+                                  setOpenInstallmentMenuId(null);
+                                  setInstallmentDeletePrompt({ plan });
+                                }}
+                              >
+                                <Icon name="trash" size={16} /> Eliminar
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div
+                        className="installment-progress-bar"
+                        role="progressbar"
+                        aria-label={`Progreso de ${plan.description}: cuota ${shownQuotaNum} de ${plan.installmentCount}`}
+                        aria-valuemin={0}
+                        aria-valuemax={plan.installmentCount}
+                        aria-valuenow={shownQuotaNum}
+                      >
+                        <div className="installment-progress-fill" style={{ width: `${progressPct}%` }} />
+                      </div>
+                      <div className="installment-plan-meta">
+                        <span>
+                          {remainingAfterThis === 0
+                            ? 'Última cuota del plan'
+                            : `Quedan ${remainingAfterThis} ${remainingAfterThis === 1 ? 'cuota' : 'cuotas'}`}
+                        </span>
+                        <span>
+                          Total registrado: <strong>{formatMoney(plan.totalAmount, plan.currency)}</strong>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </article>
+        </section>
+      ) : (
+        <>
       <section className="summary-grid" aria-label={`Resumen mensual en ${activeCurrency}`}>
         <article className="summary-card balance">
           <div className="card-heading">
@@ -1188,10 +1586,10 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         <article className="panel movements-card" id="movimientos">
           <div className="panel-title">
             <div>
-              <h2>{showAllMovements ? 'Movimientos' : 'Últimos movimientos'} ({activeCurrency})</h2>
-              <p>{showAllMovements ? `Todas tus operaciones de ${labelForMonth(month).toLowerCase()}` : 'Tus últimas 5 operaciones del mes'}</p>
+              <h2>Últimos movimientos ({activeCurrency})</h2>
+              <p>Tus últimas 5 operaciones del mes</p>
             </div>
-            <a className="text-button summary-view-all" href={showAllMovements ? '#resumen' : '#movimientos'}>{showAllMovements ? 'Ver resumen' : 'Ver todos'}<Icon name="chevronRight" size={16} /></a>
+            <a className="text-button summary-view-all" href="#movimientos">Ver todos<Icon name="chevronRight" size={16} /></a>
           </div>
           <div className="movement-list">
             {filteredMovements.length === 0 ? (
@@ -1288,6 +1686,8 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         </article>
 
       </section>
+        </>
+      )}
     </section>
     <nav className="mobile-nav" aria-label="Navegación móvil">
       <a className={activeSection === '#resumen' ? 'active' : ''} aria-current={activeSection === '#resumen' ? 'page' : undefined} href="#resumen">
