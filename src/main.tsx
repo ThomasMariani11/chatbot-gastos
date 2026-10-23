@@ -8,6 +8,7 @@ import '../app/interactions.css';
 import '../app/movements.css';
 import './styles.css';
 import './ui.css';
+import './summary.css';
 
 initZoomLock();
 
