@@ -1,3 +1,4 @@
+import { Icon } from './Icons';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabase';
 import { requestWhatsAppLinkCode } from './whatsappLink';
@@ -274,17 +275,16 @@ export function Settings({
         <section className="settings-panel admin-highlight-box" style={{ background: '#0f172a', color: '#ffffff', border: 'none' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <div>
-              <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '1px', color: '#38bdf8', textTransform: 'uppercase' }}>ADMINISTRADOR</span>
+              <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '1px', color: '#38bdf8', textTransform: 'uppercase' }}>ADMINISTRADOR</span>
               <h2 style={{ color: '#ffffff', margin: '2px 0 4px', fontSize: '18px' }}>Panel de Control</h2>
-              <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Gestioná licencias, códigos y clientes.</p>
+              <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8' }}>Gestioná licencias, códigos y clientes.</p>
             </div>
             <button
               type="button"
-              className="primary-button"
-              style={{ background: '#38bdf8', color: '#0f172a', fontWeight: 800, whiteSpace: 'nowrap' }}
+              className="button-secondary"
               onClick={onOpenAdmin}
             >
-              🛠️ Abrir Panel Admin
+              <Icon name="shield" /> Abrir Panel Admin
             </button>
           </div>
         </section>
@@ -294,18 +294,18 @@ export function Settings({
       <section className="settings-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
           <div>
-            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               MEMBRESÍA
             </span>
             <h2 style={{ margin: '4px 0 6px' }}>Mi Suscripción</h2>
           </div>
           <div>
             {subscriptionInfo.isLifetime ? (
-              <span className="status-pill green" style={{ fontSize: '12px' }}>🌟 Plan Vitalicio</span>
+              <span className="status-pill green" style={{ fontSize: '13px' }}>Plan sin vencimiento</span>
             ) : subscriptionInfo.isExpiringSoon ? (
-              <span className="status-pill orange" style={{ fontSize: '12px' }}>⚠️ Vence pronto</span>
+              <span className="status-pill orange" style={{ fontSize: '13px' }}>Vence pronto</span>
             ) : (
-              <span className="status-pill green" style={{ fontSize: '12px' }}>🟢 Plan Activo</span>
+              <span className="status-pill green" style={{ fontSize: '13px' }}>Plan activo</span>
             )}
           </div>
         </div>
@@ -336,15 +336,15 @@ export function Settings({
               target="_blank"
               rel="noopener noreferrer"
               className="whatsapp-request-btn"
-              style={{ padding: '10px 16px', fontSize: '13px' }}
+
             >
-              <span>💬</span> Renovar por WhatsApp
+              <span><Icon name="message" /></span> Renovar por WhatsApp
             </a>
           )}
           <button
             type="button"
-            className="button-link"
-            style={{ fontSize: '12px', fontWeight: 700 }}
+            className="button-link renewal-code-link"
+            style={{ fontSize: '13px', fontWeight: 700 }}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setShowRedeemForm(!showRedeemForm)}
           >
@@ -358,19 +358,19 @@ export function Settings({
             padding: '8px 12px',
             background: '#f8fafc',
             borderRadius: '8px',
-            fontSize: '12px',
+            fontSize: '13px',
             color: '#334155',
             border: '1px solid #e2e8f0',
             display: 'inline-block',
           }}>
-            💸 Alias para transferencias: <strong style={{ color: '#0f172a' }}>{paymentAlias}</strong>
+            <Icon name="card" size={16} /> Alias para transferencias: <strong style={{ color: '#0f172a' }}>{paymentAlias}</strong>
           </div>
         )}
 
         {/* Formulario colapsable para canjear código */}
         {showRedeemForm && (
           <form onSubmit={handleRedeemRenewal} style={{ marginTop: '16px', padding: '14px', background: '#f0fdf4', borderRadius: '12px', border: '1px dashed #86efac' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#166534', marginBottom: '8px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#166534', marginBottom: '8px' }}>
               Ingresá tu código de renovación
               <input
                 type="text"
@@ -395,7 +395,7 @@ export function Settings({
                 className={`form-message ${redeemFeedback.type === 'error' ? 'form-message-error' : ''}`}
                 style={redeemFeedback.type === 'success' ? { background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', marginTop: '10px' } : { marginTop: '10px' }}
               >
-                {redeemFeedback.type === 'success' ? '✅ ' : '❌ '}
+                <Icon name={redeemFeedback.type === 'success' ? 'check' : 'alert'} />
                 {redeemFeedback.message}
               </p>
             )}
@@ -405,7 +405,7 @@ export function Settings({
 
       {/* SECCIÓN 2: CONEXIÓN WHATSAPP */}
       <section className="settings-panel">
-        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           INTEGRACIÓN
         </span>
         <h2 style={{ margin: '4px 0 6px' }}>Conexión con WhatsApp</h2>
@@ -415,18 +415,17 @@ export function Settings({
 
         <div style={{ padding: '12px 14px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <div>
-            <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>NÚMERO VINCULADO</span>
+            <span style={{ fontSize: '13px', color: '#64748b', display: 'block' }}>NÚMERO VINCULADO</span>
             <strong style={{ fontSize: '14px', color: '#0f172a' }}>
               {userProfile?.phone_number ? formatPhone(userProfile.phone_number) : 'Sin vincular todavía'}
             </strong>
           </div>
           <button
             type="button"
-            className="primary-button"
-            style={{ background: '#25d366', color: '#fff', border: 'none', padding: '9px 15px', fontSize: '12px' }}
+            className="button-secondary"
             onClick={() => void connectWhatsAppOneTouch()}
           >
-            {userProfile?.phone_number ? '🔄 Cambiar número' : '🟢 Conectar en 1 toque'}
+            <Icon name={userProfile?.phone_number ? 'refresh' : 'message'} /> {userProfile?.phone_number ? 'Cambiar número' : 'Conectar en 1 toque'}
           </button>
         </div>
 
@@ -440,10 +439,10 @@ export function Settings({
                 href={waDirectUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="primary-button"
-                style={{ background: '#25d366', color: '#fff', textAlign: 'center', textDecoration: 'none', fontWeight: 800, padding: '10px 16px', display: 'block' }}
+                className="button-secondary"
+
               >
-                💬 Abrir chat en WhatsApp
+                <Icon name="message" /> Abrir chat en WhatsApp
               </a>
             )}
           </div>
@@ -453,7 +452,7 @@ export function Settings({
       {/* SECCIÓN TÉCNICA (SÓLO ADMINISTRADOR) */}
       {isAdmin && (
         <section className="settings-panel warning">
-          <span style={{ fontSize: '10px', fontWeight: 800, color: '#b45309', textTransform: 'uppercase' }}>SÓLO ADMIN</span>
+          <span style={{ fontSize: '13px', fontWeight: 800, color: '#b45309', textTransform: 'uppercase' }}>SÓLO ADMIN</span>
           <h2 style={{ margin: '2px 0 8px', fontSize: '14px' }}>Control Técnico y Costos (Admin)</h2>
           <label className="switch-row" style={{ borderTop: 'none', padding: '8px 0 0' }}>
             <span>
@@ -471,10 +470,10 @@ export function Settings({
 
       {/* SECCIÓN: INSTALACIÓN DE LA APP (PWA) */}
       <section className="settings-panel">
-        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           ACCESO RÁPIDO
         </span>
-        <h2 style={{ margin: '4px 0 6px' }}>📲 Instalar Pesito en tu celular</h2>
+        <h2 style={{ margin: '4px 0 6px' }}><Icon name="smartphone" /> Instalar Pesito en tu celular</h2>
         <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#64748b' }}>
           Instalá Pesito en tu pantalla de inicio para entrar más rápido, en pantalla completa y con la experiencia de una app nativa.
         </p>
@@ -482,15 +481,17 @@ export function Settings({
         {canInstall ? (
           <button
             type="button"
-            className="primary-button"
+            className="button-secondary"
             onClick={triggerInstall}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 18px', fontSize: '13px' }}
+            style={{
+    display: 'inline-flex', alignItems: 'center', gap: '8px'
+}}
           >
-            📲 Instalar en este dispositivo
+            <Icon name="smartphone" /> Instalar en este dispositivo
           </button>
         ) : (
           <div style={{ padding: '12px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', color: '#166534', fontWeight: 700, fontSize: '13px' }}>
-            ✅ Pesito ya está instalado como app en este dispositivo.
+            <Icon name="check" /> Pesito ya está instalado como app en este dispositivo.
           </div>
         )}
       </section>
@@ -506,7 +507,7 @@ export function Settings({
 
       {/* SECCIÓN 3: DATOS PERSONALES Y SESIÓN */}
       <section className="settings-panel">
-        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           PERFIL
         </span>
         <h2 style={{ margin: '4px 0 6px' }}>Mis Datos Personales</h2>
@@ -542,10 +543,10 @@ export function Settings({
 
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
             <button className="settings-save-button" type="submit" disabled={savingName}>
-              {savingName ? 'Guardando…' : '💾 Guardar mis datos'}
+              <Icon name="save" /> {savingName ? 'Guardando…' : 'Guardar mis datos'}
             </button>
             {nameSuccess && (
-              <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 700 }}>
+              <span style={{ fontSize: '13px', color: 'var(--mint-dark)', fontWeight: 700 }}>
                 {nameSuccess}
               </span>
             )}
@@ -554,7 +555,7 @@ export function Settings({
 
         <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '18px 0' }} />
 
-        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           CUENTA
         </span>
         <h2 style={{ margin: '4px 0 6px' }}>Sesión</h2>

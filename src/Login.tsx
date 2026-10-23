@@ -1,3 +1,4 @@
+import { Icon } from './Icons';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 
@@ -445,19 +446,19 @@ export function Login() {
               {/* Feedback visual del código */}
               {codeState.checking && (
                 <div className="code-feedback-badge checking">
-                  <span>⏳</span>
+                  <span><Icon name="clock" /></span>
                   <span>Verificando código…</span>
                 </div>
               )}
               {!codeState.checking && codeState.valid === true && (
                 <div className="code-feedback-badge valid">
-                  <span>✅</span>
+                  <span><Icon name="check" /></span>
                   <span>{codeState.message}</span>
                 </div>
               )}
               {!codeState.checking && codeState.valid === false && (
                 <div className="code-feedback-badge invalid">
-                  <span>❌</span>
+                  <span><Icon name="alert" /></span>
                   <span>{codeState.message}</span>
                 </div>
               )}
@@ -542,7 +543,7 @@ export function Login() {
                 rel="noopener noreferrer"
                 className="whatsapp-request-btn"
               >
-                <span>💬</span> Solicitar acceso por WhatsApp
+                <span><Icon name="message" /></span> Solicitar acceso por WhatsApp
               </a>
             </div>
 

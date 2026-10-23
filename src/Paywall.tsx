@@ -1,3 +1,4 @@
+import { Icon } from './Icons';
 import { FormEvent, useEffect, useState } from 'react';
 import { supabase } from './supabase';
 
@@ -121,7 +122,7 @@ export function Paywall({
 
         {isSuspended ? (
           <>
-            <p className="eyebrow" style={{ color: '#ea580c' }}>CUENTA PAUSADA</p>
+            <p className="eyebrow" style={{ color: '#8a4d08' }}>CUENTA PAUSADA</p>
             <h1>Acceso suspendido ⏸️</h1>
             <p>
               Tu acceso a Pesito se encuentra temporalmente en pausa. Si creés que se trata de un error o deseás reactivarlo, comunicate por WhatsApp.
@@ -130,7 +131,7 @@ export function Paywall({
         ) : isPending ? (
           <>
             <p className="eyebrow" style={{ color: 'var(--mint-dark)' }}>ACTIVACIÓN REQUERIDA</p>
-            <h1>Activá tu cuenta 🔑</h1>
+            <h1>Activá tu cuenta <Icon name="key" /></h1>
             <p>
               Pesito es un servicio privado. Para comenzar a usar la aplicación, ingresá tu código de invitación o solicitalo por WhatsApp.
             </p>
@@ -185,7 +186,7 @@ export function Paywall({
                 border: '1px solid #a7f3d0',
               }}
             >
-              ✅ {successMsg}
+              <Icon name="check" /> {successMsg}
             </p>
           )}
         </div>
@@ -200,7 +201,7 @@ export function Paywall({
             className="whatsapp-request-btn"
             style={{ width: '100%', boxSizing: 'border-box' }}
           >
-            <span>💬</span> Renovar por WhatsApp
+            <span><Icon name="message" /></span> Renovar por WhatsApp
           </a>
 
           {paymentAlias && (
@@ -214,7 +215,7 @@ export function Paywall({
               border: '1px solid #e2e8f0',
               textAlign: 'center',
             }}>
-              💸 Alias para transferencias: <strong style={{ color: '#0f172a' }}>{paymentAlias}</strong>
+              <Icon name="card" size={16} /> Alias para transferencias: <strong style={{ color: '#0f172a' }}>{paymentAlias}</strong>
             </div>
           )}
         </div>
