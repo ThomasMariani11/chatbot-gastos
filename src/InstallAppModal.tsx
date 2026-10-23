@@ -101,7 +101,9 @@ export function InstallAppModal({ isOpen, onClose, isIos }: Props) {
             className="primary-button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={onClose}
-            style={{ width: '100%', padding: '12px', borderRadius: '10px' }}
+            style={{
+    width: '100%'
+}}
           >
             Entendido
           </button>

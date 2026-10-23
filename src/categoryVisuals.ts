@@ -15,10 +15,15 @@ const categories: Array<[RegExp, CategoryVisual]> = [
 ];
 // Solo presentación: no modifica nombres, categorías guardadas ni agrupación financiera.
 export function categoryVisual(category: string): CategoryVisual {
-  const normalized = category.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const normalized = category
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
   return categories.find(([pattern]) => pattern.test(normalized))?.[1] ?? fallback;
 }
 export function movementVisual(category: string, kind: 'expense' | 'income') {
-  const visual = kind === 'income' ? { icon: 'arrowUpRight' as const, color: '#147c5b' } : categoryVisual(category);
+  const visual =
+    kind === 'income' ? { icon: 'arrowUpRight' as const, color: '#147c5b' } : categoryVisual(category);
   return { ...visual, background: visual.color + '14' };
 }

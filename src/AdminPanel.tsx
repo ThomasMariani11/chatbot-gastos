@@ -282,10 +282,10 @@ Tu cuenta ya está habilitada. Seguí estos 3 pasos rápidos para empezar:
 ${inviteUrl}
 (Ingresá tu email y la contraseña que prefieras).
 
-2️⃣ *Instalá la app en tu celu (Opcional pero recomendado):* 
+2️⃣ *Instalá la app en tu celu (Opcional pero recomendado):*
 Tocá el botón *"📲 Instalar app"* arriba a la derecha para tenerla en la pantalla de inicio de tu celular.
 
-3️⃣ *Conectá tu WhatsApp:* 
+3️⃣ *Conectá tu WhatsApp:*
 Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsApp en un toque"*. Te va a abrir el chat del bot; solo dale a *Enviar* y ¡listo!
 
 🚀 A partir de ese momento podés mandarle audios de voz o textos normales (ej: "gasté 4500 en la carnicería", "me ingresaron 150000") y se registran al instante.`;
@@ -771,7 +771,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
             </div>
             <button
               type="button"
-              className="primary-button admin-compact-primary"
+              className={(showCodeForm ? 'button-secondary' : 'primary-button') + ' admin-compact-primary'}
               aria-expanded={showCodeForm}
               aria-controls="admin-new-invitation"
               onClick={() => setShowCodeForm((v) => !v)}
@@ -1121,7 +1121,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
             <div>
               <span
                 style={{
-                  fontSize: '12px',
+                  fontSize: '13px',
                   fontWeight: 700,
                   color: '#475569',
                   display: 'block',
@@ -1176,7 +1176,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               <div className="admin-date-preview-card">
                 <span className="preview-label">Nuevo vencimiento proyectado</span>
                 <strong className="preview-value">{extendPreview.text}</strong>
-                <small style={{ color: '#047857', fontSize: '11px', marginTop: '2px' }}>
+                <small style={{ color: '#047857', fontSize: '13px', marginTop: '2px' }}>
                   Vencimiento actual: {formatDate(extendingClient.subscription_until)}
                 </small>
               </div>

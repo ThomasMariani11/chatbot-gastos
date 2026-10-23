@@ -1,6 +1,293 @@
 /* Base visual compartida; las reglas de dominio permanecen en sus módulos. */
-.ui-icon { display: inline-block; flex: 0 0 auto; vertical-align: -.18em; }
-.movement-icon > .ui-icon { width: 20px; height: 20px; }
-.movement-chevron.ui-icon { width: 18px; height: 18px; padding: 0; }
-.dialog-symbol { display: grid; place-items: center; width: 54px; height: 54px; margin: 0 auto 12px; border-radius: 16px; background: #eaf6ef; color: var(--mint-dark); }
-.currency-code { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 6px; border-radius: 6px; background: #ffffffb3; font-size: 12px; font-weight: 800; letter-spacing: .3px; }
+.ui-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  vertical-align: -0.18em;
+}
+.movement-icon > .ui-icon {
+  width: 20px;
+  height: 20px;
+}
+.movement-chevron.ui-icon {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+}
+.dialog-symbol {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 12px;
+  border-radius: 16px;
+  background: #eaf6ef;
+  color: var(--mint-dark);
+}
+.currency-code {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #ffffffb3;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+:root {
+  --muted: #52655b;
+  --mint-dark: #08744f;
+  --control-radius: 12px;
+  --control-height: 44px;
+  --button-primary-bg: #20b984;
+  --button-primary-ink: #103b2e;
+  --button-primary-hover: #30c493;
+  --button-secondary-bg: #fff;
+  --button-secondary-ink: #314c3e;
+  --button-border: #b9cbbf;
+  --button-danger-bg: #fff1f1;
+  --button-danger-ink: #a83236;
+  --button-danger-border: #dba9aa;
+}
+body :is(button, [role='button'], select) {
+  min-height: var(--control-height);
+  min-width: var(--control-height);
+}
+body :is(input:not([type='checkbox']):not([type='radio']), select) {
+  font-size: 16px;
+}
+body :is(button, a, [role='button'], input, select, summary):focus-visible {
+  outline: 3px solid var(--mint-dark);
+  outline-offset: 3px;
+}
+body :is(.primary-button, .settings-save-button, .modal-btn-save, .whatsapp-onboarding-btn, .desktop-add),
+.auth-card form button[type='submit'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--control-height);
+  padding: 10px 16px;
+  border: 1px solid var(--button-primary-bg);
+  border-radius: var(--control-radius);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-ink);
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 750;
+  text-decoration: none;
+}
+body
+  :is(
+    .button-secondary,
+    .action-btn.small,
+    .admin-header-btn.secondary,
+    .bot-ops-button,
+    .modal-btn-cancel,
+    .admin-btn-cancel,
+    .installment-edit-plan-btn,
+    .whatsapp-request-btn
+  ) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--control-height);
+  padding: 10px 13px;
+  border: 1px solid var(--button-border);
+  border-radius: var(--control-radius);
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-ink);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+body
+  :is(
+    .danger-button,
+    .modal-btn-delete,
+    .action-btn.small.danger,
+    .installment-delete-plan-btn,
+    .admin-header-btn.danger
+  ) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--control-height);
+  padding: 10px 13px;
+  border: 1px solid var(--button-danger-border);
+  border-radius: var(--control-radius);
+  background: var(--button-danger-bg);
+  color: var(--button-danger-ink);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+.admin-workspace :is(.admin-compact-primary, .action-btn.small, .admin-header-btn),
+.bot-ops .bot-ops-button {
+  min-height: var(--control-height);
+  font-size: 13px;
+}
+body .primary-button:disabled,
+body button:disabled {
+  cursor: not-allowed;
+}
+body
+  :is(.button-secondary, .primary-button, .action-btn, .bot-ops-button, .admin-header-btn):active:not(
+    :disabled
+  ) {
+  transform: translateY(1px);
+}
+body :is(.back-link, .renewal-code-link, .admin-text-action, .admin-client-phone) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--control-height);
+  color: var(--mint-dark);
+  font-size: 13px;
+}
+body .icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height);
+  height: var(--control-height);
+}
+body .button-secondary {
+  font-family: inherit;
+}
+.admin-workspace .admin-responsive-table tr {
+  overflow: hidden;
+}
+.admin-workspace .admin-responsive-table .admin-client-cell {
+  min-width: 0;
+}
+.movement-info small {
+  color: var(--muted);
+  font-size: 13px;
+}
+.movement-right {
+  min-width: 0;
+}
+.movement-right b.income {
+  color: var(--mint-dark);
+}
+.movement-info strong {
+  font-size: 14px;
+}
+.installments-empty > span {
+  display: grid;
+  place-items: center;
+}
+.auth-card .auth-tab {
+  min-height: var(--control-height);
+  color: var(--muted);
+}
+.auth-card .auth-tab.active {
+  color: var(--button-primary-ink);
+}
+@media (hover: hover) and (pointer: fine) {
+  body
+    :is(
+      .primary-button,
+      .settings-save-button,
+      .modal-btn-save,
+      .whatsapp-onboarding-btn,
+      .desktop-add
+    ):hover:not(:disabled),
+  .auth-card form button[type='submit']:hover:not(:disabled) {
+    background: var(--button-primary-hover);
+    color: var(--button-primary-ink);
+  }
+  body
+    :is(
+      .button-secondary,
+      .action-btn.small,
+      .admin-header-btn.secondary,
+      .bot-ops-button,
+      .modal-btn-cancel,
+      .admin-btn-cancel,
+      .installment-edit-plan-btn,
+      .whatsapp-request-btn
+    ):hover:not(:disabled) {
+    background: #eff6f1;
+    border-color: #91b29d;
+  }
+  body
+    :is(
+      .danger-button,
+      .modal-btn-delete,
+      .action-btn.small.danger,
+      .installment-delete-plan-btn,
+      .admin-header-btn.danger
+    ):hover:not(:disabled) {
+    background: #fce3e3;
+    color: var(--button-danger-ink);
+    border-color: #ba7577;
+  }
+}
+@media (max-width: 560px) {
+  .movement {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 8px 10px;
+  }
+  .movement-icon {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  .movement .movement-info {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .movement .movement-right {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: stretch;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  .movement-info small {
+    white-space: normal;
+    line-height: 1.45;
+  }
+  .topbar {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .top-actions {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .admin-workspace .admin-row-actions .action-buttons-group {
+    gap: 8px;
+  }
+}
+
+body :is(.install-app-pill,.admin-topbar-pill) { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--control-height); padding: 10px 13px; border: 1px solid var(--button-border); border-radius: var(--control-radius); background: var(--button-secondary-bg); color: var(--button-secondary-ink); font-size: 13px; font-weight: 650; box-shadow: none; }
+.nav-button { background: transparent; }
+.expense .metric-icon { color: #ad4148; }
+.income .metric-icon { color: var(--mint-dark); }
+.currency-pills .currency-pill { min-height: var(--control-height); }
+@media (hover: hover) and (pointer: fine) {
+  body :is(.install-app-pill,.admin-topbar-pill):hover { background: #eff6f1; color: var(--button-secondary-ink); }
+}
+@media (max-width: 560px) {
+  .top-actions { width: 100%; }
+  .top-actions > :is(button,select) { flex-shrink: 0; }
+  .top-actions > select { flex: 1 0 140px; max-width: none; }
+  .currency-pills { max-width: 100%; }
+  .currency-pill { gap: 6px; padding-inline: 10px; }
+}
+
+.settings-page > header > p:not(.eyebrow) { color: var(--muted) !important; }
+.settings-page > header .eyebrow { color: var(--mint-dark) !important; }
+.auth-card button.auth-tab { background: transparent; color: var(--muted); border-radius: var(--control-radius); }
+.auth-card button.auth-tab.active { background: #fff; color: var(--mint-dark); }
+.auth-card button.button-link { background: transparent; color: var(--mint-dark); box-shadow: none; }
+.admin-section-heading > div { flex: 1; min-width: 0; }
+@media (max-width: 700px) { .admin-section-heading > div { flex-basis: 180px; } }

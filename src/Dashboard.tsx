@@ -930,18 +930,11 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               onClick={triggerInstall}
               title="Instalar Pesito en tu celular"
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: '#ecfdf5',
-                color: '#065f46',
-                border: '1px solid #a7f3d0',
-                padding: '6px 12px',
-                borderRadius: '999px',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    cursor: 'pointer'
+}}
             >
               <Icon name="smartphone" /> Instalar app
             </button>
@@ -1008,22 +1001,24 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           <button
             type="button"
             role="tab"
+            aria-label="Pesos argentinos (ARS)"
             aria-selected={activeCurrency === 'ARS'}
             className={`currency-pill ${activeCurrency === 'ARS' ? 'active' : ''}`}
             onClick={() => setActiveCurrency('ARS')}
           >
             <span className="currency-code" aria-hidden="true">ARS</span>
-            <span>Pesos (ARS)</span>
+            <span>Pesos</span>
           </button>
           <button
             type="button"
             role="tab"
+            aria-label="Dólares estadounidenses (USD)"
             aria-selected={activeCurrency === 'USD'}
             className={`currency-pill ${activeCurrency === 'USD' ? 'active' : ''}`}
             onClick={() => setActiveCurrency('USD')}
           >
             <span className="currency-code" aria-hidden="true">USD</span>
-            <span>Dólares (USD)</span>
+            <span>Dólares</span>
           </button>
         </div>
       </div>
@@ -1034,7 +1029,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <small>GASTOS {activeCurrency}</small>
           </div>
           <strong>{formatMoney(expenses, activeCurrency)}</strong>
-          
+
         </article>
         <article className="summary-card income">
           <div className="card-heading">
@@ -1042,7 +1037,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <small>INGRESOS {activeCurrency}</small>
           </div>
           <strong>{formatMoney(income, activeCurrency)}</strong>
-          
+
         </article>
         <article className="summary-card balance">
           <div className="card-heading">
@@ -1128,7 +1123,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                         fill={categoryVisual(entry.name).color}
                         opacity={dashboardActiveCategory && dashboardActiveCategory !== entry.name ? 0.45 : 1}
                         style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
-                        onMouseEnter={() => setDashboardActiveCategory(entry.name)}
+                        onMouseEnter={() => { if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) setDashboardActiveCategory(entry.name); }}
                         onMouseLeave={() => setDashboardActiveCategory(null)}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1157,7 +1152,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                   role="button"
                   tabIndex={0}
                   title={`Ver detalle de ${entry.name}`}
-                  onMouseEnter={() => setDashboardActiveCategory(entry.name)}
+                  onMouseEnter={() => { if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) setDashboardActiveCategory(entry.name); }}
                   onMouseLeave={() => setDashboardActiveCategory(null)}
                   onClick={() => {
                     setExpandedCategoryInModal(entry.name);
@@ -1407,7 +1402,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <label className="switch-row" style={{ marginTop: '2px', padding: '6px 0' }}>
               <span>
                 <strong style={{ fontSize: '13px' }}>¿Es una compra en cuotas?</strong>
-                <small style={{ fontSize: '11px', color: '#71807b' }}>Se crearán las cuotas para los próximos meses.</small>
+                <small style={{ fontSize: '13px', color: 'var(--muted)' }}>Se crearán las cuotas para los próximos meses.</small>
               </span>
               <input
                 type="checkbox"
@@ -1768,7 +1763,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <label className="switch-row" style={{ marginTop: '2px', padding: '6px 0' }}>
               <span>
                 <strong style={{ fontSize: '13px' }}>¿Aplicar cambios a todo el plan?</strong>
-                <small style={{ fontSize: '11px', color: '#71807b' }}>Actualiza el nombre, categoría y recalcula las fechas de todas las cuotas consecutivas.</small>
+                <small style={{ fontSize: '13px', color: 'var(--muted)' }}>Actualiza el nombre, categoría y recalcula las fechas de todas las cuotas consecutivas.</small>
               </span>
               <input
                 type="checkbox"
@@ -1821,7 +1816,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           <div>
             <p className="eyebrow" style={{ color: '#ea7172' }}>ELIMINAR CUOTAS</p>
             <h2>{installmentDeletePrompt.movement ? '¿Cómo querés eliminar este movimiento?' : '¿Eliminar compra en cuotas?'}</h2>
-            <p style={{ fontSize: '13px', color: '#71807b', margin: '8px 0 0' }}>
+            <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '8px 0 0' }}>
               <strong>{installmentDeletePrompt.movement?.title ?? installmentDeletePrompt.plan?.description}</strong>
               {installmentDeletePrompt.movement && installmentDeletePrompt.movement.installmentCount ? (
                 <span> · Cuota {installmentDeletePrompt.movement.installmentNumber ?? 1} de {installmentDeletePrompt.movement.installmentCount}</span>
@@ -1883,7 +1878,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <div>
               <p className="eyebrow">PRESUPUESTO MENSUAL</p>
               <h2>{budget > 0 ? 'Modificar presupuesto' : 'Definir presupuesto'} de {labelForMonth(month)}</h2>
-              <p style={{ color: 'var(--muted)', fontSize: '12px', margin: '4px 0 0' }}>
+              <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
                 {budget > 0 ? 'Actualizá o eliminá tu límite de gastos para este mes.' : 'Definí tu límite de gastos para este mes.'}
               </p>
             </div>
@@ -1914,11 +1909,11 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
 
           {parseAmountNumber(budgetInput) > 0 && (
             <div className="installment-calc-preview" style={{ height: 'auto', padding: '10px 14px', gap: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#6d7d77' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--muted)' }}>
                 <span>Gastado en {labelForMonth(month)}:</span>
                 <strong style={{ color: 'var(--ink)' }}>{formatMoney(expenses, 'ARS')}</strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #dce8e1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 700, marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #dce8e1' }}>
                 <span>Disponible con este límite:</span>
                 <strong style={{ color: parseAmountNumber(budgetInput) - expenses >= 0 ? 'var(--mint-dark)' : '#d32f2f' }}>
                   {formatMoney(parseAmountNumber(budgetInput) - expenses, 'ARS')}
@@ -2008,7 +2003,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <h2 id="delete-budget-title" style={{ margin: 0, fontSize: '19px', fontWeight: 800 }}>
               ¿Eliminar presupuesto de {labelForMonth(month)}?
             </h2>
-            <p style={{ margin: '8px 0 0', fontSize: '13px', color: '#6d7d77', lineHeight: 1.45 }}>
+            <p style={{ margin: '8px 0 0', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.45 }}>
               Se borrará el límite de <strong>{formatMoney(budget, 'ARS')}</strong> fijado para este mes. El seguimiento de gastos continuará disponible sin límite.
             </p>
           </div>
@@ -2018,15 +2013,8 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               className="modal-btn-cancel"
               disabled={isSavingBudget}
               style={{
-                height: '44px',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '14px',
-                background: '#f1f5f9',
-                color: '#475569',
-                border: '1px solid #cbd5e1',
-                cursor: 'pointer',
-              }}
+    cursor: 'pointer'
+}}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setShowDeleteBudgetConfirm(false);
@@ -2040,16 +2028,11 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               className="modal-btn-delete"
               disabled={isSavingBudget}
               style={{
-                height: '44px',
-                borderRadius: '12px',
-                padding: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '14px',
-                fontWeight: 800,
-                cursor: 'pointer',
-              }}
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer'
+}}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => void executeDeleteBudget()}
             >
@@ -2211,7 +2194,9 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <button
               type="button"
               className="modal-btn-cancel"
-              style={{ width: '100%', height: '46px', borderRadius: '12px', fontWeight: 700 }}
+              style={{
+    width: '100%'
+}}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setShowCategoryModal(false)}
             >

@@ -275,14 +275,13 @@ export function Settings({
         <section className="settings-panel admin-highlight-box" style={{ background: '#0f172a', color: '#ffffff', border: 'none' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <div>
-              <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '1px', color: '#38bdf8', textTransform: 'uppercase' }}>ADMINISTRADOR</span>
+              <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '1px', color: '#38bdf8', textTransform: 'uppercase' }}>ADMINISTRADOR</span>
               <h2 style={{ color: '#ffffff', margin: '2px 0 4px', fontSize: '18px' }}>Panel de Control</h2>
-              <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Gestioná licencias, códigos y clientes.</p>
+              <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8' }}>Gestioná licencias, códigos y clientes.</p>
             </div>
             <button
               type="button"
-              className="primary-button"
-              style={{ background: '#38bdf8', color: '#0f172a', fontWeight: 800, whiteSpace: 'nowrap' }}
+              className="button-secondary"
               onClick={onOpenAdmin}
             >
               <Icon name="shield" /> Abrir Panel Admin
@@ -295,18 +294,18 @@ export function Settings({
       <section className="settings-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
           <div>
-            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               MEMBRESÍA
             </span>
             <h2 style={{ margin: '4px 0 6px' }}>Mi Suscripción</h2>
           </div>
           <div>
             {subscriptionInfo.isLifetime ? (
-              <span className="status-pill green" style={{ fontSize: '12px' }}>Plan sin vencimiento</span>
+              <span className="status-pill green" style={{ fontSize: '13px' }}>Plan sin vencimiento</span>
             ) : subscriptionInfo.isExpiringSoon ? (
-              <span className="status-pill orange" style={{ fontSize: '12px' }}>Vence pronto</span>
+              <span className="status-pill orange" style={{ fontSize: '13px' }}>Vence pronto</span>
             ) : (
-              <span className="status-pill green" style={{ fontSize: '12px' }}>Plan activo</span>
+              <span className="status-pill green" style={{ fontSize: '13px' }}>Plan activo</span>
             )}
           </div>
         </div>
@@ -337,15 +336,15 @@ export function Settings({
               target="_blank"
               rel="noopener noreferrer"
               className="whatsapp-request-btn"
-              style={{ padding: '10px 16px', fontSize: '13px' }}
+
             >
               <span><Icon name="message" /></span> Renovar por WhatsApp
             </a>
           )}
           <button
             type="button"
-            className="button-link"
-            style={{ fontSize: '12px', fontWeight: 700 }}
+            className="button-link renewal-code-link"
+            style={{ fontSize: '13px', fontWeight: 700 }}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setShowRedeemForm(!showRedeemForm)}
           >
@@ -359,7 +358,7 @@ export function Settings({
             padding: '8px 12px',
             background: '#f8fafc',
             borderRadius: '8px',
-            fontSize: '12px',
+            fontSize: '13px',
             color: '#334155',
             border: '1px solid #e2e8f0',
             display: 'inline-block',
@@ -371,7 +370,7 @@ export function Settings({
         {/* Formulario colapsable para canjear código */}
         {showRedeemForm && (
           <form onSubmit={handleRedeemRenewal} style={{ marginTop: '16px', padding: '14px', background: '#f0fdf4', borderRadius: '12px', border: '1px dashed #86efac' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#166534', marginBottom: '8px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#166534', marginBottom: '8px' }}>
               Ingresá tu código de renovación
               <input
                 type="text"
@@ -406,7 +405,7 @@ export function Settings({
 
       {/* SECCIÓN 2: CONEXIÓN WHATSAPP */}
       <section className="settings-panel">
-        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           INTEGRACIÓN
         </span>
         <h2 style={{ margin: '4px 0 6px' }}>Conexión con WhatsApp</h2>
@@ -416,15 +415,14 @@ export function Settings({
 
         <div style={{ padding: '12px 14px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <div>
-            <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>NÚMERO VINCULADO</span>
+            <span style={{ fontSize: '13px', color: '#64748b', display: 'block' }}>NÚMERO VINCULADO</span>
             <strong style={{ fontSize: '14px', color: '#0f172a' }}>
               {userProfile?.phone_number ? formatPhone(userProfile.phone_number) : 'Sin vincular todavía'}
             </strong>
           </div>
           <button
             type="button"
-            className="primary-button"
-            style={{ background: '#25d366', color: '#fff', border: 'none', padding: '9px 15px', fontSize: '12px' }}
+            className="button-secondary"
             onClick={() => void connectWhatsAppOneTouch()}
           >
             <Icon name={userProfile?.phone_number ? 'refresh' : 'message'} /> {userProfile?.phone_number ? 'Cambiar número' : 'Conectar en 1 toque'}
@@ -441,8 +439,8 @@ export function Settings({
                 href={waDirectUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="primary-button"
-                style={{ background: '#25d366', color: '#fff', textAlign: 'center', textDecoration: 'none', fontWeight: 800, padding: '10px 16px', display: 'block' }}
+                className="button-secondary"
+
               >
                 <Icon name="message" /> Abrir chat en WhatsApp
               </a>
@@ -454,7 +452,7 @@ export function Settings({
       {/* SECCIÓN TÉCNICA (SÓLO ADMINISTRADOR) */}
       {isAdmin && (
         <section className="settings-panel warning">
-          <span style={{ fontSize: '10px', fontWeight: 800, color: '#b45309', textTransform: 'uppercase' }}>SÓLO ADMIN</span>
+          <span style={{ fontSize: '13px', fontWeight: 800, color: '#b45309', textTransform: 'uppercase' }}>SÓLO ADMIN</span>
           <h2 style={{ margin: '2px 0 8px', fontSize: '14px' }}>Control Técnico y Costos (Admin)</h2>
           <label className="switch-row" style={{ borderTop: 'none', padding: '8px 0 0' }}>
             <span>
@@ -472,7 +470,7 @@ export function Settings({
 
       {/* SECCIÓN: INSTALACIÓN DE LA APP (PWA) */}
       <section className="settings-panel">
-        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           ACCESO RÁPIDO
         </span>
         <h2 style={{ margin: '4px 0 6px' }}><Icon name="smartphone" /> Instalar Pesito en tu celular</h2>
@@ -483,9 +481,11 @@ export function Settings({
         {canInstall ? (
           <button
             type="button"
-            className="primary-button"
+            className="button-secondary"
             onClick={triggerInstall}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 18px', fontSize: '13px' }}
+            style={{
+    display: 'inline-flex', alignItems: 'center', gap: '8px'
+}}
           >
             <Icon name="smartphone" /> Instalar en este dispositivo
           </button>
@@ -507,7 +507,7 @@ export function Settings({
 
       {/* SECCIÓN 3: DATOS PERSONALES Y SESIÓN */}
       <section className="settings-panel">
-        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mint-dark)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           PERFIL
         </span>
         <h2 style={{ margin: '4px 0 6px' }}>Mis Datos Personales</h2>
@@ -555,7 +555,7 @@ export function Settings({
 
         <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '18px 0' }} />
 
-        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           CUENTA
         </span>
         <h2 style={{ margin: '4px 0 6px' }}>Sesión</h2>

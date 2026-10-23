@@ -50,8 +50,8 @@
 }
 
 .movement-info small {
-  font-size: 11px;
-  color: #87938f;
+  font-size: 13px;
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -81,7 +81,7 @@
 
 .movement-chevron {
   font-size: 18px;
-  color: #b0bcba;
+  color: var(--muted);
   font-weight: 400;
   transition: transform 0.15s ease, color 0.15s ease;
   padding-left: 2px;
@@ -214,7 +214,7 @@
   margin-top: 12px;
   border: 1px dashed #dce7e1;
   border-radius: 12px;
-  color: #7d8c87;
+  color: var(--muted);
   text-align: center;
 }
 
@@ -231,11 +231,11 @@
 
 .installments-empty strong {
   color: var(--ink);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .installments-empty small {
   max-width: 230px;
-  font-size: 9px;
+  font-size: 13px;
 }
 
