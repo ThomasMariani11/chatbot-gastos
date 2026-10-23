@@ -1,5 +1,48 @@
 # Plan de mejoras del proyecto
 
+## Revisión incremental del 23/10/2026 — estado actual
+
+Esta sección actualiza la lectura del proyecto sobre main 8e46f60391558a41801dfc2768194a97e8439632; las auditorías y cierres fechados más abajo se conservan como registro histórico. No se deben interpretar sus líneas antiguas como verificación actual de producción.
+
+### Actualizaciones verificadas
+
+- Desde 79a955d se integraron cuatro commits, todos con autor Thomas Mariani: 83e3322 / PR #26 (Movimientos y Cuotas independientes), 358abc4 / PR #27 (Ajustes), 32db811 / PR #28 (Admin) y 8e46f60 / PR #29 (centrado y selector móvil). Nueve archivos cambiados; no hay cambios de backend, SQL, workflows ni dependencias en ese intervalo.
+- El checkout ya estaba actualizado y limpio antes de esta revisión. fetch --all --prune y pull --ff-only no incorporaron nuevos commits; no se reemplazaron cambios locales.
+- Los cinco bloques del [plan visual](PLAN_MEJORAS_VISUALES.md) están integrados y la versión 8e46f60 está publicada: version.json y sw.js coinciden, y los cuatro controles más Publicar aprobaron.
+- Validación local: lint, TypeScript/build y 468 pruebas aprobados. Chunk principal: 840,59 kB / 240,21 kB gzip; sigue la advertencia de tamaño. Esto es tamaño de build, no una medición de Core Web Vitals.
+- No se hicieron despliegues, modificaciones de datos, mensajes a clientes, llamadas de IA ni cambios de infraestructura en esta revisión. No se comprobó nuevamente la configuración remota de Supabase o la disponibilidad de los proveedores.
+
+### Continuidad después del cierre visual — 23/10/2026
+
+El propietario da por cerrado el plan de implementación visual: los cinco bloques están publicados. La comprobación física de compatibilidad continúa como seguimiento, sin declararla realizada. El próximo bloque recomendado del plan general es **FE-01 + FE-02 + FE-03**, coordinado con BE-03, BE-17 y FE-21, para resolver el contrato de planes y proteger los importes.
+
+Secuencia propuesta: (1) pruebas de regresión con planes PWA/WhatsApp, centavos y cuotas eliminadas; (2) contrato de grupo y operación SQL atómica con autorización, validación y control de concurrencia; (3) conectar los formularios a esa operación y actualizar solo campos realmente editados; (4) validar fallos y revisión antes de publicar. No se inició esa implementación ni se modificaron datos reales al cerrar el plan visual.
+
+Después siguen FE-04/FE-05 (duplicados y carga por mes) y FE-06/BE-02 (renovaciones). Los avisos nuevos de desarrollo requieren una actualización acotada de dependencias. En infraestructura permanece INF-15 y el cierre parcial de INF-13/INF-14; backups siguen al final. La vigencia Groq registrada para el 27/10/2026 requiere revisión antes de esa fecha, sin acceder ni rotar credenciales sin la autorización correspondiente.
+
+### Prioridades que siguen abiertas
+
+1. **Alta — FE-01/FE-02/FE-03: integridad de edición de cuotas.** Se extrajo la función actual saveMovementEdit de src/Dashboard.tsx y se ejecutó con un cliente Supabase simulado en memoria. Cero solicitudes a producción. Resultados:
+   - Plan con la primera cuota como ID del grupo (contrato WhatsApp): 100 / 100 / 100 pasó a 300 / 100 / 100 en un orden válido de ejecución. La función escribe el total y el importe individual sobre la misma fila (líneas 805, 852 y 859).
+   - Editar únicamente el nombre de un plan de 100 repartido en 33,33 / 33,33 / 33,34 dejó 99,99 (línea 805).
+   - Fallo sintético al actualizar la segunda cuota: 100 / 100 / 100 pasó a 200 / 100 / 200 pese al mensaje de error. Promise.all no revierte las escrituras independientes (línea 859).
+   - Con las cuotas 1 y 3 existentes, la búsqueda por índice renumeró la 3 como 2 y creó una nueva cuota 3 (línea 795).
+   - Esto confirma que el código conserva los riesgos; **no demuestra que existan datos dañados de clientes**. Próximo trabajo recomendado: contrato único, actualización SQL atómica, preservar campos/centavos no editados e identidad estable; pruebas con ambos orígenes antes de publicar.
+2. **Alta — FE-04/FE-05: altas duplicadas y errores de carga por mes.** Siguen pendientes según código: addMovement sin exclusión inmediata/idempotencia (Dashboard.tsx:618), y cargas que mantienen datos anteriores si falla una consulta (Dashboard.tsx:402–430). No se provocaron fallos ni altas reales.
+3. **Alta — FE-06/BE-02: renovaciones concurrentes.** AdminPanel.tsx:498 sigue escribiendo un vencimiento absoluto calculado desde el perfil cargado. Requiere validar el trigger vigente y una operación atómica de servidor; no se hicieron renovaciones reales.
+4. **Media — seguimiento INF-07/FE-08: nuevos avisos de desarrollo.** npm audit detectó vitest y @vitest/mocker afectados, con severidad moderada. Son avisos posteriores al cierre histórico de INF-07; no se afirma que el arreglo previo haya fallado. npm audit --omit=dev informó cero vulnerabilidades. El parche indicado para la rama 4 es 4.1.12; actualizar manifiesto/lockfile y volver a validar en una tarea separada. No se ejecutó npm audit fix. Fuentes: [registro de mocks](https://github.com/advisories/GHSA-qxg6-89mg-rqv8) y [rutas Windows](https://github.com/advisories/GHSA-xp26-3454-mjgp). La explotación depende de un servidor de desarrollo con el plugin y acceso al mismo; no se encontró evidencia de explotación ni de exposición del sitio estático por estos avisos.
+5. **INF-15 / INF-14: costos, vigencia y retención.** La documentación de la beta registra vencimiento de la clave Groq el 27/10/2026 (VALIDACION_INF_12.md:50); comprobar su vigencia/rotación antes de esa fecha con autorización para credenciales, sin asumir que la configuración remota siga igual. La limpieza/retención permanece sin autorización para activarla. Backups continúan al final por decisión del propietario.
+
+La aceptación física del rediseño, las cabeceras que GitHub Pages no permite configurar y la reducción del bundle también siguen abiertas. La CSP ya se publicó en PR #23; las referencias históricas a publicación pendiente no representan ese avance.
+
+
+## Ejecución del 23/10/2026 — Groq y cuotas
+
+- **Groq: renovación completada.** Clave sin vencimiento creada con autorización, prueba ficticia HTTP 200 y secreto Supabase actualizado/verificado. Plan Free mantenido, claves anteriores conservadas. [Evidencia y límites](VALIDACION_GROQ_ROTACION_2026-10-23.md). Este avance reemplaza la revisión de vigencia pendiente que figura en la sección histórica anterior; INF-15 sigue abierto.
+- **FE-01 / FE-02 / FE-03: implementados en [PR #30](https://github.com/ThomasMariani11/chatbot-gastos/pull/30), pendientes de CI/publicación/aceptación.** RPC atómica 029, contratos PWA/WhatsApp, control de versión e idempotencia; patch de campos editados y cuotas con identidad estable. 490 tests locales, lint/tipos/build, 12 SQL y seis controles de release aprobados. Navegador probado con PGlite ficticio. [Validación y orden de publicación](VALIDACION_FE_01_02_03.md).
+- **FE-11:** eliminación por identificador corregida en este bloque; pendiente de publicación y aceptación. FE-04 recibió guardia inmediata de envío y recibos para planes, pero las altas normales y la persistencia del intento tras recargar siguen abiertas.
+- Sin modificaciones a movimientos reales ni publicación de 029/PWA. La retención permanece sin habilitar y los backups al final por decisión del propietario.
+
 ## Objetivo
 
 Reunir los pendientes de infraestructura, frontend y backend para resolverlos de a uno, con alcance y criterios de validación claros.
@@ -211,13 +254,13 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 | Orden | ID | Severidad | Tema | Tareas relacionadas | Estado |
 | --- | --- | --- | --- | --- | --- |
-| 1 | FE-01 | Alta | Contrato de cuotas de WhatsApp y PWA | FE-02, FE-03, BE-03 | Pendiente |
-| 2 | FE-02 | Alta | Escrituras atómicas de planes | BE-10, BE-17 | Pendiente |
-| 3 | FE-03 | Alta | Preservar importes y cuotas eliminadas | FE-01, FE-02 | Pendiente |
+| 1 | FE-01 | Alta | Contrato de cuotas de WhatsApp y PWA | FE-02, FE-03, BE-03 | Preparado en PR #30; publicación pendiente |
+| 2 | FE-02 | Alta | Escrituras atómicas de planes | BE-10, BE-17 | Preparado en PR #30; publicación pendiente |
+| 3 | FE-03 | Alta | Preservar importes y cuotas eliminadas | FE-01, FE-02 | Preparado en PR #30; publicación pendiente |
 | 4 | FE-21 | Media | Pruebas de flujos y dominio real | BE-17, INF-06 | Pendiente |
 | 5 | FE-04 | Alta | Evitar movimientos duplicados | BE-10 | Pendiente |
 | 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Pendiente |
-| 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Pendiente |
+| 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Preparado en PR #30; publicación pendiente |
 | 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Pendiente |
 | 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Pendiente |
 | 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Pendiente |
@@ -227,7 +270,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 14 | FE-14 | Media | Permitir ampliación del navegador | — | Pendiente |
 | 15 | FE-15 | Media | Diálogos, foco y etiquetas accesibles | FE-07 | Pendiente |
 | 16 | FE-16 | Media | Contraste de botones | FE-22 | Pendiente |
-| 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Pendiente |
+| 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Preparado en PR #30; publicación pendiente |
 | 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Pendiente |
 | 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Pendiente |
 | 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | En curso; validada localmente, publicación pendiente |
