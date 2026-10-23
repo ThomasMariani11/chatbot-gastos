@@ -68,3 +68,7 @@ El panel muestra detalles en las alertas activas (hasta diez por categoría) y h
 Los avisos por WhatsApp incluyen la misma descripción y hasta cinco casos por categoría, acotados a un único mensaje de menos de 4096 caracteres. Si quedan casos, remiten al panel. Los fallos de recuperación general se identifican como servicio general, sin adjudicarlos a un cliente. Se mantienen los umbrales, reconocimiento, exclusión, límite de frecuencia, ventana y verificación del emisor existentes. La retención sigue desactivada.
 
 Prueba de aceptación de la versión anterior (v52): el 22/10/2026 se simuló un caso manual_review con el usuario del propietario; apareció en el panel, se reconoció, Meta aceptó un único envío y el propietario confirmó recepción. El incidente se cerró, quedaron cero alertas/avisos pendientes y los hashes de movimientos y borradores permanecieron iguales. La versión 028 amplía el detalle; su nueva aceptación se registra por separado.
+
+### Vista rápida del panel
+
+Estado del bot muestra tres contadores (cola, proceso y mensajes para revisar), tarjetas breves con cliente/causa/fecha y estado de los avisos. Los códigos del proveedor, intentos y referencia quedan en Detalle técnico; el historial y los ajustes/métricas se abren bajo demanda. Los mensajes de fallo de actualización o envío permanecen visibles. No se modifican umbrales ni permisos al simplificar la presentación.

@@ -2751,3 +2751,63 @@ button:active:not(:disabled),
 
 
 
+
+/* Estado del bot: resumen visible y diagnóstico bajo demanda. */
+.bot-ops { color: #1f2937; }
+.bot-ops-header, .bot-ops-title, .bot-ops-alert-header, .bot-ops-footer, .bot-ops-whatsapp { display: flex; align-items: center; gap: 12px; }
+.bot-ops-header, .bot-ops-alert-header, .bot-ops-footer { justify-content: space-between; }
+.bot-ops-title { flex-wrap: wrap; gap: 8px 12px; }
+.bot-ops-badge { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 1.3; white-space: nowrap; }
+.bot-ops-badge.good { background: #e9f7f0; color: #126447; }
+.bot-ops-badge.warning { background: #fff2d7; color: #8a4d08; }
+.bot-ops-badge.neutral { background: #f1f5f9; color: #475569; }
+.bot-ops-button { min-height: 36px; padding: 7px 11px; border: 1px solid #dbe3df; border-radius: 9px; color: #334155; background: #fff; font-size: 12px; font-weight: 650; cursor: pointer; flex-shrink: 0; }
+.bot-ops-button:hover:not(:disabled) { background: #f3f7f5; border-color: #aabdb3; }
+.bot-ops-button:disabled { opacity: .55; cursor: wait; }
+.bot-ops :is(button,summary):focus-visible { outline: 3px solid #0d8d64; outline-offset: 3px; }
+.bot-ops-counts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); margin: 20px 0; padding: 14px 0; background: #f7f9f8; border-radius: 12px; }
+.bot-ops-counts > div { display: grid; gap: 4px; text-align: center; }
+.bot-ops-counts > div + div { border-left: 1px solid #e2e8e4; }
+.bot-ops-counts strong { font-size: 23px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.bot-ops-counts span { font-size: 11px; color: #64736c; }
+.bot-ops-counts .needs-attention strong { color: #9a5b11; }
+.bot-ops-alerts { display: grid; gap: 12px; margin-bottom: 18px; }
+.bot-ops-alert { padding: 15px; border: 1px solid #ead7b0; border-radius: 12px; background: #fffcf6; min-width: 0; }
+.bot-ops-alert.critical { border-color: #efc3c3; background: #fffafa; }
+.bot-ops-alert-header { flex-wrap: wrap; gap: 10px; }
+.bot-ops-alert h3 { margin: 0; font-size: 13px; font-weight: 750; }
+.bot-ops-alert-count { margin-left: 5px; color: #8a4d08; font-variant-numeric: tabular-nums; }
+.bot-ops-reviewed { color: #64736c; font-size: 11px; }
+.bot-ops-issue { padding-top: 13px; overflow-wrap: anywhere; }
+.bot-ops-issue + .bot-ops-issue { border-top: 1px solid #e5e7eb; margin-top: 13px; }
+.bot-ops-client { font-size: 14px; }
+.bot-ops-issue-summary { margin: 5px 0; font-size: 13px; line-height: 1.55; }
+.bot-ops .bot-ops-meta { margin: 5px 0; font-size: 11px; line-height: 1.6; color: #64736c; }
+.bot-ops-technical { margin-top: 5px; }
+.bot-ops-technical > summary { width: fit-content; padding: 5px 0; color: #53655b; font-size: 11px; cursor: pointer; }
+.bot-ops-technical > p { margin: 5px 0; font-size: 12px; line-height: 1.6; }
+.bot-ops-warning { padding: 10px 12px; border-radius: 9px; background: #fff2d7; color: #854d0e; font-size: 12px; line-height: 1.5; }
+.bot-ops-footer { padding: 13px 0; border-top: 1px solid #edf0ee; }
+.bot-ops-whatsapp { flex-wrap: wrap; gap: 7px; font-size: 12px; font-weight: 650; }
+.bot-ops-more { border-top: 1px solid #edf0ee; }
+.bot-ops-more > details { border-bottom: 1px solid #edf0ee; }
+.bot-ops-more > details > summary { padding: 13px 0; font-size: 12px; font-weight: 650; cursor: pointer; }
+.bot-ops-more > details > summary > span { margin-left: 5px; color: #64736c; font-weight: 400; }
+.bot-ops-more > details[open] { padding-bottom: 13px; }
+.bot-ops-settings { font-size: 12px; line-height: 1.6; color: #53655b; }
+.bot-ops-settings > p { margin: 8px 0; }
+.bot-ops-table { overflow-x: auto; }
+.bot-ops-table table { width: 100%; border-collapse: collapse; text-align: left; font-size: 11px; }
+.bot-ops-table :is(th,td) { padding: 8px; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+.bot-ops-table caption { padding: 8px 0; text-align: left; }
+.bot-ops .bot-ops-updated { margin: 12px 0 0; color: #64736c; font-size: 10px; }
+@media (max-width: 560px) {
+  .admin-generator-card.bot-ops { padding: 17px; }
+  .bot-ops-header { align-items: flex-start; gap: 8px; }
+  .bot-ops h2 { font-size: 18px; }
+  .bot-ops-title { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .bot-ops-button { min-height: 44px; }
+  .bot-ops-alert { padding: 12px; }
+  .bot-ops-alert-header .bot-ops-button { min-height: 40px; }
+  .bot-ops-technical > summary { min-height: 40px; padding-top: 10px; padding-bottom: 10px; }
+}

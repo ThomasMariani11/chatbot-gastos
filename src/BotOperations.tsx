@@ -14,22 +14,38 @@ type Snapshot = {
   retention_eligible: number;
 };
 const labels: Record<string, string> = {
-  queue_delay: 'Mensajes demorados más de dos minutos',
-  repeated_failures: 'Mensajes con fallos repetidos',
-  manual_review: 'Mensajes para revisión manual',
-  recovery_failure: 'Recuperación programada sin respuesta reciente',
-  interpretation_fallback: 'Varios mensajes necesitaron pasarse a texto',
+  queue_delay: 'Respuestas demoradas',
+  repeated_failures: 'Fallos repetidos',
+  manual_review: 'Requiere revisión',
+  recovery_failure: 'Revisar recuperación',
+  interpretation_fallback: 'Problemas de interpretación',
 };
 const metricLabels: Record<string, string> = {
   queue_wait: 'Espera en cola', queue_interpret: 'Interpretación', queue_send: 'Envío de respuestas',
 };
-function IssueDetail({issue}:{issue:OperationalIssue}) {
-  const name=safeClientName(issue.client_name);
-  return <article aria-label={'Incidente de '+name} style={{padding:'12px 0',borderBottom:'1px solid #e5e7eb',overflowWrap:'anywhere'}}>
-    <strong>{name}</strong>{issue.client_reference && <small> · Ref. {issue.client_reference}</small>}
-    <p style={{margin:'6px 0'}}>{issueSource(issue.source_kind)} · {issue.time_source==='received'?'Recibido':'Error registrado'}: <time dateTime={issue.occurred_at}>{issueTimestamp(issue.occurred_at)}</time> (Argentina)</p>
-    <p style={{margin:'6px 0'}}>{issueDescription(issue)}</p>
-    <small>Intentos del mensaje: {issue.attempts} · {issue.state==='processed'?'Mensaje terminado':issue.state==='waiting'?'En revisión':issue.state==='processing'?'En proceso':issue.state==='failed'?'Con fallos':'En cola'}</small>
+function issueSummary(issue: OperationalIssue): string {
+  if (!issue.diagnostic_available) return 'Causa no registrada. Requiere revisión.';
+  const summaries: Record<string, string> = {
+    timeout: 'El servicio tardó demasiado en responder.',
+    unavailable: issue.provider === 'gemini' || issue.provider === 'groq' ? 'La IA no estaba disponible.' : 'El servicio no estaba disponible.',
+    authentication: 'El servicio rechazó el acceso.', rate_limit: 'Se alcanzó el límite de uso del servicio.',
+    network: 'Falló la conexión con el servicio.', invalid_response: 'No se pudo interpretar el mensaje.',
+    database_read: 'No se pudieron consultar los datos.', configuration: 'Falta configurar el servicio.',
+    request_rejected: 'El servicio rechazó la solicitud.', media_too_large: 'El archivo es demasiado grande.',
+    payload_too_large: 'La respuesta del servicio es demasiado grande.', unsupported_media: 'El formato del archivo no es compatible.',
+  };
+  return summaries[issue.reason ?? ''] ?? 'No se pudo completar el mensaje.';
+}
+function IssueDetail({ issue }: { issue: OperationalIssue }) {
+  const name = safeClientName(issue.client_name);
+  return <article className="bot-ops-issue" aria-label={'Incidente de ' + name}>
+    <strong className="bot-ops-client">{name}</strong>
+    <p className="bot-ops-issue-summary">{issueSummary(issue)}</p>
+    <p className="bot-ops-meta">{issueSource(issue.source_kind)} · {issue.time_source === 'received' && 'Recibido: '}<time dateTime={issue.occurred_at} title="Hora de Argentina">{issueTimestamp(issue.occurred_at)}</time></p>
+    <details className="bot-ops-technical"><summary>Detalle técnico</summary>
+      <p>{issueDescription(issue)}</p>
+      <p className="bot-ops-meta">{issue.attempts} intentos · {issue.state === 'processed' ? 'Mensaje terminado' : issue.state === 'waiting' ? 'En revisión' : issue.state === 'processing' ? 'En proceso' : issue.state === 'failed' ? 'Con fallos' : 'En cola'}{issue.client_reference && ' · Ref. ' + issue.client_reference}</p>
+    </details>
   </article>;
 }
 export function BotOperations() {
@@ -69,44 +85,60 @@ export function BotOperations() {
     } catch { if (mounted.current) setError('No pude completar la acción. Volvé a intentar.'); }
     finally { if (mounted.current) setBusy(false); }
   }
-  const stale = !snapshot?.config.last_scan_at || Date.now() - Date.parse(snapshot.config.last_scan_at) > 180000;
-  const deliveryProblem = snapshot?.recent_notifications[0] && ['failed', 'uncertain', 'blocked'].includes(snapshot.recent_notifications[0].state);
+  const lastScan = snapshot?.config.last_scan_at;
+  const stale = !lastScan || !Number.isFinite(Date.parse(lastScan)) || Date.now() - Date.parse(lastScan) > 180000;
+  const noticeState = snapshot?.recent_notifications[0]?.state;
+  const deliveryProblem = ['failed', 'uncertain', 'blocked'].includes(noticeState ?? '');
+  const statusText = !snapshot ? 'Sin datos' : error || stale ? 'Sin actualizar' : snapshot.alerts.length ? 'Requiere atención' : deliveryProblem ? 'Revisar avisos' : 'Sin alertas';
+  const statusTone = !snapshot || error || stale ? 'neutral' : snapshot.alerts.length || deliveryProblem ? 'warning' : 'good';
+  const ownNotices = snapshot?.config.whatsapp_enabled && snapshot.config.is_recipient;
   return (
-    <section className="admin-generator-card" aria-labelledby="bot-operations-heading" style={{ marginBottom: 24 }}>
-      <div className="generator-header">
-        <div><p className="eyebrow">MONITOREO</p><h2 id="bot-operations-heading">Estado del bot</h2><p>Se actualiza cada 30 segundos mientras este panel está visible.</p></div>
-        <button type="button" className="admin-header-btn secondary" onClick={() => setRefresh(v => v + 1)}>Actualizar estado</button>
+    <section className="admin-generator-card bot-ops" aria-labelledby="bot-operations-heading">
+      <div className="bot-ops-header">
+        <div className="bot-ops-title"><h2 id="bot-operations-heading">Estado del bot</h2><span className={'bot-ops-badge ' + statusTone}>{statusText}</span></div>
+        <button type="button" className="bot-ops-button" aria-label="Actualizar estado del bot" onClick={() => setRefresh(v => v + 1)}>Actualizar</button>
       </div>
-      {error && <p role="alert">{error}</p>}
-      {!snapshot ? <p role="status">{error ? 'Estado no disponible.' : 'Cargando estado del bot…'}</p> : <>
-        <p>En cola: <strong>{snapshot.queue.pending}</strong> · En proceso: <strong>{snapshot.queue.processing}</strong> · Con fallos: <strong>{snapshot.queue.failed}</strong> · En revisión: <strong>{snapshot.queue.manual_review}</strong></p>
-        {snapshot.queue.waiting_customer > 0 && <p>{snapshot.queue.waiting_customer} mensajes esperan una decisión del cliente sobre su lista.</p>}
-        <p>Última revisión: {snapshot.config.last_scan_at ? issueTimestamp(snapshot.config.last_scan_at) : 'todavía sin datos'}.</p>
-        {stale && <p role="alert">El monitoreo no tiene una actualización reciente. Revisá la recuperación y el cron.</p>}
-        {deliveryProblem && <p role="alert">El último aviso por WhatsApp {snapshot.recent_notifications[0].state === 'uncertain' ? 'quedó sin confirmación de envío y no se repetirá automáticamente' : snapshot.recent_notifications[0].state === 'blocked' ? 'se detuvo porque no se pudo verificar que el emisor fuera el número de prueba' : 'no se pudo enviar'}. Las alertas siguen disponibles acá.</p>}
-        {snapshot.alerts.length === 0 ? <p>Sin incidentes detectados en la última revisión.</p> : <ul>{snapshot.alerts.map(alert => <li key={alert.code} style={{ marginBottom: 12 }}>
-          <strong>{alert.severity === 'critical' ? '🔴 ' : '🟡 '}{labels[alert.code] ?? 'Incidente técnico'}: {alert.affected}</strong>
-          {alert.oldest_seconds > 0 && <span> · Más antiguo: {Math.max(1, Math.floor(alert.oldest_seconds / 60))} min</span>}
-          {' '}{alert.acknowledged_at ? <span>Revisada</span> : <button type="button" disabled={busy} aria-label={'Marcar como revisada: ' + (labels[alert.code] ?? 'Incidente')} onClick={() => void action('acknowledge_whatsapp_ops_alert', { p_code: alert.code })}>Marcar como revisada</button>}
-          {alert.code==='recovery_failure' && <p>Servicio general: sin un cliente individual asociado. No se registró una ejecución SQL exitosa reciente de la recuperación.</p>}
-          {alert.details?.map(issue=><IssueDetail key={issue.id} issue={issue} />)}
-          {(alert.details_total??0)>(alert.details?.length??0)&&alert.code!=='recovery_failure'&&<p>Mostrando {alert.details?.length??0} de {alert.details_total} casos. Consultá también los errores recientes.</p>}
-        </li>)}</ul>}
-        <details style={{margin:'16px 0'}}><summary>Errores recientes y mensajes sin resolver ({snapshot.recent_issues?.length??0})</summary>
-          <p>Últimas 24 horas y casos todavía sin resolver, hasta 50 mensajes. Las fechas y horas corresponden a Argentina.</p>
-          {snapshot.recent_issues?.length ? snapshot.recent_issues.map(issue=><IssueDetail key={issue.id} issue={issue} />) : <p>No hay diagnósticos recientes ni mensajes sin resolver.</p>}
-        </details>
-        {!snapshot.config.cost_verified && <p role="status">Avisos por WhatsApp pendientes de verificar el número de prueba y costo $0. Las alertas del panel siguen activas.</p>}
-        {snapshot.config.whatsapp_enabled && !snapshot.config.window_open && <p role="status">Para habilitar avisos por WhatsApp, escribile al bot desde tu cuenta. La ventana de atención se cierra a las 24 horas; el panel sigue mostrando las alertas.</p>}
-        <p>Los avisos incluyen el cliente afectado, fecha, hora y diagnóstico técnico. No incluyen textos de gastos, comprobantes ni credenciales. Se agrupan con al menos 30 minutos entre incidentes nuevos.</p>
-        <button type="button" disabled={busy} className="admin-header-btn secondary" onClick={() => void action('configure_whatsapp_ops_alerts', { p_enabled: !(snapshot.config.whatsapp_enabled && snapshot.config.is_recipient) })}>
-          {snapshot.config.whatsapp_enabled && snapshot.config.is_recipient ? 'Desactivar mis avisos por WhatsApp' : 'Recibir alertas en mi WhatsApp'}
-        </button>
-        <p>Destino: el WhatsApp vinculado a tu cuenta administradora. Marcar una alerta como revisada silencia ese incidente; no descarta movimientos.</p>
-        <details style={{ marginTop: 16 }}><summary>Tiempos de las últimas 24 horas</summary>
-          {snapshot.metrics.filter(m => metricLabels[m.event]).length === 0 ? <p>Todavía no hay muestras de tiempos.</p> : <div style={{ overflowX: 'auto' }}><table><caption>Tiempos por intento, no por movimiento guardado</caption><thead><tr><th scope="col">Etapa</th><th scope="col">Muestras</th><th scope="col">Promedio</th><th scope="col">Máximo</th></tr></thead><tbody>{snapshot.metrics.filter(m => metricLabels[m.event]).map(m => <tr key={m.event}><th scope="row">{metricLabels[m.event]}</th><td>{m.samples}</td><td>{Math.round(m.average_ms).toLocaleString('es-AR')} ms</td><td>{Math.round(m.maximum_ms).toLocaleString('es-AR')} ms</td></tr>)}</tbody></table></div>}
-        </details>
-        <p>Conservación propuesta: contenido técnico terminado durante {snapshot.config.retention_days} días. Limpieza automática: <strong>{snapshot.config.retention_enabled ? 'activa' : 'desactivada, pendiente de aprobar'}</strong>. Hoy habría {snapshot.retention_eligible} registros aptos.</p>
+      {error && <p className="bot-ops-warning" role="alert">{error}</p>}
+      {!snapshot ? <p role="status">{error ? 'Estado no disponible.' : 'Cargando…'}</p> : <>
+        <div className="bot-ops-counts" aria-label="Mensajes del bot">
+          <div><strong>{snapshot.queue.pending}</strong><span>En cola</span></div>
+          <div><strong>{snapshot.queue.processing}</strong><span>Procesando</span></div>
+          <div className={snapshot.queue.failed + snapshot.queue.manual_review ? 'needs-attention' : ''}><strong>{snapshot.queue.failed + snapshot.queue.manual_review}</strong><span>Para revisar</span></div>
+        </div>
+        {snapshot.queue.waiting_customer > 0 && <p className="bot-ops-meta">{snapshot.queue.waiting_customer} mensajes esperan al cliente.</p>}
+        {stale && !error && <p className="bot-ops-warning" role="alert">El monitoreo está sin actualizar. Revisá la recuperación.</p>}
+        {deliveryProblem && <p className="bot-ops-warning" role="alert">{noticeState === 'uncertain' ? 'Un aviso de WhatsApp quedó sin confirmar.' : noticeState === 'blocked' ? 'WhatsApp bloqueado: falta verificar el emisor de prueba.' : 'No se pudo enviar el último aviso por WhatsApp.'}</p>}
+        {snapshot.alerts.length > 0 && <div className="bot-ops-alerts">{snapshot.alerts.map(alert => <section className={'bot-ops-alert ' + (alert.severity === 'critical' ? 'critical' : '')} key={alert.code} aria-label={labels[alert.code] ?? 'Incidente'}>
+          <div className="bot-ops-alert-header"><h3>{labels[alert.code] ?? 'Incidente técnico'} <span className="bot-ops-alert-count">{alert.affected}</span></h3>
+            {alert.acknowledged_at ? <span className="bot-ops-reviewed">Revisada</span> : <button type="button" className="bot-ops-button" disabled={busy} aria-label={'Marcar como revisada: ' + (labels[alert.code] ?? 'Incidente')} onClick={() => void action('acknowledge_whatsapp_ops_alert', { p_code: alert.code })}>Marcar revisada</button>}
+          </div>
+          {alert.code === 'recovery_failure' && <p className="bot-ops-issue-summary">La recuperación no tiene una ejecución reciente. Afecta al servicio general.</p>}
+          {alert.details?.map(issue => <IssueDetail key={issue.id} issue={issue} />)}
+          {(alert.details_total ?? 0) > (alert.details?.length ?? 0) && alert.code !== 'recovery_failure' && <p className="bot-ops-meta">{alert.details?.length ?? 0} de {alert.details_total} casos. Más información en el historial.</p>}
+        </section>)}</div>}
+        <div className="bot-ops-footer">
+          <div className="bot-ops-whatsapp"><span>WhatsApp</span><span className={'bot-ops-badge ' + (!snapshot.config.cost_verified ? 'warning' : ownNotices && snapshot.config.window_open ? 'good' : 'neutral')}>{!snapshot.config.cost_verified ? 'Por verificar' : ownNotices ? snapshot.config.window_open ? 'Avisos activos' : 'Ventana cerrada' : 'Desactivado'}</span></div>
+          <button type="button" className="bot-ops-button" disabled={busy} aria-label={ownNotices ? 'Desactivar mis avisos por WhatsApp' : 'Activar avisos en mi WhatsApp'} onClick={() => void action('configure_whatsapp_ops_alerts', { p_enabled: !ownNotices })}>{ownNotices ? 'Desactivar' : 'Activar'}</button>
+        </div>
+        {snapshot.config.whatsapp_enabled && !snapshot.config.window_open && <p className="bot-ops-meta">Escribile al bot para volver a recibir avisos durante 24 horas.</p>}
+        <div className="bot-ops-more">
+          <details><summary>Historial <span>{snapshot.recent_issues?.length ?? 0}</span></summary>
+            <p className="bot-ops-meta">Últimas 24 horas y mensajes sin resolver · Hasta 50 casos · Hora de Argentina.</p>
+            {snapshot.recent_issues?.length ? snapshot.recent_issues.map(issue => <IssueDetail key={issue.id} issue={issue} />) : <p className="bot-ops-meta">Sin errores recientes.</p>}
+          </details>
+          <details><summary>Ajustes y métricas</summary>
+            <div className="bot-ops-settings">
+              <p>Los avisos llegan al WhatsApp de tu cuenta administradora. Incluyen cliente y diagnóstico, sin gastos ni comprobantes.</p>
+              <p>Intervalo mínimo: 30 minutos. Marcar revisada silencia esa alerta; no modifica movimientos.</p>
+              {!snapshot.config.cost_verified && <p>Los envíos esperan la verificación del número de prueba para mantener costo $0.</p>}
+              {noticeState === 'uncertain' && <p>El envío sin confirmar no se repetirá automáticamente para evitar duplicados.</p>}
+              <p>Limpieza automática: <strong>{snapshot.config.retention_enabled ? 'activa' : 'desactivada'}</strong> · Plazo propuesto: {snapshot.config.retention_days} días · {snapshot.retention_eligible} registros aptos.</p>
+              <p>Mensajes con fallos: {snapshot.queue.failed} · En revisión manual: {snapshot.queue.manual_review}.</p>
+              {snapshot.metrics.filter(m => metricLabels[m.event]).length === 0 ? <p>Sin muestras de tiempos todavía.</p> : <div className="bot-ops-table"><table><caption>Tiempos de las últimas 24 horas, por intento</caption><thead><tr><th scope="col">Etapa</th><th scope="col">Muestras</th><th scope="col">Promedio</th><th scope="col">Máximo</th></tr></thead><tbody>{snapshot.metrics.filter(m => metricLabels[m.event]).map(m => <tr key={m.event}><th scope="row">{metricLabels[m.event]}</th><td>{m.samples}</td><td>{Math.round(m.average_ms).toLocaleString('es-AR')} ms</td><td>{Math.round(m.maximum_ms).toLocaleString('es-AR')} ms</td></tr>)}</tbody></table></div>}
+            </div>
+          </details>
+        </div>
+        <p className="bot-ops-updated" title="Hora de Argentina · Actualización automática cada 30 segundos">{lastScan ? 'Actualizado ' + issueTimestamp(lastScan) : 'Todavía sin revisión'}</p>
       </>}
     </section>
   );
