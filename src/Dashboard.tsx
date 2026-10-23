@@ -7,11 +7,12 @@ import {
   summarizeMonthlyInstallments,
 } from './summaryPresentation';
 import { categoryVisual, movementVisual } from './categoryVisuals';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { supabase } from './supabase';
+import { mutateInstallmentPlan, readInstallmentPlan, planPatch, planError, type PlanSnapshot } from './installmentPlans';
 import { requestWhatsAppLinkCode } from './whatsappLink';
-import { installmentDate, formatAmountInput, numberToAmountInput, parseAmountNumber, formatMoney } from '../lib/finance';
+import { formatAmountInput, numberToAmountInput, parseAmountNumber, formatMoney } from '../lib/finance';
 import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
 import type { UserProfile } from './Settings';
@@ -89,12 +90,6 @@ function shiftMonth(key: string, offset: number) {
   return monthKey(new Date(year, month - 1 + offset, 1));
 }
 
-function splitInstallments(total: number, count: number) {
-  const totalCents = Math.round(total * 100);
-  const base = Math.floor(totalCents / count);
-  const remainder = totalCents - base * count;
-  return Array.from({ length: count }, (_, index) => (base + (index === count - 1 ? remainder : 0)) / 100);
-}
 
 
 function labelForMonth(key: string) {
@@ -304,6 +299,59 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const [customEditCountInput, setCustomEditCountInput] = useState('3');
   const [editApplyToAll, setEditApplyToAll] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const [editPlan, setEditPlan] = useState<PlanSnapshot | null>(null);
+  const [deletePlan, setDeletePlan] = useState<PlanSnapshot | null>(null);
+  const [editPlanError, setEditPlanError] = useState('');
+  const [deletePlanError, setDeletePlanError] = useState('');
+  const [isDeletingPlan, setIsDeletingPlan] = useState(false);
+  const addBusy = useRef(false);
+  const editBusy = useRef(false);
+  const deleteBusy = useRef(false);
+  const createRequest = useRef<string | null>(null);
+  const editRequest = useRef<string | null>(null);
+  const deleteRequest = useRef<string | null>(null);
+  const editingPlanId = editingMovement?.installmentGroupId;
+  const editingItemId = editingMovement?.id;
+  const deletingPlanId = installmentDeletePrompt?.plan?.groupId ?? installmentDeletePrompt?.movement?.installmentGroupId;
+
+  useEffect(() => {
+    let active = true;
+    setEditPlan(null);
+    setEditPlanError('');
+    if (editingPlanId && editingItemId) {
+      void readInstallmentPlan(editingPlanId).then(snapshot => {
+        if (!active) return;
+        const row = snapshot.rows.find(row => row.id === editingItemId);
+        if (!row) throw new Error('Esta cuota ya no está activa. Cerrá y volvé a abrir el plan.');
+        setEditDescription(row.description);
+        setEditAmount(numberToAmountInput(row.amount_ars));
+        setEditCurrency(row.currency);
+        setEditCategoryId(row.category_id ?? '');
+        setEditDate(row.occurred_on);
+        setEditInstallmentNumber(row.installment_number);
+        setEditInstallmentCount(row.installment_count);
+        setIsCustomEditInstallmentCount(!PRESET_INSTALLMENT_COUNTS.includes(row.installment_count));
+        setCustomEditCountInput(String(row.installment_count));
+        setEditPlan(snapshot);
+      }).catch(error => { if (active) setEditPlanError(planError(error)); });
+    }
+    return () => { active = false; };
+  }, [editingPlanId, editingItemId]);
+
+  useEffect(() => {
+    let active = true;
+    setDeletePlan(null);
+    setDeletePlanError('');
+    deleteRequest.current = null;
+    if (deletingPlanId) {
+      void readInstallmentPlan(deletingPlanId).then(snapshot => {
+        if (active) setDeletePlan(snapshot);
+      }).catch(error => { if (active) setDeletePlanError(planError(error)); });
+    }
+    return () => { active = false; };
+  }, [deletingPlanId]);
   const availableCategories = useMemo(() => categories.filter((category) => category.kind === manualKind), [categories, manualKind]);
   const availableEditCategories = useMemo(() => categories.filter((category) => category.kind === editKind), [categories, editKind]);
 
@@ -567,7 +615,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       document.removeEventListener('visibilitychange', refreshWhenVisible);
       void supabase.removeChannel(channel);
     };
-  }, [month, userId]);
+  }, [month, userId, refreshNonce]);
 
   function openBudgetModal() {
     setBudgetInput(budget > 0 ? numberToAmountInput(budget) : '');
@@ -627,76 +675,20 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     const dateStr = String(form.get('date'));
     if (!description || !enteredAmount || enteredAmount <= 0) return;
 
+    if (addBusy.current) return;
+    addBusy.current = true;
+    setIsAdding(true);
+    try {
     if (kind === 'expense' && isInstallments && installmentCount > 1) {
-      const selectedCurrentCuota = currentInstallmentNumber;
-      const targetMonth = dateStr.slice(0, 7);
-      const day = dateStr.slice(8, 10);
-      const startMonth = shiftMonth(targetMonth, -(selectedCurrentCuota - 1));
-
-      const totalAmount = installmentAmountMode === 'quota'
-        ? Math.round(enteredAmount * installmentCount * 100) / 100
-        : enteredAmount;
-
-      const { data: parent, error: parentError } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: userId,
-          kind: 'expense',
-          description,
-          amount_ars: totalAmount,
-          currency,
-          occurred_on: installmentDate(startMonth, Number(day)),
-          category_id: selectedCategory.id,
-          status: 'cancelled',
-          source: 'pwa',
-          installment_count: installmentCount,
-          first_installment_month: startMonth,
-        })
-        .select('id')
-        .single();
-
-      if (parentError || !parent) {
-        return window.alert('No pudimos registrar la compra en cuotas. Intentá nuevamente.');
-      }
-
-      const values = installmentAmountMode === 'quota'
-        ? Array.from({ length: installmentCount }, () => enteredAmount)
-        : splitInstallments(totalAmount, installmentCount);
-
-      const rows = values.map((amount, index) => ({
-        user_id: userId,
-        kind: 'expense',
-        description,
-        amount_ars: amount,
-        currency,
-        occurred_on: installmentDate(shiftMonth(startMonth, index), Number(day)),
-        category_id: selectedCategory.id,
-        status: 'confirmed',
-        source: 'pwa',
-        installment_group_id: parent.id,
-        installment_number: index + 1,
-        installment_count: installmentCount,
-      }));
-
-      const { error: batchError } = await supabase.from('transactions').insert(rows);
-      if (batchError) {
-        return window.alert('Hubo un error guardando las cuotas. Intentá nuevamente.');
-      }
-
-      const addedMonths = Array.from({ length: installmentCount }, (_, i) => shiftMonth(startMonth, i));
-      setKnownMonths((prev) => Array.from(new Set([...prev, ...addedMonths])));
-      setMonth(targetMonth);
-      setActiveCurrency(currency);
-
-      setShowAdd(false);
-      setIsInstallments(false);
-      setInstallmentCount(3);
-      setIsCustomInstallmentCount(false);
-      setCustomCountInput('3');
-      setInstallmentAmountMode('total');
-      setCurrentInstallmentNumber(1);
-      setFormAmount('');
-      return;
+      createRequest.current ??= crypto.randomUUID();
+      const snapshot = await mutateInstallmentPlan({
+        requestId: createRequest.current, action: 'create',
+        payload: { description, category_id: selectedCategory.id, currency, amount: enteredAmount,
+          amount_mode: installmentAmountMode, installment_count: installmentCount,
+          reference_date: dateStr, reference_number: currentInstallmentNumber },
+      });
+      createRequest.current = null;
+      setKnownMonths(prev => Array.from(new Set([...prev, ...snapshot.rows.map(row => row.occurred_on.slice(0, 7))])));
     } else {
       const { error } = await supabase.from('transactions').insert({
         user_id: userId,
@@ -725,9 +717,20 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     setInstallmentAmountMode('total');
     setCurrentInstallmentNumber(1);
     setFormAmount('');
+    setRefreshNonce(n => n + 1);
+    } catch (error) {
+      window.alert(planError(error));
+    } finally {
+      addBusy.current = false;
+      setIsAdding(false);
+    }
   }
 
   function startEditMovement(item: Movement) {
+    if (editBusy.current) return;
+    editRequest.current = null;
+    setEditPlan(null);
+    setEditPlanError('');
     setEditingMovement(item);
     setEditDescription(item.title);
     setEditAmount(numberToAmountInput(item.amount));
@@ -748,182 +751,41 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
 
   async function saveMovementEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!editingMovement) return;
+    if (!editingMovement || editBusy.current) return;
     const description = editDescription.trim();
     const amount = parseAmountNumber(editAmount);
-    const dateStr = editDate;
-    if (!description || !amount || amount <= 0 || !dateStr) return;
-
-    const selectedCategory = categories.find((c) => c.id === editCategoryId && c.kind === editKind);
+    if (!description || !Number.isFinite(amount) || amount <= 0 || !editDate) return;
+    const selectedCategory = categories.find(c => c.id === editCategoryId && c.kind === editKind);
     if (!selectedCategory) return window.alert('Seleccioná una categoría válida.');
-
+    editBusy.current = true;
     setIsSavingEdit(true);
-
-    const isInstallmentPlan = Boolean(editingMovement.installmentCount && editingMovement.installmentCount > 1 && editingMovement.installmentGroupId);
-    const targetMonth = dateStr.slice(0, 7);
-    const targetDay = dateStr.slice(8, 10);
-
-    if (isInstallmentPlan && editApplyToAll) {
-      const groupId = editingMovement.installmentGroupId!;
-      const currentCuotaNum = editInstallmentNumber;
-      const totalCuotas = editInstallmentCount;
-      const newStartMonth = shiftMonth(targetMonth, -(currentCuotaNum - 1));
-
-      // 1. Buscamos todas las cuotas de este plan
-      const { data: groupRows, error: fetchErr } = await supabase
-        .from('transactions')
-        .select('id, installment_number, installment_count, occurred_on')
-        .eq('user_id', userId)
-        .eq('installment_group_id', groupId)
-        .eq('status', 'confirmed');
-
-      if (fetchErr) {
-        setIsSavingEdit(false);
-        return window.alert('No pudimos consultar las cuotas del plan.');
-      }
-
-      const rows = (groupRows ?? []).slice();
-      rows.sort((a, b) => Number(a.installment_number ?? 1) - Number(b.installment_number ?? 1));
-
-      const updatePromises: Array<PromiseLike<{ error: unknown }>> = [];
-      const rowsToInsert: Array<Record<string, unknown>> = [];
-      const rowsToDelete: string[] = [];
-
-      for (let i = 1; i <= totalCuotas; i++) {
-        const cuotaMonth = shiftMonth(newStartMonth, i - 1);
-        const cuotaDate = installmentDate(cuotaMonth, Number(targetDay));
-        const existing = rows[i - 1];
-
-        if (existing) {
-          updatePromises.push(
-            supabase
-              .from('transactions')
-              .update({
-                description,
-                category_id: selectedCategory.id,
-                occurred_on: cuotaDate,
-                amount_ars: amount,
-                currency: editCurrency,
-                installment_number: i,
-                installment_count: totalCuotas,
-              })
-              .eq('id', existing.id)
-              .eq('user_id', userId)
-          );
-        } else {
-          rowsToInsert.push({
-            user_id: userId,
-            kind: 'expense',
-            description,
-            amount_ars: amount,
-            currency: editCurrency,
-            occurred_on: cuotaDate,
-            category_id: selectedCategory.id,
-            status: 'confirmed',
-            source: 'pwa',
-            installment_group_id: groupId,
-            installment_number: i,
-            installment_count: totalCuotas,
-          });
+    try {
+      if (editingMovement.installmentCount && editingMovement.installmentCount > 1) {
+        const original = editPlan?.rows.find(row => row.id === editingMovement.id);
+        if (!editPlan || !original) throw new Error('Esperá a que termine de cargar el plan o volvé a abrirlo.');
+        const payload = planPatch(original, { description, amount, currency: editCurrency,
+          categoryId: selectedCategory.id, date: editDate, number: editInstallmentNumber, count: editInstallmentCount }, editApplyToAll);
+        if (Object.keys(payload).length) {
+          editRequest.current ??= crypto.randomUUID();
+          const snapshot = await mutateInstallmentPlan({ requestId: editRequest.current, action: 'edit',
+            groupId: editPlan.group_id, version: editPlan.version, itemId: original.id, payload, all: editApplyToAll });
+          setKnownMonths(prev => Array.from(new Set([...prev, ...snapshot.rows.map(row => row.occurred_on.slice(0, 7))])));
         }
+      } else {
+        const { error } = await supabase.from('transactions').update({ description, amount_ars: amount,
+          currency: editCurrency, kind: editKind, category_id: selectedCategory.id, occurred_on: editDate })
+          .eq('id', editingMovement.id).eq('user_id', userId);
+        if (error) throw error;
       }
-
-      if (rows.length > totalCuotas) {
-        for (let i = totalCuotas; i < rows.length; i++) {
-          rowsToDelete.push(String(rows[i].id));
-        }
-      }
-
-      if (rowsToInsert.length > 0) {
-        updatePromises.push(supabase.from('transactions').insert(rowsToInsert));
-      }
-      if (rowsToDelete.length > 0) {
-        updatePromises.push(supabase.from('transactions').delete().in('id', rowsToDelete).eq('user_id', userId));
-      }
-
-      // 3. Actualizamos también el registro padre
-      const parentPromise = supabase
-        .from('transactions')
-        .update({
-          description,
-          category_id: selectedCategory.id,
-          first_installment_month: newStartMonth,
-          occurred_on: installmentDate(newStartMonth, Number(targetDay)),
-          amount_ars: amount * totalCuotas,
-          currency: editCurrency,
-          installment_count: totalCuotas,
-        })
-        .eq('id', groupId)
-        .eq('user_id', userId);
-
-      const results = await Promise.all([...updatePromises, parentPromise]);
-      const hasError = results.some((r) => r.error);
-      if (hasError) {
-        setIsSavingEdit(false);
-        return window.alert('No pudimos actualizar todas las cuotas del plan.');
-      }
-
-      const addedMonths = Array.from({ length: totalCuotas }, (_, i) => shiftMonth(newStartMonth, i));
-      setKnownMonths((prev) => Array.from(new Set([...prev, ...addedMonths])));
-    } else {
-      const { error } = await supabase
-        .from('transactions')
-        .update({
-          description,
-          amount_ars: amount,
-          currency: editCurrency,
-          kind: editKind,
-          category_id: selectedCategory.id,
-          occurred_on: dateStr,
-          installment_number: isInstallmentPlan ? editInstallmentNumber : editingMovement.installmentNumber,
-          installment_count: isInstallmentPlan ? editInstallmentCount : editingMovement.installmentCount,
-        })
-        .eq('id', editingMovement.id)
-        .eq('user_id', userId);
-
-      if (error) {
-        setIsSavingEdit(false);
-        return window.alert('No pudimos actualizar el movimiento. Intentá nuevamente.');
-      }
-    }
-
-    setMovements((current) =>
-      current.map((m) => {
-        if (m.id === editingMovement.id) {
-          return {
-            ...m,
-            title: description,
-            amount,
-            currency: editCurrency,
-            kind: editKind,
-            category: selectedCategory.name,
-            categoryId: selectedCategory.id,
-            date: dateStr,
-            installmentNumber: isInstallmentPlan ? editInstallmentNumber : m.installmentNumber,
-            installmentCount: isInstallmentPlan ? editInstallmentCount : m.installmentCount,
-          };
-        }
-        if (isInstallmentPlan && editApplyToAll && m.installmentGroupId === editingMovement.installmentGroupId) {
-          return {
-            ...m,
-            title: description,
-            currency: editCurrency,
-            category: selectedCategory.name,
-            categoryId: selectedCategory.id,
-            installmentCount: editInstallmentCount,
-          };
-        }
-        return m;
-      })
-    );
-
-    setIsSavingEdit(false);
-    setEditingMovement(null);
-
-    // Navegación automática: si el movimiento fue asignado a otro mes (ej. Julio), cargamos ese mes para verlo
-    setKnownMonths((prev) => Array.from(new Set([...prev, targetMonth])));
-    if (targetMonth !== month) {
-      setMonth(targetMonth);
+      setEditingMovement(null);
+      setKnownMonths(prev => Array.from(new Set([...prev, editDate.slice(0, 7)])));
+      setMonth(editDate.slice(0, 7));
+      setRefreshNonce(n => n + 1);
+    } catch (error) {
+      window.alert(planError(error));
+    } finally {
+      editBusy.current = false;
+      setIsSavingEdit(false);
     }
   }
 
@@ -946,32 +808,22 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     void executeDeleteSingleMovement(item);
   }
 
-  async function executeDeleteSingleInstallment(item: Movement) {
-    setInstallmentDeletePrompt(null);
-    await executeDeleteSingleMovement(item);
-  }
-
-  async function executeDeleteFullPlan(target: Movement | InstallmentPlan) {
-    setInstallmentDeletePrompt(null);
-    const groupId = 'groupId' in target ? target.groupId : (target.installmentGroupId || target.id);
-    const targetDesc = 'title' in target ? target.title : target.description;
-
-    const previousMovements = movements;
-    const previousPlans = installmentPlans;
-
-    setMovements((current) => current.filter((m) => m.installmentGroupId !== groupId && m.id !== groupId && m.title !== targetDesc));
-    setInstallmentPlans((current) => current.filter((p) => p.groupId !== groupId && p.description !== targetDesc));
-
-    const { error } = await supabase
-      .from('transactions')
-      .delete()
-      .eq('user_id', userId)
-      .or(`installment_group_id.eq.${groupId},id.eq.${groupId}`);
-
-    if (error) {
-      setMovements(previousMovements);
-      setInstallmentPlans(previousPlans);
-      window.alert('No pudimos eliminar el plan de cuotas. Intentá nuevamente.');
+  async function deleteInstallments(all: boolean, itemId?: string) {
+    if (deleteBusy.current || !deletePlan || !deletePlan.rows.length) return;
+    deleteBusy.current = true;
+    setIsDeletingPlan(true);
+    try {
+      deleteRequest.current ??= crypto.randomUUID();
+      await mutateInstallmentPlan({ requestId: deleteRequest.current,
+        action: all ? 'delete_plan' : 'delete_installment', groupId: deletePlan.group_id,
+        version: deletePlan.version, itemId: all ? undefined : itemId });
+      setInstallmentDeletePrompt(null);
+      setRefreshNonce(n => n + 1);
+    } catch (error) {
+      setDeletePlanError(planError(error));
+    } finally {
+      deleteBusy.current = false;
+      setIsDeletingPlan(false);
     }
   }
 
@@ -1865,18 +1717,18 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               </div>
               {isCustomInstallmentCount && (
                 <label style={{ marginTop: '-4px' }}>
-                  <span>Ingresá el número de cuotas (2 a 120):</span>
+                  <span>Ingresá el número de cuotas (2 a 60):</span>
                   <input
                     type="number"
                     min="2"
-                    max="120"
+                    max="60"
                     value={customCountInput}
                     onChange={(e) => {
                       const valStr = e.target.value;
                       setCustomCountInput(valStr);
                       const parsed = parseInt(valStr, 10);
                       if (!isNaN(parsed) && parsed >= 2) {
-                        const clamped = Math.min(120, parsed);
+                        const clamped = Math.min(60, parsed);
                         setInstallmentCount(clamped);
                         if (currentInstallmentNumber > clamped) setCurrentInstallmentNumber(clamped);
                       }
@@ -1886,9 +1738,9 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                       if (isNaN(parsed) || parsed < 2) {
                         setCustomCountInput('2');
                         setInstallmentCount(2);
-                      } else if (parsed > 120) {
-                        setCustomCountInput('120');
-                        setInstallmentCount(120);
+                      } else if (parsed > 60) {
+                        setCustomCountInput('60');
+                        setInstallmentCount(60);
                       } else {
                         setCustomCountInput(String(parsed));
                         setInstallmentCount(parsed);
@@ -1968,10 +1820,10 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <button
               className="modal-btn-save"
               type="submit"
-              disabled={!categoryId}
+              disabled={isAdding || !categoryId}
               onMouseDown={(e) => e.preventDefault()}
             >
-              Guardar
+              {isAdding ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
         </form>
@@ -1979,7 +1831,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     )}
 
     {editingMovement && (
-      <div className="modal-backdrop" role="presentation" onClick={() => setEditingMovement(null)}>
+      <div className="modal-backdrop" role="presentation" onClick={() => { if (!editBusy.current) setEditingMovement(null); }}>
         <form className="movement-form" onSubmit={saveMovementEdit} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
             <div>
@@ -1991,11 +1843,13 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               className="modal-close-x"
               aria-label="Cerrar modal"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setEditingMovement(null)}
+              onClick={() => { if (!editBusy.current) setEditingMovement(null); }}
             >
               <Icon name="close" />
             </button>
           </div>
+          {editingPlanId && !editPlan && <p role="status">{editPlanError || 'Cargando cuotas…'}</p>}
+          <fieldset disabled={isSavingEdit || Boolean(editingPlanId && !editPlan)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: '14px' }}>
           {editingMovement.installmentCount && editingMovement.installmentCount > 1 && (
             <div className="installment-edit-box">
               <div className="form-grid">
@@ -2042,18 +1896,18 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               </div>
               {isCustomEditInstallmentCount && (
                 <label style={{ marginTop: '8px' }}>
-                  <span>Cantidad total de cuotas (2 a 120):</span>
+                  <span>Cantidad total de cuotas (2 a 60):</span>
                   <input
                     type="number"
                     min="2"
-                    max="120"
+                    max="60"
                     value={customEditCountInput}
                     onChange={(e) => {
                       const valStr = e.target.value;
                       setCustomEditCountInput(valStr);
                       const parsed = parseInt(valStr, 10);
                       if (!isNaN(parsed) && parsed >= 2) {
-                        const clamped = Math.min(120, parsed);
+                        const clamped = Math.min(60, parsed);
                         setEditInstallmentCount(clamped);
                         if (editInstallmentNumber > clamped) setEditInstallmentNumber(clamped);
                       }
@@ -2063,9 +1917,9 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                       if (isNaN(parsed) || parsed < 2) {
                         setCustomEditCountInput('2');
                         setEditInstallmentCount(2);
-                      } else if (parsed > 120) {
-                        setCustomEditCountInput('120');
-                        setEditInstallmentCount(120);
+                      } else if (parsed > 60) {
+                        setCustomEditCountInput('60');
+                        setEditInstallmentCount(60);
                       } else {
                         setCustomEditCountInput(String(parsed));
                         setEditInstallmentCount(parsed);
@@ -2077,9 +1931,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 </label>
               )}
               <div className="installment-cuota-preview-hint">
-                {editInstallmentNumber === 1
-                  ? `Esta es la primera cuota. Quedarán ${editInstallmentCount - 1} cuotas en los próximos meses.`
-                  : `En esta fecha estás en la cuota ${editInstallmentNumber} de ${editInstallmentCount}. Las cuotas anteriores se sincronizarán en los meses previos y las ${editInstallmentCount - editInstallmentNumber} restantes en los próximos.`}
+                Las fechas solo se reprograman si cambiás la fecha o la cuota de referencia. Se conservan los números de las cuotas existentes.
               </div>
             </div>
           )}
@@ -2139,8 +1991,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           </label>
           {editingMovement.installmentCount && editingMovement.installmentCount > 1 && parseAmountNumber(editAmount) > 0 && (
             <div className="installment-calc-preview" style={{ marginTop: '-4px', marginBottom: '8px' }}>
-              <small>Total de la compra ({editInstallmentCount} cuotas):</small>
-              <strong>{formatMoney(Math.round(parseAmountNumber(editAmount) * editInstallmentCount * 100) / 100, editCurrency)}</strong>
+              <small>El monto solo se modifica si lo editás. Al aplicarlo a todo el plan, reemplaza el importe de cada cuota activa.</small>
             </div>
           )}
           <div className="form-grid">
@@ -2174,7 +2025,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <label className="switch-row" style={{ marginTop: '2px', padding: '6px 0' }}>
               <span>
                 <strong style={{ fontSize: '13px' }}>¿Aplicar cambios a todo el plan?</strong>
-                <small style={{ fontSize: '13px', color: 'var(--muted)' }}>Actualiza el nombre, categoría y recalcula las fechas de todas las cuotas consecutivas.</small>
+                <small style={{ fontSize: '13px', color: 'var(--muted)' }}>Solo cambia los campos que edites. Las cuotas eliminadas no se recuperan.</small>
               </span>
               <input
                 type="checkbox"
@@ -2184,6 +2035,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             </label>
           )}
 
+          </fieldset>
           <div className="modal-actions-grid-3">
             <button
               type="button"
@@ -2204,14 +2056,14 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               className="modal-btn-cancel"
               disabled={isSavingEdit}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setEditingMovement(null)}
+              onClick={() => { if (!editBusy.current) setEditingMovement(null); }}
             >
               Cancelar
             </button>
             <button
               className="modal-btn-save"
               type="submit"
-              disabled={isSavingEdit || !editCategoryId}
+              disabled={isSavingEdit || !editCategoryId || Boolean(editingPlanId && !editPlan)}
               onMouseDown={(e) => e.preventDefault()}
             >
               {isSavingEdit ? 'Guardando…' : 'Guardar'}
@@ -2222,7 +2074,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     )}
 
     {installmentDeletePrompt && (
-      <div className="modal-backdrop" role="presentation" onClick={() => setInstallmentDeletePrompt(null)}>
+      <div className="modal-backdrop" role="presentation" onClick={() => { if (!deleteBusy.current) setInstallmentDeletePrompt(null); }}>
         <div className="movement-form delete-plan-modal" role="dialog" aria-modal="true" aria-labelledby="delete-installments-title" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
           <div>
             <p className="eyebrow" style={{ color: '#ea7172' }}>ELIMINAR CUOTAS</p>
@@ -2237,13 +2089,17 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             </p>
           </div>
 
+          {!deletePlan && !deletePlanError && <p role="status">Cargando cuotas…</p>}
+          {deletePlan && <p>{deletePlan.rows.length} cuotas activas · {formatMoney(deletePlan.rows.reduce((sum, row) => sum + row.amount_ars, 0), deletePlan.rows[0]?.currency ?? activeCurrency)}</p>}
+          {deletePlanError && <p role="alert">{deletePlanError}</p>}
           <div className="delete-options-list">
             {installmentDeletePrompt.movement && (
               <button
                 type="button"
                 className="delete-option-btn"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => void executeDeleteSingleInstallment(installmentDeletePrompt.movement!)}
+                disabled={isDeletingPlan || !deletePlan?.rows.length}
+                onClick={() => void deleteInstallments(false, installmentDeletePrompt.movement!.id)}
               >
                 <div>
                   <strong>Eliminar solo esta cuota</strong>
@@ -2257,11 +2113,12 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               type="button"
               className="delete-option-btn danger"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => void executeDeleteFullPlan(installmentDeletePrompt.movement ?? installmentDeletePrompt.plan!)}
+              disabled={isDeletingPlan || !deletePlan?.rows.length}
+              onClick={() => void deleteInstallments(true)}
             >
               <div>
                 <strong>Eliminar todo el plan de cuotas</strong>
-                <small>Borra todas las cuotas de esta compra ({installmentDeletePrompt.movement?.installmentCount ?? installmentDeletePrompt.plan?.installmentCount} cuotas en total)</small>
+                <small>Elimina las cuotas activas de esta compra</small>
               </div>
               <span>›</span>
             </button>
@@ -2273,7 +2130,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               className="modal-btn-cancel"
               style={{ width: '100%' }}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setInstallmentDeletePrompt(null)}
+              onClick={() => { if (!deleteBusy.current) setInstallmentDeletePrompt(null); }}
             >
               Cancelar
             </button>

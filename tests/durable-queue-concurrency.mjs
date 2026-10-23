@@ -92,6 +92,37 @@ assert.equal((await execute("select count(*) from public.whatsapp_ops_notificati
 await execute("update public.whatsapp_ops_notifications set lease_until=clock_timestamp()-interval '1 second';select public.refresh_whatsapp_ops_health();");
 assert.equal((await execute(`select public.claim_whatsapp_ops_notice('${tokens[2]}') is null;`)).output,'t','Se repitió un aviso de resultado incierto');
 assert.equal((await execute("select count(*) from public.transactions;")).output,financialCountBeforeOps,'El monitoreo modificó las finanzas');
-const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,concurrent_sessions:2,exclusive_lease:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
+// Se ejecuta dentro del ensayo PostgreSQL ya aislado y descartable.
+await execute(await readFile(new URL('029_atomic_installment_plans.sql', migrations), 'utf8'));
+const planCategory=(await execute(`select id from public.categories where user_id='${a}' and kind='expense' and active limit 1;`)).output;
+assert.match(planCategory,/^[a-f0-9-]{36}$/);
+const planPayload=quote(JSON.stringify({description:'Plan sintético nativo',category_id:planCategory,currency:'ARS',amount:100,amount_mode:'total',installment_count:3,reference_date:'2026-01-31',reference_number:1}));
+const asClient=sql=>`begin;set local role authenticated;select set_config('request.jwt.claim.sub','${a}',true);${sql};commit;`;
+const planRequest='59000000-0000-4000-8000-000000000001';
+// Dormir exclusivamente en el fixture hace que ambas sesiones disputen el mismo intento.
+await execute(`create function public.slow_plan_fixture() returns trigger language plpgsql as $begin if new.description='Plan sintético nativo' then perform pg_sleep(0.2);end if;return new;end$;
+ create trigger slow_plan_fixture before insert on public.transactions for each row execute function public.slow_plan_fixture();`);
+const created=await Promise.all([0,1].map(()=>execute(asClient(`select public.mutate_installment_plan('${planRequest}','create',null,null,null,${planPayload}::jsonb,true)`))));
+const decodePlan=result=>JSON.parse(result.output.split('\n').find(line=>line.startsWith('{')));
+const nativePlan=decodePlan(created[0]);
+assert.deepEqual(decodePlan(created[1]),nativePlan,'El reintento simultáneo devolvió otro plan');
+assert.equal((await execute(`select count(*) from public.transactions where id='${nativePlan.group_id}' or installment_group_id='${nativePlan.group_id}';`)).output,'4','Alta simultánea duplicada');
+await execute('drop trigger slow_plan_fixture on public.transactions;drop function public.slow_plan_fixture();');
+const changeArgs=`'edit','${nativePlan.group_id}','${nativePlan.version}','${nativePlan.rows[0].id}'`;
+const edits=await Promise.all([2,3].map(n=>execute(asClient(`select public.mutate_installment_plan('59000000-0000-4000-8000-${String(n).padStart(12,'0')}',${changeArgs},'{"description":"Versión ${n}"}',true)`),true)));
+assert.equal(edits.filter(r=>r.code===0).length,1,'Dos versiones incompatibles se guardaron');
+assert.match(edits.find(r=>r.code!==0).error,/El plan cambió/);
+const afterRace=decodePlan(await execute(asClient(`select public.get_installment_plan('${nativePlan.group_id}')`)));
+assert.deepEqual(afterRace.rows.map(r=>Number(r.amount_ars)),[33.33,33.33,33.34]);
+// Un fallo después de iniciar escrituras no confirma ninguna cuota ni recibo.
+await execute(`create function public.fail_plan_fixture() returns trigger language plpgsql as $begin if new.description='Fallo nativo' and new.installment_number=2 then raise exception 'Fallo nativo controlado';end if;return new;end$;
+ create trigger fail_plan_fixture before update on public.transactions for each row execute function public.fail_plan_fixture();`);
+const failedRequest='59000000-0000-4000-8000-000000000004';
+const failure=await execute(asClient(`select public.mutate_installment_plan('${failedRequest}','edit','${afterRace.group_id}','${afterRace.version}','${afterRace.rows[0].id}','{"description":"Fallo nativo","amount":200}',true)`),true);
+assert.notEqual(failure.code,0);assert.match(failure.error,/Fallo nativo controlado/);
+assert.deepEqual(decodePlan(await execute(asClient(`select public.get_installment_plan('${afterRace.group_id}')`))),afterRace);
+assert.equal((await execute(`select count(*) from public.installment_plan_requests where request_id='${failedRequest}';`)).output,'0');
+await execute('drop trigger fail_plan_fixture on public.transactions;drop function public.fail_plan_fixture();');
+const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,concurrent_sessions:2,exclusive_lease:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
 if(process.env.PESITO_TEST_EVIDENCE) await writeFile(process.env.PESITO_TEST_EVIDENCE,JSON.stringify(evidence,null,2));
 console.log(JSON.stringify(evidence));

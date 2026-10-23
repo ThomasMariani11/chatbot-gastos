@@ -6,7 +6,13 @@ Origen: pesito-mejoras-visuales-codex.md, leído y priorizado con el propietario
 
 Mantener identidad, voseo, lógica financiera, permisos, datos, endpoints y parámetros de API. Solo presentación y UX. Sin dependencias nuevas. Probar 375 px y 1280 px, foco visible y controles táctiles de al menos 44 px. Antes de publicar, exigir CI y autorización específica para la PR. No probar guardados o eliminaciones contra clientes reales.
 
-## Estado
+## Cierre del plan — 23/10/2026
+
+**Estado: cerrado por decisión del propietario.** Los cinco bloques de implementación están integrados y publicados, incluidas las correcciones de PR #29. La última versión verificada es 8e46f60, con CI, build y 468 pruebas aprobados.
+
+El cierre corresponde al alcance de implementación visual. La comprobación física en Safari/iOS y PWA instalada no se realizó y queda como seguimiento de compatibilidad; no se declara aprobada por este cierre. Las correcciones financieras, funcionales y de infraestructura continúan en el [plan general](PLAN_MEJORAS_PROYECTO.md).
+
+## Estado de los bloques
 
 | Bloque | Alcance | Estado |
 | --- | --- | --- |
@@ -14,7 +20,17 @@ Mantener identidad, voseo, lógica financiera, permisos, datos, endpoints y par�
 | 2 | Resumen: jerarquía de KPIs, presupuesto vacío, dona, movimientos breves y cuotas | Publicado en PR #25 (79a955d), CI y verificación web aprobados; aceptación física en dispositivo pendiente |
 | 3 | Vistas propias de Movimientos y Cuotas con datos existentes | Publicado en PR #26 (83e3322), CI y verificación web aprobados; aceptación física en dispositivo pendiente |
 | 4 | Ajustes: agrupación, acciones secundarias, instalación y navegación inferior | Publicado en PR #27 (358abc4), CI y verificación web aprobados; aceptación física en dispositivo pendiente |
-| 5 | Admin: contadores compactos, pestañas sticky, tarjetas y acciones | Implementado y validado localmente; revisión visual, CI y publicación pendientes |
+| 5 | Admin: contadores compactos, pestañas sticky, tarjetas y acciones | Publicado en PR #28 (32db811), incluido en versión productiva verificada; aceptación física en dispositivo pendiente |
+
+## Verificación del estado al 23/10/2026
+
+- Repositorio local en main sincronizado con origin/main en 8e46f60391558a41801dfc2768194a97e8439632. git fetch --all --prune y git pull --ff-only no incorporaron commits adicionales.
+- Los cinco bloques visuales están integrados. El ajuste posterior de PR #29 (8e46f60) centra tarjetas del Resumen/Cuotas y el presupuesto vacío, y reorganiza encabezado/selector de mes en móvil.
+- Producción sirve esa misma versión en version.json; sw.js coincide. Frontend, Webhook, PostgreSQL, Ensayo de release y Publicar aprobados para ese commit.
+- Validación local actual: ESLint, TypeScript/build y 468 pruebas Vitest aprobados. Se mantiene la advertencia de chunk JS mayor a 500 kB.
+- Las llamadas y argumentos de Supabase comparados por AST contra 79a955d permanecen idénticos en Dashboard (52), AdminPanel (35), Settings (11) y BotOperations (3), contando llamadas encadenadas. Esto no equivale a probar todos los comportamientos del servidor.
+- Esta revisión no certifica Safari/iOS, PWA instalada ni aceptación física: continúan pendientes. El selector móvil quedó en 14 px con PR #29; verificar legibilidad y comportamiento al enfocarlo en iPhone antes de cerrar esa aceptación.
+- Los cambios visuales no cierran los problemas financieros de FE-01/FE-02/FE-03. Ver el seguimiento actualizado en [Plan general](PLAN_MEJORAS_PROYECTO.md).
 
 ## Bloque 1 — Implementación
 
@@ -104,6 +120,9 @@ Mantener identidad, voseo, lógica financiera, permisos, datos, endpoints y par�
   - Comparación por AST de `src/AdminPanel.tsx` (15 llamadas) y `src/BotOperations.tsx` (3 llamadas) contra `358abc4`: 100 % de paridad en llamadas y argumentos de Supabase.
   - Verificación en Chromium headless (`375 × 812` y `1280 × 900`) con datos sintéticos y escrituras bloqueadas: `docOverflow = 0`, 0 textos menores a 13 px, 0 controles interactivos menores a 44 px y 3 tarjetas de clientes completamente visibles en `375 × 812` (4 visibles en viewport).
 
-## Pendientes explícitos
+## Seguimiento posterior al cierre
 
-La aceptación global exige completar los cinco bloques y probar los flujos que cambian visualmente. Publicar únicamente la revisión autorizada y registrar su commit/CI en la PR correspondiente; la aceptación real en teléfono se registra por separado.
+- Mantener la evidencia de los cinco bloques y sus publicaciones como registro.
+- Comprobar en un dispositivo físico Safari/iOS y PWA instalada: navegación, formularios, hover táctil, selector de mes y legibilidad. Esa aceptación no se presume realizada.
+- Registrar cualquier incidencia visual nueva como una tarea concreta de mantenimiento.
+- Continuar en el plan general con FE-01, FE-02 y FE-03: integridad de cuotas, escrituras atómicas y preservación de importes/identidad. Los resultados visuales no cierran esos problemas.
