@@ -1,3 +1,4 @@
+import { Icon } from './Icons';
 import { issueDescription, issueSource, issueTimestamp, safeClientName } from '../supabase/functions/whatsapp-webhook/issue-details.ts';
 import type { OperationalIssue } from '../supabase/functions/whatsapp-webhook/issue-details.ts';
 import { useEffect, useRef, useState } from 'react';
@@ -42,7 +43,7 @@ function IssueDetail({ issue }: { issue: OperationalIssue }) {
     <strong className="bot-ops-client">{name}</strong>
     <p className="bot-ops-issue-summary">{issueSummary(issue)}</p>
     <p className="bot-ops-meta">{issueSource(issue.source_kind)} · {issue.time_source === 'received' && 'Recibido: '}<time dateTime={issue.occurred_at} title="Hora de Argentina">{issueTimestamp(issue.occurred_at)}</time></p>
-    <details className="bot-ops-technical"><summary>Detalle técnico</summary>
+    <details className="bot-ops-technical"><summary><span>Detalle técnico</span><Icon name="chevronDown" size={16} className="admin-summary-chevron" /></summary>
       <p>{issueDescription(issue)}</p>
       <p className="bot-ops-meta">{issue.attempts} intentos · {issue.state === 'processed' ? 'Mensaje terminado' : issue.state === 'waiting' ? 'En revisión' : issue.state === 'processing' ? 'En proceso' : issue.state === 'failed' ? 'Con fallos' : 'En cola'}{issue.client_reference && ' · Ref. ' + issue.client_reference}</p>
     </details>
@@ -96,7 +97,6 @@ export function BotOperations() {
     <section className="admin-generator-card bot-ops" aria-labelledby="bot-operations-heading">
       <div className="bot-ops-header">
         <div className="bot-ops-title"><h2 id="bot-operations-heading">Estado del bot</h2><span className={'bot-ops-badge ' + statusTone}>{statusText}</span></div>
-        <button type="button" className="bot-ops-button" aria-label="Actualizar estado del bot" onClick={() => setRefresh(v => v + 1)}>Actualizar</button>
       </div>
       {error && <p className="bot-ops-warning" role="alert">{error}</p>}
       {!snapshot ? <p role="status">{error ? 'Estado no disponible.' : 'Cargando…'}</p> : <>
@@ -118,15 +118,15 @@ export function BotOperations() {
         </section>)}</div>}
         <div className="bot-ops-footer">
           <div className="bot-ops-whatsapp"><span>WhatsApp</span><span className={'bot-ops-badge ' + (!snapshot.config.cost_verified ? 'warning' : ownNotices && snapshot.config.window_open ? 'good' : 'neutral')}>{!snapshot.config.cost_verified ? 'Por verificar' : ownNotices ? snapshot.config.window_open ? 'Avisos activos' : 'Ventana cerrada' : 'Desactivado'}</span></div>
-          <button type="button" className="bot-ops-button" disabled={busy} aria-label={ownNotices ? 'Desactivar mis avisos por WhatsApp' : 'Activar avisos en mi WhatsApp'} onClick={() => void action('configure_whatsapp_ops_alerts', { p_enabled: !ownNotices })}>{ownNotices ? 'Desactivar' : 'Activar'}</button>
+          <button type="button" className="bot-ops-button" disabled={busy} aria-label={ownNotices ? 'Desactivar mis avisos por WhatsApp' : 'Activar avisos en mi WhatsApp'} onClick={() => void action('configure_whatsapp_ops_alerts', { p_enabled: !ownNotices })}>{ownNotices ? 'Desactivar avisos' : 'Activar avisos'}</button>
         </div>
         {snapshot.config.whatsapp_enabled && !snapshot.config.window_open && <p className="bot-ops-meta">Escribile al bot para volver a recibir avisos durante 24 horas.</p>}
         <div className="bot-ops-more">
-          <details><summary>Historial <span>{snapshot.recent_issues?.length ?? 0}</span></summary>
+          <details><summary><span>Historial <span className="bot-ops-summary-count">{snapshot.recent_issues?.length ?? 0}</span></span><Icon name="chevronDown" size={18} className="admin-summary-chevron" /></summary>
             <p className="bot-ops-meta">Últimas 24 horas y mensajes sin resolver · Hasta 50 casos · Hora de Argentina.</p>
             {snapshot.recent_issues?.length ? snapshot.recent_issues.map(issue => <IssueDetail key={issue.id} issue={issue} />) : <p className="bot-ops-meta">Sin errores recientes.</p>}
           </details>
-          <details><summary>Ajustes y métricas</summary>
+          <details><summary><span>Ajustes y métricas</span><Icon name="chevronDown" size={18} className="admin-summary-chevron" /></summary>
             <div className="bot-ops-settings">
               <p>Los avisos llegan al WhatsApp de tu cuenta administradora. Incluyen cliente y diagnóstico, sin gastos ni comprobantes.</p>
               <p>Intervalo mínimo: 30 minutos. Marcar revisada silencia esa alerta; no modifica movimientos.</p>

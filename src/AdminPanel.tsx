@@ -57,6 +57,55 @@ function formatDate(dateStr: string | null): string {
   }).format(date);
 }
 
+function formatShortDate(dateStr: string | null, nowYear = new Date().getFullYear()): string {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const parts = new Intl.DateTimeFormat('es-AR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'America/Argentina/Buenos_Aires',
+  }).formatToParts(date);
+  const day = parts.find((p) => p.type === 'day')?.value ?? '';
+  const month = (parts.find((p) => p.type === 'month')?.value ?? '').replace('.', '').toLowerCase();
+  const year = Number(parts.find((p) => p.type === 'year')?.value ?? nowYear);
+  return year !== nowYear ? `${day} ${month} ${year}` : `${day} ${month}`;
+}
+
+function formatClientExpiration(
+  untilStr: string | null,
+  status: ClientProfile['subscription_status'],
+  nowMs: number,
+): { label: string; tone: 'neutral' | 'warning' | 'danger' } {
+  if (!untilStr) {
+    return { label: 'Sin vencimiento', tone: 'neutral' };
+  }
+  const untilMs = new Date(untilStr).getTime();
+  const diffDays = Math.ceil((untilMs - nowMs) / 86400000);
+  const shortDate = formatShortDate(untilStr, new Date(nowMs).getFullYear());
+
+  if (status === 'expired' || diffDays <= 0) {
+    const daysAgo = Math.abs(diffDays);
+    return {
+      label:
+        daysAgo === 0
+          ? `Venció hoy (${shortDate})`
+          : `Venció ${shortDate} · hace ${daysAgo} ${daysAgo === 1 ? 'día' : 'días'}`,
+      tone: 'danger',
+    };
+  }
+  if (diffDays <= 7) {
+    return {
+      label: `Vence ${shortDate} · en ${diffDays} ${diffDays === 1 ? 'día' : 'días'}`,
+      tone: 'warning',
+    };
+  }
+  return {
+    label: `Vence ${shortDate} · en ${diffDays} días`,
+    tone: 'neutral',
+  };
+}
+
 function formatPhone(phone: string | null): string {
   if (!phone) return 'Sin vincular';
   if (phone.startsWith('549')) {
@@ -70,6 +119,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [codes, setCodes] = useState<InvitationCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [botRefreshTick, setBotRefreshTick] = useState(0);
 
   // Tabs y Filtros
   const [activeTab, setActiveTab] = useState<'clients' | 'codes' | 'bot' | 'settings'>('clients');
@@ -99,6 +149,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [botActive, setBotActive] = useState(true);
   const [togglingBot, setTogglingBot] = useState(false);
   const [botStatusFeedback, setBotStatusFeedback] = useState<string | null>(null);
+  const [confirmingBotPause, setConfirmingBotPause] = useState(false);
 
   // Modales interactivos (Extender Días y Pausar/Reactivar)
   const [extendingClient, setExtendingClient] = useState<ClientProfile | null>(null);
@@ -112,11 +163,14 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [actionToast, setActionToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Gesto táctil swipe back para volver deslizando la pantalla
-  const { dragOffset, isSwiping } = useSwipeBack({ onBack, enabled: !extendingClient && !suspendingClient });
+  const { dragOffset, isSwiping } = useSwipeBack({
+    onBack,
+    enabled: !extendingClient && !suspendingClient && !confirmingBotPause,
+  });
 
   const modalRef = useRef<HTMLDivElement>(null);
-  const modalOpen = Boolean(extendingClient || suspendingClient);
-  const modalBusy = isSubmittingExtend || isSubmittingSuspend;
+  const modalOpen = Boolean(extendingClient || suspendingClient || confirmingBotPause);
+  const modalBusy = isSubmittingExtend || isSubmittingSuspend || togglingBot;
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -129,6 +183,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
       if (event.key === 'Escape' && !modalBusy) {
         setExtendingClient(null);
         setSuspendingClient(null);
+        setConfirmingBotPause(false);
       }
       if (event.key !== 'Tab' || !modal) return;
       const controls = Array.from(
@@ -219,6 +274,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
       setErrorMsg('No se pudo cambiar el estado del bot: ' + error.message);
     } else {
       setBotActive(nextActive);
+      setConfirmingBotPause(false);
       setBotStatusFeedback(
         nextActive
           ? 'Bot reanudado: todos los clientes pueden enviar gastos.'
@@ -269,6 +325,12 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     setGeneratedCode(newCode);
     setClientNote('');
     void loadData();
+  }
+
+  function copyOnlyCode(code: string) {
+    void navigator.clipboard.writeText(code);
+    setCopyFeedback(`¡Código ${code} copiado al portapapeles!`);
+    setTimeout(() => setCopyFeedback(null), 3000);
   }
 
   // Copiar mensaje listo para WhatsApp
@@ -539,7 +601,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
       }
     >
       <header className="admin-header">
-        <div>
+        <div className="admin-header-left">
           <button className="back-link button-link" type="button" onClick={onBack}>
             ← Mi cuenta
           </button>
@@ -551,14 +613,20 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
         <div className="admin-header-actions">
           <button
             type="button"
-            className="admin-header-btn secondary"
-            onClick={() => void loadData()}
+            className="admin-icon-refresh"
+            aria-label={loading ? 'Actualizando…' : 'Actualizar datos'}
+            title="Actualizar datos"
+            onClick={() => {
+              setBotRefreshTick((v) => v + 1);
+              void loadData();
+            }}
             disabled={loading}
           >
-            {loading ? 'Actualizando…' : 'Actualizar'}
+            <Icon name="refresh" size={18} />
           </button>
-          <button type="button" className="admin-header-btn secondary" onClick={onSignOut}>
-            Cerrar sesión
+          <button type="button" className="admin-signout-link" onClick={onSignOut}>
+            <Icon name="logOut" size={16} />
+            <span>Cerrar sesión</span>
           </button>
         </div>
       </header>
@@ -583,184 +651,193 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
           </button>
         </div>
       )}
-      <section className="admin-overview" aria-label="Resumen de administración">
-        <div>
-          <strong>{loading ? '—' : clientsOnly.length}</strong>
-          <span>Clientes</span>
-        </div>
-        <div>
-          <strong>{loading ? '—' : activeClientsCount}</strong>
-          <span>Activos</span>
-        </div>
-        <div className={expiringSoonCount ? 'attention' : ''}>
-          <strong>{loading ? '—' : expiringSoonCount}</strong>
-          <span>Vencen en 7 días</span>
-        </div>
-        <div>
-          <strong>{loading ? '—' : availableCodesCount}</strong>
-          <span>Invitaciones libres</span>
-        </div>
-      </section>
       <nav className="admin-workspace-nav" aria-label="Secciones de administración">
         {(
           [
-            ['clients', 'Clientes'],
-            ['codes', 'Invitaciones'],
-            ['bot', 'Bot'],
-            ['settings', 'Ajustes'],
+            ['clients', 'Clientes', loading ? null : clientsOnly.length],
+            ['codes', 'Invitaciones', loading ? null : availableCodesCount],
+            ['bot', 'Bot', null],
+            ['settings', 'Ajustes', null],
           ] as const
-        ).map(([tab, label]) => (
+        ).map(([tab, label, count]) => (
           <button
             key={tab}
             type="button"
             aria-current={activeTab === tab ? 'page' : undefined}
             onClick={() => setActiveTab(tab)}
           >
-            {label}
+            <span>{label}</span>
+            {count !== null && <span className="admin-nav-badge">{count}</span>}
           </button>
         ))}
       </nav>
       {activeTab === 'clients' && (
-        <section className="admin-workspace-card" aria-labelledby="admin-clients-title">
-          <div className="admin-section-heading">
+        <>
+          <section className="admin-overview" aria-label="Resumen de clientes">
             <div>
-              <h2 id="admin-clients-title">Clientes</h2>
-              <p>Consultá su acceso y administrá sus membresías.</p>
+              <strong>{loading ? '—' : clientsOnly.length}</strong>
+              <span>Clientes</span>
             </div>
-            <span className="admin-count-tag">{clientsOnly.length}</span>
-          </div>
-          <div className="admin-search-row">
-            <label className="admin-search-label">
-              <span className="admin-visually-hidden">Buscar cliente</span>
-              <input
-                type="search"
-                className="search-input"
-                placeholder="Buscar nombre, email o WhatsApp"
-                value={clientSearch}
-                onChange={(e) => setClientSearch(e.target.value)}
-              />
-            </label>
-            {clientSearch && (
-              <button type="button" className="admin-text-action" onClick={() => setClientSearch('')}>
-                Limpiar
-              </button>
-            )}
-          </div>
-          {loading ? (
-            <p className="loading-copy" role="status">
-              Cargando clientes…
-            </p>
-          ) : filteredClients.length === 0 ? (
-            <div className="empty-state">
-              <p>
-                {clientSearch ? 'No hay clientes que coincidan con la búsqueda.' : 'Todavía no hay clientes.'}
-              </p>
-              {!clientSearch && (
-                <button
-                  type="button"
-                  className="admin-text-action"
-                  onClick={() => {
-                    setActiveTab('codes');
-                    setShowCodeForm(true);
-                  }}
-                >
-                  Crear una invitación
+            <div>
+              <strong>{loading ? '—' : activeClientsCount}</strong>
+              <span>Activos</span>
+            </div>
+            <div className={expiringSoonCount ? 'attention' : ''}>
+              <strong>{loading ? '—' : expiringSoonCount}</strong>
+              <span>Vencen en 7 días</span>
+            </div>
+            <div>
+              <strong>{loading ? '—' : availableCodesCount}</strong>
+              <span>Invitaciones libres</span>
+            </div>
+          </section>
+          <section className="admin-workspace-card" aria-label="Listado de clientes">
+            <div className="admin-search-row">
+              <label className="admin-search-label">
+                <span className="admin-visually-hidden">Buscar cliente</span>
+                <span className="admin-search-box">
+                  <Icon name="search" size={18} className="admin-search-icon" />
+                  <input
+                    type="search"
+                    className="search-input"
+                    placeholder="Buscar nombre, email o WhatsApp"
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                  />
+                </span>
+              </label>
+              {clientSearch && (
+                <button type="button" className="admin-text-action" onClick={() => setClientSearch('')}>
+                  Limpiar
                 </button>
               )}
             </div>
-          ) : (
-            <div className="admin-table-container">
-              <table className="admin-table admin-responsive-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Cliente</th>
-                    <th scope="col">WhatsApp</th>
-                    <th scope="col">Acceso</th>
-                    <th scope="col">Vencimiento</th>
-                    <th scope="col">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredClients.map((client) => {
-                    const isExpired =
-                      client.subscription_status === 'expired' ||
-                      !!(client.subscription_until && new Date(client.subscription_until) < now);
-                    const isExpiringSoon =
-                      !isExpired &&
-                      client.subscription_until &&
-                      (new Date(client.subscription_until).getTime() - now.getTime()) / 86400000 <= 7;
-                    const displayName =
-                      [client.first_name, client.last_name].filter(Boolean).join(' ') ||
-                      client.email ||
-                      'Cliente sin nombre';
-                    const status =
-                      client.subscription_status === 'pending_code'
-                        ? { label: 'Sin activar', tone: 'orange' }
-                        : client.subscription_status === 'suspended'
-                          ? { label: 'Pausado', tone: 'gray' }
-                          : isExpired
-                            ? { label: 'Vencido', tone: 'red' }
-                            : isExpiringSoon
-                              ? { label: 'Por vencer', tone: 'orange' }
-                              : { label: 'Activo', tone: 'green' };
-                    return (
-                      <tr key={client.id}>
-                        <td data-label="Cliente" className="admin-client-cell">
-                          <strong>{displayName}</strong>
-                          {displayName !== client.email && (
-                            <span className="cell-subtext">{client.email || 'Sin email'}</span>
-                          )}
-                        </td>
-                        <td data-label="WhatsApp">
-                          {client.phone_number ? (
-                            <a
-                              className="admin-client-phone"
-                              href={'https://wa.me/' + client.phone_number}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              aria-label={'Abrir WhatsApp de ' + displayName}
-                            >
-                              {formatPhone(client.phone_number)} ↗
-                            </a>
-                          ) : (
-                            <span className="admin-muted">Sin vincular</span>
-                          )}
-                        </td>
-                        <td data-label="Acceso">
-                          <span className={'status-pill ' + status.tone}>{status.label}</span>
-                        </td>
-                        <td data-label="Vencimiento">{formatDate(client.subscription_until)}</td>
-                        <td data-label="Acciones" className="admin-row-actions">
-                          <div className="action-buttons-group">
-                            <button
-                              type="button"
-                              className="action-btn small"
-                              aria-label={'Extender membresía de ' + displayName}
-                              onClick={() => handleOpenExtendModal(client)}
-                            >
-                              Extender
-                            </button>
-                            <button
-                              type="button"
-                              className="action-btn small secondary"
-                              aria-label={
-                                (client.subscription_status === 'suspended' ? 'Reactivar a ' : 'Pausar a ') +
-                                displayName
-                              }
-                              onClick={() => handleOpenSuspendModal(client)}
-                            >
-                              {client.subscription_status === 'suspended' ? 'Reactivar' : 'Pausar'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+            {loading ? (
+              <p className="loading-copy" role="status">
+                Cargando clientes…
+              </p>
+            ) : filteredClients.length === 0 ? (
+              <div className="empty-state">
+                <p>
+                  {clientSearch ? 'No hay clientes que coincidan con la búsqueda.' : 'Todavía no hay clientes.'}
+                </p>
+                {!clientSearch && (
+                  <button
+                    type="button"
+                    className="admin-text-action"
+                    onClick={() => {
+                      setActiveTab('codes');
+                      setShowCodeForm(true);
+                    }}
+                  >
+                    Crear una invitación
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="admin-table-container">
+                <table className="admin-table admin-responsive-table admin-clients-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Cliente</th>
+                      <th scope="col">WhatsApp</th>
+                      <th scope="col">Acceso</th>
+                      <th scope="col">Vencimiento</th>
+                      <th scope="col" className="admin-th-actions">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredClients.map((client) => {
+                      const isExpired =
+                        client.subscription_status === 'expired' ||
+                        !!(client.subscription_until && new Date(client.subscription_until) < now);
+                      const isExpiringSoon =
+                        !isExpired &&
+                        client.subscription_until &&
+                        (new Date(client.subscription_until).getTime() - now.getTime()) / 86400000 <= 7;
+                      const displayName =
+                        [client.first_name, client.last_name].filter(Boolean).join(' ') ||
+                        client.email ||
+                        'Cliente sin nombre';
+                      const status =
+                        client.subscription_status === 'pending_code'
+                          ? { label: 'Sin activar', tone: 'orange' }
+                          : client.subscription_status === 'suspended'
+                            ? { label: 'Pausado', tone: 'gray' }
+                            : isExpired
+                              ? { label: 'Vencido', tone: 'red' }
+                              : isExpiringSoon
+                                ? { label: 'Por vencer', tone: 'orange' }
+                                : { label: 'Activo', tone: 'green' };
+                      const expiry = formatClientExpiration(
+                        client.subscription_until,
+                        client.subscription_status,
+                        now.getTime(),
+                      );
+                      return (
+                        <tr key={client.id}>
+                          <td data-label="Cliente" className="admin-client-cell">
+                            <strong>{displayName}</strong>
+                            {displayName !== client.email && (
+                              <span className="cell-subtext">{client.email || 'Sin email'}</span>
+                            )}
+                          </td>
+                          <td data-label="WhatsApp" className="admin-wa-cell">
+                            {client.phone_number ? (
+                              <a
+                                className="admin-client-phone"
+                                href={'https://wa.me/' + client.phone_number}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={'Abrir WhatsApp de ' + displayName}
+                              >
+                                <Icon name="message" size={15} /> {formatPhone(client.phone_number)}
+                              </a>
+                            ) : (
+                              <span className="admin-muted">Sin vincular</span>
+                            )}
+                          </td>
+                          <td data-label="Acceso" className="admin-access-cell">
+                            <span className={'status-pill ' + status.tone}>{status.label}</span>
+                          </td>
+                          <td data-label="Vencimiento" className="admin-expiry-cell">
+                            <span className={'admin-expiry-text ' + expiry.tone}>{expiry.label}</span>
+                          </td>
+                          <td data-label="Acciones" className="admin-row-actions">
+                            <div className="action-buttons-group">
+                              <button
+                                type="button"
+                                className="action-btn small positive"
+                                aria-label={'Extender membresía de ' + displayName}
+                                onClick={() => handleOpenExtendModal(client)}
+                              >
+                                Extender
+                              </button>
+                              <button
+                                type="button"
+                                className={
+                                  'action-btn small ' +
+                                  (client.subscription_status === 'suspended' ? 'positive' : 'pause-btn')
+                                }
+                                aria-label={
+                                  (client.subscription_status === 'suspended' ? 'Reactivar a ' : 'Pausar a ') +
+                                  displayName
+                                }
+                                onClick={() => handleOpenSuspendModal(client)}
+                              >
+                                {client.subscription_status === 'suspended' ? 'Reactivar' : 'Pausar'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
       )}
       {activeTab === 'codes' && (
         <section className="admin-workspace-card" aria-labelledby="admin-invitations-title">
@@ -827,6 +904,13 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               <div className="code-actions">
                 <button
                   type="button"
+                  className="action-btn small positive"
+                  onClick={() => copyOnlyCode(generatedCode)}
+                >
+                  <Icon name="copy" size={14} /> Copiar código
+                </button>
+                <button
+                  type="button"
                   className="action-btn small"
                   onClick={() => copyWhatsAppMessage(generatedCode)}
                 >
@@ -876,38 +960,47 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
             </div>
           ) : (
             <div className="admin-table-container">
-              <table className="admin-table admin-responsive-table">
+              <table className="admin-table admin-responsive-table admin-codes-table">
                 <thead>
                   <tr>
                     <th scope="col">Código</th>
                     <th scope="col">Duración</th>
                     <th scope="col">Nota</th>
                     <th scope="col">Estado</th>
-                    <th scope="col">Acciones</th>
+                    <th scope="col" className="admin-th-actions">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredCodes.map((item) => (
-                    <tr key={item.id}>
+                    <tr key={item.id} className={item.is_used ? 'is-used-code' : ''}>
                       <td data-label="Código" className="admin-client-cell">
                         <strong className="code-token-sm">{item.code}</strong>
-                        <span className="cell-subtext">Creado {formatDate(item.created_at)}</span>
+                        <span className="cell-subtext">Creado {formatShortDate(item.created_at, now.getFullYear())}</span>
                       </td>
-                      <td data-label="Duración">
+                      <td data-label="Duración" className="admin-code-duration-cell">
                         {item.duration_days ? item.duration_days + ' días' : 'Sin vencimiento'}
                       </td>
-                      <td data-label="Nota">{item.notes || '—'}</td>
-                      <td data-label="Estado">
+                      <td data-label="Nota" className="admin-code-note-cell">{item.notes || '—'}</td>
+                      <td data-label="Estado" className="admin-code-status-cell">
                         <span className={'status-pill ' + (item.is_used ? 'gray' : 'green')}>
-                          {item.is_used ? 'Usada' : 'Disponible'}
+                          {item.is_used
+                            ? `Usada el ${formatShortDate(item.used_at || item.created_at, now.getFullYear())}`
+                            : 'Disponible'}
                         </span>
-                        {item.is_used && <span className="cell-subtext">{formatDate(item.used_at)}</span>}
                       </td>
                       <td data-label="Acciones" className="admin-row-actions">
                         {item.is_used ? (
-                          <span className="admin-muted">Ya canjeada</span>
+                          <span className="admin-muted admin-used-dash">—</span>
                         ) : (
                           <div className="action-buttons-group">
+                            <button
+                              type="button"
+                              className="action-btn small positive"
+                              aria-label={'Copiar código ' + item.code}
+                              onClick={() => copyOnlyCode(item.code)}
+                            >
+                              <Icon name="copy" size={14} /> Copiar código
+                            </button>
                             <button
                               type="button"
                               className="action-btn small"
@@ -944,7 +1037,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
       )}
       {activeTab === 'bot' && (
         <div className="admin-bot-view">
-          <BotOperations key={userId} />
+          <BotOperations key={`${userId}-${botRefreshTick}`} />
           <section className="admin-workspace-card" aria-labelledby="admin-bot-control-title">
             <div className="admin-section-heading">
               <div>
@@ -963,7 +1056,13 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               type="button"
               className={(botActive ? 'danger-button' : 'primary-button') + ' admin-compact-primary'}
               disabled={togglingBot || loading}
-              onClick={() => void handleToggleBotActive()}
+              onClick={() => {
+                if (botActive) {
+                  setConfirmingBotPause(true);
+                } else {
+                  void handleToggleBotActive();
+                }
+              }}
             >
               {togglingBot ? 'Guardando…' : botActive ? 'Pausar bot' : 'Reanudar bot'}
             </button>
@@ -985,7 +1084,11 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
           </div>
           <details className="admin-settings-group">
             <summary>
-              WhatsApp del bot<span>Ver y editar</span>
+              <span className="admin-summary-label">WhatsApp del bot</span>
+              <span className="admin-summary-right">
+                <span className="admin-summary-hint">Ver y editar</span>
+                <Icon name="chevronDown" size={18} className="admin-summary-chevron" />
+              </span>
             </summary>
             <form onSubmit={handleSaveBotPhone} className="generator-form">
               <label>
@@ -1027,7 +1130,11 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
           </details>
           <details className="admin-settings-group">
             <summary>
-              Soporte y cobros<span>Ver y editar</span>
+              <span className="admin-summary-label">Soporte y cobros</span>
+              <span className="admin-summary-right">
+                <span className="admin-summary-hint">Ver y editar</span>
+                <Icon name="chevronDown" size={18} className="admin-summary-chevron" />
+              </span>
             </summary>
             <form onSubmit={handleSaveSupportConfig} className="generator-form">
               <div className="form-grid">
@@ -1080,6 +1187,70 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
             </form>
           </details>
         </section>
+      )}
+
+      {/* MODAL: CONFIRMAR PAUSAR BOT */}
+      {confirmingBotPause && (
+        <div
+          className="admin-modal-backdrop"
+          onClick={() => !togglingBot && setConfirmingBotPause(false)}
+        >
+          <div
+            className="admin-modal-card"
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-pause-bot-title"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="admin-modal-header">
+              <div>
+                <h3 id="admin-pause-bot-title">Pausar respuestas del bot</h3>
+                <p>Corte general para todos los clientes</p>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close"
+                aria-label="Cerrar"
+                disabled={togglingBot}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setConfirmingBotPause(false)}
+              >
+                <Icon name="close" />
+              </button>
+            </div>
+
+            <div className="admin-date-preview-card danger">
+              <span className="preview-label">Efecto de la pausa</span>
+              <p style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.5, color: '#334155' }}>
+                Mientras el bot esté en pausa, ningún cliente recibirá respuestas automáticas por WhatsApp. Podés reanudarlo en cualquier momento.
+              </p>
+            </div>
+
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="admin-btn-cancel"
+                disabled={togglingBot}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setConfirmingBotPause(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                disabled={togglingBot}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => void handleToggleBotActive()}
+              >
+                {togglingBot ? 'Guardando…' : 'Pausar bot'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* MODAL: EXTENDER DÍAS DE SUSCRIPCIÓN */}
