@@ -1,4 +1,5 @@
 import { Icon } from './Icons';
+import { nextScheduledInstallment } from './summaryPresentation';
 import { categoryVisual, movementVisual } from './categoryVisuals';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
@@ -44,6 +45,7 @@ type InstallmentPlan = {
   quedanTotal: number;
   progressPercent: number;
   currentDateStr: string;
+  nextScheduled?: Movement;
   currentMovement?: Movement;
 };
 
@@ -58,21 +60,17 @@ type Props = {
 };
 
 
-function formatShortDate(dateStr: string) {
-  if (!dateStr) return '';
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-  const monthAbbr = months[(m - 1) % 12];
-  const shortYear = String(y).slice(-2);
-  return `${d}/${monthAbbr}/${shortYear}`;
-}
-
 function formatMovementDate(dateStr: string) {
   if (!dateStr) return '';
   const [, m, d] = dateStr.split('-').map(Number);
   const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
   const monthAbbr = months[(m - 1) % 12];
   return `${d} ${monthAbbr}`;
+}
+
+function formatScheduledDate(dateStr: string) {
+  const year = dateStr.slice(0, 4);
+  return formatMovementDate(dateStr) + (year !== todayKey().slice(0, 4) ? ` ${year}` : '');
 }
 
 function monthKey(date: Date) {
@@ -230,6 +228,18 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     return Array.from(monthsSet).sort();
   }, [currentMonth, month, knownMonths]);
 
+  const [activeSection, setActiveSection] = useState(() => window.location.hash || '#resumen');
+  useEffect(() => {
+    const syncSection = () => setActiveSection(window.location.hash || '#resumen');
+    window.addEventListener('hashchange', syncSection);
+    window.addEventListener('popstate', syncSection);
+    return () => {
+      window.removeEventListener('hashchange', syncSection);
+      window.removeEventListener('popstate', syncSection);
+    };
+  }, []);
+  const showAllMovements = activeSection === '#movimientos';
+
   const [activeCurrency, setActiveCurrency] = useState<'ARS' | 'USD'>('ARS');
   const [manualCurrency, setManualCurrency] = useState<'ARS' | 'USD'>('ARS');
   const [editCurrency, setEditCurrency] = useState<'ARS' | 'USD'>('ARS');
@@ -278,6 +288,9 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const filteredInstallmentPlans = useMemo(() => {
     return installmentPlans.filter((plan) => (plan.currency || 'ARS') === activeCurrency);
   }, [installmentPlans, activeCurrency]);
+
+  const visibleMovements = showAllMovements ? filteredMovements : filteredMovements.slice(0, 5);
+  const upcomingPlans = filteredInstallmentPlans.filter(plan => plan.nextScheduled);
 
   const expenses = useMemo(() => filteredMovements.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0), [filteredMovements]);
   const income = useMemo(() => filteredMovements.filter((item) => item.kind === 'income').reduce((sum, item) => sum + item.amount, 0), [filteredMovements]);
@@ -425,6 +438,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           const progressPercent = Math.round((vanCount / totalCount) * 100);
           const currentDateStr = currentRow ? String(currentRow.occurred_on) : String(remainingRows[0]?.occurred_on ?? '');
 
+          const nextRow = nextScheduledInstallment(rows, month, todayKey());
           const rowToEdit = currentRow ?? rows[0];
           const currentMovement: Movement | undefined = rowToEdit ? {
             id: String(rowToEdit.id),
@@ -455,6 +469,18 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               quedanTotal,
               progressPercent,
               currentDateStr,
+              nextScheduled: nextRow ? {
+                ...currentMovement!,
+                id: String(nextRow.id),
+                title: String(nextRow.description),
+                category: String((nextRow.categories as { name?: string } | null)?.name ?? 'Compras'),
+                categoryId: nextRow.category_id ? String(nextRow.category_id) : undefined,
+                kind: (nextRow.kind || 'expense') as 'expense' | 'income',
+                date: String(nextRow.occurred_on),
+                amount: Number(nextRow.amount_ars),
+                currency: nextRow.currency === 'USD' ? 'USD' : 'ARS',
+                installmentNumber: Number(nextRow.installment_number || 1),
+              } : undefined,
               currentMovement,
             });
           }
@@ -892,12 +918,14 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">P</span><span>Pesito</span></div>
       <nav aria-label="Navegación principal">
-        <a className="nav-item active" href="#resumen"><span><IconHome /></span>Resumen</a>
-        <a className="nav-item" href="#movimientos"><span><IconMovements /></span>Movimientos</a>
-        <a className="nav-item" href="#cuotas"><span><IconInstallments /></span>Cuotas</a>
+        <a className={`nav-item ${activeSection === '#resumen' ? 'active' : ''}`} aria-current={activeSection === '#resumen' ? 'page' : undefined} href="#resumen"><span><IconHome /></span>Resumen</a>
+        <a className={`nav-item ${activeSection === '#movimientos' ? 'active' : ''}`} aria-current={activeSection === '#movimientos' ? 'page' : undefined} href="#movimientos"><span><IconMovements /></span>Movimientos</a>
+        <a className={`nav-item ${activeSection === '#cuotas' ? 'active' : ''}`} aria-current={activeSection === '#cuotas' ? 'page' : undefined} href="#cuotas"><span><IconInstallments /></span>Cuotas</a>
         <button className="nav-item nav-button" type="button" onClick={onOpenSettings}><span><IconSettings /></span>Configuración</button>
+      </nav>
+      <nav className="sidebar-tools" aria-label="Herramientas">
         {isAdmin && onOpenAdmin && (
-          <button className="nav-item nav-button admin-sidebar-nav" type="button" onClick={onOpenAdmin}>
+          <button className="nav-item nav-button" type="button" onClick={onOpenAdmin}>
             <span><Icon name="shield" /></span>Panel Admin
           </button>
         )}
@@ -923,32 +951,6 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           <p>Así vienen tus finanzas este mes.</p>
         </div>
         <div className="top-actions">
-          {canInstall && (
-            <button
-              type="button"
-              className="install-app-pill"
-              onClick={triggerInstall}
-              title="Instalar Pesito en tu celular"
-              style={{
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    cursor: 'pointer'
-}}
-            >
-              <Icon name="smartphone" /> Instalar app
-            </button>
-          )}
-          {isAdmin && onOpenAdmin && (
-            <button
-              type="button"
-              className="admin-topbar-pill"
-              onClick={onOpenAdmin}
-              title="Ir al Panel de Administrador"
-            >
-              <Icon name="shield" /> Panel Admin
-            </button>
-          )}
           <select aria-label="Mes" value={month} onChange={(event) => setMonth(event.target.value)}>
             {availableMonths.map((m) => (
               <option key={m} value={m}>
@@ -956,7 +958,6 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               </option>
             ))}
           </select>
-          <button aria-label="Notificaciones" className="icon-button"><Icon name="bell" /></button>
         </div>
       </header>
 
@@ -1023,6 +1024,14 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         </div>
       </div>
       <section className="summary-grid" aria-label={`Resumen mensual en ${activeCurrency}`}>
+        <article className="summary-card balance">
+          <div className="card-heading">
+            <span className="metric-icon"><Icon name="wallet" /></span>
+            <small>BALANCE {activeCurrency}</small>
+          </div>
+          <strong>{formatMoney(income - expenses, activeCurrency)}</strong>
+          <p>Ingresos menos gastos</p>
+        </article>
         <article className="summary-card expense">
           <div className="card-heading">
             <span className="metric-icon"><Icon name="arrowDownRight" /></span>
@@ -1039,16 +1048,8 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           <strong>{formatMoney(income, activeCurrency)}</strong>
 
         </article>
-        <article className="summary-card balance">
-          <div className="card-heading">
-            <span className="metric-icon"><Icon name="wallet" /></span>
-            <small>BALANCE {activeCurrency}</small>
-          </div>
-          <strong>{formatMoney(income - expenses, activeCurrency)}</strong>
-          <p>Disponible este mes</p>
-        </article>
       </section>
-      <section className={`main-grid ${activeCurrency === 'USD' ? 'main-grid-usd' : ''}`}>
+      <section className={`main-grid summary-main-grid ${activeCurrency === 'USD' ? 'main-grid-usd' : ''}`}>
         {activeCurrency === 'ARS' && (
           <article className="panel budget-card">
             <div className="panel-title">
@@ -1056,17 +1057,24 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 <h2>Presupuesto mensual</h2>
                 <p>Tu límite de gastos para {labelForMonth(month).toLowerCase()}</p>
               </div>
-              <button className="text-button" onClick={openBudgetModal}>{budget > 0 ? 'Editar' : 'Definir'}</button>
+              {budget > 0 && <button type="button" className="text-button" onClick={openBudgetModal}>Editar</button>}
             </div>
-            <div className="budget-numbers">
-              <div><span>Gastado</span><strong>{formatMoney(expenses, 'ARS')}</strong></div>
-              <div className="align-right"><span>Presupuesto</span><strong>{formatMoney(budget, 'ARS')}</strong></div>
-            </div>
-            <div className="progress-track"><span style={{ width: `${Math.min(progress, 100)}%` }}/></div>
-            <div className="progress-copy">
-              <span>{progress}% utilizado</span>
-              <span>Te quedan <strong>{formatMoney(budget - expenses, 'ARS')}</strong></span>
-            </div>
+            {budget > 0 ? <>
+              <div className="budget-numbers">
+                <div><span>Gastado</span><strong>{formatMoney(expenses, 'ARS')}</strong></div>
+                <div className="align-right"><span>Presupuesto</span><strong>{formatMoney(budget, 'ARS')}</strong></div>
+              </div>
+              <div className={`progress-track budget-${progress >= 100 ? 'over' : progress >= 80 ? 'near' : 'within'}`} role="progressbar" aria-label="Uso del presupuesto" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(progress, 100)} aria-valuetext={`${progress}% utilizado`}><span style={{ width: `${Math.min(progress, 100)}%` }}/></div>
+              <div className="progress-copy">
+                <span>{progress}% utilizado</span>
+                <span>{expenses > budget ? 'Superaste el límite en ' : 'Te quedan '}<strong>{formatMoney(Math.abs(budget - expenses), 'ARS')}</strong></span>
+              </div>
+            </> : <div className="budget-empty">
+              <span className="summary-empty-icon"><Icon name="wallet" size={24} /></span>
+              <strong>Organizá tu mes con un presupuesto</strong>
+              <p>Definí cuánto querés gastar y seguí tu progreso.</p>
+              <button type="button" className="button-secondary" onClick={openBudgetModal}>Definir presupuesto</button>
+            </div>}
           </article>
         )}
         <article className="panel category-card">
@@ -1084,68 +1092,72 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                   setShowCategoryModal(true);
                 }}
               >
-                Ver detalle <Icon name="externalLink" size={16} />
+                {chartData.length > 4 ? 'Ver más' : 'Ver detalle'} <Icon name="chevronRight" size={16} />
               </button>
             )}
           </div>
-          <div className="chart-row">
-            <div
-              className="donut-chart interactive-donut"
-              role="button"
-              tabIndex={0}
-              title="Hacé clic para ver el detalle de categorías"
-              aria-label="Gráfico de gastos por categoría. Hacé clic para ver detalle ampliado."
-              onClick={() => {
-                setExpandedCategoryInModal(null);
-                setShowCategoryModal(true);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+          {chartData.length === 0 ? <div className="budget-empty">
+            <span className="summary-empty-icon"><Icon name="receipt" size={24} /></span>
+            <strong>Todavía no hay gastos en {activeCurrency}</strong>
+            <p>Cuando registres uno, vas a ver su categoría acá.</p>
+          </div> : <div className="chart-row">
+            <div className="chart-summary">
+              <div
+                className="donut-chart interactive-donut"
+                role="button"
+                tabIndex={0}
+                title="Hacé clic para ver el detalle de categorías"
+                aria-label="Gráfico de gastos por categoría. Hacé clic para ver detalle ampliado."
+                onClick={() => {
                   setExpandedCategoryInModal(null);
                   setShowCategoryModal(true);
-                }
-              }}
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                  <Pie
-                    data={chartData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius="60%"
-                    outerRadius="85%"
-                    paddingAngle={chartData.length > 1 ? 2 : 0}
-                    stroke="none"
-                  >
-                    {chartData.map((entry) => (
-                      <Cell
-                        key={entry.name}
-                        fill={categoryVisual(entry.name).color}
-                        opacity={dashboardActiveCategory && dashboardActiveCategory !== entry.name ? 0.45 : 1}
-                        style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
-                        onMouseEnter={() => { if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) setDashboardActiveCategory(entry.name); }}
-                        onMouseLeave={() => setDashboardActiveCategory(null)}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpandedCategoryInModal(entry.name);
-                          setShowCategoryModal(true);
-                        }}
-                      />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div>
-                <strong>
-                  {dashboardActiveCategory
-                    ? formatMoney(chartData.find((c) => c.name === dashboardActiveCategory)?.value ?? expenses, activeCurrency)
-                    : formatMoney(expenses, activeCurrency)}
-                </strong>
-                <span>{dashboardActiveCategory ?? 'Total'}</span>
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setExpandedCategoryInModal(null);
+                    setShowCategoryModal(true);
+                  }
+                }}
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                    <Pie
+                      data={chartData}
+                      dataKey="value"
+                      nameKey="name"
+                      isAnimationActive={false}
+                      innerRadius="60%"
+                      outerRadius="85%"
+                      paddingAngle={chartData.length > 1 ? 2 : 0}
+                      stroke="none"
+                    >
+                      {chartData.map((entry) => (
+                        <Cell
+                          key={entry.name}
+                          fill={categoryVisual(entry.name).color}
+                          opacity={dashboardActiveCategory && dashboardActiveCategory !== entry.name ? 0.45 : 1}
+                          style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                          onMouseEnter={() => { if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) setDashboardActiveCategory(entry.name); }}
+                          onMouseLeave={() => setDashboardActiveCategory(null)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedCategoryInModal(entry.name);
+                            setShowCategoryModal(true);
+                          }}
+                        />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="donut-center"><strong>{activeCurrency}</strong><span>{dashboardActiveCategory ? 'Categoría' : 'Total'}</span></div>
               </div>
+              <strong className="chart-total">
+                {formatMoney(dashboardActiveCategory ? chartData.find(c => c.name === dashboardActiveCategory)?.value ?? expenses : expenses, activeCurrency)}
+              </strong>
+              {dashboardActiveCategory && <span className="chart-selection">{dashboardActiveCategory}</span>}
             </div>
             <ul className="legend">
-              {chartData.map((entry) => (
+              {chartData.slice(0, 4).map((entry) => (
                 <li
                   key={entry.name}
                   className="interactive-legend-item"
@@ -1171,20 +1183,21 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 </li>
               ))}
             </ul>
-          </div>
+          </div>}
         </article>
         <article className="panel movements-card" id="movimientos">
           <div className="panel-title">
             <div>
-              <h2>Últimos movimientos {activeCurrency === 'USD' ? '(USD)' : '(ARS)'}</h2>
-              <p>Tus operaciones más recientes en {activeCurrency === 'USD' ? 'dólares' : 'pesos'}</p>
+              <h2>{showAllMovements ? 'Movimientos' : 'Últimos movimientos'} ({activeCurrency})</h2>
+              <p>{showAllMovements ? `Todas tus operaciones de ${labelForMonth(month).toLowerCase()}` : 'Tus últimas 5 operaciones del mes'}</p>
             </div>
+            <a className="text-button summary-view-all" href={showAllMovements ? '#resumen' : '#movimientos'}>{showAllMovements ? 'Ver resumen' : 'Ver todos'}<Icon name="chevronRight" size={16} /></a>
           </div>
           <div className="movement-list">
             {filteredMovements.length === 0 ? (
               <p className="empty-movements">Todavía no hay movimientos en {activeCurrency} este mes.</p>
             ) : (
-              filteredMovements.map((item) => (
+              visibleMovements.map((item) => (
                 <div
                   className="movement"
                   key={item.id}
@@ -1204,8 +1217,8 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                   </div>
                   <div className="movement-right">
                     <b className={item.kind}>{item.kind === 'expense' ? '−' : '+'}{formatMoney(item.amount, item.currency)}</b>
-                    <Icon name="chevronRight" className="movement-chevron ui-icon" size={18} />
                   </div>
+                  <Icon name="chevronRight" className="movement-chevron ui-icon" size={18} />
                 </div>
               ))
             )}
@@ -1215,37 +1228,35 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           <div className="panel-title">
             <div>
               <h2>Próximas cuotas {activeCurrency === 'USD' ? '(USD)' : '(ARS)'}</h2>
-              <p>Compromisos futuros en {activeCurrency === 'USD' ? 'dólares' : 'pesos'}</p>
+              <p>Fechas programadas {month > currentMonth ? `desde ${formatMovementDate(`${month}-01`)}` : 'desde hoy'}</p>
             </div>
-            <span className="pill">{filteredInstallmentPlans.length} {filteredInstallmentPlans.length === 1 ? 'activa' : 'activas'}</span>
+            <span className="pill">{upcomingPlans.length} {upcomingPlans.length === 1 ? 'compra' : 'compras'}</span>
           </div>
-          {filteredInstallmentPlans.length === 0 ? (
+          {upcomingPlans.length === 0 ? (
             <div className="installments-empty">
               <span><Icon name="check" size={26} /></span>
-              <strong>No tenés cuotas pendientes en {activeCurrency}</strong>
-              <small>Cuando registres una compra en cuotas en {activeCurrency}, aparecerá acá.</small>
+              <strong>Sin próximas cuotas en {activeCurrency}</strong>
+              <small>No hay próximas fechas de cuotas registradas para este período.</small>
             </div>
           ) : (
             <div className="installments-list">
-              {filteredInstallmentPlans.map((plan) => (
+              {upcomingPlans.map((plan) => (
                 <div className="installment-item" key={plan.groupId}>
                   <div className="installment-header">
                     <div className="installment-info-col">
-                      {plan.currentDateStr && (
-                        <span className="installment-date">{formatShortDate(plan.currentDateStr)}</span>
-                      )}
+                      <span className="installment-date">Próxima · {formatScheduledDate(plan.nextScheduled!.date)}</span>
                       <strong className="installment-title">{plan.description}</strong>
-                      <small className="installment-subtitle">Total compra: {formatMoney(plan.totalAmount, plan.currency)}</small>
+                      <small className="installment-subtitle">Total registrado: {formatMoney(plan.totalAmount, plan.currency)}</small>
                     </div>
                     <div className="installment-amount-col">
-                      <strong className="installment-amount">{formatMoney(plan.monthlyAmount, plan.currency)}</strong>
-                      <span className="installment-cuota-badge">Cuota {plan.vanCount}/{plan.installmentCount}</span>
+                      <strong className="installment-amount">{formatMoney(plan.nextScheduled!.amount, plan.currency)}</strong>
+                      <span className="installment-cuota-badge">Cuota {(plan.nextScheduled!.installmentNumber ?? 1)}/{plan.installmentCount}</span>
                     </div>
                   </div>
-                  <div className="installment-progress-bar">
+                  <div className="installment-progress-bar" aria-label={`${(plan.nextScheduled!.installmentNumber ?? 1) - 1} de ${plan.installmentCount} fechas de cuotas anteriores`}>
                     <div
                       className="installment-progress-fill"
-                      style={{ width: `${Math.min(plan.progressPercent, 100)}%` }}
+                      style={{ width: `${Math.min((((plan.nextScheduled!.installmentNumber ?? 1) - 1) / plan.installmentCount) * 100, 100)}%` }}
                     />
                   </div>
                   <div className="installment-footer-actions">
@@ -1253,13 +1264,13 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                       type="button"
                       className="installment-edit-plan-btn"
                       onClick={() => {
-                        if (plan.currentMovement) {
-                          startEditMovement(plan.currentMovement);
+                        if (plan.nextScheduled) {
+                          startEditMovement(plan.nextScheduled);
                         }
                       }}
                       aria-label={`Modificar cuotas de ${plan.description}`}
                     >
-                      <Icon name="edit" size={16} /> Modificar cuotas
+                      <Icon name="edit" size={16} /> Modificar
                     </button>
                     <button
                       type="button"
@@ -1267,7 +1278,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                       onClick={() => setInstallmentDeletePrompt({ plan })}
                       aria-label={`Eliminar plan ${plan.description}`}
                     >
-                      <Icon name="trash" size={16} /> Eliminar compra completa
+                      <Icon name="trash" size={16} /> Eliminar
                     </button>
                   </div>
                 </div>
@@ -1279,11 +1290,11 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       </section>
     </section>
     <nav className="mobile-nav" aria-label="Navegación móvil">
-      <a className="active" href="#resumen">
+      <a className={activeSection === '#resumen' ? 'active' : ''} aria-current={activeSection === '#resumen' ? 'page' : undefined} href="#resumen">
         <IconHome />
         <span>Inicio</span>
       </a>
-      <a href="#movimientos">
+      <a className={activeSection === '#movimientos' ? 'active' : ''} aria-current={activeSection === '#movimientos' ? 'page' : undefined} href="#movimientos">
         <IconMovements />
         <span>Movimientos</span>
       </a>
@@ -1293,7 +1304,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
       </button>
-      <a href="#cuotas">
+      <a className={activeSection === '#cuotas' ? 'active' : ''} aria-current={activeSection === '#cuotas' ? 'page' : undefined} href="#cuotas">
         <IconInstallments />
         <span>Cuotas</span>
       </a>
@@ -1812,10 +1823,10 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
 
     {installmentDeletePrompt && (
       <div className="modal-backdrop" role="presentation" onClick={() => setInstallmentDeletePrompt(null)}>
-        <div className="movement-form delete-plan-modal" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="movement-form delete-plan-modal" role="dialog" aria-modal="true" aria-labelledby="delete-installments-title" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
           <div>
             <p className="eyebrow" style={{ color: '#ea7172' }}>ELIMINAR CUOTAS</p>
-            <h2>{installmentDeletePrompt.movement ? '¿Cómo querés eliminar este movimiento?' : '¿Eliminar compra en cuotas?'}</h2>
+            <h2 id="delete-installments-title">{installmentDeletePrompt.movement ? '¿Cómo querés eliminar este movimiento?' : '¿Eliminar compra en cuotas?'}</h2>
             <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '8px 0 0' }}>
               <strong>{installmentDeletePrompt.movement?.title ?? installmentDeletePrompt.plan?.description}</strong>
               {installmentDeletePrompt.movement && installmentDeletePrompt.movement.installmentCount ? (
@@ -2099,17 +2110,9 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-              <div>
-                <strong>
-                  {expandedCategoryInModal
-                    ? formatMoney(chartData.find((c) => c.name === expandedCategoryInModal)?.value ?? expenses, activeCurrency)
-                    : formatMoney(expenses, activeCurrency)}
-                </strong>
-                <span>
-                  {expandedCategoryInModal ?? 'Total'}
-                </span>
-              </div>
+              <div className="donut-center"><strong>{activeCurrency}</strong><span>{expandedCategoryInModal ? 'Categoría' : 'Total'}</span></div>
             </div>
+            <strong className="chart-total">{formatMoney(expandedCategoryInModal ? chartData.find(c => c.name === expandedCategoryInModal)?.value ?? expenses : expenses, activeCurrency)}</strong>
             <p className="category-modal-hint">
               {expandedCategoryInModal
                 ? 'Categoría seleccionada · Tocá de nuevo en la lista para volver al total'
