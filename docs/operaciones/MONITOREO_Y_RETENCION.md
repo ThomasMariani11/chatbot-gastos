@@ -56,3 +56,19 @@ Solo si se aprueba y activa esta política, retirar también métricas agregadas
 ## Validación
 
 Pruebas SQL aisladas: alertas/resolución, permisos de clientes/backend, deduplicación, reintentos y leases inciertos, ventana real, cambio de destinatario, conteos actualizados y protección de recuperación al limpiar. Dos sesiones PostgreSQL compiten por el mismo aviso. Pruebas de runtime: métricas sin datos privados, fallo de telemetría inocuo, verificación de emisor por GET simulado, bloqueo de emisor distinto y entrega única ante error de ack. El ensayo local desprograma los tres cron e impide red productiva. La recepción real por el propietario se registra por separado; no se deduce de HTTP 200.
+
+## Detalle de incidentes por cliente (028)
+
+El propietario solicitó expresamente que el panel y sus avisos indiquen a qué cliente le ocurrió el error y el detalle. Se usa nombre y apellido del perfil (email como alternativa si faltan); no se agregan teléfonos ni contenido de mensajes. La identidad solo se resuelve para el administrador autenticado y su aviso al WhatsApp configurado. Los logs y la bandeja histórica de avisos siguen sin copiar nombres, emails o cuerpos.
+
+Cada mensaje puede conservar su último diagnóstico seguro: etapa, motivo, proveedor, HTTP cuando exista, operación de lectura conocida y hora del registro del servidor. Un fallo del registro se limita a 1,5 s y no reabre operaciones ni impide el reintento normal. Los errores de interpretación que piden texto también conservan estos códigos sin volver a invocar IA. No se guardan errores crudos, stack traces, prompts, audios, fotos ni mensajes financieros en ese diagnóstico.
+
+El panel muestra detalles en las alertas activas (hasta diez por categoría) y hasta 50 mensajes de las últimas 24 horas o todavía sin resolver. Los registros anteriores sin diagnóstico muestran “causa técnica no registrada” y la fecha de recepción, sin inventar un proveedor, un código o la hora del fallo. Se usa el user_id del trabajo: un teléfono vinculado después a otra persona no cambia esa atribución histórica. Las fechas y horas se muestran en America/Argentina/Buenos_Aires.
+
+Los avisos por WhatsApp incluyen la misma descripción y hasta cinco casos por categoría, acotados a un único mensaje de menos de 4096 caracteres. Si quedan casos, remiten al panel. Los fallos de recuperación general se identifican como servicio general, sin adjudicarlos a un cliente. Se mantienen los umbrales, reconocimiento, exclusión, límite de frecuencia, ventana y verificación del emisor existentes. La retención sigue desactivada.
+
+Prueba de aceptación de la versión anterior (v52): el 22/10/2026 se simuló un caso manual_review con el usuario del propietario; apareció en el panel, se reconoció, Meta aceptó un único envío y el propietario confirmó recepción. El incidente se cerró, quedaron cero alertas/avisos pendientes y los hashes de movimientos y borradores permanecieron iguales. La versión 028 amplía el detalle; su nueva aceptación se registra por separado.
+
+### Vista rápida del panel
+
+Estado del bot muestra tres contadores (cola, proceso y mensajes para revisar), tarjetas breves con cliente/causa/fecha y estado de los avisos. Los códigos del proveedor, intentos y referencia quedan en Detalle técnico; el historial y los ajustes/métricas se abren bajo demanda. Los mensajes de fallo de actualización o envío permanecen visibles. No se modifican umbrales ni permisos al simplificar la presentación.

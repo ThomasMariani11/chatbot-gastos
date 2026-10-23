@@ -79,6 +79,7 @@ await execute(`create schema cron;
  insert into cron.job(jobname,schedule,command) values('pesito-whatsapp-queue-recovery','* * * * *','synthetic');
  insert into cron.job_run_details(jobid,status,end_time) select jobid,'succeeded',clock_timestamp() from cron.job;`);
 await execute(await readFile(new URL('027_whatsapp_observability.sql',migrations),'utf8'));
+await execute(await readFile(new URL('028_whatsapp_issue_details.sql',migrations),'utf8'));
 await execute(`insert into public.whatsapp_links(user_id,wa_id,status) values('${admin}','synthetic-ops-admin','active') on conflict(user_id) do update set wa_id='synthetic-ops-admin',status='active';
  update public.whatsapp_ops_config set whatsapp_enabled=true,notification_user_id='${admin}',verified_test_sender_digits='15550000000';
  update public.whatsapp_message_queue set received_at=clock_timestamp()-interval '4 minutes';

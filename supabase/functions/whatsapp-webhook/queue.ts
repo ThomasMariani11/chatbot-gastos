@@ -1,3 +1,4 @@
+import { writeOperationalLog } from "./logging.ts";
 import { LIMITS, timeoutSignal, withinSignal } from "./limits.ts";
 import { failureMetadata } from "./failures.ts";
 import type {
@@ -161,6 +162,28 @@ export async function runActor(
   }
 }
 
+async function recordIssue(
+  job: Job,
+  token: string,
+  deps: QueueDependencies,
+  issue: Record<string, unknown>,
+): Promise<void> {
+  const signal = timeoutSignal(1500);
+  try {
+    await withinSignal(
+      () =>
+        deps.rpc("record_whatsapp_job_issue", {
+          p_id: job.id,
+          p_token: token,
+          p_issue: issue,
+        }, signal),
+      signal,
+    );
+  } catch {
+    writeOperationalLog("ops_error", { stage: "monitor" });
+  }
+}
+
 async function processJob(
   job: Job,
   token: string,
@@ -197,6 +220,15 @@ async function processJob(
           result && typeof result === "object" &&
           (result as { intent?: unknown }).intent === "request_text"
         ) {
+          const diagnostic =
+            (result as { operationalFailure?: Record<string, unknown> })
+              .operationalFailure;
+          await recordIssue(job, token, deps, {
+            ...diagnostic,
+            kind: "clarification",
+            stage: "interpret",
+            reason: diagnostic?.reason ?? "invalid_response",
+          });
           const source = job.payload.type;
           deps.metric("queue_clarification", {
             source_kind: source === "audio" || source === "image"
@@ -239,6 +271,11 @@ async function processJob(
       ...(signal.aborted
         ? { reason: "timeout" as const }
         : failureMetadata(error)),
+    });
+    await recordIssue(job, token, deps, {
+      ...(signal.aborted ? { reason: "timeout" } : failureMetadata(error)),
+      kind: "retry",
+      stage,
     });
     await deps.rpc("fail_whatsapp_job", { p_id: job.id, p_token: token });
     return false;

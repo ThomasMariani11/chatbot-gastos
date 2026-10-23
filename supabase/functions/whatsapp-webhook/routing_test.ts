@@ -17,6 +17,19 @@ import type { Job } from "./queue.ts";
 function assert(value: unknown, message: string): asserts value {
   if (!value) throw new Error(message);
 }
+// Comprobar por separado el contrato de negocio y su nuevo diagnóstico interno.
+function checkpointBusiness(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(checkpointBusiness);
+  if (value && typeof value === "object") {
+    const { operationalFailure: _diagnostic, ...business } = value as Record<
+      string,
+      unknown
+    >;
+    void _diagnostic;
+    return business;
+  }
+  return value;
+}
 const fixture =
   "Gasté 1100 en librería, 2200 en té y me ingresó 33mil de una transferencia";
 function database(suspended = false) {
@@ -226,8 +239,13 @@ Deno.test("audio: descarga fallida pide texto con checkpoint, sin interpretació
       "No pidió texto",
     );
     assert(
+      JSON.stringify(checkpoints).includes('"reason":"authentication"') &&
+        JSON.stringify(checkpoints).includes('"status":403'),
+      "No conservó el diagnóstico seguro de descarga",
+    );
+    assert(
       calls === 1 &&
-        JSON.stringify(checkpoints) ===
+        JSON.stringify(checkpointBusiness(checkpoints)) ===
           JSON.stringify([{ intent: "request_text", movements: [] }]),
       "Checkpoint incorrecto",
     );
@@ -429,7 +447,7 @@ Deno.test("audio: 503 en ambos modelos conserva checkpoint y pide texto sin rein
       "Audio con timeout de texto",
     );
     assert(
-      JSON.stringify(checkpoint) ===
+      JSON.stringify(checkpointBusiness(checkpoint)) ===
         JSON.stringify({ intent: "request_text", movements: [] }),
       "No conserva decisión",
     );
@@ -526,7 +544,7 @@ Deno.test("audio ambiguo o con monto faltante pide texto sin cargar parcialmente
         "No pide texto",
       );
       assert(
-        JSON.stringify(saved) ===
+        JSON.stringify(checkpointBusiness(saved)) ===
           JSON.stringify({ intent: "request_text", movements: [] }),
         "Se conservó una extracción parcial para guardar",
       );
@@ -595,7 +613,7 @@ Deno.test("audio válido sigue creando propuesta y no se convierte en pedido de 
       "Audio válido perdido",
     );
     assert(
-      JSON.stringify(saved) === JSON.stringify(parsed),
+      JSON.stringify(checkpointBusiness(saved)) === JSON.stringify(parsed),
       "Checkpoint alterado",
     );
   } finally {
@@ -691,7 +709,7 @@ Deno.test("multimedia: tamaño declarado excesivo pide texto sin descargar ni in
       "No cortó antes de descargar",
     );
     assert(
-      JSON.stringify(checkpoint) ===
+      JSON.stringify(checkpointBusiness(checkpoint)) ===
         JSON.stringify({
           intent: "request_text",
           movements: [],
@@ -1525,7 +1543,7 @@ Deno.test("audio: importes exactos y residuos ambiguos sin propuestas parciales"
           "No derivó el mensaje numérico ambiguo completo",
         );
         assert(
-          JSON.stringify(saved) ===
+          JSON.stringify(checkpointBusiness(saved)) ===
             JSON.stringify({ intent: "request_text", movements: [] }),
           "Conservó una propuesta parcial",
         );

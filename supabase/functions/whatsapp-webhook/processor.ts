@@ -1,6 +1,6 @@
 import { parseLocalCommand } from "./local-commands.ts";
 import { LIMITS, timeoutSignal } from "./limits.ts";
-import type { DatabaseOperation } from "./failures.ts";
+import type { DatabaseOperation, FailureMetadata } from "./failures.ts";
 import {
   failureMetadata,
   OperationalFailure,
@@ -219,6 +219,7 @@ export async function prepareMessage(
   }
   let result = job.parsed_result as GeminiParsedOutput | null;
   if (!result) {
+    let interpretationIssue: FailureMetadata | undefined;
     const signal = timeoutSignal(LIMITS.interpretationMs, parent);
     try {
       const mediaId = message.image?.id ?? message.audio?.id;
@@ -266,6 +267,7 @@ export async function prepareMessage(
       ) {
         throw error;
       }
+      interpretationIssue = failure;
       writeOperationalLog("interpretation_fallback", failure);
       result = {
         intent: "request_text",
@@ -288,6 +290,10 @@ export async function prepareMessage(
           )))
     ) {
       result = { intent: "request_text", movements: [] };
+    }
+    if (result.intent === "request_text") {
+      result.operationalFailure = interpretationIssue ??
+        { reason: "invalid_response" };
     }
     parent?.throwIfAborted();
     await checkpoint(result);

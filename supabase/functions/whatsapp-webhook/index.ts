@@ -1,3 +1,4 @@
+import { OperationalFailure } from "./failures.ts";
 import {
   createOperationalMetrics,
   deliverOperationalNotice,
@@ -54,7 +55,7 @@ async function routeRequest(request: Request): Promise<Response> {
     const result = await db.rpc(name, args).abortSignal(
       timeoutSignal(LIMITS.rpcMs, signal),
     );
-    if (result.error) throw new Error(`QUEUE_RPC_${name}`);
+    if (result.error) throw new OperationalFailure("unknown", "database");
     return result.data as T;
   }
   const run = async (actors: string[]) => {
