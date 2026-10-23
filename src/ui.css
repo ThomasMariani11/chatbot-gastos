@@ -291,3 +291,6 @@ body :is(.install-app-pill,.admin-topbar-pill) { display: inline-flex; align-ite
 .auth-card button.button-link { background: transparent; color: var(--mint-dark); box-shadow: none; }
 .admin-section-heading > div { flex: 1; min-width: 0; }
 @media (max-width: 700px) { .admin-section-heading > div { flex-basis: 180px; } }
+
+.currency-pills .currency-pill { color: var(--muted); }
+.currency-pills .currency-pill.active { color: var(--mint-dark); }
