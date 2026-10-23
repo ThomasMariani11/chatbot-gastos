@@ -1,3 +1,4 @@
+import type { FailureMetadata } from "./failures.ts";
 import type { ExtractedMovement } from "./movement-types.ts";
 export type { ExtractedMovement } from "./movement-types.ts";
 import { parseDeterministicMovements } from "./local-movements.ts";
@@ -40,6 +41,7 @@ export type GeminiParsedOutput = {
     | "request_text"; // Checkpoint interno: nunca vuelve a invocar IA.
   movements: ExtractedMovement[];
   requestTextReason?: "size" | "type";
+  operationalFailure?: FailureMetadata; // Solo diagnóstico interno controlado por el procesador.
   edit?: {
     targetPosition?: number | null;
     amount?: number | null;

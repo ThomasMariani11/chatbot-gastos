@@ -1,3 +1,10 @@
+import {
+  issueDescription,
+  issueSource,
+  issueTimestamp,
+  safeClientName,
+} from "./issue-details.ts";
+import type { OperationalIssue } from "./issue-details.ts";
 import { createLogWriter, writeOperationalLog } from "./logging.ts";
 import type { QueueMetricData, QueueMetricEvent } from "./logging.ts";
 import { failureMetadata } from "./failures.ts";
@@ -41,7 +48,14 @@ type Notice = {
   id: string;
   to: string;
   test_sender_digits: string;
-  snapshot: Array<{ code: string; affected: number; oldest_seconds: number }>;
+  snapshot: Array<
+    {
+      code: string;
+      affected: number;
+      oldest_seconds: number;
+      details?: OperationalIssue[];
+    }
+  >;
 };
 export async function deliverOperationalNotice(
   rpc: Rpc,
@@ -70,18 +84,52 @@ export async function deliverOperationalNotice(
       });
       return;
     }
-    const lines = notice.snapshot.map((a) =>
-      "• " + (OPERATIONAL_ALERT_LABELS[a.code] ?? "Incidente del bot") + ": " +
-      a.affected + (a.oldest_seconds > 0
-        ? " (más antiguo: " + Math.max(1, Math.floor(a.oldest_seconds / 60)) +
-          " min)"
-        : "")
-    );
+    const lines: string[] = [];
+    let used = 0, omitted = false;
+    for (const alert of notice.snapshot) {
+      const heading = "• " +
+        (OPERATIONAL_ALERT_LABELS[alert.code] ?? "Incidente del bot") + ": " +
+        alert.affected;
+      if (used + heading.length > 3200) {
+        omitted = true;
+        break;
+      }
+      lines.push(heading);
+      used += heading.length + 1;
+      if (alert.code === "recovery_failure") {
+        lines.push(
+          "Servicio general: recuperación programada sin ejecución SQL exitosa reciente. Sin un cliente individual asociado.",
+        );
+        used += 130;
+      }
+      for (const issue of alert.details ?? []) {
+        const detail = safeClientName(issue.client_name) + " · " +
+          issueSource(issue.source_kind) + "\n" +
+          (issue.time_source === "received" ? "Recibido: " : "Error: ") +
+          issueTimestamp(issue.occurred_at) + " (Argentina)\n" +
+          issueDescription(issue);
+        if (used + detail.length > 3200) {
+          omitted = true;
+          break;
+        }
+        lines.push(detail);
+        used += detail.length + 1;
+      }
+      if (
+        alert.affected > (alert.details?.length ?? 0) &&
+        alert.code !== "recovery_failure"
+      ) omitted = true;
+    }
+    if (omitted) {
+      lines.push(
+        "Hay más casos o detalles disponibles en el panel de administrador.",
+      );
+    }
     sendStarted = true;
     await send(
       notice.to,
       "⚠️ Pesito: alerta técnica del bot\n\n" + lines.join("\n") +
-        "\n\nRevisá Estado del bot en el panel de administrador. No se incluyeron textos ni datos financieros de clientes.",
+        "\n\nRevisá Estado del bot en el panel de administrador. Identificación y diagnóstico para administración; sin textos de gastos, comprobantes ni credenciales.",
     );
   } catch (error) {
     const failure = failureMetadata(error);
