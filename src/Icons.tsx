@@ -37,6 +37,10 @@ const paths = {
   receipt: ['M4 3v18l4-2 4 2 4-2 4 2V3l-4 2-4-2-4 2ZM8 9h8M8 13h6'],
   bolt: ['m13 2-9 12h7l-1 8 10-12h-8Z'],
   music: ['M9 18V5l11-2v13M9 17a3 3 0 1 0 0 4 3 3 0 0 0 0-4ZM20 15a3 3 0 1 0 0 4 3 3 0 0 0 0-4Z'],
+  search: ['M11 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16Z', 'm21 21-4.35-4.35'],
+  moreHorizontal: ['M5 12h.01', 'M12 12h.01', 'M19 12h.01'],
+  filter: ['M4 6h16', 'M7 12h10', 'M10 18h4'],
+  copy: ['M9 9h11v11H9Z', 'M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1'],
 } as const;
 export type IconName = keyof typeof paths;
 export function Icon({

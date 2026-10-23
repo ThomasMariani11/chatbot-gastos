@@ -11,8 +11,8 @@ Mantener identidad, voseo, lógica financiera, permisos, datos, endpoints y par�
 | Bloque | Alcance | Estado |
 | --- | --- | --- |
 | 1 | Base transversal: hover, SVG, categorías, botones y legibilidad | Publicado en PR #24 (98c3dca), CI y verificación web aprobados; aceptación física en dispositivo pendiente |
-| 2 | Resumen: jerarquía de KPIs, presupuesto vacío, dona, movimientos breves y cuotas | Implementado y validado localmente; revisión visual, CI y publicación pendientes |
-| 3 | Vistas propias de Movimientos y Cuotas con datos existentes | Pendiente |
+| 2 | Resumen: jerarquía de KPIs, presupuesto vacío, dona, movimientos breves y cuotas | Publicado en PR #25 (79a955d), CI y verificación web aprobados; aceptación física en dispositivo pendiente |
+| 3 | Vistas propias de Movimientos y Cuotas con datos existentes | Implementado y validado localmente; revisión visual, CI y publicación pendientes |
 | 4 | Ajustes: agrupación, acciones secundarias, instalación y navegación inferior | Pendiente |
 | 5 | Admin: contadores compactos, pestañas sticky, tarjetas y acciones | Pendiente |
 
@@ -26,7 +26,7 @@ Mantener identidad, voseo, lógica financiera, permisos, datos, endpoints y par�
 
 ## Validación del bloque 1
 
-- ESLint, TypeScript/build y 459 pruebas existentes aprobadas. Se conserva el aviso previo de bundle mayor a 500 kB.
+- ESLint, TypeScript/build y 459 pruebas existentes aprobadas. Se conserva el aviso previo de chunk mayor a 500 kB.
 - Comparación estática contra 8031263: 160 llamadas/parámetros de Supabase revisados sin diferencias. No se modifican migraciones, backend, tablas ni dependencias.
 - Chromium: copias compiladas con componentes reales y API ficticia, con escrituras rechazadas por el mock. Se revisan 375 × 812 y 1280 × 960; acceso, registro, resumen, gráficos, apertura/cancelación de edición, Ajustes, admin y apertura/cancelación de membresía.
 - Muestreo de estilos computados: secundarios/control de acceso y registro, Ajustes y admin con texto >=13 px y contraste AA en los estados examinados. Primario #103b2e sobre #20b984: 4,94:1; secundarios #52655b sobre #f5f8f6: 5,83:1; destructivo #a83236 sobre #fff1f1: 6,02:1.
@@ -47,8 +47,26 @@ Mantener identidad, voseo, lógica financiera, permisos, datos, endpoints y par�
 - Chromium con datos ficticios y escrituras bloqueadas: 375 y 1280 px; cinco filas vs. lista completa e historial, todas las categorías en detalle, presupuesto sin definir/al 50%/al 85%/excedido, vacío, importes grandes, ARS/USD, selección de mes, cuota final con sus centavos, edición y confirmación abiertas/canceladas. Sin guardados ni mensajes externos.
 - Muestreo de textos del resumen: 55 elementos en móvil y 56 en escritorio, ninguno con tamaño menor a 13 px ni contraste insuficiente en los estados examinados. Acciones examinadas de al menos 44 px; no se observó desbordamiento horizontal. Esto no reemplaza la prueba física en Safari/PWA ni una auditoría completa de accesibilidad.
 
+## Bloque 3 — Implementación y validación
+
+- Vistas independientes por sección (`#resumen`, `#movimientos`, `#cuotas`): la navegación lateral y móvil cambia la vista principal y posiciona el scroll al inicio, conservando el selector de mes, el selector de moneda (`ARS`/`USD`) y los modales existentes sin duplicar consultas ni endpoints.
+- Movimientos (`#movimientos`):
+  - Barra sticky (`.movements-sticky-bar`) con buscador por descripción o categoría (icono SVG de lupa y botón para limpiar), filtro por tipo (`Todos`, `Gastos`, `Ingresos`) y selector de categoría (`Todas las categorías` + categorías del período).
+  - Lista completa del mes agrupada por día (`Hoy · 23 oct`, `Ayer · 22 oct`, `18 oct`, o con año si difiere del actual) mediante `groupMovementsByDay`, con subtotal neto diario formateado y coloreado.
+  - Cada operación reutiliza la fila de Resumen (icono SVG y color por categoría de `movementVisual`, importe con signo y color, chevron alineado y edición al tocar).
+  - Estados vacíos diferenciados cuando el mes no tiene movimientos o cuando los filtros activos no arrojan coincidencias (con acción `Limpiar filtros`).
+- Cuotas (`#cuotas`):
+  - Resumen superior (`.installments-summary-grid`) con el total que se paga este mes en cuotas (suma exacta de cuotas registradas en el mes seleccionado) y la cantidad de compras activas.
+  - Tarjetas de compras en cuotas con icono de categoría, barra de progreso accesible (`role="progressbar"`), próximo vencimiento programado (o fecha del período), monto de cuota, cuotas restantes y total registrado.
+  - Acciones `Modificar` y `Eliminar` agrupadas en un menú `"⋯"` (`aria-haspopup="menu"`, `aria-expanded`, cierre con clic externo o `Escape`), manteniendo el diálogo de confirmación antes de eliminar.
+  - Estado vacío ilustrado cuando no hay compras en cuotas activas en la moneda seleccionada.
+- Validación técnica y visual:
+  - ESLint, TypeScript/build y 468 pruebas Vitest aprobadas (464 previas + 4 pruebas nuevas de `summaryPresentation` sobre normalización de sección, filtrado sin tildes, agrupación diaria con subtotales en centavos y resumen mensual de cuotas).
+  - Comparación por AST de `src/Dashboard.tsx` contra `79a955d`: llamadas y argumentos de Supabase idénticos, sin nuevas consultas ni cambios de permisos.
+  - Verificación en Chromium headless (`375 × 812` y `1280 × 960`) con datos sintéticos y escrituras bloqueadas: `docOverflow = 0`, 0 textos menores a 13 px y 0 controles interactivos menores a 44 px.
+
 ## Pendientes explícitos
 
-La revisión visual del propietario, los controles de CI y la publicación del bloque 2 se registran por separado en su PR. La app de producción continúa en el bloque 1 hasta autorizar esa PR. Movimientos/Cuotas conservan por ahora su ubicación compartida hasta el bloque 3; Ajustes y compactación del admin quedan para 4 y 5. No se afirma cumplir todavía tres clientes por pantalla.
+Ajustes y compactación del admin quedan para los bloques 4 y 5. No se afirma cumplir todavía tres clientes por pantalla en móvil hasta completar el bloque 5.
 
 La aceptación global exige completar los cinco bloques y probar los flujos que cambian visualmente. Publicar únicamente la revisión autorizada y registrar su commit/CI en la PR correspondiente; la aceptación real en teléfono se registra por separado.
