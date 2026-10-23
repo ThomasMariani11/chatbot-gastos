@@ -13,8 +13,8 @@ Mantener identidad, voseo, lógica financiera, permisos, datos, endpoints y par�
 | 1 | Base transversal: hover, SVG, categorías, botones y legibilidad | Publicado en PR #24 (98c3dca), CI y verificación web aprobados; aceptación física en dispositivo pendiente |
 | 2 | Resumen: jerarquía de KPIs, presupuesto vacío, dona, movimientos breves y cuotas | Publicado en PR #25 (79a955d), CI y verificación web aprobados; aceptación física en dispositivo pendiente |
 | 3 | Vistas propias de Movimientos y Cuotas con datos existentes | Publicado en PR #26 (83e3322), CI y verificación web aprobados; aceptación física en dispositivo pendiente |
-| 4 | Ajustes: agrupación, acciones secundarias, instalación y navegación inferior | Implementado y validado localmente; revisión visual, CI y publicación pendientes |
-| 5 | Admin: contadores compactos, pestañas sticky, tarjetas y acciones | Pendiente |
+| 4 | Ajustes: agrupación, acciones secundarias, instalación y navegación inferior | Publicado en PR #27 (358abc4), CI y verificación web aprobados; aceptación física en dispositivo pendiente |
+| 5 | Admin: contadores compactos, pestañas sticky, tarjetas y acciones | Implementado y validado localmente; revisión visual, CI y publicación pendientes |
 
 ## Bloque 1 — Implementación
 
@@ -79,8 +79,31 @@ Mantener identidad, voseo, lógica financiera, permisos, datos, endpoints y par�
   - Comparación por AST de `src/Settings.tsx` contra `83e3322`: las 6 llamadas y argumentos de Supabase son 100 % idénticos.
   - Verificación en Chromium headless (`375 × 920` y `1280 × 1140`) con datos sintéticos y escrituras bloqueadas: `docOverflow = 0`, 0 textos menores a 13 px, 0 controles interactivos menores a 44 px, `.mobile-nav` presente, `role="switch"` activo y `Guardar mis datos` deshabilitado sin cambios.
 
-## Pendientes explícitos
+## Bloque 5 — Implementación y validación
 
-Compactación del panel de administración queda para el bloque 5. No se afirma cumplir todavía tres clientes por pantalla en móvil hasta completar el bloque 5.
+- Encabezado y navegación administrativa (`src/AdminPanel.tsx`, `src/summary.css`):
+  - `Actualizar` se convierte en botón de icono (`.admin-icon-refresh`) con nombre accesible y `Cerrar sesión` queda como enlace liviano (`.admin-signout-link`) con icono SVG. En móvil se organiza en dos filas sin superposiciones.
+  - Barra de pestañas (`Clientes`, `Invitaciones`, `Bot`, `Ajustes`) fija al hacer scroll (`position: sticky`) con insignias numéricas (`.admin-nav-badge`) en `Clientes` y en `Invitaciones` (disponibles).
+- Clientes (`Clientes`):
+  - La tira de cuatro contadores (`Clientes`, `Activos`, `Vencen en 7 días`, `Invitaciones libres`) se compacta en una sola fila horizontal y se muestra únicamente dentro de la pestaña `Clientes`, resaltando en ámbar `Vencen en 7 días` cuando es mayor a cero.
+  - Se elimina el encabezado duplicado `<h2>Clientes</h2>` dentro de la tarjeta para evitar la triple repetición de la palabra.
+  - Buscador con fondo blanco (`#ffffff`), borde visible (`#94a3b8`), placeholder legible e icono SVG de lupa.
+  - En móvil (`375 × 812`), cada cliente se presenta en una tarjeta compacta (~126–132 px de alto, permitiendo ver al menos 3 clientes completos en pantalla): nombre + insignia de estado (`Activo`, `Por vencer`, `Pausado`, `Vencido`) en la primera línea, email en una línea, vencimiento relativo coloreado (`Vence 27 oct · en 4 días`) junto al enlace verde de WhatsApp con icono en la segunda línea, y botones `Extender` (positivo) y `Pausar`/`Reactivar` (con modal de confirmación) al pie.
+  - En escritorio (`1280 px`), se alinea `Acciones` a la derecha, WhatsApp se muestra como enlace verde con icono y el vencimiento incorpora el relativo en días y color semántico.
+- Invitaciones (`Invitaciones`):
+  - Filtro activo (`Todas`, `Disponibles`, `Usadas`) destacado con relleno verde (`var(--mint-dark)`).
+  - Las invitaciones disponibles agregan el botón directo `Copiar código` junto a `Mensaje`, `Enlace` y `Anular`.
+  - Las invitaciones usadas unifican su estado en una sola píldora (`Usada el 18 oct`), eliminando la columna de acciones vacía y el texto redundante `Ya canjeada`.
+- Bot y Ajustes (`src/BotOperations.tsx`, `src/AdminPanel.tsx`):
+  - Se elimina el segundo botón `Actualizar` dentro de `Estado del bot`.
+  - `Desactivar` junto a `Avisos activos` se explicita como `Desactivar avisos` / `Activar avisos`.
+  - `Pausar bot` abre un modal de confirmación (`.admin-modal-backdrop`) antes de pausar las respuestas automáticas para todos los clientes; reactivarlas sigue siendo directo.
+  - Todos los bloques `<details><summary>` (`Mensajes pendientes`, `Detalle técnico`, `Limpieza de datos`, `Contacto de soporte`, `Datos de cobro`) reemplazan el marcador nativo por un chevron SVG rotatorio (`.admin-summary-chevron`).
+- Validación técnica y visual:
+  - ESLint, TypeScript/build y 468 pruebas Vitest aprobadas.
+  - Comparación por AST de `src/AdminPanel.tsx` (15 llamadas) y `src/BotOperations.tsx` (3 llamadas) contra `358abc4`: 100 % de paridad en llamadas y argumentos de Supabase.
+  - Verificación en Chromium headless (`375 × 812` y `1280 × 900`) con datos sintéticos y escrituras bloqueadas: `docOverflow = 0`, 0 textos menores a 13 px, 0 controles interactivos menores a 44 px y 3 tarjetas de clientes completamente visibles en `375 × 812` (4 visibles en viewport).
+
+## Pendientes explícitos
 
 La aceptación global exige completar los cinco bloques y probar los flujos que cambian visualmente. Publicar únicamente la revisión autorizada y registrar su commit/CI en la PR correspondiente; la aceptación real en teléfono se registra por separado.
