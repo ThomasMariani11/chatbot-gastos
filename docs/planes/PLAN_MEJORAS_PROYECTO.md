@@ -39,7 +39,7 @@ La aceptación física del rediseño, las cabeceras que GitHub Pages no permite 
 ## Ejecución del 23/10/2026 — Groq y cuotas
 
 - **Groq: renovación completada.** Clave sin vencimiento creada con autorización, prueba ficticia HTTP 200 y secreto Supabase actualizado/verificado. Plan Free mantenido, claves anteriores conservadas. [Evidencia y límites](VALIDACION_GROQ_ROTACION_2026-10-23.md). Este avance reemplaza la revisión de vigencia pendiente que figura en la sección histórica anterior; INF-15 sigue abierto.
-- **FE-01 / FE-02 / FE-03: implementados en rama, pendientes de CI/publicación/aceptación.** RPC atómica 029, contratos PWA/WhatsApp, control de versión e idempotencia; patch de campos editados y cuotas con identidad estable. 490 tests locales, lint/tipos/build, 12 SQL y seis controles de release aprobados. Navegador probado con PGlite ficticio. [Validación y orden de publicación](VALIDACION_FE_01_02_03.md).
+- **FE-01 / FE-02 / FE-03: implementados en [PR #30](https://github.com/ThomasMariani11/chatbot-gastos/pull/30), pendientes de CI/publicación/aceptación.** RPC atómica 029, contratos PWA/WhatsApp, control de versión e idempotencia; patch de campos editados y cuotas con identidad estable. 490 tests locales, lint/tipos/build, 12 SQL y seis controles de release aprobados. Navegador probado con PGlite ficticio. [Validación y orden de publicación](VALIDACION_FE_01_02_03.md).
 - **FE-11:** eliminación por identificador corregida en este bloque; pendiente de publicación y aceptación. FE-04 recibió guardia inmediata de envío y recibos para planes, pero las altas normales y la persistencia del intento tras recargar siguen abiertas.
 - Sin modificaciones a movimientos reales ni publicación de 029/PWA. La retención permanece sin habilitar y los backups al final por decisión del propietario.
 
@@ -254,13 +254,13 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 | Orden | ID | Severidad | Tema | Tareas relacionadas | Estado |
 | --- | --- | --- | --- | --- | --- |
-| 1 | FE-01 | Alta | Contrato de cuotas de WhatsApp y PWA | FE-02, FE-03, BE-03 | Pendiente |
-| 2 | FE-02 | Alta | Escrituras atómicas de planes | BE-10, BE-17 | Pendiente |
-| 3 | FE-03 | Alta | Preservar importes y cuotas eliminadas | FE-01, FE-02 | Pendiente |
+| 1 | FE-01 | Alta | Contrato de cuotas de WhatsApp y PWA | FE-02, FE-03, BE-03 | Preparado en PR #30; publicación pendiente |
+| 2 | FE-02 | Alta | Escrituras atómicas de planes | BE-10, BE-17 | Preparado en PR #30; publicación pendiente |
+| 3 | FE-03 | Alta | Preservar importes y cuotas eliminadas | FE-01, FE-02 | Preparado en PR #30; publicación pendiente |
 | 4 | FE-21 | Media | Pruebas de flujos y dominio real | BE-17, INF-06 | Pendiente |
 | 5 | FE-04 | Alta | Evitar movimientos duplicados | BE-10 | Pendiente |
 | 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Pendiente |
-| 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Pendiente |
+| 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Preparado en PR #30; publicación pendiente |
 | 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Pendiente |
 | 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Pendiente |
 | 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Pendiente |
@@ -270,7 +270,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 14 | FE-14 | Media | Permitir ampliación del navegador | — | Pendiente |
 | 15 | FE-15 | Media | Diálogos, foco y etiquetas accesibles | FE-07 | Pendiente |
 | 16 | FE-16 | Media | Contraste de botones | FE-22 | Pendiente |
-| 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Pendiente |
+| 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Preparado en PR #30; publicación pendiente |
 | 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Pendiente |
 | 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Pendiente |
 | 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | En curso; validada localmente, publicación pendiente |

@@ -103,8 +103,9 @@ describe('planes SQL atómicos con esquema real',()=>{
    await db.exec('alter table public.profiles disable trigger tr_protect_profile_system_fields');
    await db.query("update public.profiles set subscription_status='suspended' where id=$1",[a]);await db.exec('alter table public.profiles enable trigger tr_protect_profile_system_fields');
    await expect(read(plan.group_id)).rejects.toThrow('cuenta activa');await expect(change(plan,{})).rejects.toThrow('cuenta activa');
-   await db.exec("select set_config('request.jwt.claim.sub','',true)");
-   await db.query("update public.profiles set subscription_status='active',subscription_until=now()-interval '1 day' where id=$1",[a]);await db.exec('alter table public.profiles enable trigger tr_protect_profile_system_fields');await expect(create()).rejects.toThrow('cuenta activa');
+   await db.exec("select set_config('request.jwt.claim.sub','',true);alter table public.profiles disable trigger tr_protect_profile_system_fields");
+   await db.query("update public.profiles set subscription_status='active',subscription_until=now()-interval '1 day' where id=$1",[a]);
+   expect((await db.query('select subscription_status,subscription_until<now() as expired from public.profiles where id=$1',[a])).rows[0]).toEqual({subscription_status:'active',expired:true});await db.exec('alter table public.profiles enable trigger tr_protect_profile_system_fields');await expect(create()).rejects.toThrow('cuenta activa');
  });
  it('anon no ejecuta RPC y clientes no escriben recibos ni usan helpers',async()=>{
    await expect(act('select public.get_installment_plan($1) as result',[request()],'','anon')).rejects.toThrow('permission denied');

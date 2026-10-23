@@ -21,9 +21,9 @@ Se admiten ambos contratos existentes: padre PWA cancelado sin número y primera
 
 - 490 Vitest aprobados: 15 escenarios SQL nuevos ejecutando migraciones reales en PGlite y siete del patch/contrato del editor, además de las regresiones anteriores.
 - 12 escenarios SQL de renovaciones y seis controles de herramientas de release aprobados.
-- ESLint, TypeScript/build y `git diff --check` aprobados. El bundle sigue superando 500 kB (842,12 kB; 240,98 kB gzip); optimización separada.
-- Navegador: Dashboard real conectado a PGlite local, con datos ficticios y sin credenciales. Renombrar compra de 100 conserva 33,33 / 33,33 / 33,34. Quitar la cuota 2 y renombrar desde la 3 conserva números 1 y 3, la cuota 2 cancelada, el importe 33,34 y total activo 66,67. No se usaron cuentas ni movimientos reales.
-- Prueba PostgreSQL nativa agregada al ensayo de concurrencia: dos altas con mismo intento, dos ediciones de igual versión y rollback ante fallo intermedio. Docker está apagado en la PC; la ejecución nativa se delega a CI, sin declararla aprobada hasta disponer de sus resultados.
+- ESLint, TypeScript/build y `git diff --check` aprobados. El bundle sigue superando 500 kB (842,25 kB; 241,02 kB gzip); optimización separada.
+- Navegador: Dashboard real conectado a PGlite local, con datos ficticios y sin credenciales. Alta desde el formulario de 100 en tres cuotas aprobada. Renombrar compra de 100 conserva 33,33 / 33,33 / 33,34. Quitar la cuota 2 y renombrar desde la 3 conserva números 1 y 3, la cuota 2 cancelada, el importe 33,34 y total activo 66,67. No se usaron cuentas ni movimientos reales.
+- Prueba PostgreSQL nativa agregada al ensayo de concurrencia: dos altas con mismo intento, dos ediciones de igual versión y rollback ante fallo intermedio. Docker está apagado en la PC; la ejecución nativa se realiza en CI. El primer intento detectó un delimitador SQL incorrecto en el fixture, corregido; pendiente de resultados del candidato final.
 
 ## Publicación y recuperación
 
