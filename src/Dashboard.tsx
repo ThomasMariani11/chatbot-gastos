@@ -1270,7 +1270,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                       }}
                       aria-label={`Modificar cuotas de ${plan.description}`}
                     >
-                      <Icon name="edit" size={16} /> Modificar cuotas
+                      <Icon name="edit" size={16} /> Modificar
                     </button>
                     <button
                       type="button"
@@ -1278,7 +1278,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                       onClick={() => setInstallmentDeletePrompt({ plan })}
                       aria-label={`Eliminar plan ${plan.description}`}
                     >
-                      <Icon name="trash" size={16} /> Eliminar compra completa
+                      <Icon name="trash" size={16} /> Eliminar
                     </button>
                   </div>
                 </div>
