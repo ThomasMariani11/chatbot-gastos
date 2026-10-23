@@ -315,6 +315,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const editingPlanId = editingMovement?.installmentGroupId;
   const editingItemId = editingMovement?.id;
   const deletingPlanId = installmentDeletePrompt?.plan?.groupId ?? installmentDeletePrompt?.movement?.installmentGroupId;
+  const deletingRow = deletePlan?.rows.find(row => row.id === installmentDeletePrompt?.movement?.id);
 
   useEffect(() => {
     let active = true;
@@ -679,45 +680,45 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     addBusy.current = true;
     setIsAdding(true);
     try {
-    if (kind === 'expense' && isInstallments && installmentCount > 1) {
-      createRequest.current ??= crypto.randomUUID();
-      const snapshot = await mutateInstallmentPlan({
-        requestId: createRequest.current, action: 'create',
-        payload: { description, category_id: selectedCategory.id, currency, amount: enteredAmount,
-          amount_mode: installmentAmountMode, installment_count: installmentCount,
-          reference_date: dateStr, reference_number: currentInstallmentNumber },
-      });
-      createRequest.current = null;
-      setKnownMonths(prev => Array.from(new Set([...prev, ...snapshot.rows.map(row => row.occurred_on.slice(0, 7))])));
-    } else {
-      const { error } = await supabase.from('transactions').insert({
-        user_id: userId,
-        kind,
-        description,
-        amount_ars: enteredAmount,
-        currency,
-        occurred_on: dateStr,
-        category_id: selectedCategory.id,
-        status: 'confirmed',
-        source: 'pwa',
-      });
-      if (error) return window.alert('No pudimos guardar el movimiento.');
-    }
+      if (kind === 'expense' && isInstallments && installmentCount > 1) {
+        createRequest.current ??= crypto.randomUUID();
+        const snapshot = await mutateInstallmentPlan({
+          requestId: createRequest.current, action: 'create',
+          payload: { description, category_id: selectedCategory.id, currency, amount: enteredAmount,
+            amount_mode: installmentAmountMode, installment_count: installmentCount,
+            reference_date: dateStr, reference_number: currentInstallmentNumber },
+        });
+        createRequest.current = null;
+        setKnownMonths(prev => Array.from(new Set([...prev, ...snapshot.rows.map(row => row.occurred_on.slice(0, 7))])));
+      } else {
+        const { error } = await supabase.from('transactions').insert({
+          user_id: userId,
+          kind,
+          description,
+          amount_ars: enteredAmount,
+          currency,
+          occurred_on: dateStr,
+          category_id: selectedCategory.id,
+          status: 'confirmed',
+          source: 'pwa',
+        });
+        if (error) return window.alert('No pudimos guardar el movimiento.');
+      }
 
-    const targetMonth = dateStr.slice(0, 7);
-    setKnownMonths((prev) => Array.from(new Set([...prev, targetMonth])));
-    setMonth(targetMonth);
-    setActiveCurrency(currency);
+      const targetMonth = dateStr.slice(0, 7);
+      setKnownMonths((prev) => Array.from(new Set([...prev, targetMonth])));
+      setMonth(targetMonth);
+      setActiveCurrency(currency);
 
-    setShowAdd(false);
-    setIsInstallments(false);
-    setInstallmentCount(3);
-    setIsCustomInstallmentCount(false);
-    setCustomCountInput('3');
-    setInstallmentAmountMode('total');
-    setCurrentInstallmentNumber(1);
-    setFormAmount('');
-    setRefreshNonce(n => n + 1);
+      setShowAdd(false);
+      setIsInstallments(false);
+      setInstallmentCount(3);
+      setIsCustomInstallmentCount(false);
+      setCustomCountInput('3');
+      setInstallmentAmountMode('total');
+      setCurrentInstallmentNumber(1);
+      setFormAmount('');
+      setRefreshNonce(n => n + 1);
     } catch (error) {
       window.alert(planError(error));
     } finally {
@@ -2080,7 +2081,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <p className="eyebrow" style={{ color: '#ea7172' }}>ELIMINAR CUOTAS</p>
             <h2 id="delete-installments-title">{installmentDeletePrompt.movement ? '¿Cómo querés eliminar este movimiento?' : '¿Eliminar compra en cuotas?'}</h2>
             <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '8px 0 0' }}>
-              <strong>{installmentDeletePrompt.movement?.title ?? installmentDeletePrompt.plan?.description}</strong>
+              <strong>{deletingRow?.description ?? deletePlan?.rows[0]?.description ?? installmentDeletePrompt.movement?.title ?? installmentDeletePrompt.plan?.description}</strong>
               {installmentDeletePrompt.movement && installmentDeletePrompt.movement.installmentCount ? (
                 <span> · Cuota {installmentDeletePrompt.movement.installmentNumber ?? 1} de {installmentDeletePrompt.movement.installmentCount}</span>
               ) : (
@@ -2098,12 +2099,12 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 type="button"
                 className="delete-option-btn"
                 onMouseDown={(e) => e.preventDefault()}
-                disabled={isDeletingPlan || !deletePlan?.rows.length}
+                disabled={isDeletingPlan || !deletingRow}
                 onClick={() => void deleteInstallments(false, installmentDeletePrompt.movement!.id)}
               >
                 <div>
                   <strong>Eliminar solo esta cuota</strong>
-                  <small>Borra únicamente el pago de este mes ({formatMoney(installmentDeletePrompt.movement.amount, installmentDeletePrompt.movement.currency || activeCurrency)})</small>
+                  <small>Borra únicamente el pago de este mes ({formatMoney(deletingRow?.amount_ars ?? installmentDeletePrompt.movement.amount, deletingRow?.currency ?? installmentDeletePrompt.movement.currency ?? activeCurrency)})</small>
                 </div>
                 <span>›</span>
               </button>

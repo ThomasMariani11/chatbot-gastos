@@ -100,7 +100,7 @@ const planPayload=quote(JSON.stringify({description:'Plan sintético nativo',cat
 const asClient=sql=>`begin;set local role authenticated;select set_config('request.jwt.claim.sub','${a}',true);${sql};commit;`;
 const planRequest='59000000-0000-4000-8000-000000000001';
 // Dormir exclusivamente en el fixture hace que ambas sesiones disputen el mismo intento.
-await execute(`create function public.slow_plan_fixture() returns trigger language plpgsql as $begin if new.description='Plan sintético nativo' then perform pg_sleep(0.2);end if;return new;end$;
+await execute(`create function public.slow_plan_fixture() returns trigger language plpgsql as $$begin if new.description='Plan sintético nativo' then perform pg_sleep(0.2);end if;return new;end$$;
  create trigger slow_plan_fixture before insert on public.transactions for each row execute function public.slow_plan_fixture();`);
 const created=await Promise.all([0,1].map(()=>execute(asClient(`select public.mutate_installment_plan('${planRequest}','create',null,null,null,${planPayload}::jsonb,true)`))));
 const decodePlan=result=>JSON.parse(result.output.split('\n').find(line=>line.startsWith('{')));
@@ -115,7 +115,7 @@ assert.match(edits.find(r=>r.code!==0).error,/El plan cambió/);
 const afterRace=decodePlan(await execute(asClient(`select public.get_installment_plan('${nativePlan.group_id}')`)));
 assert.deepEqual(afterRace.rows.map(r=>Number(r.amount_ars)),[33.33,33.33,33.34]);
 // Un fallo después de iniciar escrituras no confirma ninguna cuota ni recibo.
-await execute(`create function public.fail_plan_fixture() returns trigger language plpgsql as $begin if new.description='Fallo nativo' and new.installment_number=2 then raise exception 'Fallo nativo controlado';end if;return new;end$;
+await execute(`create function public.fail_plan_fixture() returns trigger language plpgsql as $$begin if new.description='Fallo nativo' and new.installment_number=2 then raise exception 'Fallo nativo controlado';end if;return new;end$$;
  create trigger fail_plan_fixture before update on public.transactions for each row execute function public.fail_plan_fixture();`);
 const failedRequest='59000000-0000-4000-8000-000000000004';
 const failure=await execute(asClient(`select public.mutate_installment_plan('${failedRequest}','edit','${afterRace.group_id}','${afterRace.version}','${afterRace.rows[0].id}','{"description":"Fallo nativo","amount":200}',true)`),true);
