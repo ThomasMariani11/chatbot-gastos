@@ -1,5 +1,13 @@
 # Plan de mejoras del proyecto
 
+## Estado vigente — cierre de cuotas del 23/10/2026
+
+**FE-01, FE-02 y FE-03 terminados.** Migración 029 aplicada, [PR #30](https://github.com/ThomasMariani11/chatbot-gastos/pull/30) publicada en d8aaacd, CI completo y aceptación en producción ejecutada por Codex por instrucción del propietario. La compra ficticia se creó, renombró, editó tras eliminar la cuota 2 y eliminó al terminar; cero cuotas de prueba activas. [Evidencia y límites](VALIDACION_FE_01_02_03.md).
+
+**Siguiente bloque: FE-04 + FE-05**, altas idempotentes de movimientos normales y estados de carga/error por mes. Después FE-06/BE-02 (renovaciones concurrentes). FE-09 (totales restantes) continúa pendiente: este cierre no cambió ese cálculo. FE-11 tiene la corrección por ID publicada; su seguimiento de planes homónimos permanece abierto.
+
+Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. Backups siguen al final y la retención no se habilita. Las secciones de revisión y preparación siguientes son registros anteriores a este cierre; no indican trabajo actual pendiente para FE-01/02/03.
+
 ## Revisión incremental del 23/10/2026 — estado actual
 
 Esta sección actualiza la lectura del proyecto sobre main 8e46f60391558a41801dfc2768194a97e8439632; las auditorías y cierres fechados más abajo se conservan como registro histórico. No se deben interpretar sus líneas antiguas como verificación actual de producción.
@@ -39,9 +47,9 @@ La aceptación física del rediseño, las cabeceras que GitHub Pages no permite 
 ## Ejecución del 23/10/2026 — Groq y cuotas
 
 - **Groq: renovación completada.** Clave sin vencimiento creada con autorización, prueba ficticia HTTP 200 y secreto Supabase actualizado/verificado. Plan Free mantenido, claves anteriores conservadas. [Evidencia y límites](VALIDACION_GROQ_ROTACION_2026-10-23.md). Este avance reemplaza la revisión de vigencia pendiente que figura en la sección histórica anterior; INF-15 sigue abierto.
-- **FE-01 / FE-02 / FE-03: implementados en [PR #30](https://github.com/ThomasMariani11/chatbot-gastos/pull/30), pendientes de CI/publicación/aceptación.** RPC atómica 029, contratos PWA/WhatsApp, control de versión e idempotencia; patch de campos editados y cuotas con identidad estable. 490 tests locales, lint/tipos/build, 12 SQL y seis controles de release aprobados. Navegador probado con PGlite ficticio. [Validación y orden de publicación](VALIDACION_FE_01_02_03.md).
-- **FE-11:** eliminación por identificador corregida en este bloque; pendiente de publicación y aceptación. FE-04 recibió guardia inmediata de envío y recibos para planes, pero las altas normales y la persistencia del intento tras recargar siguen abiertas.
-- Sin modificaciones a movimientos reales ni publicación de 029/PWA. La retención permanece sin habilitar y los backups al final por decisión del propietario.
+- **FE-01 / FE-02 / FE-03: publicados y aceptados en [PR #30](https://github.com/ThomasMariani11/chatbot-gastos/pull/30).** RPC atómica 029, contratos PWA/WhatsApp, control de versión e idempotencia; patch de campos editados y cuotas con identidad estable. 490 tests locales, lint/tipos/build, 12 SQL y seis controles de release aprobados. Navegador probado con PGlite ficticio. [Validación y orden de publicación](VALIDACION_FE_01_02_03.md).
+- **FE-11:** eliminación por identificador publicada en este bloque; sigue pendiente su aceptación específica con planes homónimos. FE-04 recibió guardia inmediata de envío y recibos para planes, pero las altas normales y la persistencia del intento tras recargar siguen abiertas.
+- 029/PWA publicadas y aceptación completada operando solamente la compra ficticia autorizada. No se operó sobre compras preexistentes. La retención permanece sin habilitar y los backups al final por decisión del propietario.
 
 ## Objetivo
 
@@ -254,13 +262,13 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 | Orden | ID | Severidad | Tema | Tareas relacionadas | Estado |
 | --- | --- | --- | --- | --- | --- |
-| 1 | FE-01 | Alta | Contrato de cuotas de WhatsApp y PWA | FE-02, FE-03, BE-03 | Preparado en PR #30; publicación pendiente |
-| 2 | FE-02 | Alta | Escrituras atómicas de planes | BE-10, BE-17 | Preparado en PR #30; publicación pendiente |
-| 3 | FE-03 | Alta | Preservar importes y cuotas eliminadas | FE-01, FE-02 | Preparado en PR #30; publicación pendiente |
+| 1 | FE-01 | Alta | Contrato de cuotas de WhatsApp y PWA | FE-02, FE-03, BE-03 | Terminada; publicada y aceptada |
+| 2 | FE-02 | Alta | Escrituras atómicas de planes | BE-10, BE-17 | Terminada; publicada y aceptada |
+| 3 | FE-03 | Alta | Preservar importes y cuotas eliminadas | FE-01, FE-02 | Terminada; publicada y aceptada |
 | 4 | FE-21 | Media | Pruebas de flujos y dominio real | BE-17, INF-06 | Pendiente |
 | 5 | FE-04 | Alta | Evitar movimientos duplicados | BE-10 | Pendiente |
 | 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Pendiente |
-| 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Preparado en PR #30; publicación pendiente |
+| 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Pendiente |
 | 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Pendiente |
 | 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Pendiente |
 | 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Pendiente |
@@ -270,7 +278,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 14 | FE-14 | Media | Permitir ampliación del navegador | — | Pendiente |
 | 15 | FE-15 | Media | Diálogos, foco y etiquetas accesibles | FE-07 | Pendiente |
 | 16 | FE-16 | Media | Contraste de botones | FE-22 | Pendiente |
-| 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Preparado en PR #30; publicación pendiente |
+| 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Corrección publicada; aceptación de homónimos pendiente |
 | 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Pendiente |
 | 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Pendiente |
 | 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | En curso; validada localmente, publicación pendiente |
@@ -279,7 +287,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-01 — Unificar el contrato de cuotas de WhatsApp y PWA
 
-- [ ] Terminada.
+- [x] Terminada. Publicada y aceptada el 23/10/2026; ver [validación](VALIDACION_FE_01_02_03.md).
 - **Categoría:** Bug. **Problema reproducido:** la PWA supone un padre separado, pero WhatsApp usa la primera cuota confirmada como identificador del grupo. Al editar todo el plan se escribe sobre esa cuota tanto su importe individual como el total, en paralelo. Una fixture de tres cuotas de 100 terminó en 300, 100 y 100; el resultado depende del orden de escritura.
 - **Archivos:** src/Dashboard.tsx:817, :824; supabase/migrations/015_allow_multiple_transactions_per_wa_message.sql:184, :186.
 - **Trabajo:** definir un contrato único de grupo y distinguir un padre cancelado de una cuota confirmada; no escribir el total sobre una cuota. Revisar planes existentes antes de una migración y no asumir que existen importes dañados en producción. Coordinar la operación atómica de FE-02 y la integridad de propietario de BE-03.
@@ -287,7 +295,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-02 — Guardar creación y edición de planes de forma atómica
 
-- [ ] Terminada.
+- [x] Terminada. Publicada y aceptada el 23/10/2026; ver [validación](VALIDACION_FE_01_02_03.md).
 - **Categoría:** Bug. **Problema reproducido:** las actualizaciones de cuotas y padre son peticiones independientes; Promise.all no es una transacción. Al fallar la segunda cuota de un cambio de 100 a 200, quedaron 200, 100 y 200. En el alta, un fallo del lote deja el padre cancelado sin hijos; la inserción del array de cuotas por sí misma sí es una única operación.
 - **Archivos:** src/Dashboard.tsx:612, :653, :831.
 - **Trabajo:** definir RPC transaccionales específicas para crear y editar planes, con identidad, suscripción, propietario, entradas validadas y control de versión; devolver el resultado real. Incluir altas, cambios y eliminaciones requeridos en la misma transacción. Reconciliar el estado cliente después del resultado.
@@ -296,7 +304,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-03 — Preservar campos no modificados y números de cuota
 
-- [ ] Terminada.
+- [x] Terminada. Publicada y aceptada el 23/10/2026; ver [validación](VALIDACION_FE_01_02_03.md).
 - **Categoría:** Bug. **Problema reproducido:** aplicar a todas está activado por defecto y copia el importe de la cuota seleccionada a todas. Cambiar solo la descripción de un total de 100 dividido en 33,33 / 33,33 / 33,34 dejó 99,99. Si se eliminó la cuota 2, editar el plan renumera la 3 como 2 y crea otra 3.
 - **Archivos:** src/Dashboard.tsx:705, :718, :767, :777, :785.
 - **Trabajo:** calcular un patch de los campos efectivamente cambiados; mantener importes y centavos cuando no se editan; distribuir centavos desde un total validado cuando corresponda. Buscar cuotas por ID/número estable, no por índice; agregar, quitar o restaurar cuotas mediante acciones explícitas.
@@ -750,3 +758,5 @@ Completar una entrada al cerrar cada tarea:
 | 20/10/2026 | INF-12 / BE-15 | Integración Groq Free (whisper-large-v3-turbo + normalización de montos hablados + reglas locales previas + qwen/qwen3.8-27b con esquema estricto y cupo compartido) | 306 Vitest, 38 Deno sin red, 12 SQL, seis controles Node, cuatro checks CI, smoke 401 y aceptación WhatsApp (imagen 3,11 s, audio 2,32 s + CANCELAR) | Webhook ACTIVE desplegado desde checkout limpio; cero transacciones creadas | Terminada; rotar clave beta antes del 27/10 y continuar con INF-14 / BE-16 |
 
 | 23/10/2026 | INF-13 / FE-19 | CSP única en build y meta no-referrer; solo scripts propios y orígenes exactos | 459 tests, lint/tipos/build; copia ficticia con gráficos, administrador, SW, fuentes y bloqueos CSP; Auth health 200/WSS real sin datos | Preparado en rama; sin publicación, SQL ni webhook nuevos | CI/publicación y aceptación; headers exclusivos del hosting abiertos; INF-15 siguiente, retención sin aprobar y backups al final |
+
+| 23/10/2026 | Cierre FE-01 / FE-02 / FE-03 | Migración 029 y PR #30 (d8aaacd); aceptación delegada por el propietario | 490 Vitest, 12 SQL, seis controles de release, lint/tipos/build, concurrencia PostgreSQL y CI main; PWA con alta de 100, renombrado, eliminación de cuota 2, reedición y limpieza | Fuente/funciones/ACL verificadas; cero cuotas ficticias activas; compras anteriores visibles | FE-04/FE-05 siguiente; FE-09 y seguimiento FE-11 abiertos; backups al final |
