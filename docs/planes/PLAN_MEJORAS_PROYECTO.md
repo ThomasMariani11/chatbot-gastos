@@ -6,7 +6,7 @@
 
 **FE-04 + FE-05 terminados.** Migración 030 aplicada y registrada antes de integrar/publicar la [PR #32](https://github.com/ThomasMariani11/chatbot-gastos/pull/32), versión d0cf7e5. Altas PWA con recibo SQL, recuperación del mismo intento tras recargar y carga/error por usuario y mes. Los cuatro controles y la publicación aprobaron. Aceptación final delegada y aprobada en la PWA publicada: doble clic, recarga inmediata, recuperación del formulario, dos comprobaciones y una sola operación/recibo. Cambio rápido de mes correcto. Prueba cancelada, sin movimientos ficticios activos ni envíos pendientes. [Validación, orden y límites](VALIDACION_FE_04_05.md). Después sigue FE-06/BE-02 (renovaciones concurrentes). FE-09 (totales restantes) continúa pendiente: este cierre no cambió ese cálculo. FE-11 tiene la corrección por ID publicada; su seguimiento de planes homónimos permanece abierto.
 
-Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. Backups siguen al final y la retención no se habilita. Las secciones de revisión y preparación siguientes son registros anteriores a este cierre; no indican trabajo actual pendiente para FE-01/02/03.
+Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. Backups siguen al final y la retención no se habilita. Las secciones de revisión y preparación siguientes son registros anteriores a este cierre; no indican trabajo actual pendiente para FE-01/02/03/04/05.
 
 ## Revisión incremental del 23/10/2026 — estado actual
 
@@ -312,7 +312,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-04 — Evitar dobles envíos de movimientos
 
-- [ ] Terminada. Publicada en PR #32 y aceptada el 24/10/2026; ver validación. [Validación](VALIDACION_FE_04_05.md).
+- [x] Terminada. Publicada en PR #32 y aceptada el 24/10/2026. [Validación](VALIDACION_FE_04_05.md).
 - **Categoría:** Bug. **Problema reproducido:** addMovement no tiene exclusión durante el guardado ni clave de idempotencia. Dos envíos antes de terminar la primera petición crearon dos movimientos iguales. El botón solo se deshabilita por falta de categoría.
 - **Archivos:** src/Dashboard.tsx:590, :1626.
 - **Trabajo:** guardia inmediata mediante ref, estado de envío, botón deshabilitado y feedback visible; reutilizar una clave idempotente del mismo intento en reintentos. Validar y deduplicar esa clave en el servidor, sin bloquear operaciones iguales que el usuario quiera crear por separado.
@@ -320,7 +320,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-05 — Representar carga, error y contexto mensual correctamente
 
-- [ ] Terminada. Publicada en PR #32 y aceptada el 24/10/2026; ver validación. [Validación](VALIDACION_FE_04_05.md).
+- [x] Terminada. Publicada en PR #32 y aceptada el 24/10/2026. [Validación](VALIDACION_FE_04_05.md).
 - **Categoría:** Bug. **Problema confirmado:** errores de movimientos/presupuesto se omiten y se mantiene el estado anterior. Al cambiar de mes y fallar solo una consulta pueden aparecer movimientos del mes anterior bajo el nuevo encabezado. La primera carga fallida puede verse como cero o vacío. El fallback de meses contiene un segundo await sin revalidar el efecto activo.
 - **Archivos:** src/Dashboard.tsx:385, :402, :405, :422, :444, :456.
 - **Trabajo:** estado de datos identificado por usuario/mes; estados explícitos de carga, vacío y error con reintento. Cancelar consultas o descartar respuestas con generación de solicitud, después de cada await; mantener la exclusión durante todo el fallback y evitar mezclar resultados de cargas distintas.
