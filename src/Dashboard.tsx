@@ -11,6 +11,9 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { supabase } from './supabase';
 import { mutateInstallmentPlan, readInstallmentPlan, planPatch, planError, type PlanSnapshot } from './installmentPlans';
+import { EntrySender, browserEntryStorage, entryError, type EntryAttempt, type EntryDraft } from './pwaEntries';
+import { createDashboardLoader, canShowDashboard, type LoadView } from './dashboardLoader';
+import { readDashboardSnapshot } from './dashboardData';
 import { requestWhatsAppLinkCode } from './whatsappLink';
 import { formatAmountInput, numberToAmountInput, parseAmountNumber, formatMoney } from '../lib/finance';
 import { usePwaInstall } from './usePwaInstall';
@@ -85,10 +88,6 @@ function monthKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function shiftMonth(key: string, offset: number) {
-  const [year, month] = key.split('-').map(Number);
-  return monthKey(new Date(year, month - 1 + offset, 1));
-}
 
 
 
@@ -212,6 +211,11 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const currentMonth = monthKey(new Date());
   const [month, setMonth] = useState(currentMonth);
   const [knownMonths, setKnownMonths] = useState<string[]>([]);
+  const [dataContext, setDataContext] = useState<string | null>(null);
+  const context = userId + ':' + month;
+  const [readView, setReadView] = useState<LoadView>({ context, status: 'loading', refreshing: false });
+  const [monthsWarning, setMonthsWarning] = useState(false);
+  const financialReady = canShowDashboard(readView, context) && dataContext === context;
   const availableMonths = useMemo(() => {
     const monthsSet = new Set<string>();
 
@@ -222,12 +226,12 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     if (month) monthsSet.add(month);
 
     // Incluimos todos los meses que tengan gastos/movimientos o cuotas registradas
-    knownMonths.forEach((m) => {
+    (dataContext?.startsWith(userId + ':') ? knownMonths : []).forEach((m) => {
       if (m && /^\d{4}-\d{2}$/.test(m)) monthsSet.add(m);
     });
 
     return Array.from(monthsSet).sort();
-  }, [currentMonth, month, knownMonths]);
+  }, [currentMonth, month, knownMonths, userId, dataContext]);
 
   const [activeSection, setActiveSection] = useState(() => normalizeDashboardSection(window.location.hash));
   useEffect(() => {
@@ -286,6 +290,19 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const [installmentAmountMode, setInstallmentAmountMode] = useState<'total' | 'quota'>('total');
   const [currentInstallmentNumber, setCurrentInstallmentNumber] = useState<number>(1);
   const [formAmount, setFormAmount] = useState<string>('');
+  const [formDescription, setFormDescription] = useState('');
+  const [formDate, setFormDate] = useState(todayKey());
+  const [pendingEntry, setPendingEntry] = useState<EntryAttempt | null>(null);
+  const [entryMessage, setEntryMessage] = useState('');
+  const [entryStorageIssue, setEntryStorageIssue] = useState('');
+  const [categoryStatus, setCategoryStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const entrySender = useMemo(() => new EntrySender(userId, browserEntryStorage), [userId]);
+  useEffect(() => {
+    entrySender.activate();
+    try { setPendingEntry(entrySender.pending()); setEntryStorageIssue(''); }
+    catch (error) { setEntryStorageIssue(entryError(error)); }
+    return () => entrySender.deactivate();
+  }, [entrySender]);
   const [installmentDeletePrompt, setInstallmentDeletePrompt] = useState<{ movement?: Movement; plan?: InstallmentPlan } | null>(null);
   const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
   const [editDescription, setEditDescription] = useState('');
@@ -306,10 +323,8 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const [editPlanError, setEditPlanError] = useState('');
   const [deletePlanError, setDeletePlanError] = useState('');
   const [isDeletingPlan, setIsDeletingPlan] = useState(false);
-  const addBusy = useRef(false);
   const editBusy = useRef(false);
   const deleteBusy = useRef(false);
-  const createRequest = useRef<string | null>(null);
   const editRequest = useRef<string | null>(null);
   const deleteRequest = useRef<string | null>(null);
   const editingPlanId = editingMovement?.installmentGroupId;
@@ -425,50 +440,38 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
 
   useEffect(() => {
     let active = true;
-    supabase
-      .from('categories')
-      .select('id,name,kind')
-      .eq('user_id', userId)
-      .eq('active', true)
-      .order('name')
-      .then(({ data }) => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
+    setCategoryStatus('loading');
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from('categories').select('id,name,kind')
+          .eq('user_id', userId).eq('active', true).order('name').abortSignal(controller.signal);
         if (!active) return;
-        setCategories((data ?? []).map((category) => ({
-          id: String(category.id),
-          name: String(category.name),
-          kind: category.kind as 'expense' | 'income',
-        })));
-      });
-    return () => { active = false; };
-  }, [userId]);
+        if (error || !Array.isArray(data)) throw new Error('Categorías no disponibles');
+        setCategories(data.map(category => ({ id: String(category.id), name: String(category.name), kind: category.kind as 'expense' | 'income' })));
+        setCategoryStatus('ready');
+      } catch { if (active) setCategoryStatus('error'); }
+      finally { window.clearTimeout(timeout); }
+    })();
+    return () => { active = false; controller.abort(); window.clearTimeout(timeout); };
+  }, [userId, refreshNonce]);
 
   useEffect(() => {
-    if (!availableCategories.some((category) => category.id === categoryId)) {
+    if (!pendingEntry && !availableCategories.some((category) => category.id === categoryId)) {
       setCategoryId(availableCategories[0]?.id ?? '');
     }
-  }, [availableCategories, categoryId]);
+  }, [availableCategories, categoryId, pendingEntry]);
 
   useEffect(() => {
-    let active = true;
-    let loading = false;
-    const monthStart = `${month}-01`;
-    const monthEnd = `${shiftMonth(month, 1)}-01`;
-    const loadDashboard = async () => {
-      if (loading) return;
-      loading = true;
-      const [transactions, budgets, allInstallments, whatsappLink, appSettings, distinctMonthsRes, botPhoneRes] = await Promise.all([
-        supabase.from('transactions').select('id,description,amount_ars,currency,occurred_on,kind,category_id,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gte('occurred_on', monthStart).lt('occurred_on', monthEnd).order('occurred_on', { ascending: false }),
-        supabase.from('budgets').select('amount_ars').eq('user_id', userId).eq('month', monthStart).maybeSingle(),
-        supabase.from('transactions').select('id,description,amount_ars,currency,occurred_on,kind,category_id,categories(name),installment_number,installment_count,installment_group_id').eq('user_id', userId).eq('status', 'confirmed').gt('installment_count', 1).order('occurred_on', { ascending: true }),
-        supabase.from('whatsapp_links').select('status').eq('user_id', userId).maybeSingle(),
-        supabase.from('app_settings').select('whatsapp_responses_enabled').eq('user_id', userId).maybeSingle(),
-        supabase.rpc('get_distinct_transaction_months'),
-        supabase.from('system_config').select('value').eq('key', 'whatsapp_bot_phone').maybeSingle(),
-      ]);
-      loading = false;
-      if (!active) return;
-      if (botPhoneRes?.data?.value) setWaBotNumber(botPhoneRes.data.value);
-      if (!transactions.error) {
+    const loadContext = userId + ':' + month;
+    const loader = createDashboardLoader({
+      read: signal => readDashboardSnapshot(userId, month, signal),
+      start: () => setReadView(current => ({ context: loadContext,
+        status: current.context === loadContext && current.status === 'ready' ? 'ready' : 'loading', refreshing: true })),
+      commit: snapshot => {
+        const transactions = { data: snapshot.transactions };
+        const allInstallments = { data: snapshot.installments, error: null };
         setMovements((transactions.data ?? []).map((row: Record<string, unknown>) => ({
           id: String(row.id),
           title: String(row.description),
@@ -482,44 +485,11 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           installmentCount: row.installment_count ? Number(row.installment_count) : null,
           installmentGroupId: row.installment_group_id ? String(row.installment_group_id) : null,
         })));
-      }
-
-      if (!budgets.error) setBudget(budgets.data?.amount_ars ? Number(budgets.data.amount_ars) : 0);
-      if (whatsappLink.error || appSettings.error || !appSettings.data) {
-        setBotState('unknown');
-      } else if (whatsappLink.data?.status !== 'active') {
-        setBotState('unlinked');
-      } else if (!appSettings.data.whatsapp_responses_enabled) {
-        setBotState('paused');
-      } else {
-        setBotState('active');
-      }
-      const monthsFound = new Set<string>();
-      if (!distinctMonthsRes.error && Array.isArray(distinctMonthsRes.data)) {
-        distinctMonthsRes.data.forEach((item: unknown) => {
-          if (typeof item === 'string' && /^\d{4}-\d{2}$/.test(item)) {
-            monthsFound.add(item);
-          } else if (item && typeof item === 'object' && 'month' in item) {
-            const m = String((item as { month?: unknown }).month);
-            if (/^\d{4}-\d{2}$/.test(m)) monthsFound.add(m);
-          }
-        });
-      } else {
-        // Fallback resiliente: Si la función RPC aún no fue migrada en la base de datos remota
-        const fallback = await supabase
-          .from('transactions')
-          .select('occurred_on')
-          .eq('user_id', userId)
-          .eq('status', 'confirmed');
-        (fallback.data ?? []).forEach((row: Record<string, unknown>) => {
-          if (row.occurred_on) monthsFound.add(String(row.occurred_on).slice(0, 7));
-        });
-      }
-      (allInstallments.data ?? []).forEach((row: Record<string, unknown>) => {
-        if (row.occurred_on) monthsFound.add(String(row.occurred_on).slice(0, 7));
-      });
-      setKnownMonths(Array.from(monthsFound));
-
+        setBudget(snapshot.budget);
+        setKnownMonths(snapshot.months);
+        setMonthsWarning(snapshot.monthsWarning);
+        setBotState(snapshot.botState);
+        setWaBotNumber(snapshot.botPhone);
       if (!allInstallments.error && allInstallments.data) {
         const groups = new Map<string, Array<Record<string, unknown>>>();
         allInstallments.data.forEach((row: Record<string, unknown>) => {
@@ -599,24 +569,34 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
 
         setInstallmentPlans(computedPlans);
       }
-    };
-    void loadDashboard();
-    const channel = supabase.channel(`dashboard-${userId}-${month}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${userId}` }, loadDashboard)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets', filter: `user_id=eq.${userId}` }, loadDashboard)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'whatsapp_links', filter: `user_id=eq.${userId}` }, loadDashboard)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings', filter: `user_id=eq.${userId}` }, loadDashboard)
+        setDataContext(loadContext);
+        setReadView({ context: loadContext, status: 'ready', refreshing: false });
+      },
+      fail: () => { setReadView({ context: loadContext, status: 'error', refreshing: false }); setBotState('unknown'); },
+    });
+    const refresh = () => { void loader.refresh(); };
+    refresh();
+    const channel = supabase.channel('dashboard-' + userId + '-' + month)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: 'user_id=eq.' + userId }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets', filter: 'user_id=eq.' + userId }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'whatsapp_links', filter: 'user_id=eq.' + userId }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings', filter: 'user_id=eq.' + userId }, refresh)
       .subscribe();
-    const interval = window.setInterval(loadDashboard, 5000);
-    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') void loadDashboard(); };
+    const interval = window.setInterval(refresh, 5000);
+    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') refresh(); };
     document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
-      active = false;
+      loader.stop();
       window.clearInterval(interval);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
       void supabase.removeChannel(channel);
     };
   }, [month, userId, refreshNonce]);
+
+  function refreshDashboard() {
+    setReadView({ context, status: 'loading', refreshing: false });
+    setRefreshNonce(n => n + 1);
+  }
 
   function openBudgetModal() {
     setBudgetInput(budget > 0 ? numberToAmountInput(budget) : '');
@@ -642,6 +622,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       return window.alert('No pudimos guardar el presupuesto. Intentá nuevamente.');
     }
     setBudget(next);
+    refreshDashboard();
     setShowBudgetModal(false);
   }
 
@@ -660,71 +641,77 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     }
     setBudget(0);
     setBudgetInput('');
+    refreshDashboard();
     setShowDeleteBudgetConfirm(false);
     setShowBudgetModal(false);
   }
 
+  function restoreEntry(attempt: EntryAttempt) {
+    const p = attempt.payload;
+    setFormDescription(String(p.description)); setFormAmount(numberToAmountInput(Number(p.amount)));
+    setManualCurrency(p.currency === 'USD' ? 'USD' : 'ARS');
+    setManualKind(attempt.type === 'plan' ? 'expense' : p.kind as 'expense' | 'income');
+    setCategoryId(String(p.category_id)); setFormDate(String(attempt.type === 'plan' ? p.reference_date : p.occurred_on));
+    setIsInstallments(attempt.type === 'plan');
+    if (attempt.type === 'plan') {
+      const count = Number(p.installment_count);
+      setInstallmentCount(count); setCurrentInstallmentNumber(Number(p.reference_number));
+      setIsCustomInstallmentCount(!PRESET_INSTALLMENT_COUNTS.includes(count)); setCustomCountInput(String(count));
+      setInstallmentAmountMode(p.amount_mode === 'quota' ? 'quota' : 'total');
+    }
+  }
+
+  function openAddForm() {
+    if (entrySender.busy) return;
+    setEntryMessage('');
+    try {
+      const pending = entrySender.pending();
+      setPendingEntry(pending); setEntryStorageIssue('');
+      if (pending) restoreEntry(pending); else if (!formDescription.trim() && !formAmount) setManualCurrency(activeCurrency);
+    } catch (error) { setEntryStorageIssue(entryError(error)); }
+    setShowAdd(true);
+  }
+
+  function closeAddForm() { if (!entrySender.busy) setShowAdd(false); }
+
+  async function submitEntry(draft?: EntryDraft, cancel = false) {
+    if (entrySender.busy) return;
+    setIsAdding(true); setEntryMessage('');
+    try {
+      const completed = await entrySender.run(draft, cancel);
+      if (!completed) return;
+      setPendingEntry(null); setEntryStorageIssue('');
+      if (completed.result.state === 'cancelled') {
+        restoreEntry(completed.attempt);
+        setEntryMessage('Envío cancelado. Podés corregir los datos y volver a guardar.');
+      } else {
+        const p = completed.attempt.payload;
+        const targetMonth = String(completed.attempt.type === 'plan' ? p.reference_date : p.occurred_on).slice(0, 7);
+        setKnownMonths(prev => Array.from(new Set([...prev, targetMonth])));
+        setMonth(targetMonth); setActiveCurrency(p.currency === 'USD' ? 'USD' : 'ARS');
+        setShowAdd(false); setIsInstallments(false); setInstallmentCount(3); setIsCustomInstallmentCount(false);
+        setCustomCountInput('3'); setInstallmentAmountMode('total'); setCurrentInstallmentNumber(1);
+        setFormAmount(''); setFormDescription(''); setFormDate(todayKey());
+        setEntryMessage(completed.result.state === 'removed' ? 'Ese envío ya se había guardado y después se eliminó. No lo volvimos a crear.'
+          : cancel ? 'El envío ya estaba guardado. Lo comprobamos sin duplicarlo.' : completed.result.replayed ? 'Envío comprobado. Se guardó una sola vez.' : 'Movimiento guardado.');
+        refreshDashboard();
+      }
+    } catch (error) {
+      setEntryMessage(entryError(error));
+      try { setPendingEntry(entrySender.pending()); }
+      catch (storageError) { setEntryStorageIssue(entryError(storageError)); }
+    } finally { setIsAdding(false); }
+  }
+
   async function addMovement(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const currency = (form.get('currency') as 'ARS' | 'USD') || manualCurrency;
-    const kind = form.get('kind') as 'expense' | 'income';
-    const selectedCategory = categories.find((category) => category.id === categoryId && category.kind === kind);
-    if (!selectedCategory) return window.alert('Seleccioná una categoría válida.');
-    const description = String(form.get('description')).trim();
-    const enteredAmount = parseAmountNumber(formAmount);
-    const dateStr = String(form.get('date'));
-    if (!description || !enteredAmount || enteredAmount <= 0) return;
-
-    if (addBusy.current) return;
-    addBusy.current = true;
-    setIsAdding(true);
-    try {
-      if (kind === 'expense' && isInstallments && installmentCount > 1) {
-        createRequest.current ??= crypto.randomUUID();
-        const snapshot = await mutateInstallmentPlan({
-          requestId: createRequest.current, action: 'create',
-          payload: { description, category_id: selectedCategory.id, currency, amount: enteredAmount,
-            amount_mode: installmentAmountMode, installment_count: installmentCount,
-            reference_date: dateStr, reference_number: currentInstallmentNumber },
-        });
-        createRequest.current = null;
-        setKnownMonths(prev => Array.from(new Set([...prev, ...snapshot.rows.map(row => row.occurred_on.slice(0, 7))])));
-      } else {
-        const { error } = await supabase.from('transactions').insert({
-          user_id: userId,
-          kind,
-          description,
-          amount_ars: enteredAmount,
-          currency,
-          occurred_on: dateStr,
-          category_id: selectedCategory.id,
-          status: 'confirmed',
-          source: 'pwa',
-        });
-        if (error) return window.alert('No pudimos guardar el movimiento.');
-      }
-
-      const targetMonth = dateStr.slice(0, 7);
-      setKnownMonths((prev) => Array.from(new Set([...prev, targetMonth])));
-      setMonth(targetMonth);
-      setActiveCurrency(currency);
-
-      setShowAdd(false);
-      setIsInstallments(false);
-      setInstallmentCount(3);
-      setIsCustomInstallmentCount(false);
-      setCustomCountInput('3');
-      setInstallmentAmountMode('total');
-      setCurrentInstallmentNumber(1);
-      setFormAmount('');
-      setRefreshNonce(n => n + 1);
-    } catch (error) {
-      window.alert(planError(error));
-    } finally {
-      addBusy.current = false;
-      setIsAdding(false);
-    }
+    if (entrySender.busy || pendingEntry || entryStorageIssue) return;
+    const selected = categories.find(category => category.id === categoryId && category.kind === manualKind);
+    if (!selected) { setEntryMessage('Seleccioná una categoría válida.'); return; }
+    const common = { description: formDescription.trim(), amount: parseAmountNumber(formAmount), currency: manualCurrency, category_id: selected.id };
+    await submitEntry(manualKind === 'expense' && isInstallments
+      ? { type: 'plan', payload: { ...common, amount_mode: installmentAmountMode, installment_count: installmentCount, reference_date: formDate, reference_number: currentInstallmentNumber } }
+      : { type: 'movement', payload: { ...common, kind: manualKind, occurred_on: formDate } });
   }
 
   function startEditMovement(item: Movement) {
@@ -781,7 +768,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       setEditingMovement(null);
       setKnownMonths(prev => Array.from(new Set([...prev, editDate.slice(0, 7)])));
       setMonth(editDate.slice(0, 7));
-      setRefreshNonce(n => n + 1);
+      refreshDashboard();
     } catch (error) {
       window.alert(planError(error));
     } finally {
@@ -791,13 +778,11 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   }
 
   async function executeDeleteSingleMovement(item: Movement) {
-    const previous = movements;
-    setMovements((current) => current.filter((movement) => movement.id !== item.id));
-    const { error } = await supabase.from('transactions').delete().eq('id', item.id).eq('user_id', userId);
-    if (error) {
-      setMovements(previous);
-      window.alert('No pudimos eliminar el movimiento. Intentá nuevamente.');
-    }
+    try {
+      const { error } = await supabase.from('transactions').delete().eq('id', item.id).eq('user_id', userId);
+      if (error) throw error;
+      refreshDashboard();
+    } catch { window.alert('No pudimos eliminar el movimiento. Intentá nuevamente.'); }
   }
 
   function deleteMovement(item: Movement) {
@@ -819,7 +804,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         action: all ? 'delete_plan' : 'delete_installment', groupId: deletePlan.group_id,
         version: deletePlan.version, itemId: all ? undefined : itemId });
       setInstallmentDeletePrompt(null);
-      setRefreshNonce(n => n + 1);
+      refreshDashboard();
     } catch (error) {
       setDeletePlanError(planError(error));
     } finally {
@@ -954,6 +939,17 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           </button>
         </div>
       </div>
+      {entryMessage && !showAdd && <p className="dashboard-notice" role="status">{entryMessage}</p>}
+      {(pendingEntry || entryStorageIssue) && <div className="dashboard-notice" role="status">
+        <p>{entryStorageIssue || 'Tenés un envío pendiente de comprobar. Revisalo antes de cargar otro movimiento.'}</p>
+        <button className="button-secondary" type="button" onClick={openAddForm}>Revisar envío</button>
+      </div>}
+      {!financialReady ? <section className="panel dashboard-load-state" role={readView.context === context && readView.status === 'error' ? 'alert' : 'status'}>
+        <h2>{readView.context === context && readView.status === 'error' ? 'No pudimos cargar ' : 'Cargando '}{labelForMonth(month).toLowerCase()}</h2>
+        {readView.context === context && readView.status === 'error' && <><p>No mostramos saldos ni totales hasta recuperar todos los datos del mes.</p><button className="button-secondary" type="button" onClick={refreshDashboard}>Reintentar</button></>}
+      </section> : <>
+      {readView.refreshing && <p className="dashboard-refresh-status" role="status">Actualizando datos…</p>}
+      {monthsWarning && <div className="dashboard-notice" role="status"><p>No pudimos cargar todos los meses del selector. Los datos del mes abierto están completos.</p><button className="text-button" type="button" onClick={refreshDashboard}>Reintentar meses</button></div>}
       {activeSection === '#movimientos' ? (
         <section className="movements-view" id="movimientos" aria-label={`Movimientos en ${activeCurrency}`}>
           <div className="movements-sticky-bar">
@@ -1541,6 +1537,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       </section>
         </>
       )}
+      </>}
     </section>
     <nav className="mobile-nav" aria-label="Navegación móvil">
       <a className={activeSection === '#resumen' ? 'active' : ''} aria-current={activeSection === '#resumen' ? 'page' : undefined} href="#resumen">
@@ -1551,7 +1548,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         <IconMovements />
         <span>Movimientos</span>
       </a>
-      <button aria-label="Agregar movimiento" onClick={() => { setManualCurrency(activeCurrency); setShowAdd(true); }}>
+      <button aria-label="Agregar movimiento" onClick={openAddForm}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
@@ -1566,35 +1563,34 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         <span>Ajustes</span>
       </button>
     </nav>
-    <button className="desktop-add" onClick={() => { setManualCurrency(activeCurrency); setShowAdd(true); }}><Icon name="plus" /> Agregar movimiento</button>
+    <button className="desktop-add" onClick={openAddForm}><Icon name="plus" /> Agregar movimiento</button>
     {showAdd && (
 
-      <div className="modal-backdrop" role="presentation" onClick={() => setShowAdd(false)}>
+      <div className="modal-backdrop" role="presentation" onClick={closeAddForm}>
         <form className="movement-form" onSubmit={addMovement} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
             <div>
-              <p className="eyebrow">NUEVO MOVIMIENTO</p>
-              <h2>Registrá una operación</h2>
+              <p className="eyebrow">{pendingEntry ? 'ENVÍO PENDIENTE' : 'NUEVO MOVIMIENTO'}</p>
+              <h2>{pendingEntry ? 'Comprobemos tu envío' : 'Registrá una operación'}</h2>
             </div>
             <button
               type="button"
               className="modal-close-x"
               aria-label="Cerrar modal"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setShowAdd(false);
-                setIsInstallments(false);
-                setInstallmentCount(3);
-                setCurrentInstallmentNumber(1);
-                setFormAmount('');
-              }}
+              onClick={closeAddForm}
             >
               <Icon name="close" />
             </button>
           </div>
+          {entryMessage && <p role="alert">{entryMessage}</p>}
+          {entryStorageIssue && <p role="alert">{entryStorageIssue}</p>}
+          {categoryStatus !== 'ready' && <p role="status">{categoryStatus === 'loading' ? 'Cargando categorías…' : 'No pudimos cargar las categorías.'}{categoryStatus === 'error' && <button type="button" className="text-button" onClick={refreshDashboard}>Reintentar</button>}</p>}
+          {pendingEntry && <div className="dashboard-notice"><p>Conservamos los datos del envío. Comprobarlo no lo duplica. Si ya se guardó, cancelar solo comprobará su estado.</p><div className="modal-actions-grid-2"><button type="button" className="button-secondary" disabled={isAdding} onClick={() => void submitEntry(undefined,true)}>Cancelar envío</button><button type="button" className="modal-btn-save" disabled={isAdding} onClick={() => void submitEntry()}>{isAdding ? 'Comprobando…' : 'Comprobar envío'}</button></div></div>}
+          <fieldset disabled={isAdding || Boolean(pendingEntry) || Boolean(entryStorageIssue)} className="movement-fields">
           <label>
             Descripción
-            <input name="description" required placeholder="Ej. Verdulería o Compra en cuotas" />
+            <input name="description" required maxLength={160} value={formDescription} onChange={event => setFormDescription(event.target.value)} placeholder="Ej. Verdulería o Compra en cuotas" />
           </label>
           <div className="form-grid">
             <label>
@@ -1790,6 +1786,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 onChange={(event) => setCategoryId(event.target.value)}
               >
                 <option value="" disabled>Seleccioná una categoría</option>
+                {pendingEntry && !availableCategories.some(category => category.id === categoryId) && <option value={categoryId}>Categoría original del envío</option>}
                 {availableCategories.map((category) => (
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
@@ -1797,35 +1794,27 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             </label>
             <label>
               {isInstallments && manualKind === 'expense' ? (currentInstallmentNumber > 1 ? `Fecha cuota ${currentInstallmentNumber}` : 'Fecha 1° cuota') : 'Fecha'}
-              <input name="date" required type="date" defaultValue={todayKey()} />
+              <input name="date" required type="date" value={formDate} onChange={event => setFormDate(event.target.value)} />
             </label>
           </div>
+          </fieldset>
           <div className="modal-actions-grid-2">
             <button
               type="button"
               className="modal-btn-cancel"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setShowAdd(false);
-                setIsInstallments(false);
-                setInstallmentCount(3);
-                setIsCustomInstallmentCount(false);
-                setCustomCountInput('3');
-                setInstallmentAmountMode('total');
-                setCurrentInstallmentNumber(1);
-                setFormAmount('');
-              }}
+              onClick={closeAddForm}
             >
-              Cancelar
+              Cerrar
             </button>
-            <button
+            {!pendingEntry && <button
               className="modal-btn-save"
               type="submit"
-              disabled={isAdding || !categoryId}
+              disabled={isAdding || Boolean(pendingEntry) || Boolean(entryStorageIssue) || categoryStatus !== 'ready' || !categoryId}
               onMouseDown={(e) => e.preventDefault()}
             >
               {isAdding ? 'Guardando…' : 'Guardar'}
-            </button>
+            </button>}
           </div>
         </form>
       </div>
@@ -2312,7 +2301,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       </div>
     )}
 
-    {showCategoryModal && (
+    {showCategoryModal && financialReady && (
       <div className="modal-backdrop" role="presentation" onClick={() => setShowCategoryModal(false)}>
         <div className="movement-form category-modal-container" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
           <div className="category-modal-header">

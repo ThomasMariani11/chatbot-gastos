@@ -2959,3 +2959,13 @@ button:active:not(:disabled),
 @media (max-width: 700px) {
   .admin-responsive-table td > .cell-subtext { grid-column: 2; }
 }
+
+/* Envíos y lecturas mensuales: estados visibles sin reemplazar errores por ceros. */
+.movement-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 14px; }
+.dashboard-load-state { padding: 28px; margin: 20px 0; }
+.dashboard-load-state h2 { margin: 0 0 10px; }
+.dashboard-load-state p { color: var(--muted); }
+.dashboard-notice { padding: 14px 16px; border: 1px solid var(--line, #dce8e3); border-radius: 14px; background: #f3faf7; margin: 10px 0; overflow-wrap: anywhere; }
+.dashboard-notice p { margin: 0 0 10px; }
+.dashboard-notice p:last-child { margin-bottom: 0; }
+.dashboard-refresh-status { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
