@@ -18,7 +18,7 @@ Estado: preparado para revisión; migración 030 y PWA sin publicar. Aceptación
 - Vitest: 531 pruebas aprobadas (490 anteriores y 41 nuevas): cliente persistente, SQL real en PGlite y carga mensual con fallos controlados.
 - Linter, TypeScript y build aprobados. Continúa la advertencia previa del bundle mayor que 500 kB; no se optimizó en este bloque.
 - 12 integraciones SQL de renovaciones y seis controles de release aprobados.
-- PostgreSQL nativo y ensayo completo: pendientes de CI. El motor Docker local no está iniciado. El ensayo agregado verifica dos sesiones para el mismo intento, cancelación simultánea y reintento después de eliminar; no usa bases remotas.
+- Concurrencia PostgreSQL nativa aprobada en CI sobre a5dbd46: dos sesiones para el mismo intento, cancelación simultánea y reintento después de eliminar. El motor Docker local no está iniciado; las bases descartables de CI ejecutan esas pruebas y el ensayo completo. Antes de integrar, comprobar los cuatro controles aprobados sobre el último commit de la PR.
 
 ## Navegador ficticio
 
