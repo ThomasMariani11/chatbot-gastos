@@ -1,12 +1,12 @@
 # Plan de mejoras del proyecto
 
-## Estado vigente — preparación FE-04 / FE-05 del 24/10/2026
+## Estado vigente — cierre FE-04 / FE-05 del 24/10/2026
 
 **FE-01, FE-02 y FE-03 terminados.** Migración 029 aplicada, [PR #30](https://github.com/ThomasMariani11/chatbot-gastos/pull/30) publicada en d8aaacd, CI completo y aceptación en producción ejecutada por Codex por instrucción del propietario. La compra ficticia se creó, renombró, editó tras eliminar la cuota 2 y eliminó al terminar; cero cuotas de prueba activas. [Evidencia y límites](VALIDACION_FE_01_02_03.md).
 
-**Bloque actual: FE-04 + FE-05 preparado, sin publicar.** Altas PWA con recibo SQL, recuperación del mismo intento tras recargar y carga/error por usuario y mes. Pruebas locales y navegador ficticio aprobados. Para publicar: cuatro controles de CI, autorización para aplicar 030/publicar y aceptación en producción. [Validación, orden y límites](VALIDACION_FE_04_05.md). Después sigue FE-06/BE-02 (renovaciones concurrentes). FE-09 (totales restantes) continúa pendiente: este cierre no cambió ese cálculo. FE-11 tiene la corrección por ID publicada; su seguimiento de planes homónimos permanece abierto.
+**FE-04 + FE-05 terminados.** Migración 030 aplicada y registrada antes de integrar/publicar la [PR #32](https://github.com/ThomasMariani11/chatbot-gastos/pull/32), versión d0cf7e5. Altas PWA con recibo SQL, recuperación del mismo intento tras recargar y carga/error por usuario y mes. Los cuatro controles y la publicación aprobaron. Aceptación final delegada y aprobada en la PWA publicada: doble clic, recarga inmediata, recuperación del formulario, dos comprobaciones y una sola operación/recibo. Cambio rápido de mes correcto. Prueba cancelada, sin movimientos ficticios activos ni envíos pendientes. [Validación, orden y límites](VALIDACION_FE_04_05.md). Después sigue FE-06/BE-02 (renovaciones concurrentes). FE-09 (totales restantes) continúa pendiente: este cierre no cambió ese cálculo. FE-11 tiene la corrección por ID publicada; su seguimiento de planes homónimos permanece abierto.
 
-Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. Backups siguen al final y la retención no se habilita. Las secciones de revisión y preparación siguientes son registros anteriores a este cierre; no indican trabajo actual pendiente para FE-01/02/03.
+Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. Backups siguen al final y la retención no se habilita. Las secciones de revisión y preparación siguientes son registros anteriores a este cierre; no indican trabajo actual pendiente para FE-01/02/03/04/05.
 
 ## Revisión incremental del 23/10/2026 — estado actual
 
@@ -266,8 +266,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 2 | FE-02 | Alta | Escrituras atómicas de planes | BE-10, BE-17 | Terminada; publicada y aceptada |
 | 3 | FE-03 | Alta | Preservar importes y cuotas eliminadas | FE-01, FE-02 | Terminada; publicada y aceptada |
 | 4 | FE-21 | Media | Pruebas de flujos y dominio real | BE-17, INF-06 | Pendiente |
-| 5 | FE-04 | Alta | Evitar movimientos duplicados | BE-10 | Preparado; publicación y aceptación pendientes |
-| 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Preparado; publicación y aceptación pendientes |
+| 5 | FE-04 | Alta | Evitar movimientos duplicados | BE-10 | Terminada; publicada y aceptada |
+| 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Terminada; publicada y aceptada |
 | 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Pendiente |
 | 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Pendiente |
 | 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Pendiente |
@@ -312,7 +312,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-04 — Evitar dobles envíos de movimientos
 
-- [ ] Terminada. Preparada en código el 24/10/2026; requiere publicación y aceptación. [Validación](VALIDACION_FE_04_05.md).
+- [x] Terminada. Publicada en PR #32 y aceptada el 24/10/2026. [Validación](VALIDACION_FE_04_05.md).
 - **Categoría:** Bug. **Problema reproducido:** addMovement no tiene exclusión durante el guardado ni clave de idempotencia. Dos envíos antes de terminar la primera petición crearon dos movimientos iguales. El botón solo se deshabilita por falta de categoría.
 - **Archivos:** src/Dashboard.tsx:590, :1626.
 - **Trabajo:** guardia inmediata mediante ref, estado de envío, botón deshabilitado y feedback visible; reutilizar una clave idempotente del mismo intento en reintentos. Validar y deduplicar esa clave en el servidor, sin bloquear operaciones iguales que el usuario quiera crear por separado.
@@ -320,7 +320,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-05 — Representar carga, error y contexto mensual correctamente
 
-- [ ] Terminada. Preparada en código el 24/10/2026; requiere publicación y aceptación. [Validación](VALIDACION_FE_04_05.md).
+- [x] Terminada. Publicada en PR #32 y aceptada el 24/10/2026. [Validación](VALIDACION_FE_04_05.md).
 - **Categoría:** Bug. **Problema confirmado:** errores de movimientos/presupuesto se omiten y se mantiene el estado anterior. Al cambiar de mes y fallar solo una consulta pueden aparecer movimientos del mes anterior bajo el nuevo encabezado. La primera carga fallida puede verse como cero o vacío. El fallback de meses contiene un segundo await sin revalidar el efecto activo.
 - **Archivos:** src/Dashboard.tsx:385, :402, :405, :422, :444, :456.
 - **Trabajo:** estado de datos identificado por usuario/mes; estados explícitos de carga, vacío y error con reintento. Cancelar consultas o descartar respuestas con generación de solicitud, después de cada await; mantener la exclusión durante todo el fallback y evitar mezclar resultados de cargas distintas.
@@ -762,3 +762,7 @@ Completar una entrada al cerrar cada tarea:
 | 23/10/2026 | Cierre FE-01 / FE-02 / FE-03 | Migración 029 y PR #30 (d8aaacd); aceptación delegada por el propietario | 490 Vitest, 12 SQL, seis controles de release, lint/tipos/build, concurrencia PostgreSQL y CI main; PWA con alta de 100, renombrado, eliminación de cuota 2, reedición y limpieza | Fuente/funciones/ACL verificadas; cero cuotas ficticias activas; compras anteriores visibles | FE-04/FE-05 siguiente; FE-09 y seguimiento FE-11 abiertos; backups al final |
 
 | 24/10/2026 | Preparación FE-04 / FE-05 | Migración 030 y PWA en rama de revisión; sin cambios en producción | Pruebas SQL/cliente/carga y navegador con datos ficticios; ver validación del bloque | Recuperación tras respuesta perdida y recarga sin duplicar; error parcial oculta totales; reintento del mes correcto | CI y aprobación de 030/publicación; aceptación real pendiente; FE-06/BE-02 después |
+
+| 24/10/2026 | Publicación FE-04 / FE-05 | 030 aplicada/registrada; PR #32 integrada, d0cf7e5 publicada | 531 Vitest, SQL/guards, cuatro controles y Pages aprobados; SHA/SW/bundle comprobados; smoke autenticado con rollback; apertura del formulario sin guardar | Código/historial/ACL verificados; llamadas sin sesión rechazadas; cero recibos del ensayo; cola habilitada | Aceptación final de alta/recarga en PWA publicada pendiente; FE-06/BE-02 siguiente; FE-09 abierto |
+
+| 24/10/2026 | Cierre FE-04 / FE-05 | PWA d0cf7e5 y 030; aceptación delegada por el propietario | Doble clic y recarga inmediata; recuperación del mismo formulario, dos comprobaciones, una copia y un recibo; cambios rápidos noviembre/diciembre/octubre | Gasto ficticio cancelado de forma reversible, cero activos y cero pendientes; recibo conservado y reintento no recrea; bot activo | FE-06/BE-02 siguiente; FE-09, compatibilidad física y límites de sesión siguen abiertos |
