@@ -1,7 +1,7 @@
 # Validación FE-04 / FE-05 — envíos PWA y carga mensual
 
 Fecha: 24/10/2026. Base: main b79985c. Rama: codex/idempotent-entries-month-loading.
-Estado: preparado para revisión; migración 030 y PWA sin publicar. Aceptación en producción pendiente.
+Estado: migración 030 y PWA publicadas con autorización del propietario. Aceptación final del recorrido de alta/recarga en la PWA publicada pendiente.
 
 ## Qué cambia
 
@@ -28,6 +28,16 @@ Se ejecutó el Dashboard real en http://127.0.0.1:4193, con una API local y PGli
 2. Plan USD 100, tres cuotas, referencia 2/3: misma pérdida y recarga; recuperó moneda/cantidad/referencia/fecha. Cancelar un envío ya guardado conservó las tres cuotas (33,33 / 33,33 / 33,34), sin duplicarlas.
 3. Fallo solo del presupuesto al cambiar de octubre a noviembre: error visible, sin totales ni movimientos anteriores bajo el nuevo mes. Restaurar y reintentar mostró exclusivamente noviembre; su ingreso USD 42 siguió separado de ARS.
 4. Evidencia local del ensayo: `pesito-fe04-fe05-browser-validation.json` y captura `pesito-fe05-error-mensual.jpg`, en la carpeta temporal de esta PC. No se suben datos financieros al repositorio.
+
+## Publicación verificada — 24/10/2026
+
+- El propietario autorizó aplicar 030 e integrar/publicar la PR #32. Candidato aprobado: a8fdfeebbd3c031716fe8deb10293ad588c917e8; cuatro controles aprobados sobre ese SHA.
+- Historial previo 029 y código de la RPC de planes comparados con el repositorio normalizando espacios/saltos de línea. 030 se aplicó en una transacción con su registro en schema_migrations y guardas de historial, fuente, ACL y RLS. Cola habilitada y retención desactivada conservadas.
+- Fuente 030 y cuerpo de submit_pwa_entry coinciden con el candidato. Recibos privados para authenticated; anon sin ejecución. Peticiones HTTP sin sesión a la RPC y tabla rechazadas con 401/42501, usando únicamente la clave pública del sitio.
+- Smoke SQL con rol authenticated y usuario administrador único: gasto ARS 123,45, reintento con misma identidad, cancelación posterior al guardado, cancelación anterior al envío tardío y plan USD 100 en tres cuotas (33,33 / 33,33 / 33,34), también reintentado. ROLLBACK al terminar: cero recibos de los tres intentos y ningún movimiento ficticio confirmado por ese ensayo.
+- [PR #32](https://github.com/ThomasMariani11/chatbot-gastos/pull/32) integrada en d0cf7e5f7adab8fbb1c9321e3768988eb45416fa. [CI y Publicar](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40141743294) aprobados. version.json y service worker coinciden con ese SHA; bundle contiene la nueva RPC y el manejo de errores mensuales.
+- PWA abierta con la sesión existente: panel y datos disponibles, bot activo y formulario nuevo accesible. Se cerró vacío, sin guardar. No se inyectaron fallos en producción ni se modificaron movimientos preexistentes. El ensayo de respuesta perdida/recarga sigue siendo el ficticio descrito arriba; no se presenta como ejecutado en la PWA de producción.
+- Evidencias locales: pesito-entry-030-production-verification.json, pesito-entry-030-http-security.json, pesito-entry-030-published.json y pesito-entry-030-ui-smoke.json, en la carpeta temporal. Sin credenciales ni contenidos de clientes en el registro versionado. No se redesplegó el webhook ni se enviaron avisos de WhatsApp.
 
 ## Orden de publicación y aceptación
 
