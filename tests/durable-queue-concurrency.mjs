@@ -123,6 +123,27 @@ assert.notEqual(failure.code,0);assert.match(failure.error,/Fallo nativo control
 assert.deepEqual(decodePlan(await execute(asClient(`select public.get_installment_plan('${afterRace.group_id}')`))),afterRace);
 assert.equal((await execute(`select count(*) from public.installment_plan_requests where request_id='${failedRequest}';`)).output,'0');
 await execute('drop trigger fail_plan_fixture on public.transactions;drop function public.fail_plan_fixture();');
-const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,concurrent_sessions:2,exclusive_lease:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
+// FE-04: mismo intento en dos conexiones y cancelación frente a un guardado tardío.
+await execute(await readFile(new URL('030_idempotent_pwa_entries.sql',migrations),'utf8'));
+const pwaPayload=quote(JSON.stringify({kind:'expense',description:'PWA synthetic native',amount:12.34,currency:'ARS',category_id:planCategory,occurred_on:'2026-10-23'}));
+await execute(`create function public.slow_pwa_fixture() returns trigger language plpgsql as $$begin if new.description='PWA synthetic native' then perform pg_sleep(0.4);end if;return new;end$$;create trigger slow_pwa_fixture before insert on public.transactions for each row execute function public.slow_pwa_fixture();`);
+const pwaId='59000000-0000-4000-8000-000000000005';
+const pwaCreated=await Promise.all([0,1].map(()=>execute(asClient(`select public.submit_pwa_entry('${pwaId}','movement',${pwaPayload}::jsonb,false)`))));
+const pwaOne=decodePlan(pwaCreated[0]),pwaTwo=decodePlan(pwaCreated[1]);
+assert.equal(pwaOne.entity_id,pwaTwo.entity_id);assert.equal(pwaOne.state,'saved');assert.equal(pwaTwo.state,'saved');
+assert.equal((await execute(`select count(*) from public.transactions where id='${pwaOne.entity_id}';`)).output,'1');
+const pwaRaceId='59000000-0000-4000-8000-000000000006';
+const pwaRace=await Promise.all([
+ execute(asClient(`select public.submit_pwa_entry('${pwaRaceId}','movement',${pwaPayload}::jsonb,false)`)),
+ execute(asClient(`select public.submit_pwa_entry('${pwaRaceId}','movement','{}',true)`)),
+]);
+const pwaRaceResults=pwaRace.map(decodePlan);
+assert.equal(pwaRaceResults[0].state,pwaRaceResults[1].state,'Cancelar informó un resultado incompatible con el guardado');
+assert.equal(pwaRaceResults[0].entity_id,pwaRaceResults[1].entity_id);
+assert.ok(['cancelled','saved'].includes(pwaRaceResults[0].state));
+assert.equal((await execute(`select count(*) from public.pwa_entry_requests where user_id='${a}' and request_id='${pwaRaceId}';`)).output,'1');
+await execute(`delete from public.transactions where id='${pwaOne.entity_id}';drop trigger slow_pwa_fixture on public.transactions;drop function public.slow_pwa_fixture();`);
+assert.equal(decodePlan(await execute(asClient(`select public.submit_pwa_entry('${pwaId}','movement',${pwaPayload}::jsonb,false)`))).state,'removed');
+const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,concurrent_sessions:2,exclusive_lease:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
 if(process.env.PESITO_TEST_EVIDENCE) await writeFile(process.env.PESITO_TEST_EVIDENCE,JSON.stringify(evidence,null,2));
 console.log(JSON.stringify(evidence));
