@@ -1,7 +1,7 @@
 # Validación FE-04 / FE-05 — envíos PWA y carga mensual
 
 Fecha: 24/10/2026. Base: main b79985c. Rama: codex/idempotent-entries-month-loading.
-Estado: migración 030 y PWA publicadas con autorización del propietario. Aceptación final del recorrido de alta/recarga en la PWA publicada pendiente.
+Estado: **bloque cerrado**. Migración 030 y PWA publicadas con autorización del propietario; aceptación final delegada y completada el 24/10/2026.
 
 ## Qué cambia
 
@@ -39,13 +39,27 @@ Se ejecutó el Dashboard real en http://127.0.0.1:4193, con una API local y PGli
 - PWA abierta con la sesión existente: panel y datos disponibles, bot activo y formulario nuevo accesible. Se cerró vacío, sin guardar. No se inyectaron fallos en producción ni se modificaron movimientos preexistentes. El ensayo de respuesta perdida/recarga sigue siendo el ficticio descrito arriba; no se presenta como ejecutado en la PWA de producción.
 - Evidencias locales: pesito-entry-030-production-verification.json, pesito-entry-030-http-security.json, pesito-entry-030-published.json y pesito-entry-030-ui-smoke.json, en la carpeta temporal. Sin credenciales ni contenidos de clientes en el registro versionado. No se redesplegó el webhook ni se enviaron avisos de WhatsApp.
 
+## Aceptación final en la PWA publicada — completada
+
+El propietario delegó la prueba final con «hacelo». Se operó su sesión existente únicamente sobre un gasto ficticio identificable de ARS 12,34, categoría Otros y fecha 24/10/2026.
+
+1. Doble clic en Guardar y recarga inmediata. La base guardó el movimiento, mientras el cliente conservó el intento incierto en sessionStorage.
+2. Revisar envío recuperó descripción, importe, moneda, tipo, categoría y fecha originales; campos bloqueados. Doble clic en Comprobar envío: mensaje «Envío comprobado. Se guardó una sola vez», sin pendiente posterior. Supabase verificó exactamente un movimiento confirmado y un recibo privado de ese intento.
+3. Cambio rápido octubre → noviembre → diciembre: carga explícita y diciembre sin el gasto de octubre. Volver a octubre mostró nuevamente la operación ficticia. El fallo parcial de presupuesto y los demás escenarios fuera de orden siguen cubiertos por el entorno ficticio y las pruebas automáticas, no por fallos inducidos en producción.
+4. Limpieza reversible por SQL: guarda por ID de operación, solicitud, propietario administrador único, descripción ficticia, importe, moneda, fecha, origen y estado; se cambió solo esa fila a cancelled. No se borraron movimientos ni recibos ni se activó retención.
+5. Reintento SQL autenticado con el mismo UUID/payload después de cancelar: resultado removed/replayed y misma entidad, sin recrearla. Estado final: una fila ficticia cancelada, cero filas ficticias confirmadas y un recibo privado conservado como deduplicación. Recargar PWA: gasto de prueba ausente, cero envíos pendientes, panel disponible y bot activo.
+
+Evidencias locales: pesito-fe04-fe05-pwa-ui-acceptance.json, pesito-fe04-pwa-db-acceptance.json, pesito-fe04-pwa-cleanup-verification.json y pesito-fe04-pwa-final-state.json. La captura del formulario pendiente permanece solo en la carpeta temporal de esta PC. No se publican datos del propietario, IDs ni contenidos de clientes en este documento.
+
+FE-04 y FE-05 quedan terminados dentro de los límites siguientes. Próximo bloque: FE-06/BE-02, renovaciones concurrentes. No se redesplegó el webhook ni se enviaron mensajes de WhatsApp.
+
 ## Orden de publicación y aceptación
 
 1. Revisar la PR y aprobar todos los controles sobre su mismo commit. Pedir autorización para aplicar 030 e integrar/publicar la PWA.
 2. Aplicar `030_idempotent_pwa_entries.sql` antes del frontend, incluyendo registro de migración conforme al runbook. Verificar fuente/ACL; no acceder a claves privilegiadas.
 3. Publicar la PR y comprobar el SHA de la PWA. El manifiesto exige migración mínima 030. El rollback fijado conserva su mínimo 027: 030 agrega una RPC/tabla y no retira las rutas anteriores.
 4. Con autorización del propietario, usar exclusivamente movimientos ficticios identificables: alta y recarga/reintento del mismo intento, fallo de lectura en entorno de prueba y recuperación por mes. Revisar una copia por intento y limpiar solo los datos ficticios confirmados. No simular fallos sobre producción ni tocar compras preexistentes.
-5. Cerrar FE-04/FE-05 solo después de aceptación y registrar alcance/límites.
+5. Aceptación final completada y cierre registrado arriba. Mantener los límites y seguimientos indicados.
 
 ## Límites y pendientes separados
 
