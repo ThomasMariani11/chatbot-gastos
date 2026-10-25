@@ -1,0 +1,8 @@
+.pwa-update-notice { position: fixed; z-index: 40; right: max(16px, env(safe-area-inset-right)); bottom: calc(88px + env(safe-area-inset-bottom)); width: min(440px, calc(100% - 32px)); box-sizing: border-box; display: flex; align-items: center; gap: 14px; padding: 16px; border: 1px solid #99cbb8; border-radius: 16px; background: #fff; color: #15382c; box-shadow: 0 8px 32px #15382c26; }
+.pwa-update-notice strong { font-size: 15px; }
+.pwa-update-notice p { font-size: 14px; line-height: 1.45; margin: 5px 0 0; }
+.pwa-update-notice button { flex-shrink: 0; min-height: 44px; padding: 10px 14px; border: 1px solid #076449; border-radius: 10px; background: #076449; color: white; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.pwa-update-notice button:disabled { background: #e5eeea; border-color: #c3d4cc; color: #475e54; cursor: default; }
+.pwa-update-notice button:focus-visible { outline: 3px solid #b77910; outline-offset: 3px; }
+.pwa-update-notice .pwa-update-error { color: #a02c22; }
+@media (max-width: 440px) { .pwa-update-notice { flex-direction: column; align-items: stretch; gap: 10px; } }

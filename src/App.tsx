@@ -1,4 +1,6 @@
 import { Icon } from './Icons';
+import { useProfileDraft } from './useProfileDraft';
+import { useUpdateBlocker } from './PwaUpdates';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { AdminPanel } from './AdminPanel';
@@ -95,6 +97,9 @@ function AuthenticatedApp({ session }: { session: Session }) {
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const requestId = useRef(0);
   const isAdmin = profile?.role === 'admin';
+  const nameDraft = useProfileDraft(session.user.id, profile);
+  useUpdateBlocker(nameDraft.state.dirty || nameDraft.state.saving, 'Guardá o descartá tus cambios en Ajustes para actualizar.');
+  useUpdateBlocker(showSignOutConfirm);
 
   const handleRequestSignOut = () => {
     setShowSignOutConfirm(true);
@@ -250,6 +255,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
           userId={session.user.id}
           userEmail={session.user.email}
           userProfile={profile}
+          nameDraft={nameDraft}
           isAdmin={isAdmin}
           onOpenAdmin={() => navigateTo('admin')}
           onBack={() => navigateTo('dashboard')}

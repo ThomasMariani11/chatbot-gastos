@@ -10,6 +10,10 @@
 
 Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. Backups siguen al final y la retención no se habilita. Las secciones de revisión y preparación siguientes son registros históricos; no reabren FE-01/02/03/04/05/06 ni BE-02. Los estados y la secuencia vigentes se resumen a continuación.
 
+## Bloque en preparación — FE-07 + FE-12
+
+El propietario autorizó iniciar este bloque tras guardar el plan en PR #36 (77a0002). Coordinador/aviso de actualización explícita, protección de formularios y borrador de Ajustes implementados y validados localmente; todavía no publicados. Sin cambios en SQL, webhook ni datos de clientes. [Pruebas, alcance y límites](VALIDACION_FE_07_12.md). La aceptación en producción y Safari/iOS/PWA física permanece abierta.
+
 ## Próximos bloques — recomendación al 25/10/2026
 
 Base revisada: main 14e1cac, árbol limpio antes de esta edición documental. Se contrastaron el plan, los cierres y el código local; no se volvió a auditar la configuración cloud ni se ejecutaron pruebas nuevas en esta revisión. La última publicación registrada pasó 561 pruebas y los controles de CI. Esta secuencia es una propuesta para elegir el próximo trabajo; no autoriza por sí sola cambios de producción.
@@ -24,7 +28,7 @@ Base revisada: main 14e1cac, árbol limpio antes de esta edición documental. Se
 
 **Seguimientos que no se dan por cerrados:** un código histórico usado sin usuario asociado (BE-02), aceptación física Safari/iOS/PWA, dependencias de desarrollo INF-07/FE-08, cobertura transversal FE-21/BE-17 y otros ítems abiertos de las tablas. Los avisos de dependencias registrados el 23/10 requieren una comprobación vigente antes de actualizar; no se ejecutó otro audit en esta revisión. Una incidencia nueva puede cambiar este orden.
 
-**Alcance inicial del próximo bloque propuesto:** centralizar el estado de actualización; sustituir recargas automáticas durante edición por un aviso con acción explícita; conservar el borrador de Ajustes cuando llegan datos remotos. Probar registro, carga de movimientos, renovación administrativa y Ajustes sin alterar las RPC, los movimientos ni el bot. No se empezó esta implementación.
+**Alcance inicial del próximo bloque propuesto:** centralizar el estado de actualización; sustituir recargas automáticas durante edición por un aviso con acción explícita; conservar el borrador de Ajustes cuando llegan datos remotos. Probar registro, carga de movimientos, renovación administrativa y Ajustes sin alterar las RPC, los movimientos ni el bot. Implementación preparada en el bloque de arriba; falta CI, revisión y publicación.
 
 ## Revisión incremental del 23/10/2026 — registro histórico
 
@@ -290,8 +294,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Terminada; publicada y aceptada |
 | 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Pendiente |
 | 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Corrección terminada; publicada y verificada |
-| 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Pendiente |
-| 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Pendiente |
+| 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | En curso; preparado localmente, publicación/aceptación pendientes |
+| 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | En curso; preparado localmente, publicación/aceptación pendientes |
 | 11 | FE-13 | Media | Validación de invitación fuera de orden | — | Pendiente |
 | 12 | FE-08 | Alta; desarrollo | Dependencias vulnerables | INF-07 | Pendiente |
 | 13 | FE-10 | Media | Límite de cuotas y contrato SQL | FE-21 | Avance publicado en 029; cierre específico por verificar |
@@ -356,6 +360,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-07 — Actualizar la PWA sin recargar formularios activos
 
+- **Avance al 25/10/2026:** implementación y regresiones locales preparadas junto con el otro punto; CI, publicación y aceptación pendientes. [Validación y límites](VALIDACION_FE_07_12.md).
+
 - [ ] Terminada.
 - **Categoría:** Bug. **Problema reproducido:** la primera comprobación detecta escritura, pero el MutationObserver solo verifica ausencia de modal-backdrop. Una mutación del DOM recarga con un input todavía enfocado; eventos repetidos crean varios observadores. Los modales administrativos usan admin-modal-backdrop, otra clase.
 - **Archivos:** src/main.tsx:30, :35, :37, :45, :80; src/AdminPanel.tsx:1065.
@@ -398,6 +404,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Cierre:** planes homónimos permanecen visibles; error de eliminación restaura únicamente lo afectado; el estado final coincide con el servidor.
 
 ### FE-12 — Conservar cambios sin guardar en Ajustes
+
+- **Avance al 25/10/2026:** implementación y regresiones locales preparadas junto con el otro punto; CI, publicación y aceptación pendientes. [Validación y límites](VALIDACION_FE_07_12.md).
 
 - [ ] Terminada.
 - **Categoría:** Bug. **Problema reproducido:** cada objeto nuevo de userProfile vuelve a copiar nombre y apellido al formulario. El refresco cada 30 segundos o al recuperar foco reemplaza lo que el usuario escribió sin guardar.
@@ -800,3 +808,5 @@ Completar una entrada al cerrar cada tarea:
 | 25/10/2026 | Publicación FE-06 / BE-02 | PR #34 edb051b; 031 y corrección 032 aplicadas y registradas | 561 tests, cuatro controles + Pages; SQL authenticated con usuario ficticio y rollback; ACL/SHA/SW/bundle; apertura modal sin enviar | Corrección de identidad auth validada; cero datos de prueba persistidos; revisión histórica agregada sin cambios | Código usado sin usuario: seguimiento sin causa atribuible; no hubo extensión de clientes reales en la PWA |
 
 | 25/10/2026 | Revisión del plan | Estados vigentes y secuencia FE-07/FE-12, FE-09/FE-11, backend e infraestructura; avances parciales de CSP, límite de cuotas y pruebas reconciliados | Lectura de main 14e1cac, cierres y código; revisión documental, sin nuevas pruebas funcionales | Sin publicación, cambios de aplicación, SQL, cloud ni datos | Elegir el siguiente bloque; retención desactivada y backups al final |
+
+| 25/10/2026 | Preparación FE-07 / FE-12 | Aviso explícito, guardias compartidas, SW compatible y borrador de perfil por sesión | Regresiones reales y navegador con dos versiones/datos ficticios; ver validación del bloque | Sin cambios productivos; no hay migración ni webhook nuevos | CI, revisión, publicación y aceptación física/productiva pendientes |

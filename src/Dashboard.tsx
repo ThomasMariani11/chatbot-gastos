@@ -1,4 +1,5 @@
 import { Icon } from './Icons';
+import { useUpdateBlocker } from './PwaUpdates';
 import {
   filterMovementsList,
   groupMovementsByDay,
@@ -323,6 +324,8 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const [editPlanError, setEditPlanError] = useState('');
   const [deletePlanError, setDeletePlanError] = useState('');
   const [isDeletingPlan, setIsDeletingPlan] = useState(false);
+  useUpdateBlocker(showAdd || Boolean(editingMovement) || Boolean(installmentDeletePrompt) || showBudgetModal || showDeleteBudgetConfirm || showCategoryModal || isAdding || isSavingEdit || isSavingBudget || isDeletingPlan, "Guardá o cerrá el formulario de movimientos para actualizar.");
+
   const editBusy = useRef(false);
   const deleteBusy = useRef(false);
   const editRequest = useRef<string | null>(null);
