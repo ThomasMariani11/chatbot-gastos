@@ -1,4 +1,5 @@
 import { Icon } from './Icons';
+import { useUpdateBlocker } from './PwaUpdates';
 import { FormEvent, useEffect, useState } from 'react';
 import { supabase } from './supabase';
 
@@ -26,6 +27,8 @@ export function Paywall({
   const [botPhone, setBotPhone] = useState<string>('');
   const [supportPhone, setSupportPhone] = useState<string>('');
   const [paymentAlias, setPaymentAlias] = useState<string>('');
+
+  useUpdateBlocker(submitting || Boolean(code), "Terminá el canje o limpiá el código antes de actualizar.");
 
   useEffect(() => {
     supabase

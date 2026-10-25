@@ -1,4 +1,5 @@
 import { Icon } from './Icons';
+import { useUpdateBlocker } from './PwaUpdates';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 
@@ -29,6 +30,8 @@ export function Login() {
   const [isError, setIsError] = useState(false);
   const [sending, setSending] = useState(false);
   const [useOtp, setUseOtp] = useState(false);
+
+  useUpdateBlocker(sending || Boolean(email || password || (mode === 'register' && (firstName || lastName || confirmPassword || inviteCode))), "Completá o limpiá el formulario de acceso antes de actualizar.");
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

@@ -1,4 +1,6 @@
 import { Icon } from './Icons';
+import { useUpdateBlocker } from './PwaUpdates';
+import type { ProfileDraft, ProfileDraftState } from './profileDraft';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabase';
 import { requestWhatsAppLinkCode } from './whatsappLink';
@@ -21,6 +23,7 @@ type Props = {
   userId: string;
   userEmail?: string | null;
   userProfile?: UserProfile | null;
+  nameDraft: { draft: ProfileDraft; state: ProfileDraftState };
   onBack: () => void;
   onSignOut?: () => void;
   isAdmin?: boolean;
@@ -40,6 +43,7 @@ export function Settings({
   userId,
   userEmail,
   userProfile,
+  nameDraft,
   onBack,
   onSignOut,
   isAdmin,
@@ -70,52 +74,20 @@ export function Settings({
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [redeemFeedback, setRedeemFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Nombre y Apellido del usuario
-  const [firstNameInput, setFirstNameInput] = useState(userProfile?.first_name || '');
-  const [lastNameInput, setLastNameInput] = useState(userProfile?.last_name || '');
-  const [savingName, setSavingName] = useState(false);
-  const [nameSuccess, setNameSuccess] = useState<string | null>(null);
+  const { draft, state: profileDraft } = nameDraft;
+  useUpdateBlocker(showRedeemForm || isRedeeming || showIosModal || showDesktopModal);
 
   // Gesto táctil swipe back para volver deslizando la pantalla
   const { dragOffset, isSwiping } = useSwipeBack({ onBack });
-
-  const hasProfileChanges =
-    firstNameInput.trim() !== (userProfile?.first_name ?? '').trim() ||
-    lastNameInput.trim() !== (userProfile?.last_name ?? '').trim();
 
   function navigateToDashboardSection(sectionHash: '#resumen' | '#movimientos' | '#cuotas') {
     window.history.pushState({ view: 'dashboard' }, '', sectionHash);
     window.dispatchEvent(new PopStateEvent('popstate', { state: { view: 'dashboard' } }));
   }
 
-  useEffect(() => {
-    if (userProfile) {
-      setFirstNameInput(userProfile.first_name || '');
-      setLastNameInput(userProfile.last_name || '');
-    }
-  }, [userProfile]);
-
   async function handleSaveName(e: FormEvent) {
     e.preventDefault();
-    setSavingName(true);
-    setNameSuccess(null);
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        first_name: firstNameInput.trim(),
-        last_name: lastNameInput.trim(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId);
-
-    setSavingName(false);
-    if (error) {
-      setStatus('No pudimos guardar los cambios: ' + error.message);
-    } else {
-      setNameSuccess('¡Datos personales guardados correctamente!');
-      if (onRefreshProfile) onRefreshProfile();
-      setTimeout(() => setNameSuccess(null), 3500);
-    }
+    if (await draft.save()) onRefreshProfile?.();
   }
 
   useEffect(() => {
@@ -390,8 +362,9 @@ export function Settings({
                 <input
                   type="text"
                   className="settings-input"
-                  value={firstNameInput}
-                  onChange={(e) => setFirstNameInput(e.target.value)}
+                  value={profileDraft.value.first_name}
+                  disabled={profileDraft.saving}
+                  onChange={(e) => draft.edit('first_name', e.target.value)}
                   placeholder="Ej. María"
                   autoComplete="given-name"
                 />
@@ -401,25 +374,29 @@ export function Settings({
                 <input
                   type="text"
                   className="settings-input"
-                  value={lastNameInput}
-                  onChange={(e) => setLastNameInput(e.target.value)}
+                  value={profileDraft.value.last_name}
+                  disabled={profileDraft.saving}
+                  onChange={(e) => draft.edit('last_name', e.target.value)}
                   placeholder="Ej. González"
                   autoComplete="family-name"
                 />
               </label>
             </div>
 
+            {profileDraft.conflict && <p role="status" className="settings-draft-notice">Los datos de tu cuenta cambiaron. Conservamos lo que estabas escribiendo. Podés guardarlo o usar los datos actualizados.</p>}
+            {profileDraft.error && <p role="alert" className="form-message form-message-error">{profileDraft.error}</p>}
             <div className="settings-profile-actions">
               <button
                 className="settings-save-button"
                 type="submit"
-                disabled={savingName || !hasProfileChanges}
+                disabled={profileDraft.saving || !profileDraft.dirty}
               >
-                {savingName ? 'Guardando…' : 'Guardar mis datos'}
+                {profileDraft.saving ? 'Guardando…' : 'Guardar mis datos'}
               </button>
-              {nameSuccess && (
+              {(profileDraft.dirty || profileDraft.conflict) && <button type="button" className="button-link" disabled={profileDraft.saving} onClick={() => draft.discard()}>{profileDraft.conflict ? 'Usar datos actualizados' : 'Descartar cambios'}</button>}
+              {profileDraft.message && (
                 <span className="settings-save-feedback">
-                  {nameSuccess}
+                  {profileDraft.message}
                 </span>
               )}
             </div>

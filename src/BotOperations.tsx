@@ -1,4 +1,5 @@
 import { Icon } from './Icons';
+import { useUpdateBlocker } from './PwaUpdates';
 import { issueDescription, issueSource, issueTimestamp, safeClientName } from '../supabase/functions/whatsapp-webhook/issue-details.ts';
 import type { OperationalIssue } from '../supabase/functions/whatsapp-webhook/issue-details.ts';
 import { useEffect, useRef, useState } from 'react';
@@ -54,6 +55,8 @@ export function BotOperations() {
   const [error, setError] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [busy, setBusy] = useState(false);
+  useUpdateBlocker(busy, "Esperá a que termine la acción del bot para actualizar.");
+
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {

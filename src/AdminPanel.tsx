@@ -1,4 +1,5 @@
 import { Icon } from './Icons';
+import { useUpdateBlocker } from './PwaUpdates';
 import { BotOperations } from './BotOperations';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabase';
@@ -177,6 +178,8 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const modalRef = useRef<HTMLDivElement>(null);
   const modalOpen = Boolean(extendingClient || suspendingClient || confirmingBotPause);
   const modalBusy = isSubmittingExtend || isSubmittingSuspend || togglingBot;
+
+  useUpdateBlocker(modalOpen || modalBusy || showCodeForm || isGenerating || savingBotPhone || savingSupportConfig || activeTab === 'settings', "Terminá o cerrá el formulario de administración para actualizar.");
 
   useEffect(() => {
     if (!modalOpen) return;
