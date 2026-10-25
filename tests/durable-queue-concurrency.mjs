@@ -148,6 +148,8 @@ assert.equal(decodePlan(await execute(asClient(`select public.submit_pwa_entry('
 const secondAdmin='50000000-0000-4000-8000-000000000004';
 await execute(`insert into auth.users(id,email)values('${secondAdmin}','second-admin@example.invalid');alter table public.profiles disable trigger tr_protect_profile_system_fields;update public.profiles set role='admin' where id='${secondAdmin}';update public.profiles set subscription_status='active',subscription_until=clock_timestamp()+interval '20 days' where id='${a}';alter table public.profiles enable trigger tr_protect_profile_system_fields;insert into public.invitation_codes(code,duration_days)values('NATIVE-RENEWAL',15);`);
 await execute(await readFile(new URL('031_atomic_subscription_renewals.sql',migrations),'utf8'));
+await execute('revoke usage on schema auth from pesito_subscription_writer;');
+await execute(await readFile(new URL('032_subscription_identity_bridge.sql',migrations),'utf8'));
 const subscriptionActor=(actor,sql)=>`begin;set local role authenticated;select set_config('request.jwt.claim.sub','${actor}',true);${sql};commit;`;
 await execute(`create function public.slow_subscription_fixture()returns trigger language plpgsql as $$begin if new.id='${a}' then perform pg_sleep(0.2);end if;return new;end$$;create trigger slow_subscription_fixture before update on public.profiles for each row execute function public.slow_subscription_fixture();`);
 const subResults=await Promise.all([

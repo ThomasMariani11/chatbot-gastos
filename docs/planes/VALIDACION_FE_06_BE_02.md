@@ -27,7 +27,7 @@ Estado: preparado, sin aplicar 031 ni publicar la PWA. Aceptación productiva y 
 
 ## Pruebas
 
-- 560 Vitest aprobados: 531 anteriores más 21 SQL y ocho del cliente. SQL carga migraciones 001–017 relevantes y 031 con RLS/rol authenticated, reproduciendo primero el falso éxito de 013+016. Verifica canje vigente/vencido/pendiente/vitalicio/suspendido, registro con código, autorización y escrituras directas, acumulación, idempotencia y datos devueltos.
+- 561 Vitest (560 previos aprobados y una regresión adicional de permisos auth): 531 anteriores más 21 SQL y ocho del cliente. SQL carga migraciones 001–017 relevantes y 031 con RLS/rol authenticated, reproduciendo primero el falso éxito de 013+016. Verifica canje vigente/vencido/pendiente/vitalicio/suspendido, registro con código, autorización y escrituras directas, acumulación, idempotencia y datos devueltos.
 - Fallos inyectados al insertar recibo, consumir código y un trigger que ignora el cambio revierten la operación o impiden el éxito; no se consume el código si el perfil no cambió.
 - Cliente: doble clic, respuesta perdida/recarga, UUID distinto para una nueva intención, parámetros congelados, separación entre administradores, almacenamiento bloqueado/corrupto y desmontaje.
 - Lint, tipos/build y seis controles de release aprobados. El aviso previo del bundle mayor que 500 kB permanece. Los 12 escenarios de test:sql también pasan, pero cargan solo 005/013: la regresión con 016/031 está cubierta por el nuevo archivo SQL de Vitest.
@@ -51,3 +51,9 @@ AdminPanel real con API local y PGlite descartable en http://127.0.0.1:4194, sin
 - Cerrar/borrar la sesión de la pestaña puede perder la identidad local. Una intención nueva con otro UUID puede sumar días legítimamente; comprobar la cuenta antes de repetir tras perder el almacenamiento. Sin retención automática de recibos.
 - Un rechazo definitivo (cliente eliminado, identidad cambiada o datos corruptos) requiere revisar el intento antes de limpiar almacenamiento; no hay botón para descartar silenciosamente una renovación de resultado incierto.
 - Estados de carga generales del panel, fechas de generación de códigos, otras escrituras administrativas y estadísticas quedan fuera de este bloque. No cambia webhook, proveedor IA, costos, retención ni backups.
+
+## Compatibilidad detectada durante publicación — 25/10/2026
+
+031 se aplicó con autorización. El smoke autenticado con usuario ficticio y rollback detectó que el operador postgres no puede delegar USAGE del esquema auth administrado al rol interno, aunque la instrucción GRANT no falle. Las RPC del rol interno devolvieron 42501 al evaluar auth.uid(); no se publicó todavía la PWA ni se confirmaron los datos de prueba.
+
+La corrección hacia adelante 032 agrega subscription_actor_id, SECURITY DEFINER propiedad de postgres, que devuelve únicamente auth.uid(). Solo el rol interno puede ejecutarla; no se amplían permisos del esquema auth ni se elimina el trigger. Ambas RPC conservan firma, propietario y reglas; usan esta identidad acotada. La regresión revoca USAGE auth al rol interno para reproducir la condición real; pasa en PGlite y se incorpora a la carrera nativa de CI. Se conserva 031 sin editar una migración aplicada. El mínimo del frontend pasa a 032. Antes de continuar se repite el smoke autenticado completo.
