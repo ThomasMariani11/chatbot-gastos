@@ -144,6 +144,28 @@ assert.ok(['cancelled','saved'].includes(pwaRaceResults[0].state));
 assert.equal((await execute(`select count(*) from public.pwa_entry_requests where user_id='${a}' and request_id='${pwaRaceId}';`)).output,'1');
 await execute(`delete from public.transactions where id='${pwaOne.entity_id}';drop trigger slow_pwa_fixture on public.transactions;drop function public.slow_pwa_fixture();`);
 assert.equal(decodePlan(await execute(asClient(`select public.submit_pwa_entry('${pwaId}','movement',${pwaPayload}::jsonb,false)`))).state,'removed');
-const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,concurrent_sessions:2,exclusive_lease:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
+// FE-06/BE-02: renovaciones de dos admins y canje comparten el bloqueo del cliente.
+const secondAdmin='50000000-0000-4000-8000-000000000004';
+await execute(`insert into auth.users(id,email)values('${secondAdmin}','second-admin@example.invalid');alter table public.profiles disable trigger tr_protect_profile_system_fields;update public.profiles set role='admin' where id='${secondAdmin}';update public.profiles set subscription_status='active',subscription_until=clock_timestamp()+interval '20 days' where id='${a}';alter table public.profiles enable trigger tr_protect_profile_system_fields;insert into public.invitation_codes(code,duration_days)values('NATIVE-RENEWAL',15);`);
+await execute(await readFile(new URL('031_atomic_subscription_renewals.sql',migrations),'utf8'));
+await execute('revoke usage on schema auth from pesito_subscription_writer;');
+await execute(await readFile(new URL('032_subscription_identity_bridge.sql',migrations),'utf8'));
+const subscriptionActor=(actor,sql)=>`begin;set local role authenticated;select set_config('request.jwt.claim.sub','${actor}',true);${sql};commit;`;
+await execute(`create function public.slow_subscription_fixture()returns trigger language plpgsql as $$begin if new.id='${a}' then perform pg_sleep(0.2);end if;return new;end$$;create trigger slow_subscription_fixture before update on public.profiles for each row execute function public.slow_subscription_fixture();`);
+const subResults=await Promise.all([
+ execute(subscriptionActor(admin,`select public.admin_renew_subscription('59000000-0000-4000-8000-000000000031','${a}','extend',30)`)),
+ execute(subscriptionActor(secondAdmin,`select public.admin_renew_subscription('59000000-0000-4000-8000-000000000032','${a}','extend',60)`)),
+ execute(subscriptionActor(a,`select public.redeem_invitation_code('NATIVE-RENEWAL','${a}')`)),
+]);
+assert.equal(decodePlan(subResults[2]).success,true);
+const nativeDays=Number((await execute(`select extract(epoch from(subscription_until-clock_timestamp()))/86400 from public.profiles where id='${a}';`)).output);
+assert.ok(Math.abs(nativeDays-125)<0.001,'Se perdieron días entre dos administradores y un canje');
+const duplicateRenewal=`select public.admin_renew_subscription('59000000-0000-4000-8000-000000000033','${a}','extend',7)`;
+const subDuplicate=await Promise.all([0,1].map(()=>execute(subscriptionActor(admin,duplicateRenewal))));
+assert.equal(subDuplicate.map(decodePlan).filter(r=>r.replayed).length,1);
+const nativeAfterRetry=Number((await execute(`select extract(epoch from(subscription_until-clock_timestamp()))/86400 from public.profiles where id='${a}';`)).output);
+assert.ok(Math.abs(nativeAfterRetry-132)<0.001,'Se sumaron dos veces los días del mismo intento');
+await execute('drop trigger slow_subscription_fixture on public.profiles;drop function public.slow_subscription_fixture();');
+const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,concurrent_sessions:2,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
 if(process.env.PESITO_TEST_EVIDENCE) await writeFile(process.env.PESITO_TEST_EVIDENCE,JSON.stringify(evidence,null,2));
 console.log(JSON.stringify(evidence));

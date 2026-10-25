@@ -1,10 +1,12 @@
 # Plan de mejoras del proyecto
 
-## Estado vigente — cierre FE-04 / FE-05 del 24/10/2026
+## Estado vigente — preparación FE-06 / BE-02 del 24/10/2026
 
 **FE-01, FE-02 y FE-03 terminados.** Migración 029 aplicada, [PR #30](https://github.com/ThomasMariani11/chatbot-gastos/pull/30) publicada en d8aaacd, CI completo y aceptación en producción ejecutada por Codex por instrucción del propietario. La compra ficticia se creó, renombró, editó tras eliminar la cuota 2 y eliminó al terminar; cero cuotas de prueba activas. [Evidencia y límites](VALIDACION_FE_01_02_03.md).
 
-**FE-04 + FE-05 terminados.** Migración 030 aplicada y registrada antes de integrar/publicar la [PR #32](https://github.com/ThomasMariani11/chatbot-gastos/pull/32), versión d0cf7e5. Altas PWA con recibo SQL, recuperación del mismo intento tras recargar y carga/error por usuario y mes. Los cuatro controles y la publicación aprobaron. Aceptación final delegada y aprobada en la PWA publicada: doble clic, recarga inmediata, recuperación del formulario, dos comprobaciones y una sola operación/recibo. Cambio rápido de mes correcto. Prueba cancelada, sin movimientos ficticios activos ni envíos pendientes. [Validación, orden y límites](VALIDACION_FE_04_05.md). Después sigue FE-06/BE-02 (renovaciones concurrentes). FE-09 (totales restantes) continúa pendiente: este cierre no cambió ese cálculo. FE-11 tiene la corrección por ID publicada; su seguimiento de planes homónimos permanece abierto.
+**FE-04 + FE-05 terminados.** Migración 030 aplicada y registrada antes de integrar/publicar la [PR #32](https://github.com/ThomasMariani11/chatbot-gastos/pull/32), versión d0cf7e5. Altas PWA con recibo SQL, recuperación del mismo intento tras recargar y carga/error por usuario y mes. Los cuatro controles y la publicación aprobaron. Aceptación final delegada y aprobada en la PWA publicada: doble clic, recarga inmediata, recuperación del formulario, dos comprobaciones y una sola operación/recibo. Cambio rápido de mes correcto. Prueba cancelada, sin movimientos ficticios activos ni envíos pendientes. [Validación, orden y límites](VALIDACION_FE_04_05.md). FE-06/BE-02 está en preparación (ver abajo). FE-09 (totales restantes) continúa pendiente: este cierre no cambió ese cálculo. FE-11 tiene la corrección por ID publicada; su seguimiento de planes homónimos permanece abierto.
+
+**FE-06 / BE-02 preparado, sin publicar.** Renovación administrativa atómica e idempotente, canjes compatibles con el trigger protegido y recuperación de intentos. 031 aplicada con autorización; el smoke detectó permisos de auth no delegables en producción. Corrección hacia adelante 032 preparada y probada; publicación/aceptación aún pendientes. Revisión de códigos históricos pendiente; no se corrigen datos automáticamente. [Validación y límites](VALIDACION_FE_06_BE_02.md).
 
 Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. Backups siguen al final y la retención no se habilita. Las secciones de revisión y preparación siguientes son registros anteriores a este cierre; no indican trabajo actual pendiente para FE-01/02/03/04/05.
 
@@ -269,7 +271,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 5 | FE-04 | Alta | Evitar movimientos duplicados | BE-10 | Terminada; publicada y aceptada |
 | 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Terminada; publicada y aceptada |
 | 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Pendiente |
-| 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Pendiente |
+| 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Preparado; publicación y aceptación pendientes |
 | 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Pendiente |
 | 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Pendiente |
 | 11 | FE-13 | Media | Validación de invitación fuera de orden | — | Pendiente |
@@ -328,7 +330,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-06 — Extender suscripciones desde el valor actual del servidor
 
-- [ ] Terminada.
+- [ ] Terminada. Preparada en código; 031/publicación, aceptación y seguimiento histórico pendientes. [Validación](VALIDACION_FE_06_BE_02.md).
 - **Categoría:** Bug. **Problema confirmado en código:** el administrador calcula una fecha absoluta desde el perfil cargado y la escribe sin comprobar modificaciones concurrentes. Dos administradores que agregan 30 días desde la misma fecha producen el mismo vencimiento, perdiendo una extensión; un canje entre apertura y guardado también puede sobrescribirse. No se ejecutaron extensiones reales.
 - **Archivos:** src/AdminPanel.tsx:365, :371, :376, :378, :381.
 - **Trabajo:** enviar días o cambio explícito de plan a una RPC administrativa autorizada; bloquear el perfil y calcular desde su valor actual, con fecha del servidor. Definir el comportamiento de planes vitalicios y devolver el vencimiento efectivo para el feedback. Coordinar con el trigger de BE-02.
@@ -498,7 +500,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | --- | --- | --- | --- | --- | --- |
 | 1 | BE-01 | Crítica | Autorización de RPC privilegiadas | INF-01 | Terminada |
 | 2 | BE-03 | Alta | Escrituras y propiedad de datos operativos | INF-02 | Terminada |
-| 3 | BE-02 | Alta | Renovaciones bloqueadas por el trigger | — | Pendiente |
+| 3 | BE-02 | Alta | Renovaciones bloqueadas por el trigger | — | Preparado; publicación y revisión histórica pendientes |
 | 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | Pendiente |
 | 5 | BE-04 | Alta | Parser determinista e interpretación financiera | — | Pendiente |
 | 6 | BE-05 | Alta | Detección de consultas comerciales y saldo | — | En curso |
@@ -529,7 +531,7 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-02 — Corregir renovaciones y activaciones bloqueadas por el trigger
 
-- [ ] Terminada.
+- [ ] Terminada. Preparada en código; 031/publicación, aceptación y seguimiento histórico pendientes. [Validación](VALIDACION_FE_06_BE_02.md).
 - **Problema reproducido:** el trigger de perfiles conserva estado y vencimiento del cliente incluso durante un canje autorizado. La RPC devuelve éxito y consume el código, pero no renueva. También ocurre con un usuario pending_code.
 - **Archivos:** `supabase/migrations/016_add_name_fields_to_profiles.sql:23`; `supabase/migrations/013_secure_subscription_renewals.sql:47`.
 - **Trabajo:** separar la edición de nombres de las operaciones autorizadas de suscripción y administración. Rediseñar privilegios y trigger sin permitir que clientes modifiquen campos protegidos. No usar current_user=postgres como autorización dentro de un trigger SECURITY DEFINER. Incorporar regresiones con todas las migraciones relevantes.
@@ -766,3 +768,5 @@ Completar una entrada al cerrar cada tarea:
 | 24/10/2026 | Publicación FE-04 / FE-05 | 030 aplicada/registrada; PR #32 integrada, d0cf7e5 publicada | 531 Vitest, SQL/guards, cuatro controles y Pages aprobados; SHA/SW/bundle comprobados; smoke autenticado con rollback; apertura del formulario sin guardar | Código/historial/ACL verificados; llamadas sin sesión rechazadas; cero recibos del ensayo; cola habilitada | Aceptación final de alta/recarga en PWA publicada pendiente; FE-06/BE-02 siguiente; FE-09 abierto |
 
 | 24/10/2026 | Cierre FE-04 / FE-05 | PWA d0cf7e5 y 030; aceptación delegada por el propietario | Doble clic y recarga inmediata; recuperación del mismo formulario, dos comprobaciones, una copia y un recibo; cambios rápidos noviembre/diciembre/octubre | Gasto ficticio cancelado de forma reversible, cero activos y cero pendientes; recibo conservado y reintento no recrea; bot activo | FE-06/BE-02 siguiente; FE-09, compatibilidad física y límites de sesión siguen abiertos |
+
+| 24/10/2026 | Preparación FE-06 / BE-02 | 031, RPC administrativa, rol acotado y cliente persistente; sin cambios productivos | 560 Vitest, lint/tipos/build, 12 SQL y seis controles; navegador ficticio con 20+15+30 y respuesta perdida/recarga | 65 días conservados, un recibo por intención; pausa/vitalicio/autorización y reversión ante fallos probados | CI y autorización de 031/publicación; aceptación y revisión histórica pendientes |

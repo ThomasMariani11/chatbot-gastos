@@ -2,6 +2,7 @@ import { Icon } from './Icons';
 import { BotOperations } from './BotOperations';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabase';
+import { RenewalSender, renewalError, type RenewalAttempt } from './subscriptionRenewals';
 import { clientSubscriptionMetrics } from './subscription';
 import { useSwipeBack } from './useSwipeBack';
 
@@ -156,6 +157,11 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [selectedDaysOption, setSelectedDaysOption] = useState<number | 'lifetime' | 'custom'>(30);
   const [customDays, setCustomDays] = useState<number>(30);
   const [isSubmittingExtend, setIsSubmittingExtend] = useState(false);
+  const renewalSender=useMemo(()=>new RenewalSender(userId),[userId]);
+  const [pendingRenewal,setPendingRenewal]=useState<RenewalAttempt|null>(null);
+  const [renewalStorageIssue,setRenewalStorageIssue]=useState('');
+  const renewalMounted=useRef(false);
+  useEffect(()=>{renewalMounted.current=true;renewalSender.activate();try{setPendingRenewal(renewalSender.pending());setRenewalStorageIssue('');}catch(error){setRenewalStorageIssue(renewalError(error));}return()=>{renewalMounted.current=false;renewalSender.deactivate();};},[renewalSender]);
 
   const [suspendingClient, setSuspendingClient] = useState<ClientProfile | null>(null);
   const [isSubmittingSuspend, setIsSubmittingSuspend] = useState(false);
@@ -435,7 +441,9 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
     if (selectedDaysOption === 'lifetime') {
       return { isLifetime: true, text: 'Plan sin vencimiento' };
     }
-    const days = selectedDaysOption === 'custom' ? Math.max(1, customDays || 1) : selectedDaysOption;
+    if(extendingClient.subscription_until===null&&['active','suspended'].includes(extendingClient.subscription_status))return {isLifetime:true,text:'Se conserva el acceso sin vencimiento'};
+    const days=selectedDaysOption==='custom'?customDays:selectedDaysOption;
+    if(!Number.isInteger(days)||days<1||days>3650)return {isLifetime:false,text:'Ingresá de 1 a 3650 días'};
     let baseDate = new Date();
     let isAccumulated = false;
     if (extendingClient.subscription_until) {
@@ -460,60 +468,33 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
   }, [extendingClient, selectedDaysOption, customDays]);
 
   function handleOpenExtendModal(client: ClientProfile) {
-    setExtendingClient(client);
-    setSelectedDaysOption(30);
-    setCustomDays(30);
+    if(renewalSender.busy)return;
+    try{
+      const pending=renewalSender.pending();setPendingRenewal(pending);
+      if(pending){
+        const owner=profiles.find(profile=>profile.id===pending.clientId);
+        if(!owner){setActionToast({type:'error',message:'Comprobá la renovación pendiente antes de iniciar otra.'});return;}
+        setExtendingClient(owner);setSelectedDaysOption(pending.action==='lifetime'?'lifetime':'custom');setCustomDays(pending.days??30);
+      }else{setExtendingClient(client);setSelectedDaysOption(30);setCustomDays(30);}
+    }catch(error){setRenewalStorageIssue(renewalError(error));}
   }
 
   function handleOpenSuspendModal(client: ClientProfile) {
     setSuspendingClient(client);
   }
 
-  async function handleConfirmExtendDays() {
-    if (!extendingClient) return;
-    setIsSubmittingExtend(true);
-    setActionToast(null);
-
-    let nextUntil: string | null = null;
-    let daysAdded = 0;
-
-    if (selectedDaysOption === 'lifetime') {
-      nextUntil = null;
-    } else {
-      daysAdded = selectedDaysOption === 'custom' ? Math.max(1, customDays || 1) : selectedDaysOption;
-      let baseDate = new Date();
-      if (extendingClient.subscription_until) {
-        const currentUntil = new Date(extendingClient.subscription_until);
-        if (currentUntil > baseDate) {
-          baseDate = currentUntil;
-        }
-      }
-      nextUntil = new Date(baseDate.getTime() + daysAdded * 24 * 60 * 60 * 1000).toISOString();
-    }
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        subscription_status: 'active',
-        subscription_until: nextUntil,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', extendingClient.id);
-
-    setIsSubmittingExtend(false);
-
-    if (error) {
-      setActionToast({ type: 'error', message: 'No se pudo actualizar la suscripción: ' + error.message });
-    } else {
-      const msg =
-        selectedDaysOption === 'lifetime'
-          ? `Plan cambiado a Vitalicio para ${extendingClient.email}.`
-          : `Se sumaron ${daysAdded} días de servicio a ${extendingClient.email}.`;
-      setActionToast({ type: 'success', message: msg });
-      setExtendingClient(null);
-      void loadData();
-      setTimeout(() => setActionToast(null), 4000);
-    }
+  async function handleConfirmExtendDays(recover=false) {
+    if(renewalSender.busy||renewalStorageIssue||(!extendingClient&&!recover))return;
+    setIsSubmittingExtend(true);setActionToast(null);
+    try{
+      const result=await renewalSender.run(recover||pendingRenewal?undefined:{clientId:extendingClient!.id,action:selectedDaysOption==='lifetime'?'lifetime':'extend',days:selectedDaysOption==='lifetime'?null:selectedDaysOption==='custom'?customDays:selectedDaysOption});
+      if(!result||!renewalMounted.current)return;
+      setPendingRenewal(null);setExtendingClient(null);
+      const until=result.subscription_until===null?'Sin vencimiento':formatDate(result.subscription_until);
+      const action=result.replayed?'Renovación comprobada':result.days_added>0?'Se sumaron '+result.days_added+' días':result.subscription_until===null?'Acceso sin vencimiento confirmado':'Renovación completada';
+      setActionToast({type:'success',message:action+'. Vencimiento actual: '+until+(result.subscription_status==='suspended'?'. La cuenta sigue pausada.':'.')});void loadData();
+    }catch(error){if(renewalMounted.current){setActionToast({type:'error',message:renewalError(error)});try{setPendingRenewal(renewalSender.pending());}catch(storageError){setRenewalStorageIssue(renewalError(storageError));}}}
+    finally{if(renewalMounted.current)setIsSubmittingExtend(false);}
   }
 
   async function handleConfirmToggleSuspend() {
@@ -600,6 +581,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
           : undefined
       }
     >
+      {(pendingRenewal||renewalStorageIssue)&&<div className="dashboard-notice" role="status"><p>{renewalStorageIssue||'Tenés una renovación pendiente de comprobar. Conservamos la solicitud para completarla una sola vez.'}</p>{pendingRenewal&&<button type="button" className="button-secondary" disabled={isSubmittingExtend||Boolean(renewalStorageIssue)} onClick={()=>void handleConfirmExtendDays(true)}>{isSubmittingExtend?'Comprobando…':'Comprobar renovación pendiente'}</button>}</div>}
       <header className="admin-header">
         <div className="admin-header-left">
           <button className="back-link button-link" type="button" onClick={onBack}>
@@ -1317,6 +1299,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                     type="button"
                     className={`admin-day-chip ${selectedDaysOption === opt.value ? 'active' : ''}`}
                     onMouseDown={(e) => e.preventDefault()}
+                    disabled={isSubmittingExtend || Boolean(pendingRenewal) || Boolean(renewalStorageIssue)}
                     onClick={() => setSelectedDaysOption(opt.value as number | 'lifetime' | 'custom')}
                   >
                     <span>{opt.label}</span>
@@ -1333,9 +1316,10 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                       type="number"
                       min={1}
                       max={3650}
+                      disabled={isSubmittingExtend || Boolean(pendingRenewal) || Boolean(renewalStorageIssue)}
                       className="admin-custom-days-input"
                       value={customDays}
-                      onChange={(e) => setCustomDays(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                      onChange={(e) => setCustomDays(Number(e.target.value))}
                     />
                     <span>días</span>
                   </label>
@@ -1343,12 +1327,15 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               )}
             </div>
 
-            {extendPreview && (
+            {actionToast?.type==='error'&&<p role="alert">{actionToast.message}</p>}
+            {pendingRenewal&&<p role="status">Solicitud original: {pendingRenewal.action==='lifetime'?'sin vencimiento':pendingRenewal.days+' días'}. Comprobarla no vuelve a sumar días.</p>}
+            {renewalStorageIssue&&<p role="alert">{renewalStorageIssue}</p>}
+            {extendPreview && !pendingRenewal && (
               <div className="admin-date-preview-card">
-                <span className="preview-label">Nuevo vencimiento proyectado</span>
+                <span className="preview-label">Vencimiento estimado</span>
                 <strong className="preview-value">{extendPreview.text}</strong>
                 <small style={{ color: '#047857', fontSize: '13px', marginTop: '2px' }}>
-                  Vencimiento actual: {formatDate(extendingClient.subscription_until)}
+                  Vencimiento actual: {formatDate(extendingClient.subscription_until)}. El servidor confirma la fecha.
                 </small>
               </div>
             )}
@@ -1366,11 +1353,11 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               <button
                 type="button"
                 className="primary-button"
-                disabled={isSubmittingExtend}
+                disabled={isSubmittingExtend || Boolean(renewalStorageIssue) || (!pendingRenewal && selectedDaysOption!=='lifetime' && (!Number.isInteger(selectedDaysOption==='custom'?customDays:selectedDaysOption) || (selectedDaysOption==='custom'?customDays:selectedDaysOption)<1 || (selectedDaysOption==='custom'?customDays:selectedDaysOption)>3650))}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => void handleConfirmExtendDays()}
               >
-                {isSubmittingExtend ? 'Guardando…' : 'Confirmar y sumar días'}
+                {isSubmittingExtend ? 'Comprobando…' : pendingRenewal ? 'Comprobar renovación' : selectedDaysOption==='lifetime'?'Confirmar sin vencimiento':'Confirmar y sumar días'}
               </button>
             </div>
           </div>
