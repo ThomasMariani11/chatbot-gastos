@@ -1,9 +1,9 @@
 import { Icon } from './Icons';
 import { useUpdateBlocker } from './PwaUpdates';
+import { presentInstallmentPlans, type InstallmentPlanView } from './installmentPresentation';
 import {
   filterMovementsList,
   groupMovementsByDay,
-  nextScheduledInstallment,
   normalizeDashboardSection,
   summarizeMonthlyInstallments,
 } from './summaryPresentation';
@@ -44,21 +44,7 @@ type CategoryOption = {
 
 type BotState = 'active' | 'paused' | 'unlinked' | 'cost-blocked' | 'loading' | 'unknown';
 
-type InstallmentPlan = {
-  groupId: string;
-  description: string;
-  totalAmount: number;
-  currency: 'ARS' | 'USD';
-  installmentCount: number;
-  vanCount: number;
-  monthlyAmount: number;
-  quedanCount: number;
-  quedanTotal: number;
-  progressPercent: number;
-  currentDateStr: string;
-  nextScheduled?: Movement;
-  currentMovement?: Movement;
-};
+type InstallmentPlan = InstallmentPlanView;
 
 type Props = {
   userId: string;
@@ -474,7 +460,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         status: current.context === loadContext && current.status === 'ready' ? 'ready' : 'loading', refreshing: true })),
       commit: snapshot => {
         const transactions = { data: snapshot.transactions };
-        const allInstallments = { data: snapshot.installments, error: null };
+        const computedPlans = presentInstallmentPlans(snapshot.installments, month, todayKey());
         setMovements((transactions.data ?? []).map((row: Record<string, unknown>) => ({
           id: String(row.id),
           title: String(row.description),
@@ -493,85 +479,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         setMonthsWarning(snapshot.monthsWarning);
         setBotState(snapshot.botState);
         setWaBotNumber(snapshot.botPhone);
-      if (!allInstallments.error && allInstallments.data) {
-        const groups = new Map<string, Array<Record<string, unknown>>>();
-        allInstallments.data.forEach((row: Record<string, unknown>) => {
-          const key = String(row.installment_group_id || row.description);
-          if (!groups.has(key)) groups.set(key, []);
-          groups.get(key)!.push(row);
-        });
-
-        // Respetar las fechas guardadas, incluso si se eliminó una cuota.
-        // Reprogramar un plan es una acción explícita del formulario de edición.
-
-        const currentKey = month; // Evaluamos las cuotas relativas al mes que el usuario está viendo en pantalla
-        const computedPlans: InstallmentPlan[] = [];
-        groups.forEach((rows, groupId) => {
-          const totalCount = Number(rows[0]?.installment_count ?? rows.length);
-          const desc = String(rows[0]?.description ?? 'Compra en cuotas');
-          const monthlyAmount = Number(rows[0]?.amount_ars ?? 0);
-          const paidRows = rows.filter((r) => String(r.occurred_on).slice(0, 7) < currentKey);
-          const remainingRows = rows.filter((r) => String(r.occurred_on).slice(0, 7) >= currentKey);
-          const currentRow = rows.find((r) => String(r.occurred_on).slice(0, 7) === currentKey);
-
-          const paidCount = paidRows.length;
-          const currentNumber = currentRow?.installment_number ? Number(currentRow.installment_number) : Math.min(paidCount + 1, totalCount);
-          const vanCount = currentNumber;
-          const quedanCount = Math.max(totalCount - vanCount, 0);
-          const quedanTotal = quedanCount * monthlyAmount;
-          const progressPercent = Math.round((vanCount / totalCount) * 100);
-          const currentDateStr = currentRow ? String(currentRow.occurred_on) : String(remainingRows[0]?.occurred_on ?? '');
-
-          const nextRow = nextScheduledInstallment(rows, month, todayKey());
-          const rowToEdit = currentRow ?? rows[0];
-          const currentMovement: Movement | undefined = rowToEdit ? {
-            id: String(rowToEdit.id),
-            title: String(rowToEdit.description),
-            amount: Number(rowToEdit.amount_ars),
-            currency: (rowToEdit.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
-            category: String((rowToEdit.categories as { name?: string } | null)?.name ?? 'Compras'),
-            categoryId: rowToEdit.category_id ? String(rowToEdit.category_id) : undefined,
-            date: String(rowToEdit.occurred_on),
-            kind: (rowToEdit.kind || 'expense') as 'expense' | 'income',
-            installmentNumber: rowToEdit.installment_number ? Number(rowToEdit.installment_number) : 1,
-            installmentCount: totalCount,
-            installmentGroupId: groupId,
-          } : undefined;
-
-          // Cuando ya se acabaron las cuotas (es decir, no quedan cuotas pendientes en o después de este mes),
-          // el cuadro de esa compra desaparece por completo del resumen de cuotas
-          if (remainingRows.length > 0) {
-            computedPlans.push({
-              groupId,
-              description: desc,
-              totalAmount: rows.reduce((sum, r) => sum + Number(r.amount_ars), 0),
-              currency: (rows[0]?.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
-              installmentCount: totalCount,
-              vanCount,
-              monthlyAmount,
-              quedanCount,
-              quedanTotal,
-              progressPercent,
-              currentDateStr,
-              nextScheduled: nextRow ? {
-                ...currentMovement!,
-                id: String(nextRow.id),
-                title: String(nextRow.description),
-                category: String((nextRow.categories as { name?: string } | null)?.name ?? 'Compras'),
-                categoryId: nextRow.category_id ? String(nextRow.category_id) : undefined,
-                kind: (nextRow.kind || 'expense') as 'expense' | 'income',
-                date: String(nextRow.occurred_on),
-                amount: Number(nextRow.amount_ars),
-                currency: nextRow.currency === 'USD' ? 'USD' : 'ARS',
-                installmentNumber: Number(nextRow.installment_number || 1),
-              } : undefined,
-              currentMovement,
-            });
-          }
-        });
-
         setInstallmentPlans(computedPlans);
-      }
         setDataContext(loadContext);
         setReadView({ context: loadContext, status: 'ready', refreshing: false });
       },
@@ -1139,7 +1047,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             <article className="summary-card installments-kpi-secondary">
               <div className="card-heading">
                 <span className="metric-icon"><Icon name="receipt" /></span>
-                <small>COMPRAS ACTIVAS</small>
+                <small>COMPRAS REGISTRADAS</small>
               </div>
               <strong>
                 {installmentsSummary.activePlansCount}{' '}
@@ -1148,7 +1056,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               <p>
                 {upcomingPlans.length > 0
                   ? `${upcomingPlans.length} con próximo vencimiento programado`
-                  : 'Planes vigentes en el período consultado'}
+                  : 'Sin próximas fechas registradas'}
               </p>
             </article>
           </div>
@@ -1161,30 +1069,29 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               </div>
               <span className="pill">
                 {filteredInstallmentPlans.length}{' '}
-                {filteredInstallmentPlans.length === 1 ? 'activa' : 'activas'}
+                {filteredInstallmentPlans.length === 1 ? 'compra' : 'compras'}
               </span>
             </div>
 
             {filteredInstallmentPlans.length === 0 ? (
               <div className="budget-empty installments-empty-state">
                 <span className="summary-empty-icon"><Icon name="card" size={24} /></span>
-                <strong>No tenés compras en cuotas activas en {activeCurrency}</strong>
+                <strong>No hay compras con cuotas desde {labelForMonth(month).toLowerCase()} en {activeCurrency}</strong>
                 <p>Cuando registres una compra en cuotas, vas a poder seguir su progreso y próximos vencimientos acá.</p>
               </div>
             ) : (
               <div className="installments-list installments-dedicated-list">
                 {filteredInstallmentPlans.map((plan) => {
                   const targetMov = plan.nextScheduled ?? plan.currentMovement;
-                  const shownQuotaNum = targetMov?.installmentNumber ?? plan.vanCount;
-                  const shownQuotaAmount = targetMov?.amount ?? plan.monthlyAmount;
+                  const shownQuotaNum = targetMov.installmentNumber;
+                  const shownQuotaAmount = targetMov.amount;
                   const catName = targetMov?.category ?? 'Compras';
                   const vis = categoryVisual(catName);
-                  const progressPct = Math.min(Math.round((shownQuotaNum / plan.installmentCount) * 100), 100);
-                  const remainingAfterThis = Math.max(plan.installmentCount - shownQuotaNum, 0);
+                  const progressPct = plan.progressPercent;
                   const isMenuOpen = openInstallmentMenuId === plan.groupId;
 
                   return (
-                    <div className="installment-item installment-plan-card" key={plan.groupId}>
+                    <div className="installment-item installment-plan-card" data-installment-group={plan.groupId} key={plan.groupId}>
                       <div className="installment-plan-top">
                         <span
                           className="movement-icon expense"
@@ -1198,7 +1105,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                             {catName} ·{' '}
                             {plan.nextScheduled
                               ? `Próximo vencimiento: ${formatScheduledDate(plan.nextScheduled.date)}`
-                              : `Fecha en período: ${formatMovementDate(plan.currentDateStr)}`}
+                              : `Fecha registrada: ${formatMovementDate(plan.currentMovement.date)}`}
                           </small>
                         </div>
                         <div className="installment-amount-col">
@@ -1247,18 +1154,18 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                       <div
                         className="installment-progress-bar"
                         role="progressbar"
-                        aria-label={`Progreso de ${plan.description}: cuota ${shownQuotaNum} de ${plan.installmentCount}`}
+                        aria-label={`${plan.earlierCount} de ${plan.activeCount} fechas registradas anteriores al corte`}
                         aria-valuemin={0}
-                        aria-valuemax={plan.installmentCount}
-                        aria-valuenow={shownQuotaNum}
+                        aria-valuemax={plan.activeCount}
+                        aria-valuenow={plan.earlierCount}
                       >
                         <div className="installment-progress-fill" style={{ width: `${progressPct}%` }} />
                       </div>
                       <div className="installment-plan-meta">
                         <span>
-                          {remainingAfterThis === 0
-                            ? 'Última cuota del plan'
-                            : `Quedan ${remainingAfterThis} ${remainingAfterThis === 1 ? 'cuota' : 'cuotas'}`}
+                          {plan.scheduledCount > 0
+                            ? <>{plan.scheduledFrom === todayKey() ? 'Desde hoy' : `Desde ${formatScheduledDate(plan.scheduledFrom)}`}: {plan.scheduledCount} {plan.scheduledCount === 1 ? 'cuota' : 'cuotas'} · <strong>{formatMoney(plan.scheduledTotal, plan.currency)}</strong></>
+                            : 'Sin próximas fechas registradas'}
                         </span>
                         <span>
                           Total registrado: <strong>{formatMoney(plan.totalAmount, plan.currency)}</strong>
@@ -1491,22 +1398,22 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           ) : (
             <div className="installments-list">
               {upcomingPlans.map((plan) => (
-                <div className="installment-item" key={plan.groupId}>
+                <div className="installment-item" data-installment-group={plan.groupId} key={plan.groupId}>
                   <div className="installment-header">
                     <div className="installment-info-col">
                       <span className="installment-date">Próxima · {formatScheduledDate(plan.nextScheduled!.date)}</span>
                       <strong className="installment-title">{plan.description}</strong>
-                      <small className="installment-subtitle">Total registrado: {formatMoney(plan.totalAmount, plan.currency)}</small>
+                      <small className="installment-subtitle">{plan.scheduledCount} {plan.scheduledCount === 1 ? 'cuota programada' : 'cuotas programadas'} · {formatMoney(plan.scheduledTotal, plan.currency)}</small>
                     </div>
                     <div className="installment-amount-col">
                       <strong className="installment-amount">{formatMoney(plan.nextScheduled!.amount, plan.currency)}</strong>
                       <span className="installment-cuota-badge">Cuota {(plan.nextScheduled!.installmentNumber ?? 1)}/{plan.installmentCount}</span>
                     </div>
                   </div>
-                  <div className="installment-progress-bar" aria-label={`${(plan.nextScheduled!.installmentNumber ?? 1) - 1} de ${plan.installmentCount} fechas de cuotas anteriores`}>
+                  <div className="installment-progress-bar" aria-label={`${plan.earlierCount} de ${plan.activeCount} fechas registradas anteriores al corte`}>
                     <div
                       className="installment-progress-fill"
-                      style={{ width: `${Math.min((((plan.nextScheduled!.installmentNumber ?? 1) - 1) / plan.installmentCount) * 100, 100)}%` }}
+                      style={{ width: `${plan.progressPercent}%` }}
                     />
                   </div>
                   <div className="installment-footer-actions">

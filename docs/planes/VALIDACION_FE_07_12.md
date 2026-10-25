@@ -45,3 +45,7 @@ El borrador es en memoria durante la sesión: cierre de pestaña, recarga manual
 - Evidencia agregada sin datos personales en carpeta temporal: pesito-fe07-production-artifacts.json y pesito-fe07-production-draft.json. Captura de UI en pesito-fe07-produccion-borrador.jpg; no se versionan capturas con datos de la sesión.
 - FE-12 terminado dentro del alcance descrito. FE-07: corrección publicada y comprobada; seguimiento de instalación existente/Safari/iOS físico abierto. No se prueba guardado real de nombres, conflictos entre clientes reales, cierre del navegador ni terminación del sistema. La prueba de guardado/error/usuarios distintos permanece ficticia y no se confunde con cambios en cuentas reales.
 - Próximo bloque recomendado: FE-09 + aceptación de FE-11; no se inició esa implementación.
+
+## Seguimiento físico — 25/10/2026
+
+El propietario delegó la prueba física si estaba disponible. El inventario de superficies de esta sesión solo ofrece el navegador integrado y MCP Apps sin pestañas; no hay iPhone/Safari ni instalación PWA física controlables. No se repitió la comprobación publicada como sustituto de ese dispositivo y el seguimiento continúa abierto. Se avanzó con FE-09/11 en datos ficticios, por autorización del propietario.

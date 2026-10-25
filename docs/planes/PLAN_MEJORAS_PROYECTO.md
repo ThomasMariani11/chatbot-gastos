@@ -4,7 +4,7 @@
 
 **FE-01, FE-02 y FE-03 terminados.** Migración 029 aplicada, [PR #30](https://github.com/ThomasMariani11/chatbot-gastos/pull/30) publicada en d8aaacd, CI completo y aceptación en producción ejecutada por Codex por instrucción del propietario. La compra ficticia se creó, renombró, editó tras eliminar la cuota 2 y eliminó al terminar; cero cuotas de prueba activas. [Evidencia y límites](VALIDACION_FE_01_02_03.md).
 
-**FE-04 + FE-05 terminados.** Migración 030 aplicada y registrada antes de integrar/publicar la [PR #32](https://github.com/ThomasMariani11/chatbot-gastos/pull/32), versión d0cf7e5. Altas PWA con recibo SQL, recuperación del mismo intento tras recargar y carga/error por usuario y mes. Los cuatro controles y la publicación aprobaron. Aceptación final delegada y aprobada en la PWA publicada: doble clic, recarga inmediata, recuperación del formulario, dos comprobaciones y una sola operación/recibo. Cambio rápido de mes correcto. Prueba cancelada, sin movimientos ficticios activos ni envíos pendientes. [Validación, orden y límites](VALIDACION_FE_04_05.md). FE-06/BE-02 quedó publicado y verificado (ver abajo). FE-09 (totales restantes) continúa pendiente: este cierre no cambió ese cálculo. FE-11 tiene la corrección por ID publicada; su seguimiento de planes homónimos permanece abierto.
+**FE-04 + FE-05 terminados.** Migración 030 aplicada y registrada antes de integrar/publicar la [PR #32](https://github.com/ThomasMariani11/chatbot-gastos/pull/32), versión d0cf7e5. Altas PWA con recibo SQL, recuperación del mismo intento tras recargar y carga/error por usuario y mes. Los cuatro controles y la publicación aprobaron. Aceptación final delegada y aprobada en la PWA publicada: doble clic, recarga inmediata, recuperación del formulario, dos comprobaciones y una sola operación/recibo. Cambio rápido de mes correcto. Prueba cancelada, sin movimientos ficticios activos ni envíos pendientes. [Validación, orden y límites](VALIDACION_FE_04_05.md). FE-06/BE-02 quedó publicado y verificado (ver abajo). Ese cierre no cambió FE-09 ni completó la aceptación de homónimos FE-11; su preparación posterior se registra abajo.
 
 **Corrección FE-06 / BE-02 terminada y publicada.** PR #34 (edb051b), migraciones 031 y 032; 561 pruebas y cuatro controles más publicación aprobados. Verificación técnica autenticada en producción con rollback, permisos e identidad privada comprobados y panel abierto sin renovar clientes reales. La prueba UI de pérdida de respuesta/recarga se ejecutó con datos ficticios locales. Revisión histórica de solo lectura completada: un código usado sin usuario sigue como seguimiento separado; no se reasignaron códigos ni se cambiaron vencimientos históricos. [Validación y límites](VALIDACION_FE_06_BE_02.md).
 
@@ -14,21 +14,25 @@ Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. 
 
 Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani11/chatbot-gastos/pull/37), versión 15269ba. 592 pruebas y los cuatro controles más Publicar aprobados. SHA, SW, bundle y CSP comprobados; acceso autenticado, borrador sin guardar, navegación, espera de más de 30 segundos, bloqueo de actualización, descarte y actualización explícita verificados en la PWA publicada. No se envió el formulario ni se cambiaron datos productivos. [Evidencia y límites](VALIDACION_FE_07_12.md). FE-12 terminado en su alcance; FE-07 tiene la corrección publicada y conserva el seguimiento físico Safari/iOS/PWA instalada.
 
+## FE-09 + seguimiento FE-11 — preparación y aceptación ficticia
+
+Totales por cuotas existentes, centavos y moneda preparados sobre main 382e125. El corte incluye hoy (o el primer día del mes futuro elegido), se muestra explícitamente y no representa pagos. Paginación de cuotas con comprobación de integridad; error sin subtotales. Planes homónimos, fallo SQL/rollback y reintento verificados en Dashboard real con base descartable; 628 pruebas, lint/tipos/build, 12 SQL y seis controles de release aprobados. Sin migraciones ni escrituras productivas. [Validación y límites](VALIDACION_FE_09_11.md). **Pendientes revisión y publicación; comprobar CI sobre el SHA final de la PR.** FE-07 físico sigue abierto por falta de acceso al dispositivo.
+
 ## Próximos bloques — recomendación al 25/10/2026
 
-Secuencia revisada sobre main 15269ba después de publicar FE-07/FE-12. La última publicación pasó 592 pruebas y los controles de CI; su comprobación productiva se describe arriba. Se conserva la revisión histórica de main 14e1cac más abajo; no se repite una auditoría cloud completa. La siguiente implementación recomendada es FE-09 + seguimiento FE-11. La secuencia no autoriza por sí sola nuevas publicaciones.
+Secuencia revisada sobre main 15269ba después de publicar FE-07/FE-12. La última publicación pasó 592 pruebas y los controles de CI; su comprobación productiva se describe arriba. Se conserva la revisión histórica de main 14e1cac más abajo; no se repite una auditoría cloud completa. FE-09 + seguimiento FE-11 ya están preparados y probados con datos ficticios, pendientes de revisión/publicación y aprobación de CI sobre el SHA final. Después sigue la revisión del bot indicada en el orden 2. La secuencia no autoriza por sí sola nuevas publicaciones.
 
 | Orden | Bloque | Qué falta y por qué va aquí | Criterio para avanzar |
 | --- | --- | --- | --- |
 | Publicado | **FE-07 + FE-12** | Actualización explícita y borrador de Ajustes publicados y verificados técnicamente. | Seguimiento físico de Safari/iOS e instalación existente abierto para FE-07; no bloquea revisar el siguiente bloque. |
-| 1 — siguiente | **FE-09 + seguimiento FE-11** | Completar las cuotas: sumar importes y cantidades de registros activos reales por fecha y moneda; comprobar que eliminar un plan homónimo conserva el otro. | Importes distintos, centavos, cuotas eliminadas, inicio futuro y meses sin cuota correctos; aceptación de identidad sin modificar compras reales para probar. |
+| 1 — preparado | **FE-09 + seguimiento FE-11** | Cálculo corregido; identidad, error/reintento y montos probados con datos ficticios. | Revisar diff/CI y autorizar publicación; no hay migración ni webhook. [Validación](VALIDACION_FE_09_11.md). |
 | 2 | **BE-04 / BE-05 / BE-07 / BE-08**, con BE-12 y BE-17 | Revisar avances del bot antes de implementar lo restante: interpretación conservadora, consultas que no intercepten movimientos, versión efectivamente revisada y datos incompletos. Tratar cada corrección por separado, con contratos compartidos. | Regresiones sobre código/esquema reales; ninguna parte perdida, confirmación de datos no revisados ni guardado de un grupo incompleto. No se declara que todos los defectos originales sigan reproducibles hoy. |
 | 3 | **Infraestructura pendiente** | INF-15 (costos y documentación), INF-13/FE-19 (límites de hosting/aceptación) e INF-14 (retención). La CSP y las alertas ya están publicadas. | Controles y documentación coherentes; verificar límites antes de cambiar configuración; retención continúa desactivada hasta aprobación. |
 | Último | **INF-08** | Backups y recuperación aplazados por decisión del propietario. | Retomar evaluación y autorización cuando se priorice; no habilitar almacenamiento ni servicios ahora. |
 
 **Seguimientos que no se dan por cerrados:** un código histórico usado sin usuario asociado (BE-02), aceptación física Safari/iOS/PWA, dependencias de desarrollo INF-07/FE-08, cobertura transversal FE-21/BE-17 y otros ítems abiertos de las tablas. Los avisos de dependencias registrados el 23/10 requieren una comprobación vigente antes de actualizar; no se ejecutó otro audit en esta revisión. Una incidencia nueva puede cambiar este orden.
 
-**Alcance del siguiente bloque propuesto:** FE-09: definir qué cuotas incluye el indicador, sumar registros activos reales en centavos por grupo/fecha/moneda y contar solo cuotas existentes. FE-11: comprobar dos planes con la misma descripción y IDs distintos; eliminar uno debe conservar el otro, también ante fallos. Empezar con datos ficticios y regresiones sobre código real; no reconstruir cuotas eliminadas ni modificar compras reales para probar. No se inició este bloque en la publicación de FE-07/FE-12.
+**Alcance del siguiente bloque propuesto:** FE-09: definir qué cuotas incluye el indicador, sumar registros activos reales en centavos por grupo/fecha/moneda y contar solo cuotas existentes. FE-11: comprobar dos planes con la misma descripción y IDs distintos; eliminar uno debe conservar el otro, también ante fallos. Empezar con datos ficticios y regresiones sobre código real; no reconstruir cuotas eliminadas ni modificar compras reales para probar. No se inició este bloque en la publicación de FE-07/FE-12; la preparación posterior y su aceptación ficticia se registran arriba, todavía sin publicar.
 
 ## Revisión incremental del 23/10/2026 — registro histórico
 
@@ -292,7 +296,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 4 | FE-21 | Media | Pruebas de flujos y dominio real | BE-17, INF-06 | En curso; regresiones por bloque, cobertura restante abierta |
 | 5 | FE-04 | Alta | Evitar movimientos duplicados | BE-10 | Terminada; publicada y aceptada |
 | 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Terminada; publicada y aceptada |
-| 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Pendiente |
+| 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Preparada y validada con datos ficticios; revisión/publicación pendientes; comprobar CI en PR |
 | 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Corrección terminada; publicada y verificada |
 | 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Corrección publicada/verificada; seguimiento físico pendiente |
 | 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Terminada; publicada y verificada en su alcance |
@@ -302,7 +306,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 14 | FE-14 | Media | Permitir ampliación del navegador | — | Pendiente |
 | 15 | FE-15 | Media | Diálogos, foco y etiquetas accesibles | FE-07 | Pendiente |
 | 16 | FE-16 | Media | Contraste de botones | FE-22 | Pendiente |
-| 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Corrección publicada; aceptación de homónimos pendiente |
+| 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Corrección publicada; homónimos/fallo/reintento verificados en entorno aislado; cierre junto a FE-09 pendiente |
 | 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Pendiente |
 | 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Pendiente |
 | 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | En curso; CSP publicada, aceptación restante pendiente |
@@ -379,6 +383,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-09 — Sumar las cuotas futuras reales
 
+- **Avance al 25/10/2026:** preparado y verificado con datos ficticios; [pruebas, criterio de corte y límites](VALIDACION_FE_09_11.md). Revisión/publicación pendientes; consultar CI de la PR sobre el SHA final. Los archivos/líneas y el problema de la auditoría que siguen son referencias históricas, no una nueva reproducción sobre la versión preparada.
+
 - [ ] Terminada.
 - **Categoría:** Bug. **Problema reproducido:** el total restante usa cantidad por importe de la primera cuota. Para cuota actual de 100 y futuras de 200 y 300 se muestran 200 restantes en vez de 500; redondeos y cuotas eliminadas también invalidan esa fórmula.
 - **Archivos:** src/Dashboard.tsx:474, :476, :480, :482, :483.
@@ -396,6 +402,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Cierre:** límites, decimales y entradas inválidas probados en alta y edición; mensaje de validación claro; ningún valor aceptado por el cliente es rechazado por una restricción incompatible.
 
 ### FE-11 — Eliminar visualmente un plan por identidad, no por descripción
+
+- **Avance al 25/10/2026:** preparado y verificado con datos ficticios; [pruebas, criterio de corte y límites](VALIDACION_FE_09_11.md). Revisión/publicación pendientes; consultar CI de la PR sobre el SHA final. Los archivos/líneas y el problema de la auditoría que siguen son referencias históricas, no una nueva reproducción sobre la versión preparada.
 
 - [ ] Terminada.
 - **Categoría:** Bug. **Problema reproducido:** el filtrado optimista borra de la pantalla todos los planes/movimientos con igual título. Al eliminar un grupo de dos llamados Celular, ambos desaparecen; la base conserva el otro y vuelve al refrescar. No se demostró pérdida del segundo plan en la base.
@@ -812,3 +820,5 @@ Completar una entrada al cerrar cada tarea:
 | 25/10/2026 | Preparación FE-07 / FE-12 | Aviso explícito, guardias compartidas, SW compatible y borrador de perfil por sesión | Regresiones reales y navegador con dos versiones/datos ficticios; ver validación del bloque | Sin cambios productivos; no hay migración ni webhook nuevos | CI, revisión, publicación y aceptación física/productiva pendientes |
 
 | 25/10/2026 | Publicación FE-07 / FE-12 | PR #37, 15269ba; aviso explícito y borrador por sesión | 592 pruebas, cuatro controles + Publicar; SHA/SW/bundle/CSP; borrador productivo sin enviar, navegación/espera/descarte/actualización | PWA publicada; sin cambios SQL/webhook/IA ni datos productivos | FE-12 terminado; seguimiento físico FE-07 abierto; siguiente FE-09 + aceptación FE-11 |
+
+| 25/10/2026 | Preparación FE-09 / aceptación ficticia FE-11 | Suma y conteo de filas existentes, corte explícito, monedas e identidad; lectura paginada sin subtotales | 628 Vitest, lint/tipos/build, 12 SQL, seis guards y navegador con SQL descartable/trigger fallido/reintento | Sin datos ni configuración productivos; sin migración/webhook/IA | CI, revisión y publicación pendientes; Safari/iPhone físico abierto; siguiente revisión del bot BE-04/05/07/08 |

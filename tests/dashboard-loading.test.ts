@@ -7,8 +7,8 @@ function deferred<T>(){let resolve!:(value:T)=>void;const promise=new Promise<T>
 const goodRow={id:'one',description:'Ficticio',amount_ars:10,currency:'ARS',kind:'expense',occurred_on:'2026-10-23',installment_count:1};
 function api(overrides:Record<string,unknown>={}){
  const calls:string[]=[];
- function query(table:string){const filters:Record<string,unknown>={};const chain={select:()=>chain,eq:(k:string,v:unknown)=>{filters[k]=v;return chain;},gte:()=>{filters.month=true;return chain;},lt:()=>chain,gt:()=>{filters.plan=true;return chain;},order:()=>chain,abortSignal:()=>chain,maybeSingle:()=>chain,
-  then:(done:(v:unknown)=>unknown,fail:(e:unknown)=>unknown)=>{const name=table==='transactions'?(filters.month?'monthly':filters.plan?'plans':'fallback'):table;calls.push(name);const normal=name==='monthly'?[goodRow]:name==='plans'?[]:name==='budgets'?null:name==='whatsapp_links'?{status:'active'}:name==='app_settings'?{whatsapp_responses_enabled:true}:name==='system_config'?{value:'synthetic'}:[];return Promise.resolve(name in overrides?overrides[name]:{data:normal,error:null}).then(done,fail);}};return chain;}
+ function query(table:string){const filters:Record<string,unknown>={};const chain={select:()=>chain,eq:(k:string,v:unknown)=>{filters[k]=v;return chain;},gte:()=>{filters.month=true;return chain;},lt:()=>chain,gt:()=>{filters.plan=true;return chain;},order:()=>chain,limit:()=>chain,abortSignal:()=>chain,maybeSingle:()=>chain,
+  then:(done:(v:unknown)=>unknown,fail:(e:unknown)=>unknown)=>{const name=table==='transactions'?(filters.month?'monthly':filters.plan?'plans':'fallback'):table;calls.push(name);const normal=name==='monthly'?[goodRow]:name==='plans'?[]:name==='budgets'?null:name==='whatsapp_links'?{status:'active'}:name==='app_settings'?{whatsapp_responses_enabled:true}:name==='system_config'?{value:'synthetic'}:[];return Promise.resolve(name in overrides?overrides[name]:{data:normal,error:null,...(name==='plans'?{count:Array.isArray(normal)?normal.length:0}:{})}).then(done,fail);}};return chain;}
  return {calls,client:{from:query,rpc:()=>query('months')} as unknown as typeof supabase};
 }
 afterEach(()=>vi.useRealTimers());
