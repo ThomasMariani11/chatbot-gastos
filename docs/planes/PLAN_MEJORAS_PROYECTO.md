@@ -10,25 +10,25 @@
 
 Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. Backups siguen al final y la retención no se habilita. Las secciones de revisión y preparación siguientes son registros históricos; no reabren FE-01/02/03/04/05/06 ni BE-02. Los estados y la secuencia vigentes se resumen a continuación.
 
-## Bloque en preparación — FE-07 + FE-12
+## FE-07 + FE-12 — publicación y verificación técnica
 
-El propietario autorizó iniciar este bloque tras guardar el plan en PR #36 (77a0002). Coordinador/aviso de actualización explícita, protección de formularios y borrador de Ajustes implementados y validados localmente; todavía no publicados. Sin cambios en SQL, webhook ni datos de clientes. [Pruebas, alcance y límites](VALIDACION_FE_07_12.md). La aceptación en producción y Safari/iOS/PWA física permanece abierta.
+Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani11/chatbot-gastos/pull/37), versión 15269ba. 592 pruebas y los cuatro controles más Publicar aprobados. SHA, SW, bundle y CSP comprobados; acceso autenticado, borrador sin guardar, navegación, espera de más de 30 segundos, bloqueo de actualización, descarte y actualización explícita verificados en la PWA publicada. No se envió el formulario ni se cambiaron datos productivos. [Evidencia y límites](VALIDACION_FE_07_12.md). FE-12 terminado en su alcance; FE-07 tiene la corrección publicada y conserva el seguimiento físico Safari/iOS/PWA instalada.
 
 ## Próximos bloques — recomendación al 25/10/2026
 
-Base revisada: main 14e1cac, árbol limpio antes de esta edición documental. Se contrastaron el plan, los cierres y el código local; no se volvió a auditar la configuración cloud ni se ejecutaron pruebas nuevas en esta revisión. La última publicación registrada pasó 561 pruebas y los controles de CI. Esta secuencia es una propuesta para elegir el próximo trabajo; no autoriza por sí sola cambios de producción.
+Secuencia revisada sobre main 15269ba después de publicar FE-07/FE-12. La última publicación pasó 592 pruebas y los controles de CI; su comprobación productiva se describe arriba. Se conserva la revisión histórica de main 14e1cac más abajo; no se repite una auditoría cloud completa. La siguiente implementación recomendada es FE-09 + seguimiento FE-11. La secuencia no autoriza por sí sola nuevas publicaciones.
 
 | Orden | Bloque | Qué falta y por qué va aquí | Criterio para avanzar |
 | --- | --- | --- | --- |
-| 1 | **FE-07 + FE-12** | Evitar pérdida de formularios al actualizar la PWA y al refrescar el perfil en Ajustes. Ambos riesgos siguen presentes en main. Coordinar con INF-10 y agregar regresiones de FE-21. | Un solo aviso de actualización, aplicación explícita, cambios locales preservados ante polling/foco y aislamiento al cambiar de usuario; probar recuperación y PWA instalada. |
-| 2 | **FE-09 + seguimiento FE-11** | Completar las cuotas: sumar importes y cantidades de registros activos reales por fecha y moneda; comprobar que eliminar un plan homónimo conserva el otro. | Importes distintos, centavos, cuotas eliminadas, inicio futuro y meses sin cuota correctos; aceptación de identidad sin modificar compras reales para probar. |
-| 3 | **BE-04 / BE-05 / BE-07 / BE-08**, con BE-12 y BE-17 | Revisar avances del bot antes de implementar lo restante: interpretación conservadora, consultas que no intercepten movimientos, versión efectivamente revisada y datos incompletos. Tratar cada corrección por separado, con contratos compartidos. | Regresiones sobre código/esquema reales; ninguna parte perdida, confirmación de datos no revisados ni guardado de un grupo incompleto. No se declara que todos los defectos originales sigan reproducibles hoy. |
-| 4 | **Infraestructura pendiente** | INF-15 (costos y documentación), INF-13/FE-19 (límites de hosting/aceptación) e INF-14 (retención). La CSP y las alertas ya están publicadas. | Controles y documentación coherentes; verificar límites antes de cambiar configuración; retención continúa desactivada hasta aprobación. |
+| Publicado | **FE-07 + FE-12** | Actualización explícita y borrador de Ajustes publicados y verificados técnicamente. | Seguimiento físico de Safari/iOS e instalación existente abierto para FE-07; no bloquea revisar el siguiente bloque. |
+| 1 — siguiente | **FE-09 + seguimiento FE-11** | Completar las cuotas: sumar importes y cantidades de registros activos reales por fecha y moneda; comprobar que eliminar un plan homónimo conserva el otro. | Importes distintos, centavos, cuotas eliminadas, inicio futuro y meses sin cuota correctos; aceptación de identidad sin modificar compras reales para probar. |
+| 2 | **BE-04 / BE-05 / BE-07 / BE-08**, con BE-12 y BE-17 | Revisar avances del bot antes de implementar lo restante: interpretación conservadora, consultas que no intercepten movimientos, versión efectivamente revisada y datos incompletos. Tratar cada corrección por separado, con contratos compartidos. | Regresiones sobre código/esquema reales; ninguna parte perdida, confirmación de datos no revisados ni guardado de un grupo incompleto. No se declara que todos los defectos originales sigan reproducibles hoy. |
+| 3 | **Infraestructura pendiente** | INF-15 (costos y documentación), INF-13/FE-19 (límites de hosting/aceptación) e INF-14 (retención). La CSP y las alertas ya están publicadas. | Controles y documentación coherentes; verificar límites antes de cambiar configuración; retención continúa desactivada hasta aprobación. |
 | Último | **INF-08** | Backups y recuperación aplazados por decisión del propietario. | Retomar evaluación y autorización cuando se priorice; no habilitar almacenamiento ni servicios ahora. |
 
 **Seguimientos que no se dan por cerrados:** un código histórico usado sin usuario asociado (BE-02), aceptación física Safari/iOS/PWA, dependencias de desarrollo INF-07/FE-08, cobertura transversal FE-21/BE-17 y otros ítems abiertos de las tablas. Los avisos de dependencias registrados el 23/10 requieren una comprobación vigente antes de actualizar; no se ejecutó otro audit en esta revisión. Una incidencia nueva puede cambiar este orden.
 
-**Alcance inicial del próximo bloque propuesto:** centralizar el estado de actualización; sustituir recargas automáticas durante edición por un aviso con acción explícita; conservar el borrador de Ajustes cuando llegan datos remotos. Probar registro, carga de movimientos, renovación administrativa y Ajustes sin alterar las RPC, los movimientos ni el bot. Implementación preparada en el bloque de arriba; falta CI, revisión y publicación.
+**Alcance del siguiente bloque propuesto:** FE-09: definir qué cuotas incluye el indicador, sumar registros activos reales en centavos por grupo/fecha/moneda y contar solo cuotas existentes. FE-11: comprobar dos planes con la misma descripción y IDs distintos; eliminar uno debe conservar el otro, también ante fallos. Empezar con datos ficticios y regresiones sobre código real; no reconstruir cuotas eliminadas ni modificar compras reales para probar. No se inició este bloque en la publicación de FE-07/FE-12.
 
 ## Revisión incremental del 23/10/2026 — registro histórico
 
@@ -294,8 +294,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Terminada; publicada y aceptada |
 | 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Pendiente |
 | 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Corrección terminada; publicada y verificada |
-| 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | En curso; preparado localmente, publicación/aceptación pendientes |
-| 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | En curso; preparado localmente, publicación/aceptación pendientes |
+| 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Corrección publicada/verificada; seguimiento físico pendiente |
+| 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Terminada; publicada y verificada en su alcance |
 | 11 | FE-13 | Media | Validación de invitación fuera de orden | — | Pendiente |
 | 12 | FE-08 | Alta; desarrollo | Dependencias vulnerables | INF-07 | Pendiente |
 | 13 | FE-10 | Media | Límite de cuotas y contrato SQL | FE-21 | Avance publicado en 029; cierre específico por verificar |
@@ -360,9 +360,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-07 — Actualizar la PWA sin recargar formularios activos
 
-- **Avance al 25/10/2026:** implementación y regresiones locales preparadas junto con el otro punto; CI, publicación y aceptación pendientes. [Validación y límites](VALIDACION_FE_07_12.md).
+- **Estado al 25/10/2026:** corrección publicada en PR #37, CI y comprobación técnica productiva aprobados. Aviso y bloqueo con borrador sin guardar, navegación, descarte y actualización explícita verificados sin enviar cambios. [Validación y límites](VALIDACION_FE_07_12.md).
 
-- [ ] Terminada.
+- [ ] Cierre integral: aceptación en Safari/iOS físico e instalación existente todavía pendiente; no se declara realizada por Chromium.
 - **Categoría:** Bug. **Problema reproducido:** la primera comprobación detecta escritura, pero el MutationObserver solo verifica ausencia de modal-backdrop. Una mutación del DOM recarga con un input todavía enfocado; eventos repetidos crean varios observadores. Los modales administrativos usan admin-modal-backdrop, otra clase.
 - **Archivos:** src/main.tsx:30, :35, :37, :45, :80; src/AdminPanel.tsx:1065.
 - **Trabajo:** centralizar la actualización pendiente y mostrar una acción explícita para aplicarla; considerar cambios sin guardar, foco y todos los diálogos mediante estado compartido. Evitar observadores duplicados y limpiar suscripciones; conservar compatibilidad entre versión web, service worker y cachés.
@@ -405,9 +405,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-12 — Conservar cambios sin guardar en Ajustes
 
-- **Avance al 25/10/2026:** implementación y regresiones locales preparadas junto con el otro punto; CI, publicación y aceptación pendientes. [Validación y límites](VALIDACION_FE_07_12.md).
+- **Cierre al 25/10/2026:** PR #37 publicada, 592 pruebas/CI y comprobación productiva sin escrituras aprobados. Cambios remotos, error de guardado y aislamiento entre usuarios cubiertos con datos ficticios; navegación, espera, descarte y bloqueo comprobados también en la PWA publicada. [Alcance y límites](VALIDACION_FE_07_12.md).
 
-- [ ] Terminada.
+- [x] Terminada en su alcance.
 - **Categoría:** Bug. **Problema reproducido:** cada objeto nuevo de userProfile vuelve a copiar nombre y apellido al formulario. El refresco cada 30 segundos o al recuperar foco reemplaza lo que el usuario escribió sin guardar.
 - **Archivos:** src/Settings.tsx:85, :87, :88; src/App.tsx:110, :128, :129.
 - **Trabajo:** separar borrador y perfil remoto; sincronizar solo cuando no hay cambios locales o al cambiar de usuario. Guardar limpia el estado dirty; definir feedback si hubo cambios remotos concurrentes.
@@ -810,3 +810,5 @@ Completar una entrada al cerrar cada tarea:
 | 25/10/2026 | Revisión del plan | Estados vigentes y secuencia FE-07/FE-12, FE-09/FE-11, backend e infraestructura; avances parciales de CSP, límite de cuotas y pruebas reconciliados | Lectura de main 14e1cac, cierres y código; revisión documental, sin nuevas pruebas funcionales | Sin publicación, cambios de aplicación, SQL, cloud ni datos | Elegir el siguiente bloque; retención desactivada y backups al final |
 
 | 25/10/2026 | Preparación FE-07 / FE-12 | Aviso explícito, guardias compartidas, SW compatible y borrador de perfil por sesión | Regresiones reales y navegador con dos versiones/datos ficticios; ver validación del bloque | Sin cambios productivos; no hay migración ni webhook nuevos | CI, revisión, publicación y aceptación física/productiva pendientes |
+
+| 25/10/2026 | Publicación FE-07 / FE-12 | PR #37, 15269ba; aviso explícito y borrador por sesión | 592 pruebas, cuatro controles + Publicar; SHA/SW/bundle/CSP; borrador productivo sin enviar, navegación/espera/descarte/actualización | PWA publicada; sin cambios SQL/webhook/IA ni datos productivos | FE-12 terminado; seguimiento físico FE-07 abierto; siguiente FE-09 + aceptación FE-11 |
