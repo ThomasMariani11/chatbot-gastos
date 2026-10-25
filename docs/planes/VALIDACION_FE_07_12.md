@@ -1,7 +1,7 @@
 # Validación FE-07 / FE-12 — actualizaciones y borradores
 
 Fecha: 25/10/2026. Base: main 77a0002 (plan actualizado en PR #36). Rama: codex/preserve-forms-on-updates.
-Estado: implementado y validado localmente; pendiente de CI, revisión y publicación. No cerrar FE-07/FE-12 como aceptados en producción todavía.
+Estado al 25/10/2026: publicado en PR #37 y verificado técnicamente en producción. FE-12 terminado en su alcance; FE-07 conserva pendiente la aceptación física de Safari/iOS/PWA instalada. La preparación que sigue es registro previo a la publicación.
 
 ## Resultado preparado
 
@@ -36,3 +36,12 @@ Se escribió Anita local, se publicó B mientras A seguía abierta y se mostró 
 4. Rollback mediante el procedimiento de INF-10. La versión anterior recupera su política de actualización anterior; comunicar ese límite. No se altera SQL ni su historial.
 
 El borrador es en memoria durante la sesión: cierre de pestaña, recarga manual/forzada o terminación del navegador pueden perder cambios sin guardar. Se protege la actualización gestionada por Pesito; no se declara persistencia ante cierre del sistema ni resolución SQL de ediciones concurrentes de nombres. Retención y backups permanecen sin cambios.
+
+## Publicación autorizada y comprobación — 25/10/2026
+
+- El propietario autorizó integrar/publicar PR #37. Candidato 3edb9dcb8de1f1f4296d7b76a82d1589993c7005: Frontend, Webhook, PostgreSQL y Ensayo de release aprobados. Integrada en 15269ba819f6f5e14773df845112e8073ba310ce. [CI main y Publicar](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40227854172) aprobados. 592 pruebas, lint/tipos/build, SQL y controles de release verificados.
+- HTTP: version.json y SW corresponden a 15269ba; bundle publicado contiene el aviso y el manejo de borrador/error. CSP presente. No se aplicó ninguna migración ni se redesplegó el webhook.
+- Con la sesión existente del propietario se abrió Ajustes. Se escribió un valor ficticio solo en el formulario: apareció Descartar cambios y Actualizar quedó deshabilitado. Salir/volver conservó el borrador; tras más de 30 segundos continuó intacto. Se descartó y se restauraron los datos remotos visibles; no se pulsó Guardar mis datos. Se pulsó Actualizar con el formulario limpio: recarga completada, acceso conservado, formulario limpio y aviso ausente. Es una comprobación en navegador de la PWA publicada; no se presenta como Safari/iPhone o instalación física.
+- Evidencia agregada sin datos personales en carpeta temporal: pesito-fe07-production-artifacts.json y pesito-fe07-production-draft.json. Captura de UI en pesito-fe07-produccion-borrador.jpg; no se versionan capturas con datos de la sesión.
+- FE-12 terminado dentro del alcance descrito. FE-07: corrección publicada y comprobada; seguimiento de instalación existente/Safari/iOS físico abierto. No se prueba guardado real de nombres, conflictos entre clientes reales, cierre del navegador ni terminación del sistema. La prueba de guardado/error/usuarios distintos permanece ficticia y no se confunde con cambios en cuentas reales.
+- Próximo bloque recomendado: FE-09 + aceptación de FE-11; no se inició esa implementación.
