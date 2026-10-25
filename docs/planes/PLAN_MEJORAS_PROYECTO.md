@@ -1,6 +1,6 @@
 # Plan de mejoras del proyecto
 
-## Estado vigente — publicación FE-06 / BE-02 del 25/10/2026
+## Estado vigente — revisión del plan al 25/10/2026
 
 **FE-01, FE-02 y FE-03 terminados.** Migración 029 aplicada, [PR #30](https://github.com/ThomasMariani11/chatbot-gastos/pull/30) publicada en d8aaacd, CI completo y aceptación en producción ejecutada por Codex por instrucción del propietario. La compra ficticia se creó, renombró, editó tras eliminar la cuota 2 y eliminó al terminar; cero cuotas de prueba activas. [Evidencia y límites](VALIDACION_FE_01_02_03.md).
 
@@ -8,11 +8,27 @@
 
 **Corrección FE-06 / BE-02 terminada y publicada.** PR #34 (edb051b), migraciones 031 y 032; 561 pruebas y cuatro controles más publicación aprobados. Verificación técnica autenticada en producción con rollback, permisos e identidad privada comprobados y panel abierto sin renovar clientes reales. La prueba UI de pérdida de respuesta/recarga se ejecutó con datos ficticios locales. Revisión histórica de solo lectura completada: un código usado sin usuario sigue como seguimiento separado; no se reasignaron códigos ni se cambiaron vencimientos históricos. [Validación y límites](VALIDACION_FE_06_BE_02.md).
 
-Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. Backups siguen al final y la retención no se habilita. Las secciones de revisión y preparación siguientes son registros anteriores a este cierre; no indican trabajo actual pendiente para FE-01/02/03/04/05.
+Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. Backups siguen al final y la retención no se habilita. Las secciones de revisión y preparación siguientes son registros históricos; no reabren FE-01/02/03/04/05/06 ni BE-02. Los estados y la secuencia vigentes se resumen a continuación.
 
-## Revisión incremental del 23/10/2026 — estado actual
+## Próximos bloques — recomendación al 25/10/2026
 
-Esta sección actualiza la lectura del proyecto sobre main 8e46f60391558a41801dfc2768194a97e8439632; las auditorías y cierres fechados más abajo se conservan como registro histórico. No se deben interpretar sus líneas antiguas como verificación actual de producción.
+Base revisada: main 14e1cac, árbol limpio antes de esta edición documental. Se contrastaron el plan, los cierres y el código local; no se volvió a auditar la configuración cloud ni se ejecutaron pruebas nuevas en esta revisión. La última publicación registrada pasó 561 pruebas y los controles de CI. Esta secuencia es una propuesta para elegir el próximo trabajo; no autoriza por sí sola cambios de producción.
+
+| Orden | Bloque | Qué falta y por qué va aquí | Criterio para avanzar |
+| --- | --- | --- | --- |
+| 1 | **FE-07 + FE-12** | Evitar pérdida de formularios al actualizar la PWA y al refrescar el perfil en Ajustes. Ambos riesgos siguen presentes en main. Coordinar con INF-10 y agregar regresiones de FE-21. | Un solo aviso de actualización, aplicación explícita, cambios locales preservados ante polling/foco y aislamiento al cambiar de usuario; probar recuperación y PWA instalada. |
+| 2 | **FE-09 + seguimiento FE-11** | Completar las cuotas: sumar importes y cantidades de registros activos reales por fecha y moneda; comprobar que eliminar un plan homónimo conserva el otro. | Importes distintos, centavos, cuotas eliminadas, inicio futuro y meses sin cuota correctos; aceptación de identidad sin modificar compras reales para probar. |
+| 3 | **BE-04 / BE-05 / BE-07 / BE-08**, con BE-12 y BE-17 | Revisar avances del bot antes de implementar lo restante: interpretación conservadora, consultas que no intercepten movimientos, versión efectivamente revisada y datos incompletos. Tratar cada corrección por separado, con contratos compartidos. | Regresiones sobre código/esquema reales; ninguna parte perdida, confirmación de datos no revisados ni guardado de un grupo incompleto. No se declara que todos los defectos originales sigan reproducibles hoy. |
+| 4 | **Infraestructura pendiente** | INF-15 (costos y documentación), INF-13/FE-19 (límites de hosting/aceptación) e INF-14 (retención). La CSP y las alertas ya están publicadas. | Controles y documentación coherentes; verificar límites antes de cambiar configuración; retención continúa desactivada hasta aprobación. |
+| Último | **INF-08** | Backups y recuperación aplazados por decisión del propietario. | Retomar evaluación y autorización cuando se priorice; no habilitar almacenamiento ni servicios ahora. |
+
+**Seguimientos que no se dan por cerrados:** un código histórico usado sin usuario asociado (BE-02), aceptación física Safari/iOS/PWA, dependencias de desarrollo INF-07/FE-08, cobertura transversal FE-21/BE-17 y otros ítems abiertos de las tablas. Los avisos de dependencias registrados el 23/10 requieren una comprobación vigente antes de actualizar; no se ejecutó otro audit en esta revisión. Una incidencia nueva puede cambiar este orden.
+
+**Alcance inicial del próximo bloque propuesto:** centralizar el estado de actualización; sustituir recargas automáticas durante edición por un aviso con acción explícita; conservar el borrador de Ajustes cuando llegan datos remotos. Probar registro, carga de movimientos, renovación administrativa y Ajustes sin alterar las RPC, los movimientos ni el bot. No se empezó esta implementación.
+
+## Revisión incremental del 23/10/2026 — registro histórico
+
+Esta sección conserva la lectura realizada el 23/10 sobre main 8e46f60391558a41801dfc2768194a97e8439632; las auditorías y cierres fechados más abajo se conservan como registro histórico. No se deben interpretar sus líneas antiguas como verificación actual de producción.
 
 ### Actualizaciones verificadas
 
@@ -30,7 +46,7 @@ Secuencia propuesta: (1) pruebas de regresión con planes PWA/WhatsApp, centavos
 
 Después siguen FE-04/FE-05 (duplicados y carga por mes) y FE-06/BE-02 (renovaciones). Los avisos nuevos de desarrollo requieren una actualización acotada de dependencias. En infraestructura permanece INF-15 y el cierre parcial de INF-13/INF-14; backups siguen al final. La vigencia Groq registrada para el 27/10/2026 requiere revisión antes de esa fecha, sin acceder ni rotar credenciales sin la autorización correspondiente.
 
-### Prioridades que siguen abiertas
+### Prioridades registradas el 23/10/2026 — reemplazadas por el estado vigente
 
 1. **Alta — FE-01/FE-02/FE-03: integridad de edición de cuotas.** Se extrajo la función actual saveMovementEdit de src/Dashboard.tsx y se ejecutó con un cliente Supabase simulado en memoria. Cero solicitudes a producción. Resultados:
    - Plan con la primera cuota como ID del grupo (contrato WhatsApp): 100 / 100 / 100 pasó a 300 / 100 / 100 en un orden válido de ejecución. La función escribe el total y el importe individual sobre la misma fila (líneas 805, 852 y 859).
@@ -95,7 +111,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Terminada |
 | 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Terminada |
 | 12 | INF-14 | Media | Observabilidad y retención | F14 | En curso; retención sin activar |
-| 13 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | En curso; CSP validada localmente, cabeceras pendientes |
+| 13 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | En curso; CSP publicada, cabeceras y aceptación pendientes |
 | 14 | INF-15 | Media | Controles de costos y documentación | F15 | Pendiente |
 | 15 | INF-08 | Alta, a verificar | Backups y recuperación | F08 | Pendiente; última del plan |
 
@@ -221,6 +237,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-13 — Incorporar CSP y cabeceras de seguridad
 
+- **Estado vigente al 25/10/2026:** CSP y meta no-referrer publicadas en PR #23; el estado de preparación del 23/10 que sigue es histórico. Cabeceras HTTP no configurables en el hosting actual y aceptación física/restante siguen abiertas. No se propone migrar hosting en este bloque.
+
 - **Avance 23/10/2026:** CSP generada en el build y no-referrer en HTML; 459 tests, lint/tipos/build y navegador aislado aprobados (scripts/eval/orígenes externos bloqueados, Auth health 200, WSS abierto, fuentes/gráficos/PWA compatibles). Publicación y aceptación productiva pendientes. GitHub Pages no permite configurar las cabeceras HTTP requeridas: protección de framing y demás headers siguen abiertos; no se cambia hosting ni se agregan costos. [Validación](VALIDACION_INF_13.md) y [runbook](../operaciones/SEGURIDAD_NAVEGADOR.md).
 
 - [ ] Terminada.
@@ -267,7 +285,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 1 | FE-01 | Alta | Contrato de cuotas de WhatsApp y PWA | FE-02, FE-03, BE-03 | Terminada; publicada y aceptada |
 | 2 | FE-02 | Alta | Escrituras atómicas de planes | BE-10, BE-17 | Terminada; publicada y aceptada |
 | 3 | FE-03 | Alta | Preservar importes y cuotas eliminadas | FE-01, FE-02 | Terminada; publicada y aceptada |
-| 4 | FE-21 | Media | Pruebas de flujos y dominio real | BE-17, INF-06 | Pendiente |
+| 4 | FE-21 | Media | Pruebas de flujos y dominio real | BE-17, INF-06 | En curso; regresiones por bloque, cobertura restante abierta |
 | 5 | FE-04 | Alta | Evitar movimientos duplicados | BE-10 | Terminada; publicada y aceptada |
 | 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Terminada; publicada y aceptada |
 | 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Pendiente |
@@ -276,14 +294,14 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Pendiente |
 | 11 | FE-13 | Media | Validación de invitación fuera de orden | — | Pendiente |
 | 12 | FE-08 | Alta; desarrollo | Dependencias vulnerables | INF-07 | Pendiente |
-| 13 | FE-10 | Media | Límite de cuotas y contrato SQL | FE-21 | Pendiente |
+| 13 | FE-10 | Media | Límite de cuotas y contrato SQL | FE-21 | Avance publicado en 029; cierre específico por verificar |
 | 14 | FE-14 | Media | Permitir ampliación del navegador | — | Pendiente |
 | 15 | FE-15 | Media | Diálogos, foco y etiquetas accesibles | FE-07 | Pendiente |
 | 16 | FE-16 | Media | Contraste de botones | FE-22 | Pendiente |
 | 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Corrección publicada; aceptación de homónimos pendiente |
 | 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Pendiente |
 | 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Pendiente |
-| 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | En curso; validada localmente, publicación pendiente |
+| 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | En curso; CSP publicada, aceptación restante pendiente |
 | 21 | FE-20 | Baja | Cancelar navegación pendiente al desmontar | — | Pendiente |
 | 22 | FE-22 | Baja | Cascada CSS de pestañas de acceso | FE-16 | Pendiente |
 
@@ -363,6 +381,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-10 — Alinear el límite de cuotas con el esquema
 
+- **Avance al 25/10/2026:** 029 y la PR #30 ya incorporaron contrato de 2–60 cuotas; alta y edición muestran ese límite. La incompatibilidad original de 120 es histórica. Verificar cobertura específica de límites y valores fraccionarios antes de cerrar todo FE-10; no repetir la migración ni ampliar el máximo sin una decisión explícita. [Validación relacionada](VALIDACION_FE_01_02_03.md).
+
 - [ ] Terminada.
 - **Categoría:** Bug. **Problema confirmado:** el formulario acepta y anuncia hasta 120 cuotas, mientras transactions.installment_count y los borradores admiten como máximo 60 según las migraciones. No se intentó insertar 61 cuotas en producción.
 - **Archivos:** src/Dashboard.tsx:1523, :1527, :1534; supabase/migrations/001_initial.sql:42; supabase/migrations/014_draft_movement_batches.sql:31.
@@ -439,6 +459,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-19 — Publicar una CSP compatible con el cliente
 
+- **Estado vigente al 25/10/2026:** CSP publicada en PR #23; no hay una publicación inicial pendiente. Mantener abierta la aceptación restante y coordinar límites de cabeceras con INF-13. El avance de preparación que sigue se conserva como histórico.
+
 - **Avance 23/10/2026:** implementación y validación compartidas con INF-13; no se duplica la política. Pendiente de publicación y aceptación productiva. [Validación](VALIDACION_INF_13.md).
 
 - [ ] Terminada.
@@ -457,6 +479,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Cierre:** desmontaje o cancelación durante la animación no llama onBack; gesto legítimo funciona y no acumula callbacks. Compatibilidad con Safari real requiere prueba adicional.
 
 ### FE-21 — Probar flujos del cliente y reutilizar el dominio financiero
+
+- **Avance al 25/10/2026:** regresiones y pruebas de navegador incorporadas junto con cuotas, altas/carga mensual y renovaciones (PR #30/#32/#34). El conteo de 26 pruebas de la auditoría inicial es histórico; la última publicación pasó 561. Sigue abierto el alcance transversal, incluidas actualizaciones PWA; el número de pruebas no prueba cobertura completa.
 
 - [ ] Terminada.
 - **Categoría:** Mejora. **Problema confirmado:** 26 tests aprobados en entorno Node sin cubrir componentes, formularios, navegación, efectos o service worker. Dashboard contiene lógica financiera propia, por lo que probar helpers similares no asegura ese comportamiento.
@@ -501,7 +525,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 1 | BE-01 | Crítica | Autorización de RPC privilegiadas | INF-01 | Terminada |
 | 2 | BE-03 | Alta | Escrituras y propiedad de datos operativos | INF-02 | Terminada |
 | 3 | BE-02 | Alta | Renovaciones bloqueadas por el trigger | — | Corrección terminada; seguimiento histórico abierto |
-| 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | Pendiente |
+| 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | En curso; esquema/roles/concurrencia por bloque, alcance global abierto |
 | 5 | BE-04 | Alta | Parser determinista e interpretación financiera | — | Pendiente |
 | 6 | BE-05 | Alta | Detección de consultas comerciales y saldo | — | En curso |
 | 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | Terminada |
@@ -681,6 +705,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-17 — Probar el código real y las migraciones combinadas
 
+- **Avance al 25/10/2026:** PGlite declarado en dependencias, regresiones SQL con migraciones relevantes/roles y carreras PostgreSQL en CI para los bloques publicados. FE-06/BE-02 cubre expresamente el trigger 016 y 031/032. La descripción inicial no implica ausencia actual de esas pruebas; revisar lo que falta por dominio y handler antes de cerrar BE-17. [Último bloque verificado](VALIDACION_FE_06_BE_02.md).
+
 - [ ] Terminada.
 - **Problema confirmado:** tests con copias del parser/formateador y pruebas SQL que no incluyen el trigger de 016. PGlite depende de una instalación manual ignorada; npm test no ejecuta esa integración. Lint y build principales excluyen el webhook.
 - **Archivos:** `tests/deterministic-parser.test.ts:3`; `tests/draft-batches.test.ts:14`; `tests/renewals.integration.mjs:22`; `tsconfig.json:16`; `eslint.config.mjs:6`.
@@ -772,3 +798,5 @@ Completar una entrada al cerrar cada tarea:
 | 24/10/2026 | Preparación FE-06 / BE-02 | 031, RPC administrativa, rol acotado y cliente persistente; sin cambios productivos | 560 Vitest, lint/tipos/build, 12 SQL y seis controles; navegador ficticio con 20+15+30 y respuesta perdida/recarga | 65 días conservados, un recibo por intención; pausa/vitalicio/autorización y reversión ante fallos probados | CI y autorización de 031/publicación; aceptación y revisión histórica pendientes |
 
 | 25/10/2026 | Publicación FE-06 / BE-02 | PR #34 edb051b; 031 y corrección 032 aplicadas y registradas | 561 tests, cuatro controles + Pages; SQL authenticated con usuario ficticio y rollback; ACL/SHA/SW/bundle; apertura modal sin enviar | Corrección de identidad auth validada; cero datos de prueba persistidos; revisión histórica agregada sin cambios | Código usado sin usuario: seguimiento sin causa atribuible; no hubo extensión de clientes reales en la PWA |
+
+| 25/10/2026 | Revisión del plan | Estados vigentes y secuencia FE-07/FE-12, FE-09/FE-11, backend e infraestructura; avances parciales de CSP, límite de cuotas y pruebas reconciliados | Lectura de main 14e1cac, cierres y código; revisión documental, sin nuevas pruebas funcionales | Sin publicación, cambios de aplicación, SQL, cloud ni datos | Elegir el siguiente bloque; retención desactivada y backups al final |
