@@ -24,7 +24,7 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 - **Cierres recientes:** FE-07 (flujo protegido aceptado por el propietario en Pesito instalado en iPhone), FE-09 y seguimiento de homónimos FE-11. FE-12 ya estaba cerrado en su alcance.
 - **BE-04 cerrado en el alcance probado.** PR #40/e311db4 y webhook v55: CI completo, verificación técnica y aceptación del propietario ($123 / «Colectivo 60», descartado con CANCELAR). **Bloque actual: BE-05**, revisión del ruteo de consultas. [Evidencia y límites](VALIDACION_BE_04.md).
 - **Orden dentro del bloque del bot:** BE-04 → BE-05 (ruteo de consultas) → BE-07 (confirmación de la versión revisada) → BE-08 (datos faltantes), con BE-12/BE-17 cuando compartan código o pruebas. Ajustar este orden solo si la revisión encuentra una dependencia concreta.
-- **Siguiente acción:** reproducir y corregir BE-05: consultas que interceptan movimientos y mensajes que mezclan una operación con una consulta. La aceptación de BE-04 no cierra los demás puntos. No se usó IA real ni se enviaron mensajes a clientes durante la publicación.
+- **Siguiente acción:** revisar CI y el candidato BE-05, preparado con propuestas que no se desvían a soporte/saldo y aclaración de mensajes mixtos. Ver [validación y límites](VALIDACION_BE_05.md). No está desplegado. La aceptación de BE-04 no cierra los demás puntos. No se usó IA real ni se enviaron mensajes a clientes durante la publicación.
 - **Se conservan las decisiones:** costo $0; retención desactivada; backups INF-08 al final.
 
 ## Próximos bloques — recomendación al 25/10/2026
@@ -615,6 +615,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-05 — Evitar que consultas intercepten operaciones válidas
 
+- **Preparación al 25/10/2026:** seis variantes desviadas reproducidas en el clasificador anterior y mensajes mixtos sin decisión local segura. El candidato reutiliza el parser real para propuestas abreviadas, reconoce ingresos omitidos y pide separar consultas/operaciones sin tocar el borrador. Preserva consultas explícitas con cifras, comandos, correcciones y multimedia. Pruebas de procesador sin red y preservación SQL real; publicación y aceptación pendientes. [Validación y límites](VALIDACION_BE_05.md). El avance de v39 siguiente es histórico.
+
 - **Avance al 15/10/2026:** Webhook v39 publicado tras el fallo detectado por el propietario al probar INF-03/BE-06. Transferencias y operaciones realizadas ya no activan soporte o saldo; corregidos separadores e ingresos con tilde. 151 tests y nueve Deno aprobados. Prueba WhatsApp pendiente; BE-05 permanece en curso. [Corrección y alcance](CORRECCION_BE_05_2026-10-15.md).
 
 - [ ] Terminada.
@@ -849,3 +851,5 @@ Completar una entrada al cerrar cada tarea:
 | 25/10/2026 | Publicación BE-04 | PR #40, e311db4; whatsapp-webhook v54 → v55 ACTIVE | CI completo/Pages, fuente coincidente, smoke 401, esquema 032/cola/cron conservados, SHA/SW/CSP PWA | Sin migración, secretos/modelos nuevos, IA real, reenvíos ni movimientos de prueba; rollback v54 conservado | Aceptación WhatsApp pendiente; después BE-05; backups al final y retención desactivada |
 
 | 25/10/2026 | Aceptación BE-04 | Propietario confirma $123 / «Colectivo 60» y descarte con CANCELAR | Ensayo manual sobre v55, sumado a regresiones/CI ya registrados | Sin nueva lectura SQL, despliegue o mensaje del agente | BE-04 cerrado en el alcance probado; siguiente BE-05 |
+
+| 25/10/2026 | Preparación BE-05 | Ruteo de propuestas/consultas y aclaración conservadora de mezclas; sin cambios SQL | Regresiones de clasificador/procesador y preservación SQL, ver VALIDACION_BE_05.md | Sin IA real, mensajes externos ni cambios productivos | CI/revisión y publicación autorizada antes de aceptación WhatsApp; después BE-07 |

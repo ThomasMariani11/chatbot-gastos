@@ -56,6 +56,8 @@ function database(suspended = false) {
         eq: () => chain,
         maybeSingle: () => Promise.resolve({ data, error: null }),
         in: () => Promise.resolve({ data: [], error: null }),
+        gte: () => chain,
+        lt: () => Promise.resolve({ data: [], error: null }),
       };
       return chain;
     },
@@ -1829,3 +1831,291 @@ for (const provider of ["gemini", "groq"] as const) {
     },
   );
 }
+
+Deno.test("BE-05: propuestas con suscripción/saldo conservan importes y tipos sin IA", async () => {
+  const previous = globalThis.fetch;
+  try {
+    globalThis.fetch = (() => {
+      throw new Error("NO_PROVIDER_FOR_CLEAR_MOVEMENTS");
+    }) as typeof fetch;
+    const cases: Array<[string, string, number, string]> = [
+      ["Suscripción Netflix 5000", "expense", 5000, "ARS"],
+      ["Saldo SUBE 1500", "expense", 1500, "ARS"],
+      ["Vendí 5000 por planes de diseño", "income", 5000, "ARS"],
+      ["Me pagaron 5000 por planes de diseño", "income", 5000, "ARS"],
+      ["Me depositaron 5000 por planes de diseño", "income", 5000, "ARS"],
+      ["Me acreditaron 5000 por planes de diseño", "income", 5000, "ARS"],
+      ["Suscripción Netflix 50 USD", "expense", 50, "USD"],
+      ["Pagué 5000 del saldo de la tarjeta", "expense", 5000, "ARS"],
+    ];
+    for (const [text, kind, amount, currency] of cases) {
+      const { db, reads } = database();
+      let checkpoints = 0;
+      const result = await prepareMessage(db, job(text), () => {
+        checkpoints++;
+        return Promise.resolve();
+      });
+      const items = result.items as Array<{
+        kind: string;
+        totalAmountArs: number;
+        currency: string;
+      }>;
+      assert(
+        result.kind === "add" && items.length === 1 &&
+          items[0].kind === kind && items[0].totalAmountArs === amount &&
+          items[0].currency === currency && checkpoints === 1,
+        "El clasificador interceptó o alteró la propuesta",
+      );
+      assert(!reads.includes("transactions"), "Se sustituyó por saldo");
+    }
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
+Deno.test("BE-05: mezcla y ambigüedad piden aclarar sin tocar ni reinterpretar pendientes", async () => {
+  const previous = globalThis.fetch;
+  try {
+    globalThis.fetch = (() => {
+      throw new Error("NO_PROVIDER_FOR_CLARIFICATION");
+    }) as typeof fetch;
+    for (
+      const text of [
+        "Gasté 1000 en super; pasame el alias",
+        "Gasté 1000 en super y cuánto saldo me queda",
+        "Pasame el alias y gasté 1000 en super",
+        "Cuánto saldo me queda y cobré 5000",
+        "Saldo SUBE 1500; quiero renovar mi membresía",
+        "Suscripción Netflix 5000; ¿cuánto saldo me queda?",
+        "Pasame el alias y cuánto saldo me queda",
+        "Saldo disponible 5000",
+        "Suscripción Netflix 5000 euros",
+        "Suscripción Netflix 5000 y nafta sin importe",
+        "¿Cuánto gasté en la suscripción de Netflix?",
+        "Pasame el alias; nafta sin importe",
+      ]
+    ) {
+      const { db, reads, draftReads } = database();
+      const input = job(text);
+      const result = await prepareMessage(db, input, () => {
+        throw new Error("NO_EXTRACTION_CHECKPOINT");
+      });
+      assert(
+        result.kind === "reply" && Object.keys(result).length === 2 &&
+          String(result.text).includes("No agregué ni modifiqué") &&
+          String(result.text).includes("RESUMEN"),
+        "La aclaración creó un efecto o limpió el resumen pendiente",
+      );
+      assert(
+        draftReads() === 0 && !reads.includes("transactions"),
+        "Se interpretó o consultó saldo antes de aclarar",
+      );
+      const retried = await prepareMessage(db, input, () => {
+        throw new Error("NO_NEW_CHECKPOINT_ON_RETRY");
+      });
+      assert(
+        JSON.stringify(result) === JSON.stringify(retried),
+        "El reintento cambió la aclaración",
+      );
+    }
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
+Deno.test("BE-05: consultas comerciales completas con cifras no usan IA ni borradores", async () => {
+  const previous = globalThis.fetch;
+  try {
+    globalThis.fetch = (() => {
+      throw new Error("NO_PROVIDER_FOR_SUPPORT");
+    }) as typeof fetch;
+    for (
+      const text of [
+        "¿Cuánto cuesta el plan de 5000?",
+        "Cómo pago el plan de 5000",
+        "Quiero renovar mi membresía de 5000",
+        "Pasame el alias para pagar 5000",
+      ]
+    ) {
+      const { db, reads, draftReads } = database();
+      const result = await prepareMessage(db, job(text), () => {
+        throw new Error("NO_SUPPORT_CHECKPOINT");
+      });
+      assert(
+        result.kind === "reply" && String(result.text).includes("soporte"),
+        "Se convirtió una consulta en operación",
+      );
+      assert(
+        draftReads() === 0 && !reads.includes("transactions"),
+        "Consulta comercial cambió de ruta",
+      );
+    }
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
+Deno.test("BE-05: saldo auténtico lee solo la cuenta y conserva ARS/USD separados", async () => {
+  const previous = globalThis.fetch;
+  try {
+    globalThis.fetch = (() => {
+      throw new Error("NO_PROVIDER_FOR_BALANCE");
+    }) as typeof fetch;
+    const fixture = database();
+    const original = fixture.db.from.bind(fixture.db);
+    const filters: Array<[string, string, unknown]> = [];
+    fixture.db.from = ((table: string) => {
+      if (table !== "transactions" && table !== "budgets") {
+        return original(table);
+      }
+      const data = table === "transactions"
+        ? [
+          { kind: "expense", currency: "ARS", amount_ars: 125.5 },
+          { kind: "income", currency: "ARS", amount_ars: 500 },
+          { kind: "expense", currency: "USD", amount_ars: 10 },
+          { kind: "income", currency: "USD", amount_ars: 20 },
+        ]
+        : { amount_ars: 1000 };
+      const chain = {
+        select: () => chain,
+        eq: (key: string, value: unknown) => {
+          filters.push([table, key, value]);
+          return chain;
+        },
+        gte: () => chain,
+        lt: () => Promise.resolve({ data, error: null }),
+        maybeSingle: () => Promise.resolve({ data, error: null }),
+      };
+      return chain;
+    }) as typeof fixture.db.from;
+    const result = await prepareMessage(
+      fixture.db,
+      job("¿Cuánto dinero me queda?"),
+      () => {
+        throw new Error("NO_BALANCE_CHECKPOINT");
+      },
+    );
+    const body = String(result.text);
+    assert(
+      result.kind === "reply" && body.includes("$ 125,5") &&
+        body.includes("$ 500") && body.includes("$ 374,5") &&
+        body.includes("US$ 10") && body.includes("US$ 20") &&
+        body.includes("$ 874,5") && fixture.draftReads() === 0,
+      "Se mezclaron monedas, pendientes o totales",
+    );
+    for (const table of ["transactions", "budgets"]) {
+      assert(
+        filters.some(([t, key, value]) =>
+          t === table && key === "user_id" && value === "fixture-user"
+        ),
+        "Lectura de saldo sin filtro de propietario",
+      );
+    }
+    assert(
+      filters.some(([t, key, value]) =>
+        t === "transactions" && key === "status" && value === "confirmed"
+      ),
+      "El saldo incluyó propuestas",
+    );
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
+Deno.test("BE-05: correcciones con palabra suscripción y comandos conservan sus rutas", async () => {
+  for (
+    const [text, kind] of [
+      ["CONFIRMAR", "confirm"],
+      ["CANCELAR", "cancel"],
+      ["RESUMEN", "summary"],
+      ["El 2 fue de 250", "edit"],
+      ["Cambiá la descripción del 2 a suscripción Netflix", "reply"],
+    ]
+  ) {
+    const result = await prepareMessage(database().db, job(text), () => {
+      throw new Error("NO_COMMAND_CHECKPOINT");
+    });
+    assert(result.kind === kind, "El ruteo interceptó comando/corrección");
+    assert(
+      !String(result.text).includes("Comunicate con soporte"),
+      "Corrección desviada a soporte",
+    );
+  }
+});
+Deno.test("BE-05: cuenta suspendida se bloquea antes de la aclaración", async () => {
+  const fixture = database(true);
+  const result = await prepareMessage(
+    fixture.db,
+    job("Gasté 1000 en super; pasame el alias"),
+    () => {
+      throw new Error("NO_BLOCKED_CHECKPOINT");
+    },
+  );
+  assert(
+    result.kind === "reply" && result.clear_summary === true &&
+      String(result.text).includes("pausa") && fixture.draftReads() === 0,
+    "La aclaración eludió la suspensión",
+  );
+});
+Deno.test("BE-05: caption de foto y audio conservan interpretación multimedia", () =>
+  withMediaFixture(async () => {
+    const groq = Deno.env.get("GROQ_API_KEY");
+    try {
+      Deno.env.delete("GROQ_API_KEY");
+      for (const type of ["image", "audio"] as const) {
+        let calls = 0;
+        const parsed = {
+          intent: "add_movements",
+          movements: [{
+            kind: "expense",
+            description: "Suscripción Netflix",
+            totalAmountArs: 5000,
+            currency: "ARS",
+            installments: 1,
+            missingFields: [],
+          }],
+        };
+        globalThis.fetch = ((url: RequestInfo | URL) => {
+          calls++;
+          return Promise.resolve(
+            String(url).includes("graph.facebook.com")
+              ? Response.json({
+                url: "https://media.example.invalid",
+                mime_type: type === "image" ? "image/jpeg" : "audio/ogg",
+              })
+              : String(url).includes("media.example.invalid")
+              ? new Response(new Uint8Array([1]))
+              : Response.json({
+                candidates: [{
+                  content: { parts: [{ text: JSON.stringify(parsed) }] },
+                }],
+              }),
+          );
+        }) as typeof fetch;
+        const input = job("");
+        input.payload = {
+          id: "synthetic-media",
+          from: "synthetic-route",
+          type,
+          ...(type === "image"
+            ? {
+              image: {
+                id: "media",
+                caption: "Pasame el alias; saldo disponible",
+              },
+            }
+            : { audio: { id: "media" } }),
+        };
+        let checkpoints = 0;
+        const result = await prepareMessage(database().db, input, () => {
+          checkpoints++;
+          return Promise.resolve();
+        });
+        assert(
+          result.kind === "add" && calls === 3 && checkpoints === 1 &&
+            (result.items as Array<{ totalAmountArs: number }>)[0]
+                .totalAmountArs === 5000,
+          "Caption o audio fueron interceptados por una consulta rápida",
+        );
+      }
+    } finally {
+      if (groq === undefined) Deno.env.delete("GROQ_API_KEY");
+      else Deno.env.set("GROQ_API_KEY", groq);
+    }
+  }));

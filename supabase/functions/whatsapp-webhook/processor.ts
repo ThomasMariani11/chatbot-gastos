@@ -142,7 +142,13 @@ export async function prepareMessage(
   const query = correctionIntent ? null : classifyTextQuery(
     text,
     Boolean(message.image?.id || message.audio?.id),
+    localDate(),
   );
+  if (query === "clarify") {
+    return reply(
+      "No agregué ni modifiqué movimientos de este mensaje. Mandame el gasto o ingreso y la consulta por separado. Si solo querías cargar un movimiento, indicá el concepto y el importe. Tu lista pendiente se conserva; podés verla con RESUMEN.",
+    );
+  }
   if (query === "commercial") {
     return reply(
       `¡Hola! 👋 Para renovar tu membresía en Pesito o consultar planes y medios de pago:${await support()}\n\nComunicate con soporte para activar tu cuenta.`,

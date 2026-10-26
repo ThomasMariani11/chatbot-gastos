@@ -718,3 +718,30 @@ describe('diagnóstico de cola de mejor esfuerzo, sin repetir operaciones',()=>{
  it('registra proveedor, etapa y código antes de conservar el reintento',async()=>{const {rpc,deps,sent}=setup();await runActor('synthetic-actor',deps);expect(rpc).toHaveBeenCalledWith('record_whatsapp_job_issue',expect.objectContaining({p_issue:{reason:'unavailable',provider:'groq',status:503,kind:'retry',stage:'interpret'}}),expect.any(AbortSignal));expect(sent.indexOf('record_whatsapp_job_issue')).toBeLessThan(sent.indexOf('fail_whatsapp_job'));expect(sent).not.toContain('apply_whatsapp_job');});
  it('un fallo de diagnóstico no impide conservar el trabajo ni filtra la excepción',async()=>{const log=vi.spyOn(console,'log').mockImplementation(()=>{});try{const {deps,sent}=setup(true);await expect(runActor('synthetic-actor',deps)).resolves.toBeUndefined();expect(sent).toContain('fail_whatsapp_job');expect(sent.at(-1)).toBe('release_whatsapp_actor');expect(JSON.stringify(log.mock.calls)).not.toContain('PRIVATE_');}finally{log.mockRestore();}});
 });
+
+
+describe('BE-05: aclaración sin mutaciones en SQL real',()=>{
+  it.each([false,true])('preserva grupo, ítems, versión y resumen pendiente=%s incluso al reintentar',async pending=>{
+    await add('be05-seed',[movement('Pendiente previo',123.45)]);
+    await show();
+    if(pending) await db.exec("update public.whatsapp_worker_state set summary_pending=true");
+    await enqueue(message('be05-mixed','synthetic-a','Gasté 1000 en super; pasame el alias'));
+    const current=(await next())!;
+    const snapshot=async()=>({
+      groups:(await db.query('select * from public.draft_groups order by id')).rows,
+      items:(await db.query('select * from public.draft_items order by id')).rows,
+      summary:(await db.query('select summary_pending,shown_group_id,shown_version from public.whatsapp_worker_state order by wa_id')).rows,
+      transactions:(await db.query('select * from public.transactions order by id')).rows,
+    });
+    const before=await snapshot();
+    const action={kind:'reply',text:'No agregué ni modifiqué movimientos. Mandá el movimiento y la consulta por separado.'};
+    const applied=await apply(current,action);
+    expect(applied.reply_text).toBe(action.text);
+    expect(applied.effect_applied).toBe(true);
+    expect(await snapshot()).toEqual(before);
+    // Una respuesta perdida no puede convertir el reintento en una alta.
+    expect((await apply(current,{kind:'add',items:[movement('No crear',1000)]})).reply_text).toBe(action.text);
+    await finish(current);
+    expect(await snapshot()).toEqual(before);
+  });
+});
