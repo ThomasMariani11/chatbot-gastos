@@ -35,6 +35,10 @@ async function step(name, action) {
 }
 const cli = (args, timeout = 480000) => run(process.execPath, [npmCli, 'exec', '--yes', '--package=supabase@' + cliVersion, '--', 'supabase', '--workdir', work, ...args], { cwd: root, env, timeout });
 async function archive(commit, directory) {
+  // Un squash puede dejar el puente de rollback solo en la historia de la PR.
+  // Resolver únicamente el SHA fijado, sin cambiar el checkout ni traer ramas.
+  try { await run("git", ["cat-file", "-e", commit + "^{commit}"], {cwd:root,env}); }
+  catch { await run("git", ["fetch", "--no-tags", "origin", commit], {cwd:root,env,timeout:60000}); }
   await mkdir(directory);
   const tar = directory + '.tar';
   await run('git', ['archive', '--format=tar', '--output', tar, commit], { cwd: root, env });
@@ -130,6 +134,11 @@ try {
     await archive(tools.release.rollbackCommit, previous);
     await prepareLocal(candidate, work);
     await writeFile(join(temp, 'synthetic.env'), 'META_APP_SECRET=' + metaSecret + '\nWHATSAPP_WORKER_SECRET=' + workerSecret + '\nWHATSAPP_VERIFY_TOKEN=synthetic-verify\n', { mode: 0o600 });
+  });
+  await step('lectores_de_borradores_incompletos', async () => {
+    // Ambos lectores se ejecutan sin transporte ni credenciales, no solo se compilan.
+    const probe = "import assert from 'node:assert/strict';import {pathToFileURL} from 'node:url';const {formatDraftList}=await import(pathToFileURL(process.argv[1]).href);const rows=Array.from({length:20},(_,i)=>({position:i+1,kind:'expense',description:'Concepto ficticio '.repeat(9),amount:i===0?null:999999999999.99,currency:i%2?'USD':'ARS',occurred_on:i===0?null:'2026-10-26',installments:60,first_installment_month:'2026-11',status:'pending',missing_fields:i===0?['amount','date']:['review']}));const body=formatDraftList(rows);assert.ok(body.length<=4096);assert.ok(body.includes('importe pendiente'));assert.ok(body.includes('20.'));assert.ok(!body.includes('$ 0'));assert.equal(rows[0].amount,null);";
+    for (const directory of [candidate, previous]) await run(process.execPath, ['--input-type=module', '-e', probe, join(directory, 'supabase/functions/whatsapp-webhook/draft-summary.ts')], { cwd: directory, env });
   });
   await step('instalacion_completa', async () => {
     assert.equal(await cli(['--version']), cliVersion);

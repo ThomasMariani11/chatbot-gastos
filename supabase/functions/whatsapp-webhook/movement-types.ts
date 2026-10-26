@@ -9,4 +9,5 @@ export type ExtractedMovement = {
   firstInstallmentMonth: string | null;
   confidence: number;
   missingFields: string[];
+  clarification?: string | null;
 };

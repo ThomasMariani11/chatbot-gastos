@@ -1,3 +1,6 @@
+import { parseDraftCompletion } from "./draft-completion.ts";
+import { normalizeDraftMovements } from "./draft-normalization.ts";
+import { parseDraftMovements } from "./local-movements.ts";
 import { parseLocalCommand } from "./local-commands.ts";
 import { LIMITS, timeoutSignal } from "./limits.ts";
 import type { DatabaseOperation, FailureMetadata } from "./failures.ts";
@@ -18,7 +21,6 @@ import {
   downloadWhatsAppMedia,
   extractFromGemini,
   formatDraftList,
-  parseDeterministicMovements,
   sha256,
 } from "./helpers.ts";
 import type { DraftListItem, GeminiParsedOutput } from "./helpers.ts";
@@ -213,6 +215,10 @@ export async function prepareMessage(
     "QUEUE_DRAFT_READ",
   );
   if (draft?.is_stale) return { kind: "summary" }; // SQL retiene el mensaje antes de interpretarlo.
+  if (!message.image?.id && !message.audio?.id) {
+    const completion = parseDraftCompletion(text, draft ?? {}, localDate());
+    if (completion) return completion;
+  }
   const correction = correctionIntent ? parseDraftCorrection(text) : null;
   if (correction) {
     writeOperationalLog("local_rule", { rule: "correction" });
@@ -237,7 +243,7 @@ export async function prepareMessage(
         )
         : undefined;
       const direct = text && !media && !correctionIntent
-        ? parseDeterministicMovements(text, localDate())
+        ? parseDraftMovements(text, localDate())
         : null;
       if (direct?.length) {
         writeOperationalLog("local_rule", {
@@ -252,6 +258,22 @@ export async function prepareMessage(
           signal,
           mediaBase64: media?.base64,
           mimeType: media?.mimeType,
+          resolveCompletion: (transcript) => {
+            const completion = parseDraftCompletion(
+              transcript,
+              draft ?? {},
+              localDate(),
+            );
+            return completion
+              ? completion.kind === "complete"
+                ? { intent: "complete_item", movements: [], completion }
+                : {
+                  intent: "clarify_completion",
+                  movements: [],
+                  completionReply: completion.text,
+                }
+              : null;
+          },
           activeDraftContext: formatDraftList(
             (draft?.items ?? []) as DraftListItem[],
           ),
@@ -287,14 +309,19 @@ export async function prepareMessage(
     }
     // Conservar la solicitud en la cola, sin bloquear el próximo texto ni
     // reintentar la IA si falla el guardado de la respuesta o su envío.
-    if (
-      result.intent === "unknown" ||
-      (result.intent === "add_movements" &&
-        (!Array.isArray(result.movements) || !result.movements.length ||
-          result.movements.some((m) =>
-            !Number.isFinite(m.totalAmountArs) || Number(m.totalAmountArs) <= 0
-          )))
-    ) {
+    if (result.intent === "add_movements") {
+      try {
+        result.movements = normalizeDraftMovements(
+          result.movements,
+          localDate(),
+          result.clarification,
+        );
+        delete result.clarification;
+      } catch {
+        result = { intent: "request_text", movements: [] };
+      }
+    }
+    if (result.intent === "unknown") {
       result = { intent: "request_text", movements: [] };
     }
     if (result.intent === "request_text") {
@@ -317,6 +344,16 @@ export async function prepareMessage(
         : 'No pude interpretar todos los datos. Escribime el gasto o ingreso con el concepto y el monto, por ejemplo: "Gasté 1500 en supermercado". Si eran varios, mandalos todos en texto. No cargué nada de ese mensaje.',
     );
   switch (result.intent) {
+    case "complete_item":
+      return result.completion ??
+        reply(
+          "Indicá el movimiento y el dato faltante. No modifiqué la lista.",
+        );
+    case "clarify_completion":
+      return reply(
+        result.completionReply ??
+          "Indicá el movimiento y el dato faltante. No modifiqué la lista.",
+      );
     case "request_text":
       return requestText();
     case "confirm":
@@ -331,6 +368,14 @@ export async function prepareMessage(
         : reply("Indicame el número del movimiento que querés quitar.");
     case "edit_item": {
       const edit = result.edit;
+      const target = (draft?.items ?? []).find((item: DraftListItem) =>
+        item.position === edit?.targetPosition
+      );
+      if (target?.missing_fields?.length) {
+        return reply(
+          'Para completar un pendiente, escribime el número y el dato, por ejemplo: "El 2 fue de 5000". No modifiqué la lista.',
+        );
+      }
       if (
         !edit?.targetPosition ||
         (edit.amount != null &&
@@ -358,17 +403,14 @@ export async function prepareMessage(
           'No pude identificar qué cambiar. Indicá el número y el dato a corregir, por ejemplo: "El 2 fue de 250". No agregué movimientos ni modifiqué la lista.',
         );
       }
-      // No filtrar silenciosamente parte de un mensaje. BE-08 incorporará la
-      // edición de datos faltantes; por ahora pedir el mensaje completo de nuevo.
-      if (
-        !Array.isArray(result.movements) || !result.movements.length ||
-        result.movements.some((m) =>
-          !Number.isFinite(m.totalAmountArs) || Number(m.totalAmountArs) <= 0
-        )
-      ) {
-        return reply(
-          "Falta el monto de alguna operación. No agregué parcialmente este mensaje. Reenviá la lista completa con sus importes.",
+      try {
+        result.movements = normalizeDraftMovements(
+          result.movements,
+          localDate(),
+          result.clarification,
         );
+      } catch {
+        return requestText();
       }
       return { kind: "add", items: result.movements };
     default:

@@ -120,6 +120,7 @@ function categoryFor(description: string, kind: "expense" | "income"): string {
 export function parseDeterministicMovement(
   raw: string,
   today: string,
+  allowMissingAmount = false,
 ): ExtractedMovement | null {
   let text = raw.trim().replace(/[.!]+$/, "").trim();
   const normalized = normalize(text);
@@ -159,28 +160,40 @@ export function parseDeterministicMovement(
     if (/\bcuotas?\b/.test(text)) return null;
   }
   const amounts = [...text.matchAll(moneyPattern)];
-  if (amounts.length !== 1) return null;
-  const match = amounts[0], index = match.index!;
+  const missingAmount = allowMissingAmount && amounts.length === 0 &&
+    Boolean(action) && installments === 1;
+  if (!missingAmount && amounts.length !== 1) return null;
+  const match = amounts[0] ?? { 0: "", index: text.length },
+    index = match.index!;
   // No aceptar fragmentos de números mal escritos, negativos, fechas o modelos.
   if (
-    /[\p{L}\p{N}.,/+$-]/u.test(text[index - 1] ?? "") ||
-    /[\p{L}\p{N}.,/]/u.test(text[index + match[0].length] ?? "")
+    !missingAmount && (/[\p{L}\p{N}.,/+$-]/u.test(text[index - 1] ?? "") ||
+      /[\p{L}\p{N}.,/]/u.test(text[index + match[0].length] ?? ""))
   ) return null;
   const token = normalize(match[0]);
+  if (
+    !missingAmount && /^\d[\d.,]*$/.test(token) &&
+    /\b(iphone|galaxy|modelo|colectivo|ruta)\s*$/.test(
+      normalize(text.slice(0, index)),
+    )
+  ) return null;
   const usd = /usd|u\$s|us\$|dolar(?:es)?/.test(token);
   const ars = /ars|pesos?/.test(token);
   if (usd && ars) return null;
   const number = token.match(/\d[\d.,]*/)?.[0];
-  if (!number) return null;
-  const numeric = /^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(number)
-    ? number.replaceAll(".", "").replace(",", ".")
-    : number.replace(",", ".");
+  if (!number && !missingAmount) return null;
+  const numeric = /^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(number ?? "")
+    ? number!.replaceAll(".", "").replace(",", ".")
+    : number?.replace(",", ".") ?? "";
   const amount = Math.round(
     Number(numeric) *
-      (/\b(k|mil|lucas?)\b/.test(token.replace(number, " ")) ? 1000 : 1) *
+      (/\b(k|mil|lucas?)\b/.test(token.replace(number ?? "", " ")) ? 1000 : 1) *
       100,
   ) / 100;
-  if (!Number.isFinite(amount) || amount <= 0 || amount >= 1e12) return null;
+  if (
+    !missingAmount &&
+    (!Number.isFinite(amount) || amount <= 0 || amount >= 1e12)
+  ) return null;
   let description = `${text.slice(0, index)} ${
     text.slice(index + match[0].length)
   }`
@@ -215,6 +228,8 @@ export function parseDeterministicMovement(
     concepts.filter((category) => category !== "Otros"),
   );
   if (knownCategories.size > 1) return null;
+  const missingDescription = missingAmount && !description;
+  if (missingDescription) description = "Concepto pendiente";
   if (!description) {
     description = kind === "expense" ? "Gasto general" : "Ingreso general";
   }
@@ -222,7 +237,7 @@ export function parseDeterministicMovement(
   return {
     kind,
     description,
-    totalAmountArs: amount,
+    totalAmountArs: missingAmount ? null : amount,
     currency: usd ? "USD" : "ARS",
     occurredOn: dated.occurredOn,
     category: categoryFor(description, kind),
@@ -231,13 +246,16 @@ export function parseDeterministicMovement(
       ? dated.occurredOn.slice(0, 7)
       : null,
     confidence: 0.95,
-    missingFields: [],
+    missingFields: missingAmount
+      ? (missingDescription ? ["amount", "description"] : ["amount"])
+      : [],
   };
 }
 
 export function parseDeterministicMovements(
   text: string,
   today: string,
+  allowMissingAmount = false,
 ): ExtractedMovement[] | null {
   // No separar decimales ni conceptos como "pan y leche". Las comas/y solo
   // abren otra operación cuando sigue un importe o una acción reconocida.
@@ -260,7 +278,11 @@ export function parseDeterministicMovements(
   for (const part of parts) {
     const cleaned = part.trim().replace(/^(?:[-•]\s+|\d+[.)]\s+)/, "");
     if (!cleaned) return null;
-    const movement = parseDeterministicMovement(cleaned, today);
+    const movement = parseDeterministicMovement(
+      cleaned,
+      today,
+      allowMissingAmount,
+    );
     if (!movement) return null;
     // No heredar silenciosamente el tipo en una lista de ingresos abreviada.
     if (
@@ -280,3 +302,6 @@ export function parseDeterministicMovements(
   }
   return results.length ? results : null;
 }
+
+export const parseDraftMovements = (text: string, today: string) =>
+  parseDeterministicMovements(text, today, true);
