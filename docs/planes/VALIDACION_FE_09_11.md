@@ -1,7 +1,7 @@
 # Validación FE-09 y seguimiento FE-11
 
 Fecha: 25/10/2026. Base: main 382e125. Rama: codex/accurate-installment-remaining.
-Estado: implementación y aceptación ficticia terminadas; revisión y publicación pendientes. Consultar CI de la PR sobre el SHA final. No hay migración ni despliegue del webhook en este bloque.
+Estado: PR #39 publicada en 54dce9e y comprobada técnicamente; FE-09 y seguimiento FE-11 cerrados en su alcance. La preparación y sus límites se conservan debajo. No hay migración ni despliegue del webhook en este bloque.
 
 ## Qué cambió
 
@@ -40,8 +40,16 @@ Capturas temporales: pesito-fe09-cuotas-antes.jpg, pesito-fe09-eliminacion-falli
 ## Límites y publicación
 
 - No se tocaron compras, perfiles, SQL, webhook ni configuración de producción; no se enviaron mensajes de WhatsApp ni se consumió IA. No hay nuevas dependencias.
-- FE-07 físico: el propietario informó aviso y recarga al tocar en iPhone. Falta comprobar allí la protección de formularios sin guardar y precisar navegador/modo instalado. Codex solo tiene acceso al navegador integrado; no se presenta Chromium/jsdom como Safari. Esta comprobación no equivale a probar FE-09/11 en el teléfono.
+- FE-07 físico: el propietario completó el flujo de actualización con borrador en la PWA instalada desde el ícono en iPhone (ver aceptación posterior). Codex solo tiene acceso al navegador integrado; no se presenta Chromium/jsdom como Safari. La prueba física de actualización no equivale a ejecutar todas las acciones de cuotas en el teléfono.
 - La lectura paginada no es una transacción de snapshot SQL: detecta cambios de cantidad entre páginas, pero no todos los cambios concurrentes con igual cantidad. Las RPC de escritura mantienen la versión/atomicidad y la UI vuelve a consultar tras una mutación. No se declara consistencia transaccional de todas las lecturas del dashboard.
 - Tope defensivo de 80 páginas y plazo del cargador; al excederlos se muestra error/reintento, no un total parcial. La paginación del listado mensual sigue en FE-18/BE-09.
 - Antes de integrar: revisar diff y cuatro controles CI sobre SHA final. Después de autorización: publicar PWA, comprobar versión/SW y pantalla publicada sin modificar compras reales para probar. Rollback según INF-10; no cambia esquema.
 - Retención desactivada; backups al final. Próximo bloque tras revisar/publicar: revisar avances BE-04/05/07/08 con BE-12/17, un defecto por vez y regresiones antes de cambiar el bot.
+
+## Publicación y aceptación — 25/10/2026
+
+- El propietario autorizó explícitamente integrar/publicar PR #39 tras preparar un borrador en el iPhone. Candidato e0e8482340802facc678695fcac217ef48447d44 con Frontend, Webhook, PostgreSQL y Ensayo de release aprobados. PR integrada en **54dce9e704bf52101ab2d7791f3f557e2cc66bd2**. [CI main y Publicar](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40247943436) aprobados; 628 pruebas, lint/tipos/build, SQL y guards incluidos.
+- Comprobación HTTP posterior: version.json y sw.js corresponden a 54dce9e; bundle publicado contiene la nueva presentación de cuotas y el corte explícito. CSP presente. Evidencia local sin datos de clientes: pesito-fe09-publication-proof.json en la carpeta temporal. Versión anterior registrada: 382e125.
+- El propietario confirmó el aviso con Actualizar bloqueado mientras tenía un borrador sin guardar. Luego confirmó conservación al navegar, descarte que habilita Actualizar y recarga manteniendo sesión. Precisó que usó **Pesito instalado desde el ícono de la pantalla de inicio del iPhone**. Evidencia manual informada por el propietario, no control directo del dispositivo por Codex.
+- FE-09 y el seguimiento específico de FE-11 cerrados en su alcance: cálculo publicado, controles técnicos y aceptación ficticia sobre componentes/RPC reales aprobados. No se probaron eliminaciones en compras productivas; no se presume aceptación de acciones no ejecutadas. No hubo migraciones, despliegue del webhook ni consumo de IA.
+- Próximo bloque: revisar avances BE-04/05/07/08 con BE-12/17, un caso por vez. Retención y backups siguen sin cambios.

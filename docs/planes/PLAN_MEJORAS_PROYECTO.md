@@ -12,27 +12,36 @@ Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. 
 
 ## FE-07 + FE-12 — publicación y verificación técnica
 
-Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani11/chatbot-gastos/pull/37), versión 15269ba. 592 pruebas y los cuatro controles más Publicar aprobados. SHA, SW, bundle y CSP comprobados; acceso autenticado, borrador sin guardar, navegación, espera de más de 30 segundos, bloqueo de actualización, descarte y actualización explícita verificados en la PWA publicada. No se envió el formulario ni se cambiaron datos productivos. [Evidencia y límites](VALIDACION_FE_07_12.md). FE-12 terminado en su alcance. El propietario confirmó en iPhone que apareció el aviso y, al tocarlo, se recargó la página. FE-07 conserva pendiente la protección de formularios sin guardar en ese dispositivo y la identificación del navegador/modo instalado.
+Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani11/chatbot-gastos/pull/37), versión 15269ba. 592 pruebas y los cuatro controles más Publicar aprobados. SHA, SW, bundle y CSP comprobados; acceso autenticado, borrador sin guardar, navegación, espera de más de 30 segundos, bloqueo de actualización, descarte y actualización explícita verificados en la PWA publicada. No se envió el formulario ni se cambiaron datos productivos. [Evidencia y límites](VALIDACION_FE_07_12.md). FE-12 terminado en su alcance. El propietario completó además el flujo en Pesito instalado desde el ícono del iPhone: aviso bloqueado con borrador, conservación al navegar, descarte y actualización con sesión conservada. FE-07 cerrado en ese alcance; no se presume compatibilidad física universal.
 
-## FE-09 + seguimiento FE-11 — preparación y aceptación ficticia
+## FE-09 + seguimiento FE-11 — publicados y verificados
 
-Totales por cuotas existentes, centavos y moneda preparados sobre main 382e125. El corte incluye hoy (o el primer día del mes futuro elegido), se muestra explícitamente y no representa pagos. Paginación de cuotas con comprobación de integridad; error sin subtotales. Planes homónimos, fallo SQL/rollback y reintento verificados en Dashboard real con base descartable; 628 pruebas, lint/tipos/build, 12 SQL y seis controles de release aprobados. Sin migraciones ni escrituras productivas. [Validación y límites](VALIDACION_FE_09_11.md). **Pendientes revisión y publicación; comprobar CI sobre el SHA final de la PR.** FE-07: aviso y recarga al tocar confirmados por el propietario en iPhone; protección física del borrador todavía pendiente.
+[PR #39](https://github.com/ThomasMariani11/chatbot-gastos/pull/39) integrada y publicada por autorización explícita del propietario, versión **54dce9e**. 628 pruebas y cuatro controles más Publicar aprobados. Totales por registros existentes, centavos y moneda; corte explícito desde hoy o desde el mes futuro elegido. Paginación de cuotas sin entregar subtotales. Identidad, fallo SQL/rollback y reintento verificados con planes homónimos ficticios en Dashboard y RPC reales sobre base descartable. SHA, SW, bundle y CSP publicados comprobados. Sin migración, webhook ni compras productivas de prueba. **FE-09 y seguimiento FE-11 cerrados en su alcance.** [Evidencia y límites](VALIDACION_FE_09_11.md).
+
+## Punto de reanudación — 25/10/2026
+
+- **Última versión publicada:** 54dce9e, PR #39; 628 pruebas y cuatro controles más Publicar aprobados.
+- **Cierres recientes:** FE-07 (flujo protegido aceptado por el propietario en Pesito instalado en iPhone), FE-09 y seguimiento de homónimos FE-11. FE-12 ya estaba cerrado en su alcance.
+- **Bloque actual: BE-04.** Revisión y corrección preparadas: referencias de producto que se tomaban como fechas, monedas detectadas fuera de ARS/USD y números de concepto eliminados por el limpiador. 675 pruebas y 40 rutas Deno locales aprobadas. [Validación y límites](VALIDACION_BE_04.md). CI, integración/despliegue y aceptación pendientes.
+- **Orden dentro del bloque del bot:** BE-04 → BE-05 (ruteo de consultas) → BE-07 (confirmación de la versión revisada) → BE-08 (datos faltantes), con BE-12/BE-17 cuando compartan código o pruebas. Ajustar este orden solo si la revisión encuentra una dependencia concreta.
+- **Siguiente acción:** revisar diff/CI del bloque BE-04 y acordar su publicación/aceptación antes de pasar a BE-05. La implementación local no autoriza un despliegue nuevo. No se usó IA real ni se enviaron mensajes a clientes.
+- **Se conservan las decisiones:** costo $0; retención desactivada; backups INF-08 al final.
 
 ## Próximos bloques — recomendación al 25/10/2026
 
-Secuencia revisada sobre main 15269ba después de publicar FE-07/FE-12. La última publicación pasó 592 pruebas y los controles de CI; su comprobación productiva se describe arriba. Se conserva la revisión histórica de main 14e1cac más abajo; no se repite una auditoría cloud completa. FE-09 + seguimiento FE-11 ya están preparados y probados con datos ficticios, pendientes de revisión/publicación y aprobación de CI sobre el SHA final. Después sigue la revisión del bot indicada en el orden 2. La secuencia no autoriza por sí sola nuevas publicaciones.
+Secuencia revisada sobre main 54dce9e después de publicar FE-09/FE-11. La última publicación pasó 628 pruebas y los controles de CI/Publicar; su comprobación técnica y la aceptación de actualización en iPhone se describen arriba. Se conserva la revisión histórica de main 14e1cac más abajo; no se repite una auditoría cloud completa. La siguiente implementación requiere primero revisar los avances actuales del bot, un caso por vez. La secuencia no autoriza por sí sola nuevas publicaciones.
 
 | Orden | Bloque | Qué falta y por qué va aquí | Criterio para avanzar |
 | --- | --- | --- | --- |
-| Publicado | **FE-07 + FE-12** | Actualización explícita y borrador de Ajustes publicados y verificados técnicamente. | Aviso y recarga al tocar confirmados por el propietario en iPhone; falta probar allí el borrador y precisar navegador/modo instalado. No bloquea el siguiente bloque. |
-| 1 — preparado | **FE-09 + seguimiento FE-11** | Cálculo corregido; identidad, error/reintento y montos probados con datos ficticios. | Revisar diff/CI y autorizar publicación; no hay migración ni webhook. [Validación](VALIDACION_FE_09_11.md). |
-| 2 | **BE-04 / BE-05 / BE-07 / BE-08**, con BE-12 y BE-17 | Revisar avances del bot antes de implementar lo restante: interpretación conservadora, consultas que no intercepten movimientos, versión efectivamente revisada y datos incompletos. Tratar cada corrección por separado, con contratos compartidos. | Regresiones sobre código/esquema reales; ninguna parte perdida, confirmación de datos no revisados ni guardado de un grupo incompleto. No se declara que todos los defectos originales sigan reproducibles hoy. |
-| 3 | **Infraestructura pendiente** | INF-15 (costos y documentación), INF-13/FE-19 (límites de hosting/aceptación) e INF-14 (retención). La CSP y las alertas ya están publicadas. | Controles y documentación coherentes; verificar límites antes de cambiar configuración; retención continúa desactivada hasta aprobación. |
+| Cerrado en su alcance | **FE-07 + FE-12** | Publicados, verificación técnica y flujo protegido aceptado por el propietario en PWA instalada en iPhone. | Compatibilidad física general permanece como seguimiento separado, sin presumir escenarios no ejecutados. |
+| Publicado y verificado | **FE-09 + seguimiento FE-11** | PR #39, 54dce9e; cálculo corregido y homónimos/error/reintento probados con datos ficticios. | Cerrados en su alcance. [Validación y límites](VALIDACION_FE_09_11.md). |
+| 1 — siguiente | **BE-04 / BE-05 / BE-07 / BE-08**, con BE-12 y BE-17 | Revisar avances del bot antes de implementar lo restante: interpretación conservadora, consultas que no intercepten movimientos, versión efectivamente revisada y datos incompletos. Tratar cada corrección por separado, con contratos compartidos. | Regresiones sobre código/esquema reales; ninguna parte perdida, confirmación de datos no revisados ni guardado de un grupo incompleto. No se declara que todos los defectos originales sigan reproducibles hoy. |
+| 2 | **Infraestructura pendiente** | INF-15 (costos y documentación), INF-13/FE-19 (límites de hosting/aceptación) e INF-14 (retención). La CSP y las alertas ya están publicadas. | Controles y documentación coherentes; verificar límites antes de cambiar configuración; retención continúa desactivada hasta aprobación. |
 | Último | **INF-08** | Backups y recuperación aplazados por decisión del propietario. | Retomar evaluación y autorización cuando se priorice; no habilitar almacenamiento ni servicios ahora. |
 
-**Seguimientos que no se dan por cerrados:** un código histórico usado sin usuario asociado (BE-02), aceptación física Safari/iOS/PWA, dependencias de desarrollo INF-07/FE-08, cobertura transversal FE-21/BE-17 y otros ítems abiertos de las tablas. Los avisos de dependencias registrados el 23/10 requieren una comprobación vigente antes de actualizar; no se ejecutó otro audit en esta revisión. Una incidencia nueva puede cambiar este orden.
+**Seguimientos que no se dan por cerrados:** un código histórico usado sin usuario asociado (BE-02), compatibilidad física general fuera del flujo instalado de iPhone ya aceptado, dependencias de desarrollo INF-07/FE-08, cobertura transversal FE-21/BE-17 y otros ítems abiertos de las tablas. Los avisos de dependencias registrados el 23/10 requieren una comprobación vigente antes de actualizar; no se ejecutó otro audit en esta revisión. Una incidencia nueva puede cambiar este orden.
 
-**Alcance del siguiente bloque propuesto:** FE-09: definir qué cuotas incluye el indicador, sumar registros activos reales en centavos por grupo/fecha/moneda y contar solo cuotas existentes. FE-11: comprobar dos planes con la misma descripción y IDs distintos; eliminar uno debe conservar el otro, también ante fallos. Empezar con datos ficticios y regresiones sobre código real; no reconstruir cuotas eliminadas ni modificar compras reales para probar. No se inició este bloque en la publicación de FE-07/FE-12; la preparación posterior y su aceptación ficticia se registran arriba, todavía sin publicar.
+**Alcance del siguiente bloque:** revisar avances BE-04/05/07/08 con BE-12/17 antes de implementar. Reproducir un caso concreto del bot con datos ficticios y contratos reales; corregir solo lo que siga fallando. No agrupar cambios de interpretación, confirmación y datos incompletos en una publicación sin regresiones específicas. FE-09/11 no se reabren por ese trabajo.
 
 ## Revisión incremental del 23/10/2026 — registro histórico
 
@@ -296,9 +305,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 4 | FE-21 | Media | Pruebas de flujos y dominio real | BE-17, INF-06 | En curso; regresiones por bloque, cobertura restante abierta |
 | 5 | FE-04 | Alta | Evitar movimientos duplicados | BE-10 | Terminada; publicada y aceptada |
 | 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Terminada; publicada y aceptada |
-| 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Preparada y validada con datos ficticios; revisión/publicación pendientes; comprobar CI en PR |
+| 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Terminada; PR #39 publicada y verificada en su alcance |
 | 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Corrección terminada; publicada y verificada |
-| 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Corrección publicada/verificada; aviso/recarga confirmados por el propietario en iPhone; borrador físico pendiente |
+| 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Terminada en el flujo protegido; aceptado en PWA instalada en iPhone |
 | 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Terminada; publicada y verificada en su alcance |
 | 11 | FE-13 | Media | Validación de invitación fuera de orden | — | Pendiente |
 | 12 | FE-08 | Alta; desarrollo | Dependencias vulnerables | INF-07 | Pendiente |
@@ -306,7 +315,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 14 | FE-14 | Media | Permitir ampliación del navegador | — | Pendiente |
 | 15 | FE-15 | Media | Diálogos, foco y etiquetas accesibles | FE-07 | Pendiente |
 | 16 | FE-16 | Media | Contraste de botones | FE-22 | Pendiente |
-| 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Corrección publicada; homónimos/fallo/reintento verificados en entorno aislado; cierre junto a FE-09 pendiente |
+| 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Terminada; homónimos/fallo/reintento verificados en entorno aislado; cierre con PR #39 |
 | 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Pendiente |
 | 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Pendiente |
 | 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | En curso; CSP publicada, aceptación restante pendiente |
@@ -366,7 +375,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 - **Estado al 25/10/2026:** corrección publicada en PR #37, CI y comprobación técnica productiva aprobados. Aviso y bloqueo con borrador sin guardar, navegación, descarte y actualización explícita verificados sin enviar cambios. [Validación y límites](VALIDACION_FE_07_12.md).
 
-- [ ] Cierre integral: el propietario confirmó aviso y recarga al tocar en iPhone. Sigue pendiente comprobar protección de un formulario sin guardar en ese dispositivo y precisar navegador/modo instalado; no se presume esa cobertura desde Chromium.
+- [x] Cierre del flujo protegido: el propietario confirmó borrador conservado al navegar, Actualizar bloqueado, descarte que lo habilita y recarga con sesión en la PWA instalada desde el ícono del iPhone. [Aceptación y límites](VALIDACION_FE_07_12.md). Otras versiones/modos no se presumen probados.
 - **Categoría:** Bug. **Problema reproducido:** la primera comprobación detecta escritura, pero el MutationObserver solo verifica ausencia de modal-backdrop. Una mutación del DOM recarga con un input todavía enfocado; eventos repetidos crean varios observadores. Los modales administrativos usan admin-modal-backdrop, otra clase.
 - **Archivos:** src/main.tsx:30, :35, :37, :45, :80; src/AdminPanel.tsx:1065.
 - **Trabajo:** centralizar la actualización pendiente y mostrar una acción explícita para aplicarla; considerar cambios sin guardar, foco y todos los diálogos mediante estado compartido. Evitar observadores duplicados y limpiar suscripciones; conservar compatibilidad entre versión web, service worker y cachés.
@@ -383,9 +392,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-09 — Sumar las cuotas futuras reales
 
-- **Avance al 25/10/2026:** preparado y verificado con datos ficticios; [pruebas, criterio de corte y límites](VALIDACION_FE_09_11.md). Revisión/publicación pendientes; consultar CI de la PR sobre el SHA final. Los archivos/líneas y el problema de la auditoría que siguen son referencias históricas, no una nueva reproducción sobre la versión preparada.
+- **Cierre al 25/10/2026:** PR #39 publicada; [pruebas, criterio de corte, aceptación y límites](VALIDACION_FE_09_11.md). Los archivos/líneas y el problema de la auditoría que siguen son referencias históricas, no una nueva reproducción sobre la versión publicada.
 
-- [ ] Terminada.
+- [x] Terminada en su alcance; PR #39 publicada en 54dce9e, CI/Publicar y comprobación técnica aprobados.
 - **Categoría:** Bug. **Problema reproducido:** el total restante usa cantidad por importe de la primera cuota. Para cuota actual de 100 y futuras de 200 y 300 se muestran 200 restantes en vez de 500; redondeos y cuotas eliminadas también invalidan esa fórmula.
 - **Archivos:** src/Dashboard.tsx:474, :476, :480, :482, :483.
 - **Trabajo:** definir si restantes incluye la cuota del mes y sumar registros activos reales por fecha, grupo y moneda usando centavos. Calcular cantidades desde cuotas existentes, sin reconstruirlas a partir del total original.
@@ -403,9 +412,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-11 — Eliminar visualmente un plan por identidad, no por descripción
 
-- **Avance al 25/10/2026:** preparado y verificado con datos ficticios; [pruebas, criterio de corte y límites](VALIDACION_FE_09_11.md). Revisión/publicación pendientes; consultar CI de la PR sobre el SHA final. Los archivos/líneas y el problema de la auditoría que siguen son referencias históricas, no una nueva reproducción sobre la versión preparada.
+- **Cierre al 25/10/2026:** PR #39 publicada; [pruebas, criterio de corte, aceptación y límites](VALIDACION_FE_09_11.md). Los archivos/líneas y el problema de la auditoría que siguen son referencias históricas, no una nueva reproducción sobre la versión publicada.
 
-- [ ] Terminada.
+- [x] Terminada en su alcance; PR #39 publicada en 54dce9e, CI/Publicar y comprobación técnica aprobados.
 - **Categoría:** Bug. **Problema reproducido:** el filtrado optimista borra de la pantalla todos los planes/movimientos con igual título. Al eliminar un grupo de dos llamados Celular, ambos desaparecen; la base conserva el otro y vuelve al refrescar. No se demostró pérdida del segundo plan en la base.
 - **Archivos:** src/Dashboard.tsx:935, :936, :942.
 - **Trabajo:** filtrar exclusivamente por grupo/ID; reconciliar la respuesta real y revertir solo la operación fallida, sin sustituir cambios concurrentes con un snapshot viejo.
@@ -542,7 +551,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 2 | BE-03 | Alta | Escrituras y propiedad de datos operativos | INF-02 | Terminada |
 | 3 | BE-02 | Alta | Renovaciones bloqueadas por el trigger | — | Corrección terminada; seguimiento histórico abierto |
 | 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | En curso; esquema/roles/concurrencia por bloque, alcance global abierto |
-| 5 | BE-04 | Alta | Parser determinista e interpretación financiera | — | Pendiente |
+| 5 | BE-04 | Alta | Parser determinista e interpretación financiera | — | Corrección preparada y validada localmente; CI/despliegue/aceptación pendientes |
 | 6 | BE-05 | Alta | Detección de consultas comerciales y saldo | — | En curso |
 | 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | Terminada |
 | 8 | BE-07 | Alta | Confirmación durante procesamiento | INF-03, INF-04 | Pendiente |
@@ -590,7 +599,11 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-04 — Corregir el parser determinista
 
-- **Avance al 20/10/2026:** corregidos millones, centavos y centenas habladas sin truncar expresiones; residuos numéricos se derivan completos y no entran al concepto como si el importe fuera válido. Regresiones de dominio y del procesador real con red denegada. Publicación pendiente de CI; BE-04 conserva sus demás criterios abiertos. [Detalle](CORRECCION_IMPORTES_HABLADOS_2026-10-20.md).
+- **Avance al 25/10/2026:** revisión completada y tres fallos adicionales reproducidos/corregidos: referencias numéricas como fechas, monedas ajenas convertidas localmente y números finales del concepto eliminados. 675 pruebas, 40 Deno de rutas, tipos/lint/build, SQL y guards locales aprobados. Suite completa Deno pendiente de CI Linux por límite de caché Windows. [Validación y puesta en marcha](VALIDACION_BE_04.md). Sin desplegar ni cambiar datos.
+
+- **Reanudación al 25/10/2026:** primer punto propuesto tras el cierre FE-07/09/11. Leer la versión actual y revalidar las regresiones previas; no repetir correcciones ya presentes ni asumir que todos los ejemplos originales siguen fallando. Registrar pruebas y alcance antes de declarar el cierre integral.
+
+- **Registro histórico de preparación del 20/10/2026 (correcciones presentes en main; estado cloud no revisado en este bloque):** corregidos millones, centavos y centenas habladas sin truncar expresiones; residuos numéricos se derivan completos y no entran al concepto como si el importe fuera válido. Regresiones de dominio y del procesador real con red denegada. Publicación pendiente de CI; BE-04 conserva sus demás criterios abiertos. [Detalle](CORRECCION_IMPORTES_HABLADOS_2026-10-20.md).
 
 - [ ] Terminada.
 - **Problema reproducido en funciones reales:** `Gasté 10000,50 en supermercado` genera dos gastos; `Cobré 80000 por diseño` se interpreta como gasto; `Compré iPhone 15 por 1200000` usa 15 como importe; cuotas y fechas explícitas se ignoran; una parte incomprensible puede perderse si otra se interpreta.
@@ -824,3 +837,9 @@ Completar una entrada al cerrar cada tarea:
 | 25/10/2026 | Preparación FE-09 / aceptación ficticia FE-11 | Suma y conteo de filas existentes, corte explícito, monedas e identidad; lectura paginada sin subtotales | 628 Vitest, lint/tipos/build, 12 SQL, seis guards y navegador con SQL descartable/trigger fallido/reintento | Sin datos ni configuración productivos; sin migración/webhook/IA | CI, revisión y publicación pendientes; Safari/iPhone físico abierto; siguiente revisión del bot BE-04/05/07/08 |
 
 | 25/10/2026 | Seguimiento físico parcial FE-07 | El propietario informó aviso de actualización y recarga al tocar en iPhone | Evidencia manual comunicada por el propietario; no ejecución directa de Codex | Sin cambios de aplicación ni datos | Falta probar borrador sin guardar en el dispositivo y precisar navegador/modo instalado; FE-09/11 sigue preparado sin publicar |
+
+| 25/10/2026 | Publicación FE-09/FE-11 y aceptación FE-07 en iPhone | PR #39, 54dce9e; actualización de Pesito instalado desde el ícono del iPhone | 628 pruebas, CI/Publicar, SHA/SW/bundle/CSP; propietario confirma bloqueo con borrador, navegación, descarte y recarga con sesión | Sin migración/webhook ni compras reales de prueba; nombres de prueba sin guardar | FE-09/11 y flujo FE-07 cerrados en su alcance; siguiente revisión incremental BE-04/05/07/08 con BE-12/17; backups al final |
+
+| 25/10/2026 | Actualización documental del plan | Reconciliados cierres FE-07/09/11, publicación PR #39 y aceptación en PWA instalada en iPhone | Revisión del plan y evidencias ya registradas; sin nuevas pruebas funcionales | Solo documentación local; sin commit/push ni nuevo despliegue en esta actualización | Primer paso propuesto BE-04: revalidar parser y regresiones; luego BE-05, BE-07 y BE-08 según dependencias |
+
+| 25/10/2026 | Preparación incremental BE-04 | Guardas de contexto de fechas/monedas y limpiador compartido que conserva identificadores; prompt alineado | 675 Vitest, 40 rutas Deno sin red, check/lint/build, 12 SQL y seis guards; suite Deno de endpoints pendiente de CI por caché Windows | Sin IA ni mensajes reales, migraciones o despliegue; cierres anteriores preservados | Revisar CI/PR y autorizar publicación antes de aceptación; BE-05/07/08 continúan separados |

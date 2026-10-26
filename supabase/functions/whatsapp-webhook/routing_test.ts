@@ -1494,6 +1494,11 @@ Deno.test("audio: importes exactos y residuos ambiguos sin propuestas parciales"
         ["Gasté trescientos y veinte en super", 320],
         ["Gasté un billón doscientos mil en alquiler", null],
         ["Gasté 100 super y un billón doscientos mil en alquiler", null],
+        ["Compré tornillos 10/10 por 1500", null],
+        ["Gasté cien dólares canadienses en super", null],
+        ["Gasté cien pesos colombianos en super", null],
+        ["Gasté 100 super; cobré 50 CAD por diseño", null],
+        ["Gasté 100 pesos argentinos en super", 100],
       ] as const
     ) {
       resetGroqBudgetForTests();
@@ -1625,3 +1630,202 @@ Deno.test("avisos operativos: solo el emisor de prueba aprobado, sin red real ni
     );
   }
 });
+
+Deno.test("BE-04: fechas y monedas explícitas siguen sin consumir IA", async () => {
+  const previousFetch = globalThis.fetch, previousLog = console.log;
+  try {
+    console.log = () => {};
+    let calls = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      throw new Error("UNEXPECTED_PROVIDER");
+    }) as typeof fetch;
+    const action = await prepareMessage(
+      database().db,
+      job(
+        "Gasté 100 pesos argentinos en super el día 19/10/2026; cobré 50 dólares estadounidenses por diseño con fecha 19/10/2026",
+      ),
+      () => Promise.resolve(),
+    );
+    assert(action.kind === "add" && calls === 0, "Texto claro derivado a IA");
+    const items = action.items as Array<
+      {
+        description: string;
+        currency: string;
+        occurredOn: string;
+        totalAmountArs: number;
+      }
+    >;
+    assert(
+      JSON.stringify(
+        items.map(
+          (i) => [i.description, i.totalAmountArs, i.currency, i.occurredOn],
+        ),
+      ) ===
+        JSON.stringify([["Super", 100, "ARS", "2026-10-19"], [
+          "Diseño",
+          50,
+          "USD",
+          "2026-10-19",
+        ]]),
+      "Cambió los datos explícitos",
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    console.log = previousLog;
+  }
+});
+Deno.test("BE-04: contexto ambiguo y 503 no habilitan propuestas locales parciales", async () => {
+  const previousFetch = globalThis.fetch, previousLog = console.log;
+  const key = Deno.env.get("GEMINI_API_KEY"),
+    groq = Deno.env.get("GROQ_API_KEY");
+  try {
+    Deno.env.set("GEMINI_API_KEY", "synthetic-key");
+    Deno.env.delete("GROQ_API_KEY");
+    console.log = () => {};
+    for (const unavailable of [false, true]) {
+      let calls = 0;
+      globalThis.fetch = (() => {
+        calls++;
+        return Promise.resolve(
+          unavailable
+            ? new Response("synthetic", { status: 503 })
+            : Response.json({
+              candidates: [{
+                content: {
+                  parts: [{
+                    text: JSON.stringify({ intent: "unknown", movements: [] }),
+                  }],
+                },
+              }],
+            }),
+        );
+      }) as typeof fetch;
+      for (
+        const text of [
+          "Compré tornillos 10/10 por 1500",
+          "Gasté 100 dólares canadienses en super",
+          "Gasté 100 COP en super",
+          "Gasté 250 en super; cobré 100 pesos colombianos por diseño",
+        ]
+      ) {
+        const before = calls, saved: unknown[] = [];
+        const action = await prepareMessage(
+          database().db,
+          job(text),
+          (value) => {
+            saved.push(value);
+            return Promise.resolve();
+          },
+        );
+        assert(
+          action.kind === "reply" &&
+            String(action.text).includes("No cargué nada") &&
+            calls === before + (unavailable ? 2 : 1),
+          "Aceptó un alta local ambigua o ignoró el error",
+        );
+        assert(
+          saved.length === 1 &&
+            JSON.stringify(checkpointBusiness(saved[0])) ===
+              JSON.stringify({ intent: "request_text", movements: [] }),
+          "Conservó una parte de la lista",
+        );
+      }
+    }
+  } finally {
+    globalThis.fetch = previousFetch;
+    console.log = previousLog;
+    if (key === undefined) Deno.env.delete("GEMINI_API_KEY");
+    else Deno.env.set("GEMINI_API_KEY", key);
+    if (groq === undefined) Deno.env.delete("GROQ_API_KEY");
+    else Deno.env.set("GROQ_API_KEY", groq);
+  }
+});
+for (const provider of ["gemini", "groq"] as const) {
+  Deno.test(
+    "BE-04: " + provider +
+      " conserva identificadores numéricos después de extraer",
+    async () => {
+      const previousFetch = globalThis.fetch, previousLog = console.log;
+      const key = Deno.env.get("GEMINI_API_KEY"),
+        groq = Deno.env.get("GROQ_API_KEY");
+      try {
+        resetGroqBudgetForTests();
+        console.log = () => {};
+        Deno.env.set("GEMINI_API_KEY", "synthetic-key");
+        if (provider === "groq") {
+          Deno.env.set("GROQ_API_KEY", "gsk_synthetic_test_key_123456");
+        } else Deno.env.delete("GROQ_API_KEY");
+        const expected = ["IPhone 15", "Colectivo 60", "Ruta 9"];
+        const parsed = {
+          intent: "add_movements",
+          movements: expected.map((description, index) => ({
+            kind: "expense",
+            description,
+            totalAmountArs: [1200000, 500, 100][index],
+            currency: "ARS",
+            occurredOn: "2026-10-25",
+            category: "Otros",
+            installments: 1,
+            firstInstallmentMonth: null,
+            confidence: 0.95,
+            missingFields: [],
+          })),
+        };
+        let calls = 0;
+        globalThis.fetch = ((_url: RequestInfo | URL, init?: RequestInit) => {
+          calls++;
+          assert(
+            String(init?.body).includes(
+              "no los uses como monto ni como fecha",
+            ) &&
+              String(init?.body).includes("moneda distinta o contradictoria"),
+            "Instrucción del extractor divergente",
+          );
+          return Promise.resolve(Response.json(
+            provider === "groq"
+              ? { choices: [{ message: { content: JSON.stringify(parsed) } }] }
+              : {
+                candidates: [{
+                  content: { parts: [{ text: JSON.stringify(parsed) }] },
+                }],
+              },
+          ));
+        }) as typeof fetch;
+        const action = await prepareMessage(
+          database().db,
+          job(
+            "Compré iPhone 15 por 1200000; pagué 500 en colectivo 60; gasté 100 en Ruta 9",
+          ),
+          () => Promise.resolve(),
+        );
+        assert(
+          action.kind === "add" && calls === 1,
+          "No recorrió el extractor simulado",
+        );
+        const items = action.items as Array<
+          { description: string; totalAmountArs: number }
+        >;
+        assert(
+          JSON.stringify(items.map((i) => i.description)) ===
+            JSON.stringify(expected),
+          "El limpiador borró identificadores",
+        );
+        assert(
+          JSON.stringify(items.map((i) => i.totalAmountArs)) ===
+            JSON.stringify([1200000, 500, 100]),
+          "El identificador reemplazó el importe",
+        );
+      } finally {
+        resetGroqBudgetForTests();
+        globalThis.fetch = previousFetch;
+        console.log = previousLog;
+        if (key === undefined) {
+          Deno.env.delete("GEMINI_API_KEY");
+        } else Deno.env.set("GEMINI_API_KEY", key);
+        if (groq === undefined) Deno.env.delete("GROQ_API_KEY");
+        else Deno.env.set("GROQ_API_KEY", groq);
+      }
+    },
+  );
+}

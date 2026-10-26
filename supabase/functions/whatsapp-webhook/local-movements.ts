@@ -10,7 +10,14 @@ const incomeAction =
 const startsMovement =
   /^(?:(?:gaste|pague|compre|abone|cargue|gasto|cobre|recibi|vendi|ingreso|sueldo|salario|haberes|venta)\b|me\s+(?:ingreso|ingresaron|pagaron|transfirieron|depositaron|acreditaron)\b|(?:ars|usd|u\$s|us\$|\$)?\s*\d)/i;
 const moneyPattern =
-  /(?:(?:ars|usd|u\$s|us\$|\$)\s*)?(?:\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?:\s*(?:k|mil|lucas?))?(?:\s*(?:pesos?|ars|usd|d[oó]lar(?:es)?))?/gi;
+  /(?:(?:ars|usd|u\$s|us\$|\$)\s*)?(?:\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?:\s*(?:k|mil|lucas?))?(?:\s*(?:pesos?(?:\s+argentinos?)?|ars|usd|d[oó]lar(?:es)?(?:\s+estadounidenses?)?))?/gi;
+
+// Fuera del contrato ARS/USD: no convertir marcadores explícitos por defecto.
+// Lista acotada de códigos/calificadores; no es un detector universal de monedas.
+const unsupportedCurrency =
+  /\b(?:cad|aud|nzd|cop|clp|uyu|mxn|chf|pen|jpy|cny|bob|pyg|vef|ves|dkk|nok|sek|inr|rub|krw|crc|gtq|hnl|nio|dop|cup)\s*\$?\s*\d|\d[\d.,]*\s*(?:cad|aud|nzd|cop|clp|uyu|mxn|chf|pen|jpy|cny|bob|pyg|vef|ves|dkk|nok|sek|inr|rub|krw|crc|gtq|hnl|nio|dop|cup|soles?|bolivianos?|coronas?|yuan(?:es)?)\b/;
+const foreignCurrency =
+  /\b(?:pesos?|dolares?)\s+(?:de(?:\s+los)?\s+)?(?:canadienses?|canada|australianos?|australia|neozelandeses?|nueva zelanda|colombianos?|colombia|chilenos?|chile|uruguayos?|uruguay|mexicanos?|mexico|cubanos?|cuba|dominicanos?|republica dominicana)\b|\bdolares?\s+argentinos?\b|\bpesos?\s+estadounidenses?\b/;
 
 function validDate(value: string): boolean {
   const date = new Date(`${value}T12:00:00Z`);
@@ -29,6 +36,19 @@ function dateIn(text: string, today: string) {
   if (dates.length > 1) return null;
   if (!dates.length) return { text, occurredOn: today };
   const match = dates[0];
+  const before = text.slice(0, match.index);
+  const after = text.slice(match.index! + match[0].length);
+  const marker = before.match(
+    /\b(?:el(?:\s+d[ií]a)?|(?:con\s+)?fecha(?:\s+del)?|d[ií]a)\s*$/i,
+  );
+  const relative = /^(hoy|ayer|anteayer)$/.test(normalize(match[0]));
+  // DD/MM puede ser una referencia/modelo. Sin marcador, solo al inicio;
+  // Una fecha completa final conserva el formato ya documentado. Lo demás se deriva.
+  if (
+    !relative && !marker && before.trim() &&
+    !(/^(?:\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4})$/.test(match[0]) &&
+      !after.trim())
+  ) return null;
   let occurredOn = normalize(match[0]);
   if (/^(hoy|ayer|anteayer)$/.test(occurredOn)) {
     const date = new Date(`${today}T12:00:00Z`);
@@ -42,9 +62,8 @@ function dateIn(text: string, today: string) {
     occurredOn = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   }
   if (!validDate(occurredOn)) return null;
-  const before = text.slice(0, match.index).replace(/\bel\s*$/i, "");
   return {
-    text: `${before} ${text.slice(match.index! + match[0].length)}`.trim(),
+    text: `${marker ? before.slice(0, marker.index) : before} ${after}`.trim(),
     occurredOn,
   };
 }
@@ -106,6 +125,7 @@ export function parseDeterministicMovement(
   const normalized = normalize(text);
   if (
     !text || looksLikeDraftCorrection(text) || /[?¿]/.test(text) ||
+    unsupportedCurrency.test(normalized) || foreignCurrency.test(normalized) ||
     /\b(no|nunca|quizas|tal vez|creo|si|cuanto|como|donde|cuando|cual|cuales|mostra|mostrame|decime|dime|pasame|ayuda|explicame|cancelar|confirmar|quitar|borrar|saca|quita|borra|elimina|cambia|corregi|modifica|manana|lunes|martes|miercoles|jueves|viernes|sabado|domingo|semana|mes|eur|euros?|brl|reales|gbp|uruguayos|chilenos|mexicanos|guaranies|yenes)\b/
       .test(normalized) ||
     /\b(voy a|tengo que|debo|quiero|podria|deberia|iba a|me deben|por cobrar|por pagar|cada cuota|por cuota|de las cuales|en total entre)\b/
