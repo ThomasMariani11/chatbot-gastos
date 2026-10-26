@@ -1,7 +1,7 @@
 # Validación BE-07 — confirmar la versión revisada
 
 Fecha: 26/10/2026 (Argentina). Base: main cb2cef5. Rama: codex/backend-reviewed-confirmation.
-Estado: candidato preparado, sin publicar. Requiere migración 033; no cambia el código del webhook, la firma de sus RPC, claves, proveedores, modelos, facturación ni datos de clientes.
+Estado: PR #42 integrada/publicada en 1688c7b; **033 aplicada y verificada, BE-07 cerrado en el alcance probado**. La preparación que sigue es histórica. La versión publicada requiere 033; no cambia el código del webhook, la firma de sus RPC, claves, proveedores, modelos, facturación ni datos de clientes.
 
 ## Revisión y reproducción
 
@@ -45,3 +45,15 @@ Dos regresiones fallaron antes de 033: sin mensaje adicional y con un gasto nuev
 ## Límites
 
 El sistema conoce el resumen cuya petición de envío aceptó Meta; no prueba que el cliente lo leyera. Los timestamps con resolución de segundos conservan la política existente de pedir otra confirmación ante ambigüedad. No se amplía la semántica de IA ni se resuelven datos faltantes. Las pruebas nuevas cubren interacciones concretas, no todas las combinaciones de entrega/reinicio posibles. El ensayo PostgreSQL verifica dos conexiones concurrentes sobre la RPC, no dos workers legítimos con el mismo lease.
+
+
+## Publicación y cierre autorizados — 26/10/2026
+
+- El propietario autorizó aplicar/verificar 033 e integrar/publicar PR #42. Candidato e6a3c03a52b742d90e1cc6b5acdd0a3d81c76da7 con los cuatro controles aprobados; integrado en **1688c7bcbaf30c943c44a9b63628ab6522cf920c**, árbol idéntico al candidato. [CI main y Publicar](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40385884259) aprobados, incluidos PostgreSQL nativo de dos conexiones y ensayo de instalación/rollback; 735 pruebas generales.
+- Preflight productivo: esquema 001–032, whatsapp-webhook v56 ACTIVE, cola habilitada, cero trabajos v2 en procesamiento/leases activos y recuperación succeeded. La función completa coincidió con la base 020 más las modificaciones 025 revisadas. Se guardaron definición y atributos de la RPC como artefactos de código, sin exportar datos.
+- 033 se ejecutó con el texto del candidato en una transacción con precondiciones de revisión/estado y registro atómico en schema_migrations. Bloqueos breves de las tablas operativas evitaron cambios de estado durante la comprobación; lock_timeout 5 s y statement_timeout 15 s. Se registró exclusivamente 033, sin backfills ni reenvíos. Fuente normalizada a LF: SHA-256 8d8d0647b86718ba256ae588717f0112aa51c6118e30721363d80d63fd6ccdb6; su contenido registrado coincide.
+- Postcheck y lectura final: definición completa exactamente igual a la esperada después de aplicar los dos reemplazos aprobados; mismo propietario postgres, ACL exclusiva postgres/service_role, SECURITY DEFINER y search_path. Los permisos efectivos de anon/authenticated se rechazaron y service_role se conservó dentro de la transacción antes de confirmar el cambio.
+- **Edge permanece v56**, mismo bundle e7f074327164659a345414d319b22cb46cb5fe26ef425a9d4b2255a5339f5acd y verify_jwt=false; no se desplegó runtime nuevo. La PWA version.json y SW coinciden con 1688c7b y CSP presente. POST al webhook sin firma y al worker sin secreto dieron 401: pruebas negativas de autenticación, sin escritura financiera ni envío a clientes.
+- Esquema final 001–033, cola habilitada, cero procesos/leases y recuperación succeeded. Conteos de cola conservados: 94 v2 procesados, ocho v1 pendientes y 30 v1 procesados heredados; ninguno se reenvió. No se retocaron listas, teléfonos, vencimientos, operaciones ni configuración de proveedores.
+- Evidencia saneada: C:/Users/thomi/AppData/Local/Temp/pesito-be07-release-2026-10-26/ (authorization, preflight, preparación/hashes, migration-result, migration-verification, final-health, comprobación Edge, smoke, PWA y release-result). Manifiesto local actualizado con alcance verificado; no contiene una afirmación de ensayo WhatsApp nuevo.
+- **BE-07 cerrado en el alcance de sus regresiones, concurrencia nativa y código/permisos productivos verificados.** El caso de 25 horas se ensayó en base descartable; no se provocó una confirmación financiera con cuentas reales ni se declaró una nueva prueba manual de WhatsApp. El conocimiento del resumen aceptado por Meta no demuestra lectura humana. Continúa BE-08 por separado; costo $0, retención desactivada y backups al final.
