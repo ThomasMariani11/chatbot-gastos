@@ -186,3 +186,51 @@ it("los ingresos conocidos no se convierten en gastos abreviados", () => {
   expect(parseDeterministicMovement("Salario 5000")).toMatchObject({ kind: "income", totalAmountArs: 5000 });
   for (const text of ["Gané 5000 en un sorteo", "Encontré 5000", "Tenía 5000", "Cuál fue el gasto de 5000", "Mostrame el gasto de 5000"]) expect(parseDeterministicMovements(text)).toBeNull();
 });
+
+
+describe("BE-04: no confundir referencias de producto ni monedas fuera del contrato", () => {
+  it.each([
+    "Compré tornillos 10/10 por 1500",
+    "Compré cable 2/10 por 5000",
+    "Compré 1500 de modelo 10/10",
+    "Compré una licencia 2026-10-20 por 5000",
+    "Gasté 100 super 19/10",
+    "Gasté 100 dólares canadienses en super",
+    "Cobré 100 dólares australianos por diseño",
+    "Gasté 100 pesos colombianos en super",
+    "Gasté 100 pesos de Colombia en super",
+    "Gasté 100 dólares de Canadá en super",
+    "Gasté 100 CAD en super",
+    "Cobré 100 AUD por diseño",
+    "Gasté 100 COP en super",
+    "Gasté 100 CLP en super",
+    "Gasté 100 UYU en super",
+    "Gasté 100 MXN en super",
+    "Gasté 100 CHF en super",
+    "Gasté 100 PEN en super",
+  ])("deriva el mensaje completo sin modificar datos: %s", text => {
+    expect(parseDeterministicMovement(text)).toBeNull();
+    expect(parseDeterministicMovements(text)).toBeNull();
+    expect(parseDeterministicMovements("Gasté 250 en super; " + text)).toBeNull();
+    expect(parseDeterministicMovements(text + "; cobré 500 por diseño")).toBeNull();
+  });
+  it.each([
+    ["Gasté 100 pesos argentinos en super", "expense", 100, "ARS", "Super"],
+    ["Cobré 100 dólares estadounidenses por diseño", "income", 100, "USD", "Diseño"],
+    ["Gasté ARS 100 en supermercado", "expense", 100, "ARS", "Supermercado"],
+    ["Cobré USD 100 por diseño", "income", 100, "USD", "Diseño"],
+    ["Gasté ARS 100 por licencia CAD", "expense", 100, "ARS", "Licencia CAD"],
+  ])("conserva moneda, importe, tipo y concepto explícitos: %s", (text, kind, amount, currency, description) => {
+    expect(parseDeterministicMovement(text)).toMatchObject({kind, totalAmountArs: amount, currency, description});
+  });
+  it.each([
+    "Pagué 1500 el 19/10 en supermercado",
+    "Pagué 1500 el día 19/10/2026 en supermercado",
+    "Pagué 1500 con fecha 19/10/2026 en supermercado",
+    "19/10/2026 pagué 1500 en supermercado",
+    "Pagué 1500 en supermercado 2026-10-19",
+    "Pagué 1500 en supermercado ayer",
+  ])("extrae solo fechas con contexto inequívoco: %s", text => {
+    expect(parseDeterministicMovement(text)).toMatchObject({totalAmountArs: 1500, description: "Supermercado", occurredOn: "2026-10-19"});
+  });
+});

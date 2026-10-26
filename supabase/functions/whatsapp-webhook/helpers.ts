@@ -1,3 +1,5 @@
+import { cleanDescription } from "./movement-description.ts";
+export { cleanDescription } from "./movement-description.ts";
 import type { FailureMetadata } from "./failures.ts";
 import type { ExtractedMovement } from "./movement-types.ts";
 export type { ExtractedMovement } from "./movement-types.ts";
@@ -305,31 +307,6 @@ const multiResponseJsonSchema = {
   required: ["intent", "movements"],
 };
 
-export function cleanDescription(
-  desc: string,
-  kind: "expense" | "income",
-): string {
-  if (!desc) return kind === "expense" ? "Gasto general" : "Ingreso general";
-  let cleaned = desc.trim();
-  // Quitar prefijos de acción comunes como "gasté ... en ", "pagué ... en ", etc.
-  cleaned = cleaned.replace(
-    /^(gast[eé]|pagu[eé]|compr[eé]|abone|abon[eé]|carg[uú]e|pagar|gastar)\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dólares)?\s*(en|de)?\s*)?/i,
-    "",
-  );
-  cleaned = cleaned.replace(
-    /^(ingres[oó]|me\s+ingresaron|me\s+ingres[oó]|cobr[eé]|me\s+pagaron|me\s+transfirieron|dep[oó]sito\s+de)\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dólares)?\s*(en|de|por)?\s*)?/i,
-    "",
-  );
-  cleaned = cleaned.replace(/^(en\s+|de\s+|por\s+)/i, "");
-  cleaned = cleaned.replace(
-    /\s+(\d+[\d.,]*\s*(k|mil|lucas?)?\s*(pesos?|ars|usd|dolares|dólares)?)$/i,
-    "",
-  );
-  cleaned = cleaned.trim();
-  if (!cleaned) return kind === "expense" ? "Gasto general" : "Ingreso general";
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-}
-
 export async function extractFromGemini(input: {
   text?: string;
   mediaBase64?: string;
@@ -368,8 +345,8 @@ INTENCIONES POSIBLES ("intent"):
 
 REGLAS PARA OPERACIONES ("movements"):
 - TIPO ("kind"): "income" (sueldo, cobro, freelance, depósito, transferencia recibida, venta) o "expense" (compras, servicios, pagos, salidas).
-- CONCEPTO / DETALLE ("description"): ÚNICAMENTE el concepto, producto, servicio, comercio o lugar (ej: "Súper", "Carnicería", "Nafta YPF", "Farmacia", "Almuerzo", "Sueldo"). PROHIBIDO incluir verbos de acción ("gasté", "pagué", "cobré") y PROHIBIDO incluir el monto numérico en la descripción.
-- MONEDA Y MONTOS: "USD" si menciona dólares o u$s; por defecto "ARS". Interpretá "lucas" y "k" como miles de ARS (ej: "20 lucas" = 20000, "5k" = 5000). Admití montos con decimales (centavos), ej: "10000,50" o "10000.50" = 10000.5.
+- CONCEPTO / DETALLE ("description"): ÚNICAMENTE el concepto, producto, servicio, comercio o lugar (ej: "Súper", "Carnicería", "Nafta YPF", "Farmacia", "Almuerzo", "Sueldo"). PROHIBIDO incluir verbos de acción ("gasté", "pagué", "cobré") y PROHIBIDO incluir el importe de la operación en la descripción. Conservá los números que identifican el concepto (iPhone 15, colectivo 60, Ruta 9 o referencia 10/10); no los uses como monto ni como fecha.
+- MONEDA Y MONTOS: Solo ARS (pesos argentinos) y USD (dólares estadounidenses). "Dólares" o u$s sin otro calificador significan USD; sin indicación de moneda, ARS. Si menciona una moneda distinta o contradictoria, devolvé intent="unknown" y movements=[]: no la conviertas ni la reemplaces por ARS/USD. Interpretá "lucas" y "k" como miles de ARS (ej: "20 lucas" = 20000, "5k" = 5000). Admití montos con decimales (centavos), ej: "10000,50" o "10000.50" = 10000.5.
 - CATEGORÍAS:
   * Gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros.
   * Ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros.
