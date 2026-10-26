@@ -1,7 +1,7 @@
 # Validación BE-04 — fechas, monedas e identificadores
 
 Fecha: 25/10/2026. Base: main 54dce9e. Rama: codex/backend-parser-review.
-Estado: corrección preparada y validada localmente; consultar CI de la PR sobre el SHA final. Integración, despliegue del webhook y aceptación WhatsApp pendientes. No hay migración, dependencia ni cambio de proveedor/modelo.
+Estado: PR #40 integrada/publicada en e311db4; whatsapp-webhook v55 ACTIVE y comprobación técnica aprobada. Aceptación WhatsApp confirmada por el propietario; cerrado en el alcance probado. La preparación y sus límites se conservan debajo. No hay migración, dependencia ni cambio de proveedor/modelo.
 
 ## Revisión y reproducción
 
@@ -41,7 +41,7 @@ La nueva batería del parser mostró 22 fallos antes de la corrección. La bater
 
 Los casos locales conservadores no generan borradores por sí solos: quedan sujetos al extractor existente. Si este falla o devuelve unknown, los ensayos prueban el pedido de texto sin aceptar fragmentos. Una respuesta incorrecta semánticamente pero válida del modelo puede necesitar controles adicionales de BE-08/BE-12; estas guardas no resuelven toda comprensión del lenguaje ni recuperan una transcripción equivocada.
 
-BE-04 se mantiene en curso hasta revisar CI, autorizar y desplegar el webhook y aceptar el comportamiento acordado. Los hallazgos históricos no se presumen todos vigentes; las regresiones indican qué se cubrió. BE-05, BE-07 y BE-08 se revisan separadamente. No hubo llamadas reales a IA, WhatsApp ni Supabase; ninguna operación de clientes se modificó.
+Este registro de preparación exigía revisar CI, autorizar/desplegar y aceptar el comportamiento acordado; los resultados posteriores se registran al final. Los hallazgos históricos no se presumen todos vigentes; las regresiones indican qué se cubrió. BE-05, BE-07 y BE-08 se revisan separadamente. No hubo llamadas reales a IA, WhatsApp ni Supabase; ninguna operación de clientes se modificó.
 
 ## Puesta en marcha prevista
 
@@ -50,3 +50,15 @@ BE-04 se mantiene en curso hasta revisar CI, autorizar y desplegar el webhook y 
 3. Antes de desplegar, verificar de solo lectura la versión Edge vigente y guardar rollback compatible desde un checkout limpio; no reutilizar números de versión históricos sin comprobarlos. No hay SQL nuevo ni reenvíos de trabajos.
 4. Ensayo WhatsApp con mensaje ficticio autorizado, sin confirmar gastos reales; revisar números del concepto y cancelar al terminar. Revisión productiva de métricas sin contenido ni llamadas extra para cargar a otros clientes.
 5. Registrar versión, salud de cola y aceptación, sin cerrar los demás criterios del backend automáticamente. Backups al final; retención sin cambios.
+
+## Publicación autorizada — 25/10/2026
+
+- El propietario autorizó integrar la PR #40 y desplegar el webhook. Candidato 167572e con los cuatro controles aprobados; integrado en e311db4bcc15b4c8ffa92f152c4cc9b9a401bc42. [CI main y Publicar](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40254224019) aprobados, incluidos el Webhook completo en Linux y sus endpoints. 675 pruebas generales.
+- Preflight: webhook v54 ACTIVE, verify_jwt=false, migraciones 001–032 registradas, cola habilitada, cero trabajos v2 en procesamiento y cero leases activos; cron de recuperación activo y última ejecución succeeded. Los ocho pendientes heredados v1 se conservaron sin reenviar; no son trabajos nuevos de este despliegue.
+- Rollback: fuente de la v54 descargada y hashes guardados en carpeta temporal, junto con el SHA anterior 54dce9e. Se comprobó igualdad del código integrado con el candidato aprobado antes de desplegar.
+- Despliegue desde main limpio con CLI 2.120.0, --use-api y --no-verify-jwt, únicamente whatsapp-webhook. Resultado: **v55 ACTIVE**, verify_jwt=false, bundle adc5af6c97dbcb187e8db6b996b7eabbf563a4e728a3731e41c3020860a80445. No se cambiaron secretos, configuración global, modelos ni esquema.
+- Fuente descargada después del despliegue: equivalencia de tokens JavaScript normalizados, tras quitar tipos/comentarios, en index, processor, queue, local-movements, helpers, movement-description y groq frente al checkout integrado. Todas coinciden. Se conserva además la evidencia de hashes y salida CLI.
+- POST sin firma al webhook y POST al worker sin secreto devolvieron 401 antes y después. Son pruebas negativas de autenticación, no aceptación de negocio ni validación de una firma legítima. No se leyeron claves service_role/sb_secret ni se enviaron mensajes a clientes.
+- Postcheck: mismas 32 migraciones y mismos conteos, cola habilitada, cero procesos/leases y recuperación succeeded. PWA version.json y SW coinciden con e311db4; CSP presente. No se repitió la prueba física de actualización como si validara el negocio del bot.
+- Evidencias locales sin textos/clientes en C:/Users/thomi/AppData/Local/Temp/pesito-be04-release-2026-10-25/: preflight-health.json, post-health.json, edge-after.json, source-comparison.json, smoke-before.json, smoke-after.json, pwa-proof.json y release-result.json. Manifiesto local actualizado con observaciones y alcance del smoke.
+- **Aceptación WhatsApp — 25/10/2026:** el propietario confirmó que «Gasté 123 en colectivo 60» produjo $123 con concepto «Colectivo 60» y que CANCELAR descartó el pendiente. Se registra su comprobación manual; no se atribuye a este cierre una lectura SQL adicional ni una prueba universal del modelo. BE-04 cerrado en el alcance de las regresiones y este ensayo. BE-05/07/08 conservan su propio alcance.

@@ -95,3 +95,11 @@ CLI 2.120.0 desplegó únicamente los 12 módulos importados de whatsapp-webhook
 ## Revisión BE-04 preparada — 25/10/2026
 
 Cambio todavía sin desplegar: DD/MM sin marcador solo al inicio; con el/el día/con fecha y fechas completas finales se mantiene la vía local. Referencias como tornillos 10/10 salen de esa vía en vez de perderse del concepto. Monedas detectadas fuera de ARS/USD también se derivan completas; pesos argentinos/dólares estadounidenses explícitos se reconocen. El limpiador compartido conserva números como iPhone 15, colectivo 60 y Ruta 9; no elimina números finales sin contexto monetario. Lista de detección acotada y semántica de IA no garantizada. [Pruebas, límites y publicación pendiente](VALIDACION_BE_04.md).
+
+### Publicación de la revisión BE-04 — 25/10/2026
+
+El bloque anterior fue publicado por autorización del propietario: PR #40/e311db4, whatsapp-webhook v55 ACTIVE. CI completo y comprobación técnica productiva aprobados. No hay migración ni cambio de claves, proveedores o modelos. El propietario confirmó la propuesta de $123 / «Colectivo 60» y su descarte con CANCELAR. BE-04 cerrado en ese alcance; la marca anterior de preparación se conserva como historial. [Evidencia](VALIDACION_BE_04.md).
+
+## Revisión BE-05 preparada — 25/10/2026
+
+Suscripción Netflix 5000 y Saldo SUBE 1500 llegan a propuestas; ventas/cobros por planes no se desvían a soporte. Las consultas explícitas de precios con cifras siguen respondiéndose localmente. Si hay una consulta mezclada con un movimiento o una frase ambigua reconocida, se pide separar/aclarar sin agregar ni modificar la lista ni limpiar el resumen. Los captions y audios conservan su ruta multimedia. No se activa un parser más permisivo ante fallos de IA ni se cambia la confirmación. Pendiente de CI/publicación y aceptación; [pruebas y límites](VALIDACION_BE_05.md).
