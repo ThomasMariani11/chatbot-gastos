@@ -103,3 +103,11 @@ El bloque anterior fue publicado por autorización del propietario: PR #40/e311d
 ## Revisión BE-05 preparada — 25/10/2026
 
 Suscripción Netflix 5000 y Saldo SUBE 1500 llegan a propuestas; ventas/cobros por planes no se desvían a soporte. Las consultas explícitas de precios con cifras siguen respondiéndose localmente. Si hay una consulta mezclada con un movimiento o una frase ambigua reconocida, se pide separar/aclarar sin agregar ni modificar la lista ni limpiar el resumen. Los captions y audios conservan su ruta multimedia. No se activa un parser más permisivo ante fallos de IA ni se cambia la confirmación. Pendiente de CI/publicación y aceptación; [pruebas y límites](VALIDACION_BE_05.md).
+
+### Publicación de la revisión BE-05 — 25/10/2026
+
+PR #41/cb2cef5 y whatsapp-webhook v56 ACTIVE publicados por autorización del propietario. 723 pruebas, cuatro controles y Pages aprobados; fuente descargada, protecciones y salud de cola verificadas. Sin SQL ni cambios de IA/secretos. Aceptación WhatsApp pendiente; la preparación anterior queda como historial. [Evidencia y prueba](VALIDACION_BE_05.md).
+
+**Revisión de aceptación BE-05 — 25/10/2026:** carga de Netflix consistente con la entrada, aclaración del mensaje mixto sin ítems nuevos, resumen registrado y lista descartada; cero movimientos nuevos guardados. Cinco mensajes propios en un intento. La consulta final unió alias y saldo y pidió separar: falta probar esas dos consultas individualmente. [Detalle y límites](VALIDACION_BE_05.md).
+
+**Cierre BE-05 — 25/10/2026:** consultas independientes de alias (23:16:46, 1692 ms) y saldo (23:16:53, 3388 ms) verificadas en los registros de la cuenta del propietario: respuestas correspondientes, un intento cada una y API de envío aceptada. Sin ítems ni transacciones nuevas; cero grupos abiertos. Se suma a carga/aclaración/resumen/descarte ya comprobados. BE-05 cerrado en ese alcance; los estados pendientes anteriores quedan como historial. [Evidencia y límites](VALIDACION_BE_05.md). Próximo: revisión BE-07.
