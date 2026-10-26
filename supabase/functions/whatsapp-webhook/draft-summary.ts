@@ -23,10 +23,12 @@ const labels: Record<string, string> = {
 export function formatDraftList(items: DraftListItem[]): string {
   const active = items.filter((item) => item.status === "pending");
   if (!active.length) return "No tenés movimientos pendientes en tu lista.";
+  if (active.length > 20) throw new Error("DRAFT_SUMMARY_CAPACITY");
   let body = `Tenés ${
     active.length === 1 ? "1 movimiento" : `${active.length} movimientos`
   } para revisar:\n\n`;
-  let incomplete = false;
+  const rowBudget = Math.floor((4000 - body.length - 600) / active.length);
+  let incomplete = false, abbreviated = false;
   for (const item of active) {
     const missing = new Set(item.missing_fields ?? []);
     if (item.amount === null || !Number.isFinite(Number(item.amount))) {
@@ -35,8 +37,8 @@ export function formatDraftList(items: DraftListItem[]): string {
     if (item.occurred_on === null) missing.add("date");
     if (!item.description?.trim()) missing.add("description");
     incomplete ||= missing.size > 0;
-    const amount = Number(item.amount);
-    const decimals = Math.round(Math.abs(amount) * 100) % 100 !== 0;
+    const amount = Number(item.amount),
+      decimals = Math.round(Math.abs(amount) * 100) % 100 !== 0;
     const value = missing.has("amount")
       ? "importe pendiente"
       : item.currency === "USD"
@@ -55,7 +57,7 @@ export function formatDraftList(items: DraftListItem[]): string {
     const installments = item.installments && item.installments > 1
       ? ` (${item.installments} cuotas${
         item.first_installment_month
-          ? ` desde ${item.first_installment_month}`
+          ? ` desde ${item.first_installment_month.slice(0, 7)}`
           : ""
       })`
       : "";
@@ -64,14 +66,30 @@ export function formatDraftList(items: DraftListItem[]): string {
       : item.occurred_on
       ? ` · ${item.occurred_on}`
       : "";
-    body += `${item.position}. ${item.kind === "income" ? "🟢" : "🔴"} ${
-      missing.has("description") ? "Concepto pendiente" : item.description
-    } · ${value}${installments}${date}\n`;
-    if (missing.size) {
-      body += `   ⚠️ Falta: ${
-        [...missing].map((field) => labels[field] ?? "aclaración").join(", ")
-      }.\n`;
+    const prefix = `${item.position}. ${item.kind === "income" ? "🟢" : "🔴"} `;
+    const suffix = ` · ${value}${installments}${date}\n`;
+    const missingText = missing.size
+      ? `   ⚠️ Falta: ${
+        [...new Set([...missing].map((field) => labels[field] ?? "aclaración"))]
+          .join(", ")
+      }.\n`
+      : "";
+    const limit = rowBudget - prefix.length - suffix.length -
+      missingText.length;
+    if (limit < 1) throw new Error("DRAFT_SUMMARY_CAPACITY");
+    let description = missing.has("description")
+      ? "Concepto pendiente"
+      : item.description.replace(/\s+/g, " ").trim();
+    if (description.length > limit) {
+      let clipped = "";
+      for (const char of description) {
+        if (clipped.length + char.length > limit - 1) break;
+        clipped += char;
+      }
+      description = clipped + "…";
+      abbreviated = true;
     }
+    body += prefix + description + suffix + missingText;
   }
   if (incomplete) {
     body += '\nHay datos pendientes. No se guarda nada hasta completarlos o quitar el movimiento. Usá RESUMEN para revisar, "Quitá el 2" para quitar o CANCELAR para descartar la lista.';
@@ -79,5 +97,7 @@ export function formatDraftList(items: DraftListItem[]): string {
     body +=
       '\nPodés seguir agregando, corregir alguno (ej: "el 2 fue de 5.000"), quitar ("quitá el 2") o responder *CONFIRMAR* para guardar todo.';
   }
+  if (abbreviated) body += "\nConceptos abreviados con …";
+  if (body.length > 4096) throw new Error("DRAFT_SUMMARY_CAPACITY");
   return body;
 }
