@@ -103,6 +103,7 @@ beforeAll(async()=>{
     create table cron.job_run_details(jobid bigint,status text,start_time timestamptz default clock_timestamp(),end_time timestamptz);`);
   await db.exec(await readFile(new URL('027_whatsapp_observability.sql',migrationUrl),'utf8'));
   await db.exec(await readFile(new URL('028_whatsapp_issue_details.sql',migrationUrl),'utf8'));
+  await db.exec(await readFile(new URL('033_require_current_review_for_confirmation.sql',migrationUrl),'utf8'));
 },30000);
 beforeEach(async()=>{await db.exec('begin; update public.whatsapp_queue_control set enabled=true');});
 afterEach(async()=>{await db.exec('rollback');});
@@ -743,5 +744,118 @@ describe('BE-05: aclaración sin mutaciones en SQL real',()=>{
     expect((await apply(current,{kind:'add',items:[movement('No crear',1000)]})).reply_text).toBe(action.text);
     await finish(current);
     expect(await snapshot()).toEqual(before);
+  });
+});
+
+
+describe('BE-07: confirmar requiere el resumen vigente',()=>{
+  it.each([false,true])('RETOMAR no ejecuta una confirmación retenida; mensaje adicional=%s',async additional=>{
+    await add('be07-old',[movement('Lista anterior',101)]);
+    await show();
+    await db.exec("update public.draft_groups set last_activity_at=clock_timestamp()-interval '25 hours'; update public.whatsapp_worker_state set shown_at=clock_timestamp()-interval '25 hours'");
+    await enqueue(message('be07-held-confirm','synthetic-a','confirmar'));
+    const held=(await next())!;
+    const captured=(await db.query<{confirmation_group_id:string|null;confirmation_version:number|null}>('select confirmation_group_id,confirmation_version from public.whatsapp_message_queue where id=$1',[held.id])).rows[0];
+    expect(captured.confirmation_group_id).not.toBeNull();
+    await apply(held,{kind:'confirm'});await finish(held);
+    expect((await db.query('select status,pause_reason from public.whatsapp_message_queue where id=$1',[held.id])).rows[0]).toEqual({status:'waiting',pause_reason:'stale'});
+    if(additional) await enqueue(message('be07-new-expense','synthetic-a','Gasté 202 en nuevo gasto'));
+    await enqueue(message('be07-resume','synthetic-a','retomar'));
+    const resume=(await next())!;expect(resume.payload.id).toBe('be07-resume');
+    await apply(resume,{kind:'resume'});await finish(resume);
+    const replayed=(await next())!;expect(replayed.payload.id).toBe('be07-held-confirm');
+    const rejected=await apply(replayed,{kind:'confirm'});await finish(replayed);
+    expect(rejected.reply_text).toContain('nuevamente');
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+    expect((await db.query<{status:string}>('select status from public.draft_groups')).rows[0].status).toBe('open');
+    if(additional){
+      const newExpense=(await next())!;expect(newExpense.payload.id).toBe('be07-new-expense');
+      await apply(newExpense,{kind:'add',items:[movement('Nuevo gasto',202)]});await finish(newExpense);
+    }
+    await show();
+    await enqueue(message('be07-fresh-confirm','synthetic-a','confirmar'));
+    const fresh=(await next())!;const saved=await apply(fresh,{kind:'confirm'});await finish(fresh);
+    expect(saved.reply_text).toContain('Se guardaron');
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(additional?2:1);
+    expect((await db.query<{n:number}>("select count(*)::int as n from public.draft_items i join public.draft_groups g on g.id=i.group_id where g.status<>'open' and i.status='pending'")).rows[0].n).toBe(0);
+  });
+});
+
+
+describe('BE-07: guardas actuales y regresiones de revisión',()=>{
+  it.each([
+    "summary_pending=true",
+    "shown_version=null",
+    "shown_group_id=null",
+  ])('rechaza una autorización cuya revisión fue revocada: %s',async change=>{
+    await add('be07-revoked');await show();
+    await enqueue(message('be07-revoked-confirm','synthetic-a','confirmar'));
+    const confirm=(await next())!;
+    await db.exec('update public.whatsapp_worker_state set '+change);
+    const result=await apply(confirm,{kind:'confirm'});await finish(confirm);
+    expect(result.reply_text).toContain('nuevamente');
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+    await show();
+    await enqueue(message('be07-confirm-after-review','synthetic-a','confirmar'));
+    const reviewed=(await next())!;await apply(reviewed,{kind:'confirm'});await finish(reviewed);
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(1);
+  });
+  it('una respuesta de resumen tardía no habilita la versión anterior tras agregar',async()=>{
+    await add('be07-snapshot-one');
+    await db.exec("update public.whatsapp_worker_state set last_received_at=clock_timestamp()-interval '4 seconds'");
+    const snapshot=await rpc<{group_id:string;version:number}>('whatsapp_summary_snapshot',{p_wa_id:'synthetic-a',p_token:t1});
+    await enqueue(message('be07-snapshot-two'));
+    await rpc('mark_whatsapp_summary_sent',{p_wa_id:'synthetic-a',p_token:t1,p_group_id:snapshot.group_id,p_version:snapshot.version});
+    expect((await db.query('select summary_pending,shown_version from public.whatsapp_worker_state')).rows[0]).toEqual({summary_pending:true,shown_version:null});
+    const queued=(await next())!;await apply(queued,{kind:'add',items:[movement('Segundo',202)]});await finish(queued);
+    await rpc('mark_whatsapp_summary_sent',{p_wa_id:'synthetic-a',p_token:t1,p_group_id:snapshot.group_id,p_version:snapshot.version});
+    expect((await db.query('select summary_pending,shown_version from public.whatsapp_worker_state')).rows[0]).toEqual({summary_pending:true,shown_version:null});
+    await enqueue(message('be07-confirm-before-new-summary','synthetic-a','confirmar'));
+    const early=(await next())!;expect((await apply(early,{kind:'confirm'})).reply_text).toContain('nuevamente');await finish(early);
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+    await show();await enqueue(message('be07-confirm-new-summary','synthetic-a','confirmar'));
+    const reviewed=(await next())!;await apply(reviewed,{kind:'confirm'});await finish(reviewed);
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(2);
+  });
+  it.each([false,true])('un payload con movimiento y confirmación respeta el orden; confirmar primero=%s',async confirmFirst=>{
+    await add('be07-batch-seed',[movement('Ya revisado',101)]);await show();
+    const command=message('be07-batch-confirm','synthetic-a','confirmar'),extra=message('be07-batch-extra');
+    await enqueue(...(confirmFirst?[command,extra]:[extra,command]));
+    for(let i=0;i<2;i++){
+      const current=(await next())!;
+      await apply(current,current.payload.id===command.id?{kind:'confirm'}:{kind:'add',items:[movement('No revisado',202)]});await finish(current);
+    }
+    expect((await db.query('select description from public.transactions order by description')).rows).toEqual(confirmFirst?[{description:'Ya revisado'}]:[]);
+    expect((await db.query("select i.description from public.draft_items i join public.draft_groups g on g.id=i.group_id where g.status='open' and i.status='pending' order by i.position")).rows).toEqual(confirmFirst?[{description:'No revisado'}]:[{description:'Ya revisado'},{description:'No revisado'}]);
+  });
+  it.each(['confirm','cancel'])('un grupo cerrado con %s rechaza nuevos ítems pendientes',async kind=>{
+    await add('be07-closed');const shown=await show();await enqueue(message('be07-close','synthetic-a',kind==='confirm'?'confirmar':'cancelar'));
+    const close=(await next())!;await apply(close,{kind});await finish(close);
+    const count=(await db.query<{n:number}>('select count(*)::int as n from public.draft_items')).rows[0].n;
+    await db.exec('savepoint be07_closed_insert');
+    await expect(db.query("insert into public.draft_items(group_id,user_id,position,description,amount) values($1,$2,99,'No insertar',999)",[shown.group_id,a])).rejects.toThrow('QUEUE_GROUP_CLOSED');
+    await db.exec('rollback to savepoint be07_closed_insert; release savepoint be07_closed_insert');
+    expect((await db.query<{n:number}>('select count(*)::int as n from public.draft_items')).rows[0].n).toBe(count);
+    expect((await db.query<{n:number}>("select count(*)::int as n from public.draft_items i join public.draft_groups g on g.id=i.group_id where g.status<>'open' and i.status='pending'")).rows[0].n).toBe(0);
+  });
+  it('033 conserva propietario/ACL/atributos, no reescribe datos y es idempotente',async()=>{
+    await add('be07-migration');await show();
+    const data=async()=>({queue:(await db.query('select * from public.whatsapp_message_queue order by id')).rows,groups:(await db.query('select * from public.draft_groups order by id')).rows,items:(await db.query('select * from public.draft_items order by id')).rows,state:(await db.query('select * from public.whatsapp_worker_state order by wa_id')).rows});
+    const before=await data(),properties=(await db.query(applyPropertiesSql)).rows;
+    expect(properties).toEqual(applyPropertiesBefore);
+    const definition=(await db.query<{body:string}>("select pg_get_functiondef('public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure) as body")).rows[0].body;
+    const migration=(await readFile(new URL('033_require_current_review_for_confirmation.sql',migrationUrl),'utf8')).replace(/^begin;$/m,'').replace(/^commit;$/m,'');
+    await db.exec(migration);
+    expect((await db.query<{body:string}>("select pg_get_functiondef('public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure) as body")).rows[0].body).toBe(definition);
+    expect((await db.query(applyPropertiesSql)).rows).toEqual(properties);
+    expect(await data()).toEqual(before);
+    for(const role of ['anon','authenticated']) expect((await db.query<{allowed:boolean}>("select has_function_privilege($1,'public.apply_whatsapp_job(uuid,uuid,jsonb)','execute') as allowed",[role])).rows[0].allowed).toBe(false);
+  });
+  it('033 rechaza un cuerpo SQL inesperado en lugar de sobrescribirlo',async()=>{
+    const definition=(await db.query<{body:string}>("select pg_get_functiondef('public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure) as body")).rows[0].body;
+    const changed=definition.replace('and s.shown_group_id=g.id and s.shown_version=g.version','and s.shown_group_id=g.id and s.shown_version=g.version and false');
+    expect(changed).not.toBe(definition);await db.exec(changed);
+    const migration=(await readFile(new URL('033_require_current_review_for_confirmation.sql',migrationUrl),'utf8')).replace(/^begin;$/m,'').replace(/^commit;$/m,'');
+    await expect(db.exec(migration)).rejects.toThrow('BE07_APPLY_DEFINITION_UNEXPECTED');
   });
 });

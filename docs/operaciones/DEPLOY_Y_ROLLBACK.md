@@ -18,7 +18,7 @@ La publicación de Pages no despliega Edge Functions ni aplica SQL. Los tres com
 2. Usar Node de .node-version, Deno 2.9.6 y CLI de .supabase-version. Ejecutar los checks de README y exigir el ensayo de release del PR. El manifiesto de solo lectura se genera con `npm run release:manifest -- production`; guarda SHA del código, herramientas y hashes de cada SQL/archivo runtime en .temp/release-production.json.
 3. Leer estado real: historial supabase_migrations.schema_migrations; versión/estado de whatsapp-webhook y verify_jwt; cola habilitada; trabajos en procesamiento/fallidos y cron. Solo conteos, sin payloads ni secretos.
 4. Registrar fuera del bundle: SHA candidato/anterior, enlace a CI, migrations antes/después, versión Edge anterior/nueva, hora, smoke y estado previo de cola. observedDeployment del manifiesto empieza con null/false: **no es evidencia de haber desplegado**; completarlo solo con lecturas verificadas.
-5. La versión anterior validada requiere 027 y esta publicación requiere 028 y el contrato de la cola v2 comienza en 020, con idempotencia 023. El rollback ensayado está fijado en config/environments.json: 1837f5f4d4e44c230d02b01a3916a9a6294cfc10 (webhook v52), compatible con 027 y 028. Revisar ese contrato ante cada cambio de esquema. No retroceder a workers anteriores a 020, ni restaurar permisos inseguros de 017 o advertencias privadas anteriores a 024.
+5. El mínimo del candidato se consulta en config/environments.json: BE-07 requiere 033 (preparada, no acredita aplicación productiva). La última versión publicada observada usaba 032; el contrato de cola v2 comienza en 020, con idempotencia 023. El rollback ensayado está fijado en config/environments.json: 1837f5f4d4e44c230d02b01a3916a9a6294cfc10 (webhook v52), compatible con 027 y 028. Revisar ese contrato ante cada cambio de esquema. No retroceder a workers anteriores a 020, ni restaurar permisos inseguros de 017 o advertencias privadas anteriores a 024.
 
 Consulta de solo lectura para el estado:
 
@@ -36,7 +36,7 @@ No reenviar trabajos v1 fallidos ni eliminar pendientes para que los conteos que
 
 ## Instalación nueva y migraciones posteriores
 
-- Instalación vacía: aplicar **todas las migraciones completas en orden (actualmente 001–028)**, con Auth y publicación supabase_realtime preparados por Supabase. No usar un PostgreSQL común sin esquemas/extensiones como si fuera Supabase. El ensayo CI verifica el stack real con datos sintéticos.
+- Instalación vacía: aplicar **todas las migraciones completas en orden (candidato actual 001–033; última observación productiva 001–032)**, con Auth y publicación supabase_realtime preparados por Supabase. No usar un PostgreSQL común sin esquemas/extensiones como si fuera Supabase. El ensayo CI verifica el stack real con datos sintéticos.
 - Instalación existente: comparar el historial real con los archivos y sus hashes; aplicar únicamente las migraciones nuevas aprobadas, sin reescribir las ya aplicadas. Si hay deriva, parar y revisarla.
 - Preparar primero la expansión compatible del esquema; validar permisos, índices y dependencias antes de publicar el consumidor. Cualquier cambio destructivo requiere otro plan, no un down automático.
 - Antes de usar CLI remoto, verificar el contenido de supabase/.temp/project-ref coincide exactamente con ystyatotldslfmucvgsq. link solo cuando corresponda y nunca en el workdir local. Mantener SSL y restricciones de red; no abrir 0.0.0.0/0 ni resetear contraseña por un problema de conexión.
@@ -112,3 +112,14 @@ Aplicar 027 antes del webhook que registra métricas y entrega avisos. Instala t
 ## Detalle de errores por cliente (028)
 
 Publicar 028 antes del worker que registra diagnósticos y del panel que los muestra. La RPC privada valida el lease y una lista de códigos, sin recibir textos de excepciones. El panel admin y el aviso autorizado resuelven la identidad del perfil al consultar/enviar; el historial de avisos conserva solo códigos y conteos. Fechas explícitas en Argentina. Los registros anteriores sin diagnóstico se identifican como tales. [Política y límites](MONITOREO_Y_RETENCION.md#detalle-de-incidentes-por-cliente-028).
+
+
+## Confirmación de revisión vigente (033 / BE-07)
+
+033 modifica solo apply_whatsapp_job, con firma y permisos existentes. Exige que el contexto recibido siga coincidiendo con el estado durable mostrado (usuario/grupo/versión y sin resumen pendiente). Al liberar mensajes waiting/stale anula la autorización de confirmación anterior, sin descartar las operaciones de esos mensajes. CONFIRMAR antiguo pide revisión; el siguiente resumen y una nueva confirmación siguen el flujo habitual.
+
+Aplicar 033 antes de integrar el candidato cuyo mínimo es 033, tras revisar su CI y obtener autorización. Revalidar el cuerpo vigente de la RPC, su propietario/ACL/SECURITY DEFINER/search_path, el historial de migraciones y la salud de cola; guardar evidencia de código, sin exportar datos. El script aborta ante una definición inesperada o parcialmente parcheada; no forzar reemplazos ni marcar la migración aplicada si falla.
+
+No requiere deploy de whatsapp-webhook: sus llamadas no cambian. La migración no modifica filas ni reejecuta mensajes; cuando los usuarios retomen sus listas, el flujo actualizado podrá procesar los retenidos y pedir nueva confirmación. Verificar después la definición exacta, historial y cola/cron. El ensayo de 25 horas se realiza exclusivamente en base descartable; no envejecer borradores de clientes.
+
+Mantener 033 al volver a PWA/Edge compatibles; no reponer metadatos antiguos de confirmación ni quitar la protección para volver a una versión anterior del código. La retención sigue desactivada y los backups permanecen aplazados. [Pruebas, aceptación y límites](../planes/VALIDACION_BE_07.md).

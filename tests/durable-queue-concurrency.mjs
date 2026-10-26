@@ -166,6 +166,51 @@ assert.equal(subDuplicate.map(decodePlan).filter(r=>r.replayed).length,1);
 const nativeAfterRetry=Number((await execute(`select extract(epoch from(subscription_until-clock_timestamp()))/86400 from public.profiles where id='${a}';`)).output);
 assert.ok(Math.abs(nativeAfterRetry-132)<0.001,'Se sumaron dos veces los días del mismo intento');
 await execute('drop trigger slow_subscription_fixture on public.profiles;drop function public.slow_subscription_fixture();');
-const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,concurrent_sessions:2,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
+// BE-07: el mismo contrato se verifica con dos conexiones PostgreSQL reales.
+await execute(await readFile(new URL('033_require_current_review_for_confirmation.sql',migrations),'utf8'));
+assert.equal((await execute(`select public.claim_whatsapp_actor('synthetic-native','${tokens[2]}');`)).output,'t');
+const be07Next=async()=>JSON.parse((await execute(`select public.next_whatsapp_job('synthetic-native','${tokens[2]}');`)).output||'null');
+const be07Apply=(job,action)=>execute(`select public.apply_whatsapp_job('${job.id}','${tokens[2]}',${quote(JSON.stringify(action))}::jsonb);`);
+const be07Finish=job=>execute(`select public.finish_whatsapp_job('${job.id}','${tokens[2]}');`);
+const be07Enqueue=(id,body)=>execute(`select public.enqueue_whatsapp_messages(${quote(JSON.stringify([{id,from:'synthetic-native',type:'text',text:{body},timestamp:String(Math.floor(Date.now()/1000))}]))}::jsonb);`);
+// Finalizar únicamente los dos mensajes sintéticos de la prueba anterior.
+for(let i=0;i<2;i++){
+ const queued=await be07Next();assert.ok(['native-a','native-b'].includes(queued.payload.id));
+ await be07Apply(queued,{kind:'reply',text:null});await be07Finish(queued);
+}
+assert.equal(await be07Next(),null);
+const be07Show=async()=>{
+ await execute("update public.whatsapp_worker_state set last_received_at=clock_timestamp()-interval '4 seconds' where wa_id='synthetic-native';");
+ const shown=JSON.parse((await execute(`select public.whatsapp_summary_snapshot('synthetic-native','${tokens[2]}');`)).output);
+ assert.equal(shown.found,true);assert.equal(shown.items.length,1);
+ await execute(`select public.mark_whatsapp_summary_sent('synthetic-native','${tokens[2]}','${shown.group_id}',${shown.version});update public.whatsapp_worker_state set shown_at=clock_timestamp()-interval '2 seconds' where wa_id='synthetic-native';`);
+ return shown;
+};
+const be07Shown=await be07Show();
+const be07CountBefore=Number((await execute('select count(*) from public.transactions;')).output);
+await execute(`update public.draft_groups set last_activity_at=clock_timestamp()-interval '25 hours' where id='${be07Shown.group_id}';update public.whatsapp_worker_state set shown_at=clock_timestamp()-interval '25 hours' where wa_id='synthetic-native';`);
+await be07Enqueue('be07-native-held','confirmar');
+const be07Held=await be07Next();assert.equal(be07Held.confirmation_group_id,be07Shown.group_id);
+await be07Apply(be07Held,{kind:'confirm'});await be07Finish(be07Held);
+assert.equal((await execute(`select status from public.whatsapp_message_queue where id='${be07Held.id}';`)).output,'waiting');
+await be07Enqueue('be07-native-resume','retomar');
+const be07Resume=await be07Next();assert.equal(be07Resume.payload.id,'be07-native-resume');
+await be07Apply(be07Resume,{kind:'resume'});await be07Finish(be07Resume);
+const be07Replayed=await be07Next();assert.equal(be07Replayed.payload.id,'be07-native-held');
+assert.equal(be07Replayed.confirmation_group_id,null);assert.equal(be07Replayed.confirmation_version,null);
+const be07Rejected=await Promise.all([0,1].map(()=>be07Apply(be07Replayed,{kind:'confirm'})));
+for(const result of be07Rejected)assert.match(JSON.parse(result.output).reply_text,/nuevamente/);
+assert.equal(Number((await execute('select count(*) from public.transactions;')).output),be07CountBefore,'La confirmación retenida guardó sin nueva revisión');
+await be07Finish(be07Replayed);await be07Show();
+await be07Enqueue('be07-native-reviewed','confirmar');await be07Enqueue('be07-native-again','confirmar');
+const be07Reviewed=await be07Next();assert.equal(be07Reviewed.payload.id,'be07-native-reviewed');
+const be07Saved=await Promise.all([0,1].map(()=>be07Apply(be07Reviewed,{kind:'confirm'})));
+for(const result of be07Saved)assert.match(JSON.parse(result.output).reply_text,/Se guardaron/);
+await be07Finish(be07Reviewed);
+const be07Again=await be07Next();await be07Apply(be07Again,{kind:'confirm'});await be07Finish(be07Again);
+assert.equal(Number((await execute('select count(*) from public.transactions;')).output),be07CountBefore+1,'La confirmación concurrente duplicó el guardado');
+assert.equal((await execute(`select count(*) from public.draft_items i join public.draft_groups g on g.id=i.group_id where i.user_id='${a}' and g.status<>'open' and i.status='pending';`)).output,'0','Quedó un ítem pendiente en un grupo cerrado');
+
+const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,concurrent_sessions:2,retained_confirmation_requires_fresh_review:true,confirmation_apply_concurrent_idempotent:true,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
 if(process.env.PESITO_TEST_EVIDENCE) await writeFile(process.env.PESITO_TEST_EVIDENCE,JSON.stringify(evidence,null,2));
 console.log(JSON.stringify(evidence));
