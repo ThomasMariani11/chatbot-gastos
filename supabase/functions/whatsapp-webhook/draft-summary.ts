@@ -74,8 +74,7 @@ export function formatDraftList(items: DraftListItem[]): string {
     }
   }
   if (incomplete) {
-    body +=
-      '\nCompletá los datos indicando el número: "El 2 fue de 5000", "El 2 fecha 2026-10-26" o "El 2 concepto farmacia". Para aclarar toda una operación: "El 2: gasté 5000 en farmacia". Podés quitarla con "Quitá el 2". No se guarda nada hasta completar o quitar los incompletos y responder *CONFIRMAR*.';
+    body += '\nHay datos pendientes. No se guarda nada hasta completarlos o quitar el movimiento. Usá RESUMEN para revisar, "Quitá el 2" para quitar o CANCELAR para descartar la lista.';
   } else {
     body +=
       '\nPodés seguir agregando, corregir alguno (ej: "el 2 fue de 5.000"), quitar ("quitá el 2") o responder *CONFIRMAR* para guardar todo.';
