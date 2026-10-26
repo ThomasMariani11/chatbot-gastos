@@ -54,19 +54,8 @@ export type GeminiParsedOutput = {
   clarification?: string | null;
 };
 
-export type DraftListItem = {
-  id?: string;
-  position: number;
-  kind: "expense" | "income";
-  description: string;
-  amount: number;
-  currency: string;
-  installments?: number;
-  first_installment_month?: string | null;
-  category_name?: string | null;
-  status: string;
-  missing_fields?: string[];
-};
+export { formatDraftList } from "./draft-summary.ts";
+export type { DraftListItem } from "./draft-summary.ts";
 
 const graphVersion = Deno.env.get("WHATSAPP_GRAPH_API_VERSION") || "v26.0";
 const graphBase = `https://graph.facebook.com/${graphVersion}`;
@@ -500,49 +489,6 @@ Mensaje del usuario: ${input.text ?? ""}`;
   }
 
   throw lastError ?? new OperationalFailure("unknown", "gemini");
-}
-
-export function formatDraftList(items: DraftListItem[]): string {
-  const activeItems = items.filter((it) => it.status === "pending");
-  if (activeItems.length === 0) {
-    return "No tenés movimientos pendientes en tu lista.";
-  }
-
-  const count = activeItems.length;
-  const countText = count === 1
-    ? "1 movimiento para revisar:"
-    : `${count} movimientos para revisar:`;
-
-  let out = `Tenés ${countText}\n\n`;
-
-  for (const it of activeItems) {
-    const isUsd = it.currency === "USD";
-    const icon = it.kind === "income" ? "🟢" : "🔴";
-    const hasDecimals = Math.round(Math.abs(it.amount) * 100) % 100 !== 0;
-    const amountStr = isUsd
-      ? `US$ ${
-        it.amount.toLocaleString("es-AR", {
-          minimumFractionDigits: hasDecimals ? 2 : 0,
-          maximumFractionDigits: 2,
-        })
-      } [USD]`
-      : it.amount.toLocaleString("es-AR", {
-        style: "currency",
-        currency: "ARS",
-        minimumFractionDigits: hasDecimals ? 2 : 0,
-        maximumFractionDigits: 2,
-      });
-
-    const instText = (it.installments && it.installments > 1)
-      ? ` (${it.installments} cuotas)`
-      : "";
-    out +=
-      `${it.position}. ${icon} ${it.description} · ${amountStr}${instText}\n`;
-  }
-
-  out +=
-    `\nPodés seguir agregando, corregir alguno (ej: "el 2 fue de 5.000"), quitar ("quitá el 2") o responder *CONFIRMAR* para guardar todo.`;
-  return out;
 }
 
 // El operador aprueba un número de prueba concreto. Verificar el remitente real
