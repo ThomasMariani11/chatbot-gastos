@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 
 type Row = Record<string, unknown>;
-type Result = { data: unknown; error: unknown };
+type Result = { data: unknown; error: unknown; count?: number | null };
 async function safe(query: PromiseLike<unknown>): Promise<Result> {
   try {
     const value = await query;
@@ -27,6 +27,34 @@ const monthValues = (value: unknown): string[] | null => {
   const result = value.map(item => typeof item === 'string' ? item : record(item)?.month);
   return result.every(item => typeof item === 'string' && monthPattern.test(item)) ? result as string[] : null;
 };
+// Cursor por ID y count exacto: una respuesta limitada nunca representa todas las cuotas.
+async function readAllInstallments(userId: string, columns: string, signal: AbortSignal, client: typeof supabase): Promise<Result> {
+  const found: Row[] = [];
+  let cursor = '', expected: number | undefined;
+  try {
+    for (let page = 0; page < 80; page++) {
+      checkActive(signal);
+      let query = client.from('transactions').select(columns, { count: 'exact' }).eq('user_id', userId).eq('status', 'confirmed')
+        .gt('installment_count', 1).order('id', { ascending: true }).limit(250).abortSignal(signal);
+      if (cursor) query = query.gt('id', cursor);
+      const result = await safe(query);
+      checkActive(signal);
+      if (result.error || !Array.isArray(result.data) || !Number.isSafeInteger(result.count) || Number(result.count) < 0) throw new Error('Cuotas incompletas');
+      const batch = rows(result.data);
+      if (expected === undefined) expected = Number(result.count);
+      if (found.length + Number(result.count) !== expected || batch.length > Number(result.count)) throw new Error('Cuotas cambiaron durante la lectura');
+      for (const row of batch) {
+        if (typeof row.id !== 'string' || row.id <= cursor) throw new Error('Cursor inválido');
+        cursor = row.id;
+        found.push(row);
+      }
+      if (batch.length === result.count) return { data: found, error: null };
+      if (!batch.length) throw new Error('Página vacía incompleta');
+    }
+  } catch { /* No entregar subtotales ni mensajes internos de PostgREST. */ }
+  return { data: null, error: true };
+}
+
 export type DashboardSnapshot = {
   transactions: Row[]; installments: Row[]; budget: number; months: string[]; monthsWarning: boolean;
   botState: 'active' | 'paused' | 'unlinked' | 'unknown'; botPhone: string;
@@ -41,7 +69,7 @@ export async function readDashboardSnapshot(userId: string, month: string, signa
   const [transactions, budgets, installments, link, settings, distinctMonths, phone] = await Promise.all([
     safe(client.from('transactions').select(columns).eq('user_id',userId).eq('status','confirmed').gte('occurred_on',`${month}-01`).lt('occurred_on',end).order('occurred_on',{ascending:false}).abortSignal(signal)),
     safe(client.from('budgets').select('amount_ars').eq('user_id',userId).eq('month',`${month}-01`).abortSignal(signal).maybeSingle()),
-    safe(client.from('transactions').select(columns).eq('user_id',userId).eq('status','confirmed').gt('installment_count',1).order('occurred_on',{ascending:true}).abortSignal(signal)),
+    readAllInstallments(userId, columns, signal, client),
     safe(client.from('whatsapp_links').select('status').eq('user_id',userId).abortSignal(signal).maybeSingle()),
     safe(client.from('app_settings').select('whatsapp_responses_enabled').eq('user_id',userId).abortSignal(signal).maybeSingle()),
     safe(client.rpc('get_distinct_transaction_months').abortSignal(signal)),

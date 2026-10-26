@@ -116,6 +116,16 @@ describe('planes SQL atómicos con esquema real',()=>{
    for(const extra of [{installment_count:61},{amount:0},{amount:0.01},{currency:'EUR'},{amount:1.001},{unexpected:true}])await expect(create(extra)).rejects.toThrow();
    expect((await db.query('select count(*)::int as n from public.transactions')).rows[0]).toEqual({n:0});
  });
+ it('dos planes con el mismo nombre: eliminar uno conserva IDs, importes y versión del otro',async()=>{
+   const one=await create({description:'Celular'}),two=await create({description:'Celular',amount:600});const before=await read(two.group_id);
+   await change(one,{}, {action:'delete_plan'});expect((await read(one.group_id)).rows).toEqual([]);
+   expect(await read(two.group_id)).toEqual(before);expect(before.rows.map(r=>Number(r.amount_ars))).toEqual([200,200,200]);
+ });
+ it('fallo al eliminar un plan homónimo revierte también las filas anteriores sin tocar al otro',async()=>{
+   const one=await create({description:'Celular'}),two=await create({description:'Celular',amount:600});const before=await read(one.group_id),other=await read(two.group_id);
+   await db.exec(`create function public.reject_delete_fixture() returns trigger language plpgsql as $$begin if old.installment_number=2 and new.status='cancelled' then raise exception 'Borrado ficticio rechazado'; end if; return new; end$$;create trigger fail_delete_fixture before update on public.transactions for each row execute function public.reject_delete_fixture();`);
+   await expect(change(one,{}, {action:'delete_plan'})).rejects.toThrow('Borrado ficticio');expect(await read(one.group_id)).toEqual(before);expect(await read(two.group_id)).toEqual(other);
+ });
  it('elimina un plan de forma idempotente sin tocar otra compra',async()=>{
    const one=await create(),two=await create();const id=request();const deleted=await change(one,{}, {action:'delete_plan',id});expect(deleted.rows).toEqual([]);expect(await change(one,{}, {action:'delete_plan',id})).toEqual(deleted);expect((await read(two.group_id)).rows).toHaveLength(3);
  });
