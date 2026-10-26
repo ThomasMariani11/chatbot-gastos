@@ -20,16 +20,16 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 
 ## Punto de reanudación — 25/10/2026
 
-- **Última versión publicada:** 54dce9e, PR #39; 628 pruebas y cuatro controles más Publicar aprobados.
+- **Última versión publicada:** e311db4, PR #40; whatsapp-webhook v55 ACTIVE, 675 pruebas y cuatro controles más Publicar aprobados.
 - **Cierres recientes:** FE-07 (flujo protegido aceptado por el propietario en Pesito instalado en iPhone), FE-09 y seguimiento de homónimos FE-11. FE-12 ya estaba cerrado en su alcance.
-- **Bloque actual: BE-04.** Revisión y corrección preparadas: referencias de producto que se tomaban como fechas, monedas detectadas fuera de ARS/USD y números de concepto eliminados por el limpiador. 675 pruebas y 40 rutas Deno locales aprobadas. [Validación y límites](VALIDACION_BE_04.md). CI, integración/despliegue y aceptación pendientes.
+- **BE-04 cerrado en el alcance probado.** PR #40/e311db4 y webhook v55: CI completo, verificación técnica y aceptación del propietario ($123 / «Colectivo 60», descartado con CANCELAR). **Bloque actual: BE-05**, revisión del ruteo de consultas. [Evidencia y límites](VALIDACION_BE_04.md).
 - **Orden dentro del bloque del bot:** BE-04 → BE-05 (ruteo de consultas) → BE-07 (confirmación de la versión revisada) → BE-08 (datos faltantes), con BE-12/BE-17 cuando compartan código o pruebas. Ajustar este orden solo si la revisión encuentra una dependencia concreta.
-- **Siguiente acción:** revisar diff/CI del bloque BE-04 y acordar su publicación/aceptación antes de pasar a BE-05. La implementación local no autoriza un despliegue nuevo. No se usó IA real ni se enviaron mensajes a clientes.
+- **Siguiente acción:** reproducir y corregir BE-05: consultas que interceptan movimientos y mensajes que mezclan una operación con una consulta. La aceptación de BE-04 no cierra los demás puntos. No se usó IA real ni se enviaron mensajes a clientes durante la publicación.
 - **Se conservan las decisiones:** costo $0; retención desactivada; backups INF-08 al final.
 
 ## Próximos bloques — recomendación al 25/10/2026
 
-Secuencia revisada sobre main 54dce9e después de publicar FE-09/FE-11. La última publicación pasó 628 pruebas y los controles de CI/Publicar; su comprobación técnica y la aceptación de actualización en iPhone se describen arriba. Se conserva la revisión histórica de main 14e1cac más abajo; no se repite una auditoría cloud completa. La siguiente implementación requiere primero revisar los avances actuales del bot, un caso por vez. La secuencia no autoriza por sí sola nuevas publicaciones.
+Secuencia revisada sobre main e311db4 después de publicar BE-04 en PR #40 y webhook v55. La última publicación pasó 675 pruebas y los controles de CI/Publicar; fuente Edge, protecciones y salud de cola fueron comprobadas. El propietario aceptó BE-04 con $123 / «Colectivo 60» y CANCELAR. Los cierres FE-07/09/11 permanecen vigentes. Después corresponde revisar BE-05, un caso por vez, conservando BE-07/08 como trabajos separados. La secuencia no autoriza por sí sola nuevas publicaciones.
 
 | Orden | Bloque | Qué falta y por qué va aquí | Criterio para avanzar |
 | --- | --- | --- | --- |
@@ -551,7 +551,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 2 | BE-03 | Alta | Escrituras y propiedad de datos operativos | INF-02 | Terminada |
 | 3 | BE-02 | Alta | Renovaciones bloqueadas por el trigger | — | Corrección terminada; seguimiento histórico abierto |
 | 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | En curso; esquema/roles/concurrencia por bloque, alcance global abierto |
-| 5 | BE-04 | Alta | Parser determinista e interpretación financiera | — | Corrección preparada y validada localmente; CI/despliegue/aceptación pendientes |
+| 5 | BE-04 | Alta | Parser determinista e interpretación financiera | — | Terminada en el alcance probado; PR #40/v55 y aceptación WhatsApp |
 | 6 | BE-05 | Alta | Detección de consultas comerciales y saldo | — | En curso |
 | 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | Terminada |
 | 8 | BE-07 | Alta | Confirmación durante procesamiento | INF-03, INF-04 | Pendiente |
@@ -599,13 +599,15 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-04 — Corregir el parser determinista
 
+- **Publicación al 25/10/2026:** PR #40/e311db4 y webhook v55 ACTIVE; cuatro controles y Publicar aprobados, esquema 032 y cola conservados, fuente descargada coincidente y protecciones 401 verificadas. [Detalle del despliegue](VALIDACION_BE_04.md). El propietario aceptó $123 / «Colectivo 60» y descarte con CANCELAR. Cerrado en el alcance probado; la preparación siguiente es registro histórico.
+
 - **Avance al 25/10/2026:** revisión completada y tres fallos adicionales reproducidos/corregidos: referencias numéricas como fechas, monedas ajenas convertidas localmente y números finales del concepto eliminados. 675 pruebas, 40 Deno de rutas, tipos/lint/build, SQL y guards locales aprobados. Suite completa Deno pendiente de CI Linux por límite de caché Windows. [Validación y puesta en marcha](VALIDACION_BE_04.md). Sin desplegar ni cambiar datos.
 
 - **Reanudación al 25/10/2026:** primer punto propuesto tras el cierre FE-07/09/11. Leer la versión actual y revalidar las regresiones previas; no repetir correcciones ya presentes ni asumir que todos los ejemplos originales siguen fallando. Registrar pruebas y alcance antes de declarar el cierre integral.
 
 - **Registro histórico de preparación del 20/10/2026 (correcciones presentes en main; estado cloud no revisado en este bloque):** corregidos millones, centavos y centenas habladas sin truncar expresiones; residuos numéricos se derivan completos y no entran al concepto como si el importe fuera válido. Regresiones de dominio y del procesador real con red denegada. Publicación pendiente de CI; BE-04 conserva sus demás criterios abiertos. [Detalle](CORRECCION_IMPORTES_HABLADOS_2026-10-20.md).
 
-- [ ] Terminada.
+- [x] Terminada en el alcance probado; límites de IA y otros bloques conservados.
 - **Problema reproducido en funciones reales:** `Gasté 10000,50 en supermercado` genera dos gastos; `Cobré 80000 por diseño` se interpreta como gasto; `Compré iPhone 15 por 1200000` usa 15 como importe; cuotas y fechas explícitas se ignoran; una parte incomprensible puede perderse si otra se interpreta.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:200`, `:206`, `:260`, `:262`, `:270`, `:752`.
 - **Trabajo:** limitar la vía rápida a formatos inequívocos; no separar por comas decimales; reconocer ingresos con acentos; distinguir importes de números de producto, transporte, fechas y cuotas. Interpretar todas las partes o derivar el mensaje completo al extractor. Conservar números identificadores en las descripciones.
@@ -843,3 +845,7 @@ Completar una entrada al cerrar cada tarea:
 | 25/10/2026 | Actualización documental del plan | Reconciliados cierres FE-07/09/11, publicación PR #39 y aceptación en PWA instalada en iPhone | Revisión del plan y evidencias ya registradas; sin nuevas pruebas funcionales | Solo documentación local; sin commit/push ni nuevo despliegue en esta actualización | Primer paso propuesto BE-04: revalidar parser y regresiones; luego BE-05, BE-07 y BE-08 según dependencias |
 
 | 25/10/2026 | Preparación incremental BE-04 | Guardas de contexto de fechas/monedas y limpiador compartido que conserva identificadores; prompt alineado | 675 Vitest, 40 rutas Deno sin red, check/lint/build, 12 SQL y seis guards; suite Deno de endpoints pendiente de CI por caché Windows | Sin IA ni mensajes reales, migraciones o despliegue; cierres anteriores preservados | Revisar CI/PR y autorizar publicación antes de aceptación; BE-05/07/08 continúan separados |
+
+| 25/10/2026 | Publicación BE-04 | PR #40, e311db4; whatsapp-webhook v54 → v55 ACTIVE | CI completo/Pages, fuente coincidente, smoke 401, esquema 032/cola/cron conservados, SHA/SW/CSP PWA | Sin migración, secretos/modelos nuevos, IA real, reenvíos ni movimientos de prueba; rollback v54 conservado | Aceptación WhatsApp pendiente; después BE-05; backups al final y retención desactivada |
+
+| 25/10/2026 | Aceptación BE-04 | Propietario confirma $123 / «Colectivo 60» y descarte con CANCELAR | Ensayo manual sobre v55, sumado a regresiones/CI ya registrados | Sin nueva lectura SQL, despliegue o mensaje del agente | BE-04 cerrado en el alcance probado; siguiente BE-05 |
