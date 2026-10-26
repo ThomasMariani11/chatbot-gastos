@@ -1,7 +1,7 @@
 # Validación BE-08 — operaciones incompletas y dudas
 
 Fecha: 26/10/2026 (Argentina). Base: main 1688c7b, migración 033, webhook v56.
-Estado: implementación preparada; pendiente CI del SHA final, autorización de publicación, migración 034 y aceptación WhatsApp. No está cerrado ni desplegado.
+Estado: implementación preparada en PR #43; candidato funcional 4f83c07404daeec16693079f9fcbbca9a73c3070 con cuatro controles aprobados. Pendientes autorización de publicación, migración 034 y aceptación WhatsApp. No está cerrado ni desplegado.
 
 ## Reproducción y alcance
 
@@ -27,8 +27,8 @@ Se conserva el contrato de BE-07: versión mostrada vigente, exclusión por usua
 - SQL real PGlite: lote completo/incompleto, confianza cero y dudas; bloqueo de toda confirmación; resolución de tres campos y versión antigua rechazada; guardado final atómico de cuotas ARS y un ingreso USD; quitar incompleto; derivación de flags ante NULL; rollback de un mensaje inválido; review por duda libre; aislamiento/permisos; capacidad 20 y posición 21 tras quitar sin renumerar.
 - 53/53 Deno routing sin red con proveedores/Meta simulados: altas completas/incompletas locales, completado único/ambiguo, Gemini/Groq con checkpoint/reintento y categoría predeterminada, Whisper sin Qwen, rechazo de una intención interna inventada por proveedor. Tipos y lint Deno aprobados.
 - ESLint, TypeScript/build, 12 escenarios SQL de renovaciones y seis guardas de release aprobados. Advertencia previa de bundle >500 kB conservada. Node local 24.21.0; CI utiliza 22.23.3 fijado.
-- Script PostgreSQL nativo ampliado: aplica 034, bloquea confirmación parcial, aplica el mismo completado concurrentemente desde dos conexiones, rechaza una versión vieja y confirma exactamente dos movimientos. Sintaxis local aprobada; resultado nativo pendiente del job CI.
-- Ensayo CI ampliado: ejecuta lector candidato y puente con 20 ítems incluyendo NULL, además de instalación completa, ambos runtimes/PWA, rollback y persistencia de datos. Resultado pendiente del SHA final. No se amplían permisos de Deno para sortear la limitación de caché Windows de endpoints ya documentada; suite completa en CI Linux.
+- Script PostgreSQL nativo ampliado: aplica 034, bloquea confirmación parcial, aplica el mismo completado concurrentemente desde dos conexiones, rechaza una versión vieja y confirma exactamente dos movimientos. Sintaxis local y resultado nativo aprobados en PostgreSQL 17.11, con las tres guardas BE-08 verdaderas y las de BE-07 conservadas.
+- Ensayo CI ampliado: ejecuta lector candidato y puente con 20 ítems incluyendo NULL, además de instalación completa, ambos runtimes/PWA, rollback y persistencia de datos. Aprobado sobre el candidato funcional 4f83c07: lector nullable candidato/puente, 34 migraciones, Auth, ambos webhooks/PWA y rollback sin restaurar datos. No se amplían permisos de Deno para sortear la limitación de caché Windows de endpoints ya documentada; suite completa en CI Linux.
 - Cero llamadas a IA real, cero mensajes externos y cero cambios productivos durante la preparación.
 
 ## Publicación por etapas y rollback
@@ -45,3 +45,7 @@ Se conserva el contrato de BE-07: versión mostrada vigente, exclusión por usua
 Las pruebas no garantizan comprensión de todo lenguaje, entrega/lectura de WhatsApp ni disponibilidad de proveedores. Si el extractor devuelve un dato erróneo pero estructuralmente válido, el cliente debe revisar el resumen. El resumen largo abrevia conceptos para respetar el transporte; no altera el borrador almacenado. Si un caso no cabe, se rechaza la emisión y no se marca como mostrado.
 
 BE-08 continúa en curso hasta registrar CI, publicación/verificación y aceptación en el alcance acordado. BE-12/BE-17 no se cierran por extensión. Retención desactivada, costo $0 y backups INF-08 al final.
+
+## CI y revisión del candidato
+
+[PR #43](https://github.com/ThomasMariani11/chatbot-gastos/pull/43), candidato funcional 4f83c07404daeec16693079f9fcbbca9a73c3070; [run 40396083121](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40396083121) aprobó Frontend, Webhook, PostgreSQL y Ensayo de release. Publicar se omite en PR como corresponde. El job Frontend incluye npm audit, 781 pruebas, SQL/guards y build; el Webhook ejecutó su suite completa Linux con red denegada. Se revisaron las fases saneadas y la evidencia nativa. Un ajuste documental posterior debe volver a pasar los controles sobre su nuevo SHA antes de integrar; no cambia la fuente funcional validada. Producción sigue en 033/v56, sin nuevas pruebas ni escrituras remotas.
