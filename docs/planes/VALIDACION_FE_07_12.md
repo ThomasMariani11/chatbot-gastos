@@ -1,7 +1,7 @@
 # Validación FE-07 / FE-12 — actualizaciones y borradores
 
 Fecha: 25/10/2026. Base: main 77a0002 (plan actualizado en PR #36). Rama: codex/preserve-forms-on-updates.
-Estado al 25/10/2026: publicado en PR #37 y verificado técnicamente en producción. FE-12 terminado en su alcance; FE-07 conserva pendiente la aceptación física de Safari/iOS/PWA instalada. La preparación que sigue es registro previo a la publicación.
+Estado al 25/10/2026: publicado en PR #37 y verificado técnicamente en producción. FE-12 terminado en su alcance; FE-07 tiene confirmación del propietario en iPhone: apareció el aviso y al tocarlo recargó la página. Sigue pendiente la protección de formularios sin guardar en ese dispositivo y precisar navegador/modo instalado. La preparación que sigue es registro previo a la publicación.
 
 ## Resultado preparado
 
@@ -49,3 +49,7 @@ El borrador es en memoria durante la sesión: cierre de pestaña, recarga manual
 ## Seguimiento físico — 25/10/2026
 
 El propietario delegó la prueba física si estaba disponible. El inventario de superficies de esta sesión solo ofrece el navegador integrado y MCP Apps sin pestañas; no hay iPhone/Safari ni instalación PWA física controlables. No se repitió la comprobación publicada como sustituto de ese dispositivo y el seguimiento continúa abierto. Se avanzó con FE-09/11 en datos ficticios, por autorización del propietario.
+
+## Comprobación informada por el propietario en iPhone — 25/10/2026
+
+El propietario informó: apareció el cartel de actualización, lo tocó y la página se recargó. Se registra como evidencia manual de aviso y recarga iniciada por el usuario en un iPhone, no como ejecución directa de Codex. No informó navegador, uso desde pantalla de inicio, versión final, continuidad de sesión ni existencia de un formulario sin guardar; esos resultados no se presumen. El seguimiento FE-07 queda parcialmente verificado en dispositivo físico. Falta comprobar allí el bloqueo de actualización con un borrador y su conservación; la cobertura previa automatizada/en navegador sigue vigente.

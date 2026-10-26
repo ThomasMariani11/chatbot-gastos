@@ -12,11 +12,11 @@ Groq ya fue renovado sin vencimiento y continúa en Free; INF-15 sigue abierto. 
 
 ## FE-07 + FE-12 — publicación y verificación técnica
 
-Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani11/chatbot-gastos/pull/37), versión 15269ba. 592 pruebas y los cuatro controles más Publicar aprobados. SHA, SW, bundle y CSP comprobados; acceso autenticado, borrador sin guardar, navegación, espera de más de 30 segundos, bloqueo de actualización, descarte y actualización explícita verificados en la PWA publicada. No se envió el formulario ni se cambiaron datos productivos. [Evidencia y límites](VALIDACION_FE_07_12.md). FE-12 terminado en su alcance; FE-07 tiene la corrección publicada y conserva el seguimiento físico Safari/iOS/PWA instalada.
+Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani11/chatbot-gastos/pull/37), versión 15269ba. 592 pruebas y los cuatro controles más Publicar aprobados. SHA, SW, bundle y CSP comprobados; acceso autenticado, borrador sin guardar, navegación, espera de más de 30 segundos, bloqueo de actualización, descarte y actualización explícita verificados en la PWA publicada. No se envió el formulario ni se cambiaron datos productivos. [Evidencia y límites](VALIDACION_FE_07_12.md). FE-12 terminado en su alcance. El propietario confirmó en iPhone que apareció el aviso y, al tocarlo, se recargó la página. FE-07 conserva pendiente la protección de formularios sin guardar en ese dispositivo y la identificación del navegador/modo instalado.
 
 ## FE-09 + seguimiento FE-11 — preparación y aceptación ficticia
 
-Totales por cuotas existentes, centavos y moneda preparados sobre main 382e125. El corte incluye hoy (o el primer día del mes futuro elegido), se muestra explícitamente y no representa pagos. Paginación de cuotas con comprobación de integridad; error sin subtotales. Planes homónimos, fallo SQL/rollback y reintento verificados en Dashboard real con base descartable; 628 pruebas, lint/tipos/build, 12 SQL y seis controles de release aprobados. Sin migraciones ni escrituras productivas. [Validación y límites](VALIDACION_FE_09_11.md). **Pendientes revisión y publicación; comprobar CI sobre el SHA final de la PR.** FE-07 físico sigue abierto por falta de acceso al dispositivo.
+Totales por cuotas existentes, centavos y moneda preparados sobre main 382e125. El corte incluye hoy (o el primer día del mes futuro elegido), se muestra explícitamente y no representa pagos. Paginación de cuotas con comprobación de integridad; error sin subtotales. Planes homónimos, fallo SQL/rollback y reintento verificados en Dashboard real con base descartable; 628 pruebas, lint/tipos/build, 12 SQL y seis controles de release aprobados. Sin migraciones ni escrituras productivas. [Validación y límites](VALIDACION_FE_09_11.md). **Pendientes revisión y publicación; comprobar CI sobre el SHA final de la PR.** FE-07: aviso y recarga al tocar confirmados por el propietario en iPhone; protección física del borrador todavía pendiente.
 
 ## Próximos bloques — recomendación al 25/10/2026
 
@@ -24,7 +24,7 @@ Secuencia revisada sobre main 15269ba después de publicar FE-07/FE-12. La últi
 
 | Orden | Bloque | Qué falta y por qué va aquí | Criterio para avanzar |
 | --- | --- | --- | --- |
-| Publicado | **FE-07 + FE-12** | Actualización explícita y borrador de Ajustes publicados y verificados técnicamente. | Seguimiento físico de Safari/iOS e instalación existente abierto para FE-07; no bloquea revisar el siguiente bloque. |
+| Publicado | **FE-07 + FE-12** | Actualización explícita y borrador de Ajustes publicados y verificados técnicamente. | Aviso y recarga al tocar confirmados por el propietario en iPhone; falta probar allí el borrador y precisar navegador/modo instalado. No bloquea el siguiente bloque. |
 | 1 — preparado | **FE-09 + seguimiento FE-11** | Cálculo corregido; identidad, error/reintento y montos probados con datos ficticios. | Revisar diff/CI y autorizar publicación; no hay migración ni webhook. [Validación](VALIDACION_FE_09_11.md). |
 | 2 | **BE-04 / BE-05 / BE-07 / BE-08**, con BE-12 y BE-17 | Revisar avances del bot antes de implementar lo restante: interpretación conservadora, consultas que no intercepten movimientos, versión efectivamente revisada y datos incompletos. Tratar cada corrección por separado, con contratos compartidos. | Regresiones sobre código/esquema reales; ninguna parte perdida, confirmación de datos no revisados ni guardado de un grupo incompleto. No se declara que todos los defectos originales sigan reproducibles hoy. |
 | 3 | **Infraestructura pendiente** | INF-15 (costos y documentación), INF-13/FE-19 (límites de hosting/aceptación) e INF-14 (retención). La CSP y las alertas ya están publicadas. | Controles y documentación coherentes; verificar límites antes de cambiar configuración; retención continúa desactivada hasta aprobación. |
@@ -298,7 +298,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Terminada; publicada y aceptada |
 | 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Preparada y validada con datos ficticios; revisión/publicación pendientes; comprobar CI en PR |
 | 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Corrección terminada; publicada y verificada |
-| 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Corrección publicada/verificada; seguimiento físico pendiente |
+| 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Corrección publicada/verificada; aviso/recarga confirmados por el propietario en iPhone; borrador físico pendiente |
 | 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Terminada; publicada y verificada en su alcance |
 | 11 | FE-13 | Media | Validación de invitación fuera de orden | — | Pendiente |
 | 12 | FE-08 | Alta; desarrollo | Dependencias vulnerables | INF-07 | Pendiente |
@@ -366,7 +366,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 - **Estado al 25/10/2026:** corrección publicada en PR #37, CI y comprobación técnica productiva aprobados. Aviso y bloqueo con borrador sin guardar, navegación, descarte y actualización explícita verificados sin enviar cambios. [Validación y límites](VALIDACION_FE_07_12.md).
 
-- [ ] Cierre integral: aceptación en Safari/iOS físico e instalación existente todavía pendiente; no se declara realizada por Chromium.
+- [ ] Cierre integral: el propietario confirmó aviso y recarga al tocar en iPhone. Sigue pendiente comprobar protección de un formulario sin guardar en ese dispositivo y precisar navegador/modo instalado; no se presume esa cobertura desde Chromium.
 - **Categoría:** Bug. **Problema reproducido:** la primera comprobación detecta escritura, pero el MutationObserver solo verifica ausencia de modal-backdrop. Una mutación del DOM recarga con un input todavía enfocado; eventos repetidos crean varios observadores. Los modales administrativos usan admin-modal-backdrop, otra clase.
 - **Archivos:** src/main.tsx:30, :35, :37, :45, :80; src/AdminPanel.tsx:1065.
 - **Trabajo:** centralizar la actualización pendiente y mostrar una acción explícita para aplicarla; considerar cambios sin guardar, foco y todos los diálogos mediante estado compartido. Evitar observadores duplicados y limpiar suscripciones; conservar compatibilidad entre versión web, service worker y cachés.
@@ -822,3 +822,5 @@ Completar una entrada al cerrar cada tarea:
 | 25/10/2026 | Publicación FE-07 / FE-12 | PR #37, 15269ba; aviso explícito y borrador por sesión | 592 pruebas, cuatro controles + Publicar; SHA/SW/bundle/CSP; borrador productivo sin enviar, navegación/espera/descarte/actualización | PWA publicada; sin cambios SQL/webhook/IA ni datos productivos | FE-12 terminado; seguimiento físico FE-07 abierto; siguiente FE-09 + aceptación FE-11 |
 
 | 25/10/2026 | Preparación FE-09 / aceptación ficticia FE-11 | Suma y conteo de filas existentes, corte explícito, monedas e identidad; lectura paginada sin subtotales | 628 Vitest, lint/tipos/build, 12 SQL, seis guards y navegador con SQL descartable/trigger fallido/reintento | Sin datos ni configuración productivos; sin migración/webhook/IA | CI, revisión y publicación pendientes; Safari/iPhone físico abierto; siguiente revisión del bot BE-04/05/07/08 |
+
+| 25/10/2026 | Seguimiento físico parcial FE-07 | El propietario informó aviso de actualización y recarga al tocar en iPhone | Evidencia manual comunicada por el propietario; no ejecución directa de Codex | Sin cambios de aplicación ni datos | Falta probar borrador sin guardar en el dispositivo y precisar navegador/modo instalado; FE-09/11 sigue preparado sin publicar |

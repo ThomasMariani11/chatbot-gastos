@@ -40,7 +40,7 @@ Capturas temporales: pesito-fe09-cuotas-antes.jpg, pesito-fe09-eliminacion-falli
 ## Límites y publicación
 
 - No se tocaron compras, perfiles, SQL, webhook ni configuración de producción; no se enviaron mensajes de WhatsApp ni se consumió IA. No hay nuevas dependencias.
-- La prueba física de Safari/iPhone/PWA instalada sigue pendiente: el inventario disponible solo muestra el navegador integrado y MCP Apps vacío, sin dispositivo físico. No se presenta Chromium/jsdom como Safari.
+- FE-07 físico: el propietario informó aviso y recarga al tocar en iPhone. Falta comprobar allí la protección de formularios sin guardar y precisar navegador/modo instalado. Codex solo tiene acceso al navegador integrado; no se presenta Chromium/jsdom como Safari. Esta comprobación no equivale a probar FE-09/11 en el teléfono.
 - La lectura paginada no es una transacción de snapshot SQL: detecta cambios de cantidad entre páginas, pero no todos los cambios concurrentes con igual cantidad. Las RPC de escritura mantienen la versión/atomicidad y la UI vuelve a consultar tras una mutación. No se declara consistencia transaccional de todas las lecturas del dashboard.
 - Tope defensivo de 80 páginas y plazo del cargador; al excederlos se muestra error/reintento, no un total parcial. La paginación del listado mensual sigue en FE-18/BE-09.
 - Antes de integrar: revisar diff y cuatro controles CI sobre SHA final. Después de autorización: publicar PWA, comprobar versión/SW y pantalla publicada sin modificar compras reales para probar. Rollback según INF-10; no cambia esquema.
