@@ -1,7 +1,8 @@
 import { OperationalFailure } from '../supabase/functions/whatsapp-webhook/failures';
 import { createLogWriter } from '../supabase/functions/whatsapp-webhook/logging';
 import { PGlite } from '@electric-sql/pglite';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile as readSqlFile, readdir } from 'node:fs/promises';
+const readFile=async(path:URL|string,encoding:'utf8')=>(await readSqlFile(path,encoding)).replace(/\r\n/g,'\n');
 import { beforeAll, beforeEach, afterEach, afterAll, describe, it, expect, vi } from 'vitest';
 import { readMessages, runActor } from '../supabase/functions/whatsapp-webhook/queue';
 import { parseDraftCorrection } from '../supabase/functions/whatsapp-webhook/draft-corrections';
@@ -34,7 +35,7 @@ const claim=(wa='synthetic-a', token=t1)=>rpc<boolean>('claim_whatsapp_actor',{p
 const next=(wa='synthetic-a',token=t1)=>rpc<Job|null>('next_whatsapp_job',{p_wa_id:wa,p_token:token});
 const apply=(job:Job,action:Record<string,unknown>,token=t1)=>rpc<Job>('apply_whatsapp_job',{p_id:job.id,p_token:token,p_action:action});
 const finish=(job:Job,token=t1)=>rpc('finish_whatsapp_job',{p_id:job.id,p_token:token});
-async function add(id:string,items=[movement()]) {
+async function add(id:string,items:unknown[]=[movement()]) {
   await enqueue(message(id)); await claim(); const job=(await next())!;
   await apply(job,{kind:'add',items}); await finish(job); return job;
 }
@@ -104,6 +105,7 @@ beforeAll(async()=>{
   await db.exec(await readFile(new URL('027_whatsapp_observability.sql',migrationUrl),'utf8'));
   await db.exec(await readFile(new URL('028_whatsapp_issue_details.sql',migrationUrl),'utf8'));
   await db.exec(await readFile(new URL('033_require_current_review_for_confirmation.sql',migrationUrl),'utf8'));
+  await db.exec(await readFile(new URL('034_incomplete_draft_items.sql',migrationUrl),'utf8'));
 },30000);
 beforeEach(async()=>{await db.exec('begin; update public.whatsapp_queue_control set enabled=true');});
 afterEach(async()=>{await db.exec('rollback');});
@@ -858,4 +860,83 @@ describe('BE-07: guardas actuales y regresiones de revisión',()=>{
     const migration=(await readFile(new URL('033_require_current_review_for_confirmation.sql',migrationUrl),'utf8')).replace(/^begin;$/m,'').replace(/^commit;$/m,'');
     await expect(db.exec(migration)).rejects.toThrow('BE07_APPLY_DEFINITION_UNEXPECTED');
   });
+});
+
+
+describe('BE-08: completos, faltantes y completado atómico',()=>{
+ it('conserva todas las operaciones, fecha desconocida, dudas y confianza cero',async()=>{
+  await add('be08-mixed',[movement('Completo',101),{...movement('Nafta'),totalAmountArs:null,occurredOn:null,missingFields:['amount','date'],confidence:0,clarification:'Indicar importe y fecha'}]);
+  const rows=(await db.query<{amount:string|null;occurred_on:string|null;confidence:string;missing_fields:string[];clarification:string}>('select amount::text,occurred_on::text,confidence::text,missing_fields,clarification from public.draft_items order by position')).rows;
+  expect(rows).toHaveLength(2);expect(rows[1]).toMatchObject({amount:null,occurred_on:null,confidence:'0.000',missing_fields:['amount','date'],clarification:'Indicar importe y fecha'});
+  await show();await enqueue(message('be08-blocked-confirm','synthetic-a','confirmar'));const q=(await next())!;const result=await apply(q,{kind:'confirm'});await finish(q);
+  expect(result.reply_text).toContain('datos faltantes');expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+ });
+ it('completa un campo por vez, rechaza versión vieja y guarda todo solo tras nuevo resumen',async()=>{
+  await add('be08-fill',[{...movement('Ingreso',20.5),kind:'income',currency:'USD'},{...movement('Concepto pendiente'),totalAmountArs:null,occurredOn:null,missingFields:['amount','date','description'],installments:3,firstInstallmentMonth:null,confidence:0}]);
+  const snapshot=async()=> (await rpc<{group_id:string;version:number;items:unknown[]}>('get_active_draft_group',{p_user_id:a}));
+  const original=await snapshot();
+  const complete=async(id:string,version:number,patch:unknown)=>{await enqueue(message(id));const q=(await next())!;const result=await apply(q,{kind:'complete',position:2,group_id:original.group_id,version,patch});await finish(q);return result;};
+  await complete('be08-amount',original.version,{amount:100.01});
+  expect((await db.query('select amount::text,missing_fields from public.draft_items where position=2')).rows[0]).toEqual({amount:'100.01',missing_fields:['date','description']});
+  await complete('be08-stale',original.version,{occurred_on:'2026-10-26'});
+  expect((await db.query('select occurred_on from public.draft_items where position=2')).rows[0]).toEqual({occurred_on:null});
+  await complete('be08-date',(await snapshot()).version,{occurred_on:'2026-10-26'});
+  await complete('be08-description',(await snapshot()).version,{description:'Farmacia'});
+  expect((await db.query('select description,first_installment_month,missing_fields,confidence::text from public.draft_items where position=2')).rows[0]).toEqual({description:'Farmacia',first_installment_month:'2026-10',missing_fields:[],confidence:'0.000'});
+  await show();await enqueue(message('be08-save','synthetic-a','confirmar'));const q=(await next())!;await apply(q,{kind:'confirm'});await apply(q,{kind:'confirm'});await finish(q);
+  const saved=(await db.query<{currency:string;amount:string}>('select currency,sum(amount_ars)::text as amount from public.transactions group by currency order by currency')).rows;
+  expect(saved).toEqual([{currency:'ARS',amount:'100.01'},{currency:'USD',amount:'20.50'}]);
+  expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(4);
+ });
+ it('quitar el incompleto permite confirmar los completos sin renumerar',async()=>{
+  await add('be08-remove',[movement('Completo',101),{...movement('Incompleto'),totalAmountArs:null,missingFields:['amount']}]);
+  await enqueue(message('be08-remove-item'));const remove=(await next())!;await apply(remove,{kind:'remove',position:2});await finish(remove);
+  await show();await enqueue(message('be08-confirm-after-remove','synthetic-a','confirmar'));const q=(await next())!;await apply(q,{kind:'confirm'});await finish(q);
+  expect((await db.query('select position,status from public.draft_items order by position')).rows).toEqual([{position:1,status:'confirmed'},{position:2,status:'removed'}]);
+  expect((await db.query('select description from public.transactions')).rows).toEqual([{description:'Completo'}]);
+ });
+ it('no permite ocultar un importe nulo ni confirmar un ítem incompleto directamente',async()=>{
+  await add('be08-null',[{...movement('Sin monto'),totalAmountArs:null,missingFields:[]}]);
+  expect((await db.query('select missing_fields from public.draft_items')).rows[0]).toEqual({missing_fields:['amount']});
+  await db.exec('savepoint be08_invalid');await expect(db.exec("update public.draft_items set missing_fields='{}',status='confirmed'")).rejects.toThrow('DRAFT_INCOMPLETE');await db.exec('rollback to savepoint be08_invalid;release savepoint be08_invalid');
+ });
+ it('una operación inválida revierte la inserción de todo el mensaje',async()=>{
+  await add('be08-existing');await enqueue(message('be08-invalid'));const q=(await next())!;
+  await expect(apply(q,{kind:'add',items:[movement('No parcial'),{...movement('Inválido'),totalAmountArs:null,missingFields:['unexpected']}]})).rejects.toThrow('DRAFT_INVALID_MISSING_FIELDS');
+  expect((await db.query('select description from public.draft_items')).rows).toEqual([{description:'Supermercado'}]);
+ });
+});
+
+describe('BE-08: dudas, aislamiento y capacidad',()=>{
+ it('una reformulación explícita resuelve la duda de un solo ítem',async()=>{
+  await add('be08-review',[movement('Otro',101),{...movement('Duda',202),missingFields:['review'],clarification:'Aclarar detalle',confidence:0}]);
+  const g=await rpc<{group_id:string;version:number}>('get_active_draft_group',{p_user_id:a});
+  await enqueue(message('be08-review-replacement'));const q=(await next())!;
+  await apply(q,{kind:'complete',position:2,group_id:g.group_id,version:g.version,patch:{movement:{...movement('Trabajo',80),kind:'income',currency:'USD',confidence:0}}});await finish(q);
+  expect((await db.query('select position,description,kind,currency,missing_fields,clarification,confidence::text from public.draft_items order by position')).rows).toEqual([{position:1,description:'Otro',kind:'expense',currency:'ARS',missing_fields:[],clarification:null,confidence:'1.000'},{position:2,description:'Trabajo',kind:'income',currency:'USD',missing_fields:[],clarification:null,confidence:'0.000'}]);
+ });
+ it('las dudas sin faltantes explícitos también bloquean la confirmación',async()=>{
+  await add('be08-question',[{...movement('Duda',101),clarification:'Revisar la operación'}]);
+  expect((await db.query('select missing_fields,clarification from public.draft_items')).rows[0]).toEqual({missing_fields:['review'],clarification:'Revisar la operación'});
+  await show();await enqueue(message('be08-question-confirm','synthetic-a','confirmar'));const q=(await next())!;expect((await apply(q,{kind:'confirm'})).reply_text).toContain('datos faltantes');
+ });
+ it('no completa el grupo de otra cuenta ni expone la auxiliar como RPC',async()=>{
+  await add('be08-own',[{...movement('Propio'),totalAmountArs:null,missingFields:['amount']}]);
+  await enqueue(message('be08-other','synthetic-b'));await claim('synthetic-b',t2);const other=(await next('synthetic-b',t2))!;await apply(other,{kind:'add',items:[movement('Ajeno')]},t2);await finish(other,t2);
+  const otherGroup=await rpc<{group_id:string;version:number}>('get_active_draft_group',{p_user_id:b});
+  await enqueue(message('be08-cross'));const q=(await next())!;await apply(q,{kind:'complete',position:1,group_id:otherGroup.group_id,version:otherGroup.version,patch:{amount:5000}});await finish(q);
+  expect((await db.query('select description,amount::text from public.draft_items order by description')).rows).toEqual([{description:'Ajeno',amount:'100.00'},{description:'Propio',amount:null}]);
+  for(const role of ['anon','authenticated','service_role']) expect((await db.query<{allowed:boolean}>("select has_function_privilege($1,'public.complete_pending_draft_item(uuid,uuid,integer,integer,jsonb)','execute') as allowed",[role])).rows[0].allowed).toBe(false);
+ });
+ it('completar no reintenta capacidad; una respuesta numérica pasa y quitar libera el mensaje',async()=>{
+  await add('be08-full',Array.from({length:20},(_,i)=>i===0?{...movement('Sin importe'),totalAmountArs:null,missingFields:['amount']}:movement('Otro '+i)));
+  const group=await rpc<{group_id:string;version:number}>('get_active_draft_group',{p_user_id:a});
+  await enqueue(message('be08-capacity'));const blocked=(await next())!;await apply(blocked,{kind:'add',items:[movement('Retenido')]});await finish(blocked);
+  await enqueue(message('be08-number','synthetic-a','5000'));const number=(await next())!;expect(number.payload.id).toBe('be08-number');
+  await apply(number,{kind:'complete',position:1,group_id:group.group_id,version:group.version,patch:{amount:5000}});await finish(number);
+  expect((await db.query('select status,pause_reason,attempts from public.whatsapp_message_queue where id=$1',[blocked.id])).rows[0]).toEqual({status:'waiting',pause_reason:'capacity',attempts:1});
+  await enqueue(message('be08-free','synthetic-a','quitá el 2'));const remove=(await next())!;await apply(remove,{kind:'remove',position:2});await finish(remove);
+  const resumed=(await next())!;expect(resumed.payload.id).toBe('be08-capacity');await apply(resumed,{kind:'add',items:[movement('Retenido')]});await finish(resumed);
+  expect((await db.query('select position from public.draft_items where description=$1',['Retenido'])).rows[0]).toEqual({position:21});
+ });
 });

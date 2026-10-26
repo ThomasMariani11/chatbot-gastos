@@ -1,3 +1,5 @@
+import { normalizeDraftMovements } from "./draft-normalization.ts";
+import type { CompletionAction } from "./draft-completion.ts";
 import { cleanDescription } from "./movement-description.ts";
 export { cleanDescription } from "./movement-description.ts";
 import type { FailureMetadata } from "./failures.ts";
@@ -28,6 +30,7 @@ import {
   buildStrictSchema,
   extractWithGroq,
   resetGroqBudgetForTests,
+  validateAgainstSchema,
 } from "./groq.ts";
 export { resetGroqBudgetForTests };
 
@@ -40,8 +43,12 @@ export type GeminiParsedOutput = {
     | "cancel"
     | "summary"
     | "unknown"
+    | "complete_item"
+    | "clarify_completion"
     | "request_text"; // Checkpoint interno: nunca vuelve a invocar IA.
   movements: ExtractedMovement[];
+  completion?: CompletionAction;
+  completionReply?: string;
   requestTextReason?: "size" | "type";
   operationalFailure?: FailureMetadata; // Solo diagnóstico interno controlado por el procesador.
   edit?: {
@@ -262,9 +269,13 @@ const multiResponseJsonSchema = {
           installments: { type: "integer", minimum: 1, maximum: 60 },
           firstInstallmentMonth: { type: ["string", "null"] },
           confidence: { type: "number", minimum: 0, maximum: 1 },
+          clarification: { type: ["string", "null"] },
           missingFields: {
             type: "array",
-            items: { type: "string", enum: ["amount", "date", "category"] },
+            items: {
+              type: "string",
+              enum: ["amount", "date", "category", "description", "review"],
+            },
           },
         },
         required: [
@@ -301,6 +312,7 @@ export async function extractFromGemini(input: {
   mediaBase64?: string;
   mimeType?: string;
   activeDraftContext?: string;
+  resolveCompletion?: (text: string) => GeminiParsedOutput | null;
   signal?: AbortSignal;
 }): Promise<GeminiParsedOutput> {
   input.signal?.throwIfAborted();
@@ -340,6 +352,7 @@ REGLAS PARA OPERACIONES ("movements"):
   * Gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros.
   * Ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros.
 - CUOTAS: Si es en cuotas, indicá installments y firstInstallmentMonth. De lo contrario installments = 1.
+- FALTANTES: conservá TODAS las operaciones, incluidas las incompletas. Importe desconocido: totalAmountArs=null y missingFields=["amount"]. Fecha explícita ambigua: occurredOn=null y missingFields incluye "date"; sin fecha, usá la fecha local. Concepto desconocido: description="" y missingFields incluye "description". Sin categoría: Otros, sin preguntar. Conservá confidence=0. Registrá dudas en clarification; no inventes valores ni omitas una parte. Para correcciones/completado usá el número estable; si no es inequívoco, unknown.
 - COMPROBANTES: Si el usuario envía una imagen de un comprobante o ticket, interpretalo como UNA sola operación por el total del ticket; no dividas sus productos individuales. Si la imagen muestra varios comprobantes separados, extraé cada uno como una operación independiente.
 
 Mensaje del usuario: ${input.text ?? ""}`;
@@ -354,6 +367,7 @@ Mensaje del usuario: ${input.text ?? ""}`;
         mediaBase64: input.mediaBase64,
         mimeType: input.mimeType,
         activeDraftContext: input.activeDraftContext,
+        resolveCompletion: input.resolveCompletion,
         signal: input.signal,
         baseSchema: multiResponseJsonSchema,
         strictSchema: buildStrictSchema(multiResponseJsonSchema),
@@ -446,6 +460,18 @@ Mensaje del usuario: ${input.text ?? ""}`;
       const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!raw) throw new OperationalFailure("invalid_response", "gemini");
       const parsed = JSON.parse(raw) as GeminiParsedOutput;
+      if (parsed?.intent === "add_movements") {
+        parsed.movements = normalizeDraftMovements(
+          parsed.movements,
+          today,
+          parsed.clarification,
+        );
+        delete parsed.clarification; // No reaplicar una duda global ya distribuida.
+      }
+      if (
+        validateAgainstSchema(parsed, multiResponseJsonSchema).length ||
+        (parsed.intent !== "add_movements" && parsed.movements.length)
+      ) throw new OperationalFailure("invalid_response", "gemini");
 
       if (parsed.movements && Array.isArray(parsed.movements)) {
         for (const mov of parsed.movements) {

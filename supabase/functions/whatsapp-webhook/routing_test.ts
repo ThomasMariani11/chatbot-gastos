@@ -30,6 +30,14 @@ function checkpointBusiness(value: unknown): unknown {
   }
   return value;
 }
+const semanticJson = (value: unknown): string =>
+  JSON.stringify(
+    value,
+    (_key, v) =>
+      v && typeof v === "object" && !Array.isArray(v)
+        ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, v[k]]))
+        : v,
+  );
 const fixture =
   "Gasté 1100 en librería, 2200 en té y me ingresó 33mil de una transferencia";
 function database(suspended = false) {
@@ -486,7 +494,7 @@ Deno.test("audio: 503 en ambos modelos conserva checkpoint y pide texto sin rein
   }
 });
 
-Deno.test("audio ambiguo o con monto faltante pide texto sin cargar parcialmente", async () => {
+Deno.test("audio: ruido pide texto y operaciones incompletas se conservan junto a completas", async () => {
   const prev = globalThis.fetch,
     key = Deno.env.get("GEMINI_API_KEY"),
     token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
@@ -541,6 +549,23 @@ Deno.test("audio ambiguo o con monto faltante pide texto sin cargar parcialmente
         saved = v;
         return Promise.resolve();
       });
+      if (parsed.intent === "add_movements") {
+        const items = result.items as Array<
+          { totalAmountArs: number | null; missingFields: string[] }
+        >;
+        assert(
+          result.kind === "add" && items.length === 2 &&
+            items[0].totalAmountArs === 123 &&
+            items[1].totalAmountArs === null &&
+            items[1].missingFields.includes("amount"),
+          "Perdió el completo o el incompleto",
+        );
+        assert(
+          (saved as { movements: unknown[] }).movements.length === 2,
+          "Checkpoint perdió operaciones",
+        );
+        continue;
+      }
       assert(
         result.kind === "reply" && String(result.text).includes("Escribime"),
         "No pide texto",
@@ -578,6 +603,10 @@ Deno.test("audio válido sigue creando propuesta y no se convierte en pedido de 
         description: "Diseño",
         totalAmountArs: 80,
         currency: "USD",
+        occurredOn: "2026-10-26",
+        category: "Otros",
+        confidence: 0,
+        firstInstallmentMonth: null,
         installments: 1,
         missingFields: [],
       }],
@@ -611,11 +640,11 @@ Deno.test("audio válido sigue creando propuesta y no se convierte en pedido de 
     });
     assert(
       result.kind === "add" &&
-        JSON.stringify(result.items) === JSON.stringify(parsed.movements),
+        semanticJson(result.items) === semanticJson(parsed.movements),
       "Audio válido perdido",
     );
     assert(
-      JSON.stringify(checkpointBusiness(saved)) === JSON.stringify(parsed),
+      semanticJson(checkpointBusiness(saved)) === semanticJson(parsed),
       "Checkpoint alterado",
     );
   } finally {
@@ -1087,7 +1116,6 @@ Deno.test("texto ambiguo usa el respaldo, sin aceptar el primer importe localmen
     }) as typeof fetch;
     for (
       const body of [
-        "Gasté 5000 super y pagué alquiler",
         "¿Gasté 5000 en super?",
         "Compré silla 12000 en 3 cuotas",
       ]
@@ -2119,3 +2147,329 @@ Deno.test("BE-05: caption de foto y audio conservan interpretación multimedia",
       else Deno.env.set("GROQ_API_KEY", groq);
     }
   }));
+
+Deno.test("BE-08: lista mixta incompleta se propone entera localmente, sin IA", async () => {
+  const previous = globalThis.fetch;
+  try {
+    globalThis.fetch = (() => {
+      throw Error("NO_PROVIDER");
+    }) as typeof fetch;
+    let saved: unknown;
+    const result = await prepareMessage(
+      database().db,
+      job("Gasté 101 en super y pagué alquiler"),
+      (v) => {
+        saved = v;
+        return Promise.resolve();
+      },
+    );
+    const items = result.items as Array<
+      { totalAmountArs: number | null; missingFields: string[] }
+    >;
+    assert(
+      result.kind === "add" && items.length === 2 &&
+        items[0].totalAmountArs === 101 && items[1].totalAmountArs === null &&
+        items[1].missingFields.includes("amount"),
+      "Perdió una parte",
+    );
+    assert(
+      (saved as { movements: unknown[] }).movements.length === 2,
+      "Checkpoint parcial",
+    );
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
+Deno.test("BE-08: completar por texto no agrega otro gasto ni llama a IA", async () => {
+  const previous = globalThis.fetch;
+  try {
+    globalThis.fetch = (() => {
+      throw Error("NO_PROVIDER");
+    }) as typeof fetch;
+    for (const multiple of [false, true]) {
+      const fixture = database();
+      fixture.db.rpc = (() =>
+        Promise.resolve({
+          data: {
+            group_id: "synthetic-group",
+            version: 2,
+            is_stale: false,
+            items: [
+              {
+                position: 2,
+                kind: "expense",
+                description: "Nafta",
+                amount: null,
+                status: "pending",
+                missing_fields: ["amount"],
+              },
+              ...(multiple
+                ? [{
+                  position: 4,
+                  kind: "income",
+                  description: "Diseño",
+                  amount: null,
+                  status: "pending",
+                  missing_fields: ["amount"],
+                }]
+                : []),
+            ],
+          },
+          error: null,
+        })) as unknown as typeof fixture.db.rpc;
+      const result = await prepareMessage(fixture.db, job("5000"), () => {
+        throw Error("NO_CHECKPOINT");
+      });
+      assert(
+        multiple
+          ? result.kind === "reply"
+          : result.kind === "complete" && result.position === 2 &&
+            result.version === 2,
+        "Completado ambiguo o alta falsa",
+      );
+      const addition = await prepareMessage(
+        fixture.db,
+        job("Gasté 300 en farmacia"),
+        () => Promise.resolve(),
+      );
+      assert(addition.kind === "add", "Interceptó un gasto nuevo");
+    }
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
+for (const provider of ["gemini", "groq"] as const) {
+  Deno.test(
+    "BE-08: " + provider +
+      " conserva completos/incompletos y reintenta desde checkpoint",
+    async () => {
+      const previous = globalThis.fetch,
+        key = Deno.env.get("GEMINI_API_KEY"),
+        groq = Deno.env.get("GROQ_API_KEY");
+      try {
+        resetGroqBudgetForTests();
+        Deno.env.set("GEMINI_API_KEY", "synthetic-key");
+        if (provider === "groq") {
+          Deno.env.set("GROQ_API_KEY", "gsk_synthetic_key");
+        } else Deno.env.delete("GROQ_API_KEY");
+        let calls = 0;
+        const parsed = {
+          intent: "add_movements",
+          movements: [{
+            kind: "expense",
+            description: "Super",
+            totalAmountArs: 101,
+            currency: "ARS",
+            occurredOn: "2026-10-26",
+            category: "Otros",
+            confidence: 0,
+            installments: 1,
+            firstInstallmentMonth: null,
+            missingFields: [] as string[],
+          }, {
+            kind: "income",
+            description: "Diseño",
+            totalAmountArs: null,
+            currency: "USD",
+            occurredOn: null,
+            category: "Otros",
+            confidence: 0,
+            installments: 1,
+            firstInstallmentMonth: null,
+            missingFields: ["amount", "date"],
+          }],
+          clarification: "PRIVATE_QUESTION",
+        };
+        globalThis.fetch = (() => {
+          calls++;
+          return Promise.resolve(
+            Response.json(
+              provider === "groq"
+                ? {
+                  choices: [{ message: { content: JSON.stringify(parsed) } }],
+                }
+                : {
+                  candidates: [{
+                    content: { parts: [{ text: JSON.stringify(parsed) }] },
+                  }],
+                },
+            ),
+          );
+        }) as typeof fetch;
+        const input = job(
+          "Hay operaciones para interpretar en un mensaje complejo",
+        );
+        let checkpoint: unknown;
+        const result = await prepareMessage(database().db, input, (v) => {
+          checkpoint = v;
+          return Promise.resolve();
+        });
+        const items = result.items as Array<
+          {
+            totalAmountArs: number | null;
+            occurredOn: string | null;
+            confidence: number;
+            missingFields: string[];
+            clarification?: string;
+          }
+        >;
+        assert(
+          result.kind === "add" && items.length === 2 &&
+            items[0].totalAmountArs === 101 && items[0].confidence === 0 &&
+            items[1].totalAmountArs === null && items[1].occurredOn === null &&
+            items[1].missingFields.includes("date"),
+          "Filtró o completó artificialmente",
+        );
+        assert(
+          items[1].clarification === "PRIVATE_QUESTION" && calls === 1,
+          "No conservó la duda o repitió IA",
+        );
+        const mockProvider = globalThis.fetch;
+        input.parsed_result = checkpoint;
+        globalThis.fetch = (() => {
+          throw Error("NO_PROVIDER_RETRY");
+        }) as typeof fetch;
+        const retry = await prepareMessage(database().db, input, () => {
+          throw Error("NO_NEW_CHECKPOINT");
+        });
+        assert(
+          semanticJson(result) === semanticJson(retry),
+          "El reintento cambió datos",
+        );
+        // Una duda de categoría no debe reaparecer al validar/checkpointear otra vez.
+        parsed.movements = [{
+          ...parsed.movements[0],
+          missingFields: ["category"],
+        }];
+        parsed.clarification = "¿Qué categoría?";
+        globalThis.fetch = mockProvider;
+        const categoryResult = await prepareMessage(
+          database().db,
+          job("Operación compleja sintética"),
+          () => Promise.resolve(),
+        );
+        const categoryItems = categoryResult.items as Array<
+          { missingFields: string[]; clarification?: string }
+        >;
+        assert(
+          categoryResult.kind === "add" &&
+            categoryItems[0].missingFields.length === 0 &&
+            !categoryItems[0].clarification,
+          "Una categoría opcional volvió a bloquear el lote",
+        );
+      } finally {
+        globalThis.fetch = previous;
+        if (key === undefined) Deno.env.delete("GEMINI_API_KEY");
+        else Deno.env.set("GEMINI_API_KEY", key);
+        if (groq === undefined) Deno.env.delete("GROQ_API_KEY");
+        else Deno.env.set("GROQ_API_KEY", groq);
+      }
+    },
+  );
+}
+Deno.test("BE-08: Whisper completa un importe pendiente sin Qwen ni otro gasto", () =>
+  withMediaFixture(async () => {
+    const key = Deno.env.get("GROQ_API_KEY");
+    try {
+      resetGroqBudgetForTests();
+      Deno.env.set("GROQ_API_KEY", "gsk_synthetic_key");
+      let calls = 0;
+      globalThis.fetch = ((url: RequestInfo | URL) => {
+        calls++;
+        const u = String(url);
+        return Promise.resolve(
+          u.includes("graph.facebook.com")
+            ? Response.json({
+              url: "https://media.example.invalid",
+              mime_type: "audio/ogg",
+            })
+            : u.includes("media.example.invalid")
+            ? new Response(new Uint8Array([1]))
+            : u.includes("/audio/transcriptions")
+            ? Response.json({ text: "El 2 fue de 5000" })
+            : new Response("UNEXPECTED_PROVIDER", { status: 503 }),
+        );
+      }) as typeof fetch;
+      const fixture = database();
+      fixture.db.rpc = (() =>
+        Promise.resolve({
+          data: {
+            group_id: "synthetic-group",
+            version: 2,
+            items: [{
+              position: 2,
+              kind: "expense",
+              description: "Nafta",
+              amount: null,
+              status: "pending",
+              missing_fields: ["amount"],
+            }],
+          },
+          error: null,
+        })) as unknown as typeof fixture.db.rpc;
+      const input = job("");
+      input.payload = {
+        id: "synthetic-audio",
+        from: "synthetic-route",
+        type: "audio",
+        audio: { id: "media" },
+      };
+      let saved: unknown;
+      const result = await prepareMessage(fixture.db, input, (v) => {
+        saved = v;
+        return Promise.resolve();
+      });
+      assert(
+        result.kind === "complete" && result.position === 2 && calls === 3 &&
+          (saved as { intent: string }).intent === "complete_item",
+        "No completó con la transcripción o llamó a otro modelo",
+      );
+    } finally {
+      if (key === undefined) Deno.env.delete("GROQ_API_KEY");
+      else Deno.env.set("GROQ_API_KEY", key);
+    }
+  }));
+Deno.test("BE-08: un proveedor no puede fabricar una intención interna de completado", async () => {
+  const previous = globalThis.fetch,
+    key = Deno.env.get("GEMINI_API_KEY"),
+    groq = Deno.env.get("GROQ_API_KEY");
+  try {
+    Deno.env.set("GEMINI_API_KEY", "synthetic-key");
+    Deno.env.delete("GROQ_API_KEY");
+    globalThis.fetch = (() =>
+      Promise.resolve(Response.json({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                intent: "complete_item",
+                movements: [],
+                completion: {
+                  kind: "complete",
+                  position: 1,
+                  group_id: "invented",
+                  version: 1,
+                  patch: { amount: 5000 },
+                },
+              }),
+            }],
+          },
+        }],
+      }))) as typeof fetch;
+    const result = await prepareMessage(
+      database().db,
+      job("Algo para interpretar"),
+      () => Promise.resolve(),
+    );
+    assert(
+      result.kind === "reply" && String(result.text).includes("No cargué"),
+      "El proveedor obtuvo un atajo de escritura",
+    );
+  } finally {
+    globalThis.fetch = previous;
+    if (key === undefined) Deno.env.delete("GEMINI_API_KEY");
+    else Deno.env.set("GEMINI_API_KEY", key);
+    if (groq === undefined) Deno.env.delete("GROQ_API_KEY");
+    else Deno.env.set("GROQ_API_KEY", groq);
+  }
+});

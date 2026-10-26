@@ -125,3 +125,9 @@ No requiere deploy de whatsapp-webhook: sus llamadas no cambian. La migración n
 Mantener 033 al volver a PWA/Edge compatibles; no reponer metadatos antiguos de confirmación ni quitar la protección para volver a una versión anterior del código. La retención sigue desactivada y los backups permanecen aplazados. [Pruebas, aceptación y límites](../planes/VALIDACION_BE_07.md).
 
 **Registro 26/10/2026:** 033 aplicada y registrada atómicamente; definición de apply_whatsapp_job exactamente coincidente y atributos conservados. PR #42/1688c7b publicada con los cinco controles de main aprobados. Edge v56 y su bundle conservados; salud de cola/cron y PWA comprobadas. [Evidencia de publicación y límites](../planes/VALIDACION_BE_07.md#publicación-y-cierre-autorizados--26102026).
+
+## BE-08 / 034 — candidato, aún sin publicar
+
+El contrato del candidato cambia el mínimo a 034; producción verificada sigue en 033/v56. Requiere un orden particular: desplegar primero el lector compatible del commit 80e920dcad9581bbff2d54b2c48ae2e255fe6882, verificar y esperar quietud; aplicar/registrar 034; luego publicar el webhook final. No habilitar operaciones incompletas antes de ese esquema. Revisar el estado real y los cuatro controles del SHA aprobado antes de cada etapa.
+
+Después de 034, el rollback de runtime solo puede usar ese puente o un lector posterior que admita amount/occurred_on NULL. El puente conserva y muestra esos ítems, con instrucciones compatibles, pero no ofrece toda la nueva funcionalidad de completado. Mantener 034 y los datos; no regresar directamente a v56/v52 ni ejecutar down o reset. El ensayo descarga únicamente el SHA de rollback fijado si un squash dejó ese objeto fuera del historial de main, sin cambiar el checkout. Incluye ejecución de ambos lectores con 20 operaciones/NULL, instalación completa y rollback de runtimes/PWA sobre el mismo esquema. [Procedimiento y aceptación](../planes/VALIDACION_BE_08.md).

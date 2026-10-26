@@ -211,6 +211,37 @@ const be07Again=await be07Next();await be07Apply(be07Again,{kind:'confirm'});awa
 assert.equal(Number((await execute('select count(*) from public.transactions;')).output),be07CountBefore+1,'La confirmación concurrente duplicó el guardado');
 assert.equal((await execute(`select count(*) from public.draft_items i join public.draft_groups g on g.id=i.group_id where i.user_id='${a}' and g.status<>'open' and i.status='pending';`)).output,'0','Quedó un ítem pendiente en un grupo cerrado');
 
-const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,concurrent_sessions:2,retained_confirmation_requires_fresh_review:true,confirmation_apply_concurrent_idempotent:true,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
+
+// BE-08: el esquema nullable conserva el lote y bloquea confirmación parcial.
+await execute((await readFile(new URL('034_incomplete_draft_items.sql',migrations),'utf8')).replace(/\r\n/g,'\n'));
+const be08Before=Number((await execute('select count(*) from public.transactions;')).output);
+const be08Items=[{kind:'expense',description:'Completo nativo',totalAmountArs:101,currency:'ARS',occurredOn:'2026-10-26',confidence:0,installments:1,missingFields:[]},{kind:'income',description:'Pendiente nativo',totalAmountArs:null,currency:'USD',occurredOn:'2026-10-26',confidence:0,installments:1,missingFields:['amount'],clarification:'Importe pendiente'}];
+await be07Enqueue('be08-native-add','Gastos sintéticos');
+const be08Add=await be07Next();await be07Apply(be08Add,{kind:'add',items:be08Items});await be07Finish(be08Add);
+const be08Show=async()=>{
+ await execute("update public.whatsapp_worker_state set last_received_at=clock_timestamp()-interval '4 seconds' where wa_id='synthetic-native';");
+ const shown=JSON.parse((await execute(`select public.whatsapp_summary_snapshot('synthetic-native','${tokens[2]}');`)).output);
+ assert.equal(shown.items.length,2);
+ await execute(`select public.mark_whatsapp_summary_sent('synthetic-native','${tokens[2]}','${shown.group_id}',${shown.version});update public.whatsapp_worker_state set shown_at=clock_timestamp()-interval '2 seconds' where wa_id='synthetic-native';`);
+ return shown;
+};
+const be08Shown=await be08Show();
+assert.equal(be08Shown.items[1].amount,null);assert.deepEqual(be08Shown.items[1].missing_fields,['amount']);
+assert.equal((await execute(`select confidence from public.draft_items where group_id='${be08Shown.group_id}' and position=2;`)).output,'0.000');
+await be07Enqueue('be08-native-blocked','confirmar');
+const be08Blocked=await be07Next();assert.match(JSON.parse((await be07Apply(be08Blocked,{kind:'confirm'})).output).reply_text,/datos faltantes/);await be07Finish(be08Blocked);
+assert.equal(Number((await execute('select count(*) from public.transactions;')).output),be08Before);
+await be07Enqueue('be08-native-fill','el 2 fue de 5000');await be07Enqueue('be08-native-stale','el 2 fue de 6000');
+const be08Fill=await be07Next();
+const be08Action={kind:'complete',position:2,group_id:be08Shown.group_id,version:be08Shown.version,patch:{amount:5000}};
+await Promise.all([0,1].map(()=>be07Apply(be08Fill,be08Action)));await be07Finish(be08Fill);
+const be08Stale=await be07Next();await be07Apply(be08Stale,{...be08Action,patch:{amount:6000}});await be07Finish(be08Stale);
+assert.equal((await execute(`select amount from public.draft_items where group_id='${be08Shown.group_id}' and position=2;`)).output,'5000.00');
+assert.equal((await execute(`select version from public.draft_groups where id='${be08Shown.group_id}';`)).output,String(be08Shown.version+1));
+await be08Show();await be07Enqueue('be08-native-confirm','confirmar');
+const be08Confirm=await be07Next();await be07Apply(be08Confirm,{kind:'confirm'});await be07Finish(be08Confirm);
+assert.equal(Number((await execute('select count(*) from public.transactions;')).output),be08Before+2);
+
+const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,incomplete_batch_confirmation_blocked:true,completion_concurrent_idempotent:true,completion_stale_version_rejected:true,concurrent_sessions:2,retained_confirmation_requires_fresh_review:true,confirmation_apply_concurrent_idempotent:true,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
 if(process.env.PESITO_TEST_EVIDENCE) await writeFile(process.env.PESITO_TEST_EVIDENCE,JSON.stringify(evidence,null,2));
 console.log(JSON.stringify(evidence));

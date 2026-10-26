@@ -1,3 +1,5 @@
+import { normalizeDraftMovements } from "./draft-normalization.ts";
+import { parseDraftMovements } from "./local-movements.ts";
 import { normalizeWhisperTranscript } from "./spoken-amounts.ts";
 export { normalizeWhisperTranscript } from "./spoken-amounts.ts";
 import {
@@ -12,7 +14,6 @@ import {
   parseDraftCorrection,
 } from "./draft-corrections.ts";
 import { parseLocalCommand } from "./local-commands.ts";
-import { parseDeterministicMovements } from "./local-movements.ts";
 import { writeOperationalLog } from "./logging.ts";
 import type { GeminiParsedOutput } from "./helpers.ts";
 
@@ -146,15 +147,13 @@ export function normalizeGroqOutput(
   if (clone.edit === null && clone.intent !== "edit_item") {
     delete clone.edit;
   }
-  if (Array.isArray(clone.movements)) {
-    for (const item of clone.movements) {
-      if (typeof item === "object" && item !== null) {
-        const mov = item as Record<string, unknown>;
-        if (mov.occurredOn === null) mov.occurredOn = today;
-        if (mov.category === null) mov.category = "Otros";
-        if (mov.installments === 1) mov.firstInstallmentMonth = null;
-      }
-    }
+  if (clone.intent === "add_movements") {
+    clone.movements = normalizeDraftMovements(
+      clone.movements,
+      today,
+      clone.clarification,
+    );
+    delete clone.clarification; // La duda ya queda asociada a cada ítem.
   }
   return clone as unknown as GeminiParsedOutput;
 }
@@ -299,6 +298,7 @@ export async function extractWithGroq(input: {
   mediaBase64?: string;
   mimeType?: string;
   activeDraftContext?: string;
+  resolveCompletion?: (text: string) => GeminiParsedOutput | null;
   signal?: AbortSignal;
   baseSchema: SchemaNode;
   strictSchema: SchemaNode;
@@ -389,6 +389,8 @@ export async function extractWithGroq(input: {
           transcribedText: "",
         };
       }
+      const completion = input.resolveCompletion?.(effectiveText);
+      if (completion) return { output: completion, transcribedText };
       const localCmd = parseLocalCommand(effectiveText);
       if (
         localCmd?.kind === "confirm" ||
@@ -431,7 +433,7 @@ export async function extractWithGroq(input: {
           };
         }
       } else {
-        const direct = parseDeterministicMovements(effectiveText, input.today);
+        const direct = parseDraftMovements(effectiveText, input.today);
         if (direct?.length) {
           writeOperationalLog("local_rule", {
             rule: "movements",
@@ -537,6 +539,8 @@ export async function extractWithGroq(input: {
     const schemaErrors = validateAgainstSchema(normalized, input.baseSchema);
     if (
       schemaErrors.length > 0 ||
+      (normalized.intent !== "add_movements" &&
+        normalized.movements.length > 0) ||
       (normalized.intent === "edit_item" &&
         (!normalized.edit ||
           typeof normalized.edit.targetPosition !== "number" ||

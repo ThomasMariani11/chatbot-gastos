@@ -25,24 +25,25 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 - **BE-04 cerrado en el alcance probado.** PR #40/e311db4 y webhook v55: CI completo, verificación técnica y aceptación del propietario ($123 / «Colectivo 60», descartado con CANCELAR). **BE-05 cerrado en su alcance**, con consultas separadas verificadas en v56. BE-07 también quedó cerrado en su alcance tras 033/PR #42; siguiente revisión BE-08. [Evidencia y límites](VALIDACION_BE_04.md).
 - **Orden dentro del bloque del bot:** BE-04 → BE-05 (ruteo de consultas) → BE-07 (confirmación de la versión revisada) → BE-08 (datos faltantes), con BE-12/BE-17 cuando compartan código o pruebas. Ajustar este orden solo si la revisión encuentra una dependencia concreta.
 - **BE-07 cerrado en el alcance probado.** 033/PR #42 publicadas; confirmación retenida al RETOMAR, versión mostrada vigente, reintentos, grupos cerrados y atomicidad verificados con 735 pruebas y PostgreSQL concurrente. Función productiva exactamente coincidente, atributos conservados y salud comprobada. [Evidencia y límites](VALIDACION_BE_07.md). **Siguiente: revisar BE-08**, operaciones incompletas y dudas, preservando las protecciones ya existentes. Este cierre no autoriza otra publicación.
+- **BE-08 en curso:** borradores incompletos, normalización y completado por posición preparados con 034; 781 pruebas generales y 53 del procesador sin red aprobadas. Pendientes CI final, publicación autorizada por etapas y aceptación. Producción permanece en 033/v56. [Validación y rollback](VALIDACION_BE_08.md).
 - **Se conservan las decisiones:** costo $0; retención desactivada; backups INF-08 al final.
 
 ## Próximos bloques — recomendación al 26/10/2026
 
-Secuencia revisada sobre main 1688c7b después de publicar BE-07 en PR #42 y aplicar 033; webhook v56 conservado. La última publicación pasó 735 pruebas y los controles de CI/Publicar; fuente Edge, protecciones y salud de cola fueron comprobadas. El propietario aceptó BE-04 con $123 / «Colectivo 60» y CANCELAR. Los cierres FE-07/09/11 permanecen vigentes. BE-05 quedó aceptado con las consultas separadas del propietario; BE-07 cerrado con las regresiones y verificación SQL productiva. Corresponde revisar BE-08 como trabajo separado. La secuencia no autoriza por sí sola nuevas publicaciones.
+Secuencia revisada sobre main 1688c7b después de publicar BE-07 en PR #42 y aplicar 033; webhook v56 conservado. La última publicación pasó 735 pruebas y los controles de CI/Publicar; fuente Edge, protecciones y salud de cola fueron comprobadas. El propietario aceptó BE-04 con $123 / «Colectivo 60» y CANCELAR. Los cierres FE-07/09/11 permanecen vigentes. BE-05 quedó aceptado con las consultas separadas del propietario; BE-07 cerrado con las regresiones y verificación SQL productiva. BE-08 está implementado en una rama separada; falta CI final, publicación autorizada por etapas y aceptación. La secuencia no autoriza por sí sola nuevas publicaciones.
 
 | Orden | Bloque | Qué falta y por qué va aquí | Criterio para avanzar |
 | --- | --- | --- | --- |
 | Cerrado en su alcance | **FE-07 + FE-12** | Publicados, verificación técnica y flujo protegido aceptado por el propietario en PWA instalada en iPhone. | Compatibilidad física general permanece como seguimiento separado, sin presumir escenarios no ejecutados. |
 | Publicado y verificado | **FE-09 + seguimiento FE-11** | PR #39, 54dce9e; cálculo corregido y homónimos/error/reintento probados con datos ficticios. | Cerrados en su alcance. [Validación y límites](VALIDACION_FE_09_11.md). |
 | Cerrados en su alcance | **BE-04 / BE-05 / BE-07** | PR #40/v55, #41/v56 y #42/033; regresiones, concurrencia, despliegues y aceptación según evidencia de cada bloque. | Límites de IA, gramática y lectura efectiva del resumen documentados; no cerrar otros bloques por extensión. |
-| 1 — siguiente | **BE-08**, con BE-12 y BE-17 | Revisar conservación y resolución de operaciones incompletas y dudas; mantener la confirmación/versiones de BE-07. | Regresiones sobre código/esquema reales; conservar operaciones completas y no guardar parcialmente un grupo incompleto. No presumir que todos los defectos históricos siguen vigentes. |
+| 1 — en curso | **BE-08**, con BE-12 y BE-17 | Implementación y 034 preparadas: conservar/resolver incompletos; puente nullable previo a SQL y rollback compatible. | CI del SHA final, autorización de publicación por etapas y aceptación WhatsApp; no cerrar solo por pruebas locales. [Evidencia](VALIDACION_BE_08.md). |
 | 2 | **Infraestructura pendiente** | INF-15 (costos y documentación), INF-13/FE-19 (límites de hosting/aceptación) e INF-14 (retención). La CSP y las alertas ya están publicadas. | Controles y documentación coherentes; verificar límites antes de cambiar configuración; retención continúa desactivada hasta aprobación. |
 | Último | **INF-08** | Backups y recuperación aplazados por decisión del propietario. | Retomar evaluación y autorización cuando se priorice; no habilitar almacenamiento ni servicios ahora. |
 
 **Seguimientos que no se dan por cerrados:** un código histórico usado sin usuario asociado (BE-02), compatibilidad física general fuera del flujo instalado de iPhone ya aceptado, dependencias de desarrollo INF-07/FE-08, cobertura transversal FE-21/BE-17 y otros ítems abiertos de las tablas. Los avisos de dependencias registrados el 23/10 requieren una comprobación vigente antes de actualizar; no se ejecutó otro audit en esta revisión. Una incidencia nueva puede cambiar este orden.
 
-**Alcance del siguiente bloque:** revisar BE-08 con BE-12/17 antes de implementar; BE-04/05/07 permanecen cerrados en su alcance. Reproducir un caso concreto del bot con datos ficticios y contratos reales; corregir solo lo que siga fallando. No agrupar cambios de interpretación, confirmación y datos incompletos en una publicación sin regresiones específicas. FE-09/11 no se reabren por ese trabajo.
+**Alcance del bloque actual:** completar BE-08 y su publicación por etapas, manteniendo separados BE-12/17; BE-04/05/07 permanecen cerrados en su alcance. Reproducir un caso concreto del bot con datos ficticios y contratos reales; corregir solo lo que siga fallando. No agrupar cambios de interpretación, confirmación y datos incompletos en una publicación sin regresiones específicas. FE-09/11 no se reabren por ese trabajo.
 
 ## Revisión incremental del 23/10/2026 — registro histórico
 
@@ -557,7 +558,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | Terminada |
 | 8 | BE-07 | Alta | Confirmación durante procesamiento | INF-03, INF-04 | Terminada en su alcance; 033/PR #42 publicadas y verificadas |
 | 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | Terminada |
-| 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | Pendiente |
+| 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | En curso; 034/runtime preparados, falta CI/publicación/aceptación |
 | 11 | BE-09 | Alta | Saldo por moneda y límites mensuales | — | Pendiente |
 | 12 | BE-11 | Media | Listas antiguas, excedentes y numeración | INF-03 | Pendiente |
 | 13 | BE-12 | Media | Correcciones y resumen completo | — | En curso |
@@ -657,7 +658,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 ### BE-08 — Conservar operaciones incompletas y dudas
 
 - [ ] Terminada.
-- **Problema confirmado:** se filtran las operaciones sin importe; missingFields no se persiste; amount exige un valor; confidence=0 se reemplaza por 1. Esto permite conservar solo la parte completa de un mensaje sin representar la incompleta.
+- **Revalidación al 26/10/2026:** 020/023 ya conservan missing_fields y confianza cero. El fallo vigente era rechazar toda extracción parcial válida y exigir amount/occurred_on no nulos; la fecha desconocida también se sustituía por hoy. No se presume que sigan abiertos todos los defectos históricos.
+- **Avance:** 034 y código preparados para persistir/completar faltantes por posición sin guardar parcialmente; 781 pruebas generales, 53 del procesador, tipos/lint/build y SQL locales aprobados. Falta CI final, puente compatible, migración/publicación autorizadas y aceptación. [Detalle y límites](VALIDACION_BE_08.md).
 - **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:830`, `:889`, `:901`; `supabase/migrations/014_draft_movement_batches.sql:27`.
 - **Trabajo:** adaptar esquema y dominio para borradores incompletos; persistir dudas y confianza; distinguir agregar, corregir y completar. Validar respuestas del extractor en runtime y evitar que una instrucción ambigua modifique la lista.
 - **Cierre:** completos e incompletos conviven sin pérdidas; se solicita el dato faltante; no se guarda el grupo hasta completar o quitar el ítem; valores predeterminados se aplican solo cuando corresponde; confianza cero se conserva.
@@ -872,3 +874,5 @@ Completar una entrada al cerrar cada tarea:
 | 26/10/2026 | Preparación BE-07 | Migración 033: confirmación retenida exige nueva revisión al RETOMAR; guard de estado mostrado vigente | Dos fallos reproducidos antes de corregir; 735 Vitest, tipos/lint/build, 12 SQL y seis guards locales aprobados | Sin producción, datos de clientes ni proveedores reales; sin cambio de runtime Edge | CI PostgreSQL/instalación/rollback y aprobación de 033/publicación; después BE-08 |
 
 | 26/10/2026 | Publicación y cierre BE-07 | Migración 033 y PR #42/1688c7b; Edge v56 conservado | 735 pruebas, CI/Pages y concurrencia nativa; función completa/ACL e historial coincidentes; salud y PWA comprobados | Sin cambios financieros, secretos, proveedores o reenvíos; caso antiguo ensayado en SQL descartable | Revisar BE-08 por separado; retención desactivada y backups al final |
+
+| 26/10/2026 | Preparación BE-08 | 034, normalización compartida, datos faltantes por posición y lector/rollback nullable | 781 Vitest, 53 Deno routing sin red, tipos/lint/build, 12 SQL y seis guards locales aprobados; concurrencia/ensayo completo pendientes CI | Sin producción, IA real ni mensajes a clientes; 033/v56 conservados | CI del SHA final, aprobación del puente + 034 + webhook y aceptación; retención apagada y backups al final |
