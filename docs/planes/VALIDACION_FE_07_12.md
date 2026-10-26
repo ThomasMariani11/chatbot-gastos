@@ -1,7 +1,7 @@
 # Validación FE-07 / FE-12 — actualizaciones y borradores
 
 Fecha: 25/10/2026. Base: main 77a0002 (plan actualizado en PR #36). Rama: codex/preserve-forms-on-updates.
-Estado al 25/10/2026: publicado en PR #37 y verificado técnicamente en producción. FE-12 terminado en su alcance; FE-07 tiene confirmación del propietario en iPhone: apareció el aviso y al tocarlo recargó la página. Sigue pendiente la protección de formularios sin guardar en ese dispositivo y precisar navegador/modo instalado. La preparación que sigue es registro previo a la publicación.
+Estado al 25/10/2026: publicado en PR #37 y verificado técnicamente en producción. FE-12 terminado en su alcance; FE-07 tiene aceptación manual completa del propietario del flujo protegido en la PWA instalada desde el ícono del iPhone: aviso bloqueado con borrador, conservación al navegar, descarte, actualización habilitada y recarga con sesión conservada. La preparación que sigue es registro previo a la publicación.
 
 ## Resultado preparado
 
@@ -46,10 +46,16 @@ El borrador es en memoria durante la sesión: cierre de pestaña, recarga manual
 - FE-12 terminado dentro del alcance descrito. FE-07: corrección publicada y comprobada; seguimiento de instalación existente/Safari/iOS físico abierto. No se prueba guardado real de nombres, conflictos entre clientes reales, cierre del navegador ni terminación del sistema. La prueba de guardado/error/usuarios distintos permanece ficticia y no se confunde con cambios en cuentas reales.
 - Próximo bloque recomendado: FE-09 + aceptación de FE-11; no se inició esa implementación.
 
-## Seguimiento físico — 25/10/2026
+## Seguimiento físico inicial — 25/10/2026 (registro previo a la aceptación)
 
 El propietario delegó la prueba física si estaba disponible. El inventario de superficies de esta sesión solo ofrece el navegador integrado y MCP Apps sin pestañas; no hay iPhone/Safari ni instalación PWA física controlables. No se repitió la comprobación publicada como sustituto de ese dispositivo y el seguimiento continúa abierto. Se avanzó con FE-09/11 en datos ficticios, por autorización del propietario.
 
-## Comprobación informada por el propietario en iPhone — 25/10/2026
+## Comprobación inicial informada por el propietario en iPhone — 25/10/2026
 
-El propietario informó: apareció el cartel de actualización, lo tocó y la página se recargó. Se registra como evidencia manual de aviso y recarga iniciada por el usuario en un iPhone, no como ejecución directa de Codex. No informó navegador, uso desde pantalla de inicio, versión final, continuidad de sesión ni existencia de un formulario sin guardar; esos resultados no se presumen. El seguimiento FE-07 queda parcialmente verificado en dispositivo físico. Falta comprobar allí el bloqueo de actualización con un borrador y su conservación; la cobertura previa automatizada/en navegador sigue vigente.
+El propietario informó: apareció el cartel de actualización, lo tocó y la página se recargó. Se registra como evidencia manual de aviso y recarga iniciada por el usuario en un iPhone, no como ejecución directa de Codex. No informó navegador, uso desde pantalla de inicio, versión final, continuidad de sesión ni existencia de un formulario sin guardar; esos resultados no se presumen. En ese momento FE-07 quedó parcialmente verificado en dispositivo físico. El bloqueo con borrador y su conservación se completaron en la aceptación posterior, registrada a continuación; la cobertura previa automatizada/en navegador sigue vigente.
+
+## Aceptación del flujo en PWA instalada en iPhone — 25/10/2026
+
+Durante la publicación autorizada de PR #39 (54dce9e), el propietario dejó en Configuración un nombre modificado sin guardar. Confirmó que apareció el aviso con Actualizar bloqueado. Después confirmó los tres pasos: Resumen y regreso a Configuración conservaron el borrador; Descartar cambios restauró el nombre y habilitó Actualizar; al tocarlo la app recargó manteniendo la sesión. Precisó que abrió Pesito desde su ícono instalado en la pantalla de inicio del iPhone.
+
+Se cierra FE-07 en el alcance del flujo de actualización protegido probado en esa instalación. Es evidencia manual informada por el propietario. No acredita todos los modelos/versiones de iOS, Safari en pestaña, offline u otros escenarios físicos no ejecutados. Esos límites no reabren la cobertura automatizada y las verificaciones técnicas ya registradas. No se pidió guardar el nombre de prueba ni se modificaron datos productivos para comprobar cuotas.
