@@ -7,7 +7,8 @@ PWA de finanzas personales con React, TypeScript, Vite, Recharts y Supabase. La 
 - GitHub Pages: PWA estática, login, presupuesto, movimientos y gráficos.
 - Supabase: autenticación, PostgreSQL, Row Level Security y Edge Function.
 - Meta WhatsApp Cloud API: mensajes de texto, audio e imágenes.
-- Gemini: extracción y categorización de operaciones.
+- Reglas locales: comandos, consultas y operaciones claras sin IA.
+- Groq: Whisper para audio y Qwen para extracción compleja/fotos. Gemini conserva una ruta de configuración si falta Groq; no es respaldo automático ante sus fallos.
 
 ## Desarrollo
 
@@ -21,7 +22,7 @@ npm run build
 
 La publicación de la PWA se ejecuta automáticamente al enviar cambios a `main`. La guía de configuración y migración está en `GUIA-PUESTA-EN-MARCHA.md`.
 
-Nunca subas `.env.local`, tokens de Meta, la service role de Supabase ni la clave de Gemini.
+Nunca subas `.env.local`, tokens de Meta, la service role de Supabase ni las claves de Groq/Gemini.
 
 ## Pruebas de permisos SQL
 
@@ -42,3 +43,7 @@ Las reglas, el procedimiento de cambio y la evidencia están en [Validación INF
 ## Entornos y recuperación
 
 Desarrollo requiere Supabase local explícito; no hereda producción. Ver [puesta en marcha](GUIA-PUESTA-EN-MARCHA.md) y [deploy/rollback compatible](docs/operaciones/DEPLOY_Y_ROLLBACK.md). El ensayo `npm run test:release` instala desde un checkout limpio, ejecuta smoke y vuelve a una versión compatible con datos ficticios, sin restaurar producción ni enviar mensajes. Herramienta de deploy fijada en .supabase-version; manifiesto de solo lectura con `npm run release:manifest -- production`.
+
+## Costos y cupos de la beta
+
+Objetivo del propietario: USD 0 para cuatro usuarios. [Controles efectivos, cuentas verificadas y límites](docs/operaciones/COSTOS_Y_CUPOS.md). Los planes Free y el número de prueba no equivalen a capacidad ilimitada; los campos antiguos de autorización/corte de app_settings no bloquean costos. No activar planes, emisores o proveedores alternativos sin revisar facturación y autorización.
