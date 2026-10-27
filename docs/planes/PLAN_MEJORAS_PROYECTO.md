@@ -4,7 +4,7 @@
 
 **INF-15 cerrado en el alcance probado.** PR #46 integrada/publicada en ebdd6ee, migración 035 y webhook v59 ACTIVE. 800 pruebas, cuatro controles y Publicar aprobados. Aceptación del propietario 10:07–10:09 Argentina: texto $123 sin IA, audio $234 con una transcripción y cero Qwen, foto con una consulta; contadores 1/100 y 1/200, tres CANCELAR, cero movimientos nuevos, duplicados o trabajos pendientes. [Cierre](VALIDACION_INF_15.md) y [evidencia](evidencias/INF_15_CIERRE_2026-10-27.json).
 
-**INF-14: retención preparada, desactivada.** 19 pruebas nuevas sobre limpieza 30/90, consulta de estimación de solo lectura y ensayo con datos ficticios. Producción: cero registros elegibles hoy; ningún borrado ni activación. CI de concurrencia/stack completo pendiente. [Validación](VALIDACION_INF_14_RETENCION.md). **FE-19 cerrado** en compatibilidad verificada; INF-13 sigue parcial por headers HTTP/framing y decisión de hosting. Backups al final.
+**INF-14: retención preparada, desactivada.** 19 pruebas nuevas sobre limpieza 30/90, consulta de estimación de solo lectura y ensayo con datos ficticios. Producción: cero registros elegibles hoy; ningún borrado ni activación. 819 pruebas y cuatro controles aprobados en 5a007c4, incluida concurrencia/stack completo; integración y decisión de activación pendientes. [Validación](VALIDACION_INF_14_RETENCION.md). **FE-19 cerrado** en compatibilidad verificada; INF-13 sigue parcial por headers HTTP/framing y decisión de hosting. Backups al final.
 
 **FE-01, FE-02 y FE-03 terminados.** Migración 029 aplicada, [PR #30](https://github.com/ThomasMariani11/chatbot-gastos/pull/30) publicada en d8aaacd, CI completo y aceptación en producción ejecutada por Codex por instrucción del propietario. La compra ficticia se creó, renombró, editó tras eliminar la cuota 2 y eliminó al terminar; cero cuotas de prueba activas. [Evidencia y límites](VALIDACION_FE_01_02_03.md).
 
@@ -265,7 +265,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-14 — Agregar observabilidad, alertas y retención
 
-- [ ] Terminada. **Retención preparada al 27/10/2026:** panel/avisos publicados y aceptados; 19 pruebas nuevas de limpieza 30/90, estimación productiva de solo lectura y ensayos ampliados. Retención desactivada, cero elegibles hoy; CI y decisión de activación pendientes. [Validación](VALIDACION_INF_14_RETENCION.md).
+- [ ] Terminada. **Retención preparada al 27/10/2026:** panel/avisos publicados y aceptados; 19 pruebas nuevas de limpieza 30/90, estimación productiva de solo lectura y ensayos ampliados. Retención desactivada, cero elegibles en la estimación; 819 pruebas y cuatro checks aprobados en 5a007c4. Integración y activación pendientes de autorización. [Validación](VALIDACION_INF_14_RETENCION.md).
 - **Problema confirmado en el repositorio:** no hay configuración de alertas, métricas de cola/entrega ni política de retención declarada. Servicios externos existentes quedan a verificar.
 - **Archivos:** `supabase/migrations/014_draft_movement_batches.sql:47`; `supabase/functions/whatsapp-webhook/index.ts:926`.
 - **Trabajo:** medir edad de cola, duración de interpretación y envío, cantidad de operaciones y reintentos. Definir alertas de trabajos atascados y fallos repetidos, con responsable y runbook. Definir retención de payloads y logs sin eliminar trabajo pendiente necesario para recuperación. Revisar cuotas y costos con datos reales antes de cambiar recursos o tamaños del pool.
@@ -887,3 +887,5 @@ Completar una entrada al cerrar cada tarea:
 | 26/10/2026 | Revalidación INF-13 / cierre FE-19 | CSP/no-referrer vigentes en 0d2d561; sesión, gráficos, fuentes, administración y actualización verificadas; Auth 200 y WSS abierto | Cero escrituras financieras, mensajes o cambios de hosting | FE-19 cerrado dentro del alcance; INF-13 parcial por headers HTTP/framing | Preparar evaluación de hosting gratuito con vista previa antes de cambiar URL/PWA; backups al final |
 
 | 27/10/2026 | Cierre INF-15 | 035, PR #46/ebdd6ee y v59 publicados; aceptación texto/audio/foto | Cinco controles y 800 pruebas; contadores 1/100 y 1/200; tres grupos descartados | Sin transacciones de prueba, duplicados o trabajos pendientes | INF-14 retención preparado; INF-13 parcial, backups al final |
+
+| 27/10/2026 | Preparación INF-14 | Política existente 30/90 revalidada; consulta de estimación y activación con guardas, sin ejecutar en cloud | 819 Vitest, 12 SQL, seis guardas y cuatro checks de 5a007c4; PostgreSQL SKIP LOCKED, preservación financiera/deduplicación/cupos y stack aislado | Retención false; 0 mensajes/métricas/avisos elegibles al leer; sin cambios productivos | Integrar preparación y decidir explícitamente activación; INF-13 después, backups al final |

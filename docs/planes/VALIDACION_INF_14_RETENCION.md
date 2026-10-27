@@ -1,6 +1,6 @@
 # INF-14 — Retención preparada y pruebas de conservación
 
-Fecha: 27/10/2026 (Argentina). Base: PR #46/ebdd6ee, 035 y webhook v59. **Retención desactivada; ninguna limpieza ni activación productiva realizada.** Panel/avisos de INF-14 ya estaban publicados y aceptados; este bloque revisa exclusivamente la propuesta pendiente 30/90 y actualiza el cierre de INF-15.
+Fecha: 27/10/2026 (Argentina). Base: PR #46/ebdd6ee, 035 y webhook v59. **Preparación validada; retención desactivada y ninguna limpieza ni activación productiva realizada.** Panel/avisos de INF-14 ya estaban publicados y aceptados; este bloque revisa exclusivamente la propuesta pendiente 30/90 y actualiza el cierre de INF-15.
 
 ## Qué se comprobó
 
@@ -28,7 +28,9 @@ Esta es una política de minimización de contenido, no un borrado integral de i
 - PostgreSQL nativo: dos conexiones, mensaje antiguo bloqueado por una sesión omitido por SKIP LOCKED, limpieza posterior y llamadas concurrentes idempotentes; snapshots financieros, borradores y cupos idénticos; reenvío no recrea el mensaje. La prueba solo admite 127.0.0.1/inf03_queue_test.
 - Ensayo Supabase completo: caso de redacción sobre usuario/finanzas ficticias después de instalar 001–035. Transacción con ROLLBACK, conservación financiera y bandera false al terminar. Cron local desprogramado, sin proveedores/Meta.
 
-Resultados locales: 818 pruebas de la suite completa más el caso final de activación aprobado (819 en total); cola 145/145. ESLint, TypeScript/build, 12 renovaciones SQL y seis guardas aprobadas antes del caso final. Sin cambios de runtime, migraciones, dependencias, credenciales ni recursos. El bundle conserva tamaño y advertencia previos. CI final de PostgreSQL/stack y suite completa pendiente al preparar esta revisión; no se presume ejecutado localmente porque Docker no estaba iniciado.
+Resultados: **819 pruebas Vitest, cola 145/145**, ESLint, TypeScript/build, 12 renovaciones SQL y seis guardas aprobados. Los cuatro checks del candidato 5a007c49ace2941a72926bae5dd1187134cb2511 aprobaron en [CI](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40512862005), incluidos PostgreSQL concurrente y stack Supabase completo/rollback. El ensayo verificó la limpieza dentro de una transacción ficticia y bandera false al terminar. La documentación posterior debe conservar sus propios checks antes de integrar.
+
+Sin cambios de runtime, migraciones, dependencias, credenciales ni recursos; bundle/advertencia previos conservados. Docker local no estaba iniciado: los ensayos nativos/completos se ejecutaron en CI Linux, sin presentar ese resultado como ejecución local.
 
 ## Salida del bloque
 

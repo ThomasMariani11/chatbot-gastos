@@ -1,7 +1,7 @@
 {
   "date": "2026-10-27",
   "task": "INF-14",
-  "status": "prepared_not_activated",
+  "status": "validated_not_activated",
   "baselineCommit": "ebdd6eedc2ce7718452e672015b848786c610ae6",
   "readOnlyProductionPreview": {
     "management_sql_ok": true,
@@ -49,8 +49,27 @@
     "aggregatesAndFinishedNotices": 90
   },
   "isolatedNewCases": 19,
-  "nativeConcurrencyAndFullStack": "pending_ci",
+  "nativeConcurrencyAndFullStack": {
+    "passed": true,
+    "candidate": "5a007c49ace2941a72926bae5dd1187134cb2511",
+    "workflow": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40512862005",
+    "retentionSkipLocked": true,
+    "repeatIdempotent": true,
+    "preservesFinanceDraftsAi": true,
+    "reenqueueDeduplicated": true,
+    "isolatedStackTransactionRolledBack": true
+  },
   "noHostedDatabaseClone": true,
   "noExternalProviderCalls": true,
-  "backupsDeferred": true
+  "backupsDeferred": true,
+  "checks": {
+    "vitest": 819,
+    "queue": 145,
+    "sqlRenewals": 12,
+    "releaseGuards": 6,
+    "lint": true,
+    "typecheck": true,
+    "build": true,
+    "ciJobsPassed": 4
+  }
 }
