@@ -1,3 +1,4 @@
+import type { BeforeAiRequest } from "./ai-quota.ts";
 import { normalizeDraftMovements } from "./draft-normalization.ts";
 import type { CompletionAction } from "./draft-completion.ts";
 import { cleanDescription } from "./movement-description.ts";
@@ -49,7 +50,7 @@ export type GeminiParsedOutput = {
   movements: ExtractedMovement[];
   completion?: CompletionAction;
   completionReply?: string;
-  requestTextReason?: "size" | "type";
+  requestTextReason?: "size" | "type" | "quota";
   operationalFailure?: FailureMetadata; // Solo diagnóstico interno controlado por el procesador.
   edit?: {
     targetPosition?: number | null;
@@ -313,6 +314,7 @@ export async function extractFromGemini(input: {
   mimeType?: string;
   activeDraftContext?: string;
   resolveCompletion?: (text: string) => GeminiParsedOutput | null;
+  beforeAiRequest?: BeforeAiRequest;
   signal?: AbortSignal;
 }): Promise<GeminiParsedOutput> {
   input.signal?.throwIfAborted();
@@ -368,6 +370,7 @@ Mensaje del usuario: ${input.text ?? ""}`;
         mimeType: input.mimeType,
         activeDraftContext: input.activeDraftContext,
         resolveCompletion: input.resolveCompletion,
+        beforeAiRequest: input.beforeAiRequest,
         signal: input.signal,
         baseSchema: multiResponseJsonSchema,
         strictSchema: buildStrictSchema(multiResponseJsonSchema),
@@ -437,8 +440,10 @@ Mensaje del usuario: ${input.text ?? ""}`;
         input.mediaBase64 ? 10000 : 3500,
         input.signal,
       );
-      const response = await withinSignal(() =>
-        fetch(
+      const response = await withinSignal(async () => {
+        await input.beforeAiRequest?.("gemini", signal);
+        signal.throwIfAborted();
+        return fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${apiKey}`,
           {
             method: "POST",
@@ -446,7 +451,8 @@ Mensaje del usuario: ${input.text ?? ""}`;
             signal,
             body,
           },
-        ), signal);
+        );
+      }, signal);
 
       if (!response.ok) {
         void response.body?.cancel().catch(() => {});

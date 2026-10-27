@@ -256,7 +256,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-13 — Incorporar CSP y cabeceras de seguridad
 
-- **Estado vigente al 25/10/2026:** CSP y meta no-referrer publicadas en PR #23; el estado de preparación del 23/10 que sigue es histórico. Cabeceras HTTP no configurables en el hosting actual y aceptación física/restante siguen abiertas. No se propone migrar hosting en este bloque.
+- **Estado vigente al 26/10/2026:** CSP/meta no-referrer publicadas y compatibilidad revalidada con sesión, gráficos, fuentes, administración y actualización. FE-19 cerrado en alcance probado. INF-13 parcial por headers HTTP y framing; requiere decisión de hosting, sin cambiar proveedor/URL en este bloque.
 
 - **Avance 23/10/2026:** CSP generada en el build y no-referrer en HTML; 459 tests, lint/tipos/build y navegador aislado aprobados (scripts/eval/orígenes externos bloqueados, Auth health 200, WSS abierto, fuentes/gráficos/PWA compatibles). Publicación y aceptación productiva pendientes. GitHub Pages no permite configurar las cabeceras HTTP requeridas: protección de framing y demás headers siguen abiertos; no se cambia hosting ni se agregan costos. [Validación](VALIDACION_INF_13.md) y [runbook](../operaciones/SEGURIDAD_NAVEGADOR.md).
 
@@ -281,7 +281,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-15 — Corregir documentación y controles de costos
 
-- [ ] Terminada. **En curso al 26/10/2026:** cuentas Groq/Supabase Free, cupos/uso y emisor de prueba Meta revisados; controles reales y campos heredados documentados, tres regresiones nuevas sin red. No se modifica runtime/SQL/facturación. Presupuesto/corte global y alertas de consumo no se dan por implementados. [Validación y pendientes](VALIDACION_INF_15.md).
+- [ ] Terminada. **Implementación preparada al 26/10/2026:** 035 y reserva atómica compartida 100 complejas/fotos + 200 transcripciones/día aprobadas por el propietario; panel 75%/90%, fallback local y Gemini denegado. 800 Vitest, 70 rutas Deno y los cuatro controles de CI aprobados en 6f2abd6; publicación y aceptación pendientes. Producción conserva v58/034. [Validación](VALIDACION_INF_15.md).
 - **Revalidación:** la guía ya no promete el corte antiguo, pero debe describir la selección Groq/Gemini, enfriamiento por instancia y ausencia de límite monetario global. Los dos campos históricos siguen sin consultarse; se documentan como heredados, sin alterar datos. No se comprobaron cargos indebidos.
 - **Archivos:** `GUIA-PUESTA-EN-MARCHA.md:115`; `supabase/migrations/001_initial.sql:63`.
 - **Trabajo:** verificar tarifas, cuotas y presupuestos actuales de Meta, Gemini y Supabase; acordar límites y alertas; actualizar documentación para que coincida con la protección efectiva. Revisar qué hacer con campos de configuración sin uso.
@@ -320,7 +320,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Terminada; homónimos/fallo/reintento verificados en entorno aislado; cierre con PR #39 |
 | 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Pendiente |
 | 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Pendiente |
-| 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | En curso; CSP publicada, aceptación restante pendiente |
+| 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | Terminada en alcance verificado; headers HTTP siguen en INF-13 |
 | 21 | FE-20 | Baja | Cancelar navegación pendiente al desmontar | — | Pendiente |
 | 22 | FE-22 | Baja | Cascada CSS de pestañas de acceso | FE-16 | Pendiente |
 
@@ -486,12 +486,12 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-19 — Publicar una CSP compatible con el cliente
 
-- **Estado vigente al 25/10/2026:** CSP publicada en PR #23; no hay una publicación inicial pendiente. Mantener abierta la aceptación restante y coordinar límites de cabeceras con INF-13. El avance de preparación que sigue se conserva como histórico.
+- **Estado vigente al 26/10/2026:** FE-19 cerrado en el alcance de compatibilidad probado. Cabeceras HTTP/protección de framing siguen abiertas en INF-13; Safari/CSP/offline no se presentan como cobertura universal. El avance del 23/10 que sigue es histórico.
 
 - **Avance 23/10/2026:** implementación y validación compartidas con INF-13; no se duplica la política. Pendiente de publicación y aceptación productiva. [Validación](VALIDACION_INF_13.md).
 
-- [ ] Terminada.
-- **Categoría:** Seguridad. **Problema confirmado por HTTP y documento:** no hay Content-Security-Policy, variante report-only ni meta CSP. No se encontró una vía de XSS explotable. Las sesiones persistentes de la SPA aumentan el impacto potencial de un script malicioso del mismo origen, pero usar persistencia del SDK no se clasificó por sí solo como vulnerabilidad.
+- [x] Terminada dentro del alcance verificado al 26/10/2026. CSP publicada, sesión del propietario/gráficos/fuentes/admin/actualización comprobados; Auth/WSS accesibles. [Revalidación](VALIDACION_INF_13.md).
+- **Categoría:** Seguridad. **Hallazgo original de la auditoría, resuelto por PR #23 y revalidado:** no hay Content-Security-Policy, variante report-only ni meta CSP. No se encontró una vía de XSS explotable. Las sesiones persistentes de la SPA aumentan el impacto potencial de un script malicioso del mismo origen, pero usar persistencia del SDK no se clasificó por sí solo como vulnerabilidad.
 - **Archivos:** index.html:3; src/supabase.ts:7. Parte de la solución corresponde a configuración de hosting sin línea local equivalente.
 - **Trabajo:** política ajustada a scripts, estilos, fuentes, Supabase y Realtime; excluir objetos y restringir base-uri. Un punto inicial es script-src 'self'; object-src 'none'; base-uri 'self'. Validar antes de endurecer y documentar directivas que requieren headers.
 - **Cierre:** verificar política efectivamente publicada y funcionamiento de autenticación, gráficos, fuentes, PWA y Realtime; sin excepciones amplias injustificadas. frame-ancestors no se resuelve mediante meta.
@@ -884,3 +884,7 @@ Completar una entrada al cerrar cada tarea:
 | 26/10/2026 | Cierre BE-08 | Prueba propia de completos/incompletos, completar por posición y cancelar | 22:18–22:19 Argentina; $101 intacto, segundo de NULL a $202, grupo descartado, un intento por mensaje y cero transacciones/grupos abiertos/trabajos nuevos sin terminar | Lectura acotada al fixture/cuenta; sin envíos ni cambios productivos del agente | Infraestructura pendiente según secuencia; BE-12/17 separados, backups al final y retención desactivada |
 
 | 26/10/2026 | Inicio INF-15 | Revisión solo lectura de Groq/Supabase/Meta, runbook y snapshot saneado, deprecación documental de flags heredados | Free y cupos efectivos confirmados; 56 rutas Deno, tipos/lint; tres regresiones de 429/503/checkpoint y ausencia de plantillas | Sin claves, facturación, SQL/runtime ni mensajes reales nuevos; cierre BE-08 subido en PR #44 | CI y revisión de preparación; INF-15 general abierto para alcance de controles globales/alertas; integrar main requiere aprobación explícita |
+
+| 26/10/2026 | INF-15, cupo compartido preparado | Reserva SQL por trabajo/intento/carril, 100/200 al día Argentina; panel 75%/90% y vías locales disponibles | 800 Vitest, 70 rutas Deno, 12 SQL, seis guardas, tipos/lint/build | Sin publicación 035/Edge/PWA ni cambios de facturación | CI final y autorización/aceptación; INF-13/FE-19 revalidados a continuación; backups al final |
+
+| 26/10/2026 | Revalidación INF-13 / cierre FE-19 | CSP/no-referrer vigentes en 0d2d561; sesión, gráficos, fuentes, administración y actualización verificadas; Auth 200 y WSS abierto | Cero escrituras financieras, mensajes o cambios de hosting | FE-19 cerrado dentro del alcance; INF-13 parcial por headers HTTP/framing | Preparar evaluación de hosting gratuito con vista previa antes de cambiar URL/PWA; backups al final |

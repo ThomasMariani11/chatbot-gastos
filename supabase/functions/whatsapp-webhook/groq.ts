@@ -1,3 +1,4 @@
+import type { BeforeAiRequest } from "./ai-quota.ts";
 import { normalizeDraftMovements } from "./draft-normalization.ts";
 import { parseDraftMovements } from "./local-movements.ts";
 import { normalizeWhisperTranscript } from "./spoken-amounts.ts";
@@ -299,6 +300,7 @@ export async function extractWithGroq(input: {
   mimeType?: string;
   activeDraftContext?: string;
   resolveCompletion?: (text: string) => GeminiParsedOutput | null;
+  beforeAiRequest?: BeforeAiRequest;
   signal?: AbortSignal;
   baseSchema: SchemaNode;
   strictSchema: SchemaNode;
@@ -346,13 +348,16 @@ export async function extractWithGroq(input: {
 
       const signal = timeoutSignal(10_000, input.signal);
       const response = await withinSignal(
-        () =>
-          fetch(`${GROQ_BASE_URL}/audio/transcriptions`, {
+        async () => {
+          await input.beforeAiRequest?.("whisper", signal);
+          signal.throwIfAborted();
+          return fetch(`${GROQ_BASE_URL}/audio/transcriptions`, {
             method: "POST",
             headers: { authorization: `Bearer ${key}` },
             body: form,
             signal,
-          }),
+          });
+        },
         signal,
       );
       status = response.status;
@@ -509,8 +514,10 @@ export async function extractWithGroq(input: {
     }
     const signal = timeoutSignal(isImage ? 10_000 : 6_000, input.signal);
     const response = await withinSignal(
-      () =>
-        fetch(`${GROQ_BASE_URL}/chat/completions`, {
+      async () => {
+        await input.beforeAiRequest?.("qwen", signal);
+        signal.throwIfAborted();
+        return fetch(`${GROQ_BASE_URL}/chat/completions`, {
           method: "POST",
           headers: {
             authorization: `Bearer ${key}`,
@@ -518,7 +525,8 @@ export async function extractWithGroq(input: {
           },
           body,
           signal,
-        }),
+        });
+      },
       signal,
     );
     status = response.status;

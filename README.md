@@ -47,3 +47,5 @@ Desarrollo requiere Supabase local explícito; no hereda producción. Ver [puest
 ## Costos y cupos de la beta
 
 Objetivo del propietario: USD 0 para cuatro usuarios. [Controles efectivos, cuentas verificadas y límites](docs/operaciones/COSTOS_Y_CUPOS.md). Los planes Free y el número de prueba no equivalen a capacidad ilimitada; los campos antiguos de autorización/corte de app_settings no bloquean costos. No activar planes, emisores o proveedores alternativos sin revisar facturación y autorización.
+
+El contador compartido INF-15 (100 solicitudes complejas/fotos y 200 transcripciones/día; avisos 75%/90%) está preparado, pendiente de publicar 035 + webhook + PWA. Los comandos y textos resueltos localmente no consumen. Ver [contrato, validación y orden de despliegue](docs/planes/VALIDACION_INF_15.md).

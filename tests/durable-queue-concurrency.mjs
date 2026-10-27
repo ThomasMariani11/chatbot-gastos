@@ -242,6 +242,25 @@ await be08Show();await be07Enqueue('be08-native-confirm','confirmar');
 const be08Confirm=await be07Next();await be07Apply(be08Confirm,{kind:'confirm'});await be07Finish(be08Confirm);
 assert.equal(Number((await execute('select count(*) from public.transactions;')).output),be08Before+2);
 
-const evidence={postgres:(await execute('show server_version;')).output,isolated_database:true,incomplete_batch_confirmation_blocked:true,completion_concurrent_idempotent:true,completion_stale_version_rejected:true,concurrent_sessions:2,retained_confirmation_requires_fresh_review:true,confirmation_apply_concurrent_idempotent:true,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
+// INF-15: dos clientes en conexiones reales compiten por la última unidad global.
+await execute(await readFile(new URL('035_shared_ai_quota.sql',migrations),'utf8'));
+await execute("update public.ai_quota_policy set daily_limit=1 where lane='qwen';");
+await execute(`update public.whatsapp_links set wa_id='synthetic-quota-admin',status='active' where user_id='${admin}';`);
+const quotaActors=[['synthetic-native',tokens[2]],['synthetic-quota-admin',tokens[0]]];
+const quotaJobs=[];
+for(const [wa,token]of quotaActors){
+ await execute(`select public.enqueue_whatsapp_messages(${quote(JSON.stringify([{id:'quota-'+wa,from:wa,type:'text',text:{body:'Solo sintético'},timestamp:String(Math.floor(Date.now()/1000))}]))}::jsonb);select public.claim_whatsapp_actor('${wa}','${token}');`);
+ quotaJobs.push(JSON.parse((await execute(`select public.next_whatsapp_job('${wa}','${token}');`)).output));
+}
+const reserve=(q,token)=>execute(`select public.reserve_whatsapp_ai_quota('${q.id}','${token}',${q.attempts},'qwen');`);
+const quotaRace=(await Promise.all(quotaJobs.map((q,i)=>reserve(q,quotaActors[i][1])))).map(decodePlan);
+assert.equal(quotaRace.filter(r=>r.allowed).length,1,'Se superó el cupo compartido entre clientes');
+assert.equal(quotaRace.filter(r=>r.reason==='exhausted').length,1);
+const quotaWinner=quotaRace.findIndex(r=>r.allowed);
+assert.equal(decodePlan(await reserve(quotaJobs[quotaWinner],quotaActors[quotaWinner][1])).reason,'already_reserved');
+assert.equal((await execute('select count(*) from public.ai_quota_reservations;')).output,'1');
+assert.equal((await execute('select sum(reserved) from public.ai_quota_days;')).output,'1');
+
+const evidence={ai_quota_shared_concurrent:true,ai_quota_duplicate_denied:true,postgres:(await execute('show server_version;')).output,isolated_database:true,incomplete_batch_confirmation_blocked:true,completion_concurrent_idempotent:true,completion_stale_version_rejected:true,concurrent_sessions:2,retained_confirmation_requires_fresh_review:true,confirmation_apply_concurrent_idempotent:true,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
 if(process.env.PESITO_TEST_EVIDENCE) await writeFile(process.env.PESITO_TEST_EVIDENCE,JSON.stringify(evidence,null,2));
 console.log(JSON.stringify(evidence));

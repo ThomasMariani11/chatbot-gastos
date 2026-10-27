@@ -2570,3 +2570,370 @@ Deno.test("INF-15: rechazo de ventana de Meta no activa plantillas", () =>
       "Repitió una variante de destino",
     );
   }));
+import { AiQuotaExceeded, createAiQuotaGate } from "./ai-quota.ts";
+
+for (
+  const body of [
+    "CONFIRMAR",
+    "CANCELAR",
+    "RESUMEN",
+    "Gasté 123 en supermercado",
+    "el 2 fue de 250",
+    "quitá el 2",
+  ]
+) {
+  Deno.test("INF-15: regla local no reserva cupo: " + body, async () => {
+    let reservations = 0;
+    const result = await prepareMessage(
+      database().db,
+      job(body),
+      () => Promise.resolve(),
+      undefined,
+      () => {
+        reservations++;
+        throw new AiQuotaExceeded();
+      },
+    );
+    assert(
+      reservations === 0 && result.kind !== "reply",
+      "La vía local depende del cupo de IA",
+    );
+  });
+}
+Deno.test("INF-15: reserva Qwen antes de HTTP, agotamiento persistido y sin repetición", async () => {
+  const oldFetch = globalThis.fetch, oldKey = Deno.env.get("GROQ_API_KEY");
+  try {
+    resetGroqBudgetForTests();
+    Deno.env.set("GROQ_API_KEY", "gsk_synthetic_quota_key");
+    let calls = 0, reserved = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      throw Error("No debe enviar HTTP");
+    }) as typeof fetch;
+    const input = job("¿Gasté 5000 en farmacia?");
+    let saved: unknown;
+    const gate = createAiQuotaGate({
+      token: "synthetic-lease",
+      rpc: <T>(name: string, args?: Record<string, unknown>) => {
+        assert(
+          name === "reserve_whatsapp_ai_quota" &&
+            args?.p_token === "synthetic-lease" && args.p_id === input.id &&
+            args.p_attempt === 1 && args.p_lane === "qwen",
+          "Reserva sin identidad del trabajo/lease",
+        );
+        reserved++;
+        return Promise.resolve({ allowed: false, reason: "exhausted" } as T);
+      },
+    }, input);
+    const first = await prepareMessage(
+      database().db,
+      input,
+      (v) => {
+        saved = v;
+        return Promise.resolve();
+      },
+      undefined,
+      gate,
+    );
+    assert(
+      first.kind === "reply" && String(first.text).includes("cupo diario") &&
+        String(first.text).includes("pendientes se conservan"),
+      "No dio una salida local al cliente",
+    );
+    assert(
+      (saved as { requestTextReason: string }).requestTextReason === "quota",
+      "No persistió el motivo",
+    );
+    input.parsed_result = saved;
+    const replay = await prepareMessage(
+      database().db,
+      input,
+      () => {
+        throw Error("Checkpoint repetido");
+      },
+      undefined,
+      gate,
+    );
+    assert(
+      semanticJson(first) === semanticJson(replay) && calls === 0 &&
+        reserved === 1,
+      "Reinterpretó un mensaje agotado",
+    );
+  } finally {
+    globalThis.fetch = oldFetch;
+    resetGroqBudgetForTests();
+    if (oldKey === undefined) Deno.env.delete("GROQ_API_KEY");
+    else Deno.env.set("GROQ_API_KEY", oldKey);
+  }
+});
+Deno.test("INF-15: fallo de reserva no invoca proveedor ni lo oculta como cupo agotado", async () => {
+  const oldFetch = globalThis.fetch, oldKey = Deno.env.get("GROQ_API_KEY");
+  try {
+    resetGroqBudgetForTests();
+    Deno.env.set("GROQ_API_KEY", "gsk_synthetic_quota_key");
+    let calls = 0, checkpoints = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      throw Error("HTTP inesperado");
+    }) as typeof fetch;
+    const { OperationalFailure } = await import("./failures.ts");
+    const gate = createAiQuotaGate({
+      token: "synthetic",
+      rpc: () => {
+        throw new OperationalFailure(
+          "database_read",
+          "database",
+          undefined,
+          "QUEUE_DRAFT_READ",
+        );
+      },
+    }, job("Complejo"));
+    let failure: unknown;
+    try {
+      await prepareMessage(
+        database().db,
+        job("¿Gasté 5000 en farmacia?"),
+        () => {
+          checkpoints++;
+          return Promise.resolve();
+        },
+        undefined,
+        gate,
+      );
+    } catch (error) {
+      failure = error;
+    }
+    assert(
+      calls === 0 && checkpoints === 0 &&
+        failureMetadata(failure).provider === "database",
+      "Falló abierto o perdió la causa SQL",
+    );
+  } finally {
+    globalThis.fetch = oldFetch;
+    resetGroqBudgetForTests();
+    if (oldKey === undefined) Deno.env.delete("GROQ_API_KEY");
+    else Deno.env.set("GROQ_API_KEY", oldKey);
+  }
+});
+Deno.test("INF-15: aborto tras reservar conserva la unidad y no envía HTTP", async () => {
+  const oldFetch = globalThis.fetch, oldKey = Deno.env.get("GROQ_API_KEY");
+  try {
+    resetGroqBudgetForTests();
+    Deno.env.set("GROQ_API_KEY", "gsk_synthetic_quota_key");
+    let calls = 0, reservations = 0;
+    const controller = new AbortController();
+    globalThis.fetch = (() => {
+      calls++;
+      throw Error("HTTP inesperado");
+    }) as typeof fetch;
+    const gate = createAiQuotaGate({
+      token: "synthetic",
+      rpc: <T>() => {
+        reservations++;
+        controller.abort();
+        return Promise.resolve({ allowed: true } as T);
+      },
+    }, job("Complejo"));
+    try {
+      await extractFromGemini({
+        text: "¿Gasté 5000 en farmacia?",
+        beforeAiRequest: gate,
+        signal: controller.signal,
+      });
+    } catch { /* cancelación esperada */ }
+    assert(
+      reservations === 1 && calls === 0,
+      "Consumió proveedor después del aborto o devolvió reserva incierta",
+    );
+  } finally {
+    globalThis.fetch = oldFetch;
+    resetGroqBudgetForTests();
+    if (oldKey === undefined) Deno.env.delete("GROQ_API_KEY");
+    else Deno.env.set("GROQ_API_KEY", oldKey);
+  }
+});
+Deno.test("INF-15: Gemini sin política no consume Google aunque falte Groq", async () => {
+  const oldFetch = globalThis.fetch,
+    groq = Deno.env.get("GROQ_API_KEY"),
+    gemini = Deno.env.get("GEMINI_API_KEY");
+  try {
+    Deno.env.delete("GROQ_API_KEY");
+    Deno.env.set("GEMINI_API_KEY", "gsk_synthetic_quota_key");
+    let calls = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      throw Error("HTTP inesperado");
+    }) as typeof fetch;
+    const gate = createAiQuotaGate({
+      token: "synthetic",
+      rpc: <T>(_name: string, args?: Record<string, unknown>) => {
+        assert(args?.p_lane === "gemini", "Ruta inesperada");
+        return Promise.resolve(
+          { allowed: false, reason: "provider_disabled" } as T,
+        );
+      },
+    }, job("Complejo"));
+    const result = await prepareMessage(
+      database().db,
+      job("¿Gasté 5000 en farmacia?"),
+      () => Promise.resolve(),
+      undefined,
+      gate,
+    );
+    assert(
+      calls === 0 && result.kind === "reply",
+      "Habilitó un proveedor sin política",
+    );
+  } finally {
+    globalThis.fetch = oldFetch;
+    if (groq === undefined) Deno.env.delete("GROQ_API_KEY");
+    else Deno.env.set("GROQ_API_KEY", groq);
+    if (gemini === undefined) Deno.env.delete("GEMINI_API_KEY");
+    else Deno.env.set("GEMINI_API_KEY", gemini);
+  }
+});
+for (
+  const transcript of [
+    "Gasté 123 en supermercado",
+    "Esto necesita interpretación contextual",
+  ]
+) {
+  Deno.test("INF-15: audio reserva Whisper y solo usa Qwen si no resuelve local", async () => {
+    const oldFetch = globalThis.fetch, oldKey = Deno.env.get("GROQ_API_KEY");
+    try {
+      resetGroqBudgetForTests();
+      Deno.env.set("GROQ_API_KEY", "gsk_synthetic_quota_key");
+      const order: string[] = [];
+      globalThis.fetch = ((url: RequestInfo | URL) => {
+        const lane = String(url).includes("audio/transcriptions")
+          ? "whisper"
+          : "qwen";
+        order.push("http:" + lane);
+        return Promise.resolve(
+          Response.json(
+            lane === "whisper" ? { text: transcript } : {
+              choices: [{
+                message: {
+                  content: JSON.stringify({
+                    intent: "unknown",
+                    movements: [],
+                  }),
+                },
+              }],
+            },
+          ),
+        );
+      }) as typeof fetch;
+      await extractFromGemini({
+        text: "",
+        mimeType: "audio/ogg",
+        mediaBase64: "AQID",
+        beforeAiRequest: (lane) => {
+          order.push("reserve:" + lane);
+          return Promise.resolve();
+        },
+      });
+      const expected = transcript.startsWith("Gasté")
+        ? ["reserve:whisper", "http:whisper"]
+        : ["reserve:whisper", "http:whisper", "reserve:qwen", "http:qwen"];
+      assert(
+        JSON.stringify(order) === JSON.stringify(expected),
+        "No reservó por solicitud o gastó Qwen en texto local",
+      );
+    } finally {
+      globalThis.fetch = oldFetch;
+      resetGroqBudgetForTests();
+      if (oldKey === undefined) Deno.env.delete("GROQ_API_KEY");
+      else Deno.env.set("GROQ_API_KEY", oldKey);
+    }
+  });
+}
+Deno.test("INF-15: audio/foto con cupo agotado no invoca proveedor", async () => {
+  const oldFetch = globalThis.fetch, oldKey = Deno.env.get("GROQ_API_KEY");
+  try {
+    resetGroqBudgetForTests();
+    Deno.env.set("GROQ_API_KEY", "gsk_synthetic_quota_key");
+    let calls = 0;
+    const lanes: string[] = [];
+    globalThis.fetch = (() => {
+      calls++;
+      throw Error("HTTP inesperado");
+    }) as typeof fetch;
+    for (const mimeType of ["audio/ogg", "image/jpeg"]) {
+      let error: unknown;
+      try {
+        await extractFromGemini({
+          text: "",
+          mimeType,
+          mediaBase64: "AQID",
+          beforeAiRequest: (lane) => {
+            lanes.push(lane);
+            throw new AiQuotaExceeded();
+          },
+        });
+      } catch (e) {
+        error = e;
+      }
+      assert(error instanceof AiQuotaExceeded, "Perdió el motivo agotamiento");
+    }
+    assert(
+      calls === 0 &&
+        JSON.stringify(lanes) === JSON.stringify(["whisper", "qwen"]),
+      "Gastó cupo externo pese al bloqueo",
+    );
+  } finally {
+    globalThis.fetch = oldFetch;
+    resetGroqBudgetForTests();
+    if (oldKey === undefined) Deno.env.delete("GROQ_API_KEY");
+    else Deno.env.set("GROQ_API_KEY", oldKey);
+  }
+});
+Deno.test("INF-15: trabajador entrega lease e identidad al gate y conserva señal de solicitud", async () => {
+  const { runActor } = await import("./queue.ts");
+  const stop = new AbortController(), request = new AbortController();
+  const input = job("Complejo"), calls: string[] = [];
+  await runActor(input.wa_id, {
+    stopStartingSignal: stop.signal,
+    token: () => "synthetic-lease",
+    now: () => 0,
+    sleep: () => Promise.resolve(),
+    metric: () => {},
+    format: () => "",
+    send: () => {
+      throw Error("Envío inesperado");
+    },
+    rpc: <T>(
+      name: string,
+      args?: Record<string, unknown>,
+      signal?: AbortSignal,
+    ) => {
+      calls.push(name);
+      let value: unknown = true;
+      if (name === "next_whatsapp_job") value = input;
+      if (name === "reserve_whatsapp_ai_quota") {
+        assert(
+          signal === request.signal && args?.p_token === "synthetic-lease" &&
+            args.p_id === input.id,
+          "Perdió señal/identidad",
+        );
+        value = { allowed: true };
+      }
+      if (name === "apply_whatsapp_job") {
+        value = { ...input, effect_applied: true };
+      }
+      if (name === "finish_whatsapp_job") stop.abort();
+      return Promise.resolve(value as T);
+    },
+    prepare: async (q, _checkpoint, signal, context) => {
+      assert(context && signal, "Contexto de reserva ausente");
+      await createAiQuotaGate(context, q)("qwen", request.signal);
+      return { kind: "reply", text: null };
+    },
+  });
+  assert(
+    calls.includes("reserve_whatsapp_ai_quota") &&
+      calls.includes("finish_whatsapp_job") &&
+      calls.at(-1) === "release_whatsapp_actor",
+    "El gate no atraviesa el worker real",
+  );
+});

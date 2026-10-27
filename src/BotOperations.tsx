@@ -1,3 +1,4 @@
+import { AiQuotaUsage } from './AiQuotaUsage';
 import { Icon } from './Icons';
 import { useUpdateBlocker } from './PwaUpdates';
 import { issueDescription, issueSource, issueTimestamp, safeClientName } from '../supabase/functions/whatsapp-webhook/issue-details.ts';
@@ -119,6 +120,7 @@ export function BotOperations() {
           {alert.details?.map(issue => <IssueDetail key={issue.id} issue={issue} />)}
           {(alert.details_total ?? 0) > (alert.details?.length ?? 0) && alert.code !== 'recovery_failure' && <p className="bot-ops-meta">{alert.details?.length ?? 0} de {alert.details_total} casos. Más información en el historial.</p>}
         </section>)}</div>}
+        <AiQuotaUsage />
         <div className="bot-ops-footer">
           <div className="bot-ops-whatsapp"><span>WhatsApp</span><span className={'bot-ops-badge ' + (!snapshot.config.cost_verified ? 'warning' : ownNotices && snapshot.config.window_open ? 'good' : 'neutral')}>{!snapshot.config.cost_verified ? 'Por verificar' : ownNotices ? snapshot.config.window_open ? 'Avisos activos' : 'Ventana cerrada' : 'Desactivado'}</span></div>
           <button type="button" className="bot-ops-button" disabled={busy} aria-label={ownNotices ? 'Desactivar mis avisos por WhatsApp' : 'Activar avisos en mi WhatsApp'} onClick={() => void action('configure_whatsapp_ops_alerts', { p_enabled: !ownNotices })}>{ownNotices ? 'Desactivar avisos' : 'Activar avisos'}</button>

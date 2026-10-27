@@ -84,6 +84,24 @@ async function smokeWorker(api) {
   assert.equal((await request(api, path + '?action=worker', { body: '{}' })).status, 401);
   assert.equal((await request(api, path + '?action=worker', { body: '{}', headers: { 'x-worker-secret': workerSecret } })).status, 200);
 }
+async function smokeQuotaSql(id) {
+  // Todo el trabajo se revierte; solo usa el usuario ficticio creado por este ensayo.
+  await sql(`begin;
+    update public.whatsapp_queue_control set enabled=true;
+    update public.whatsapp_links set wa_id='synthetic-release-quota',status='active' where user_id='${id}';
+    select public.enqueue_whatsapp_messages('[{"id":"release-quota","from":"synthetic-release-quota","type":"text","text":{"body":"Solo sintético"}}]'::jsonb);
+    select public.claim_whatsapp_actor('synthetic-release-quota','65000000-0000-4000-8000-000000000035');
+    do $$declare j jsonb;r jsonb;begin
+      j:=public.next_whatsapp_job('synthetic-release-quota','65000000-0000-4000-8000-000000000035');
+      r:=public.reserve_whatsapp_ai_quota((j->>'id')::uuid,'65000000-0000-4000-8000-000000000035',(j->>'attempts')::integer,'qwen');
+      if r->>'allowed' is distinct from 'true' or r->>'used' is distinct from '1' or r->>'limit' is distinct from '100' then raise exception 'QUOTA_RESERVE_FAILED';end if;
+      r:=public.reserve_whatsapp_ai_quota((j->>'id')::uuid,'65000000-0000-4000-8000-000000000035',(j->>'attempts')::integer,'qwen');
+      if r->>'reason' is distinct from 'already_reserved' then raise exception 'QUOTA_DUPLICATE_ALLOWED';end if;
+      r:=public.reserve_whatsapp_ai_quota((j->>'id')::uuid,'65000000-0000-4000-8000-000000000035',(j->>'attempts')::integer,'gemini');
+      if r->>'reason' is distinct from 'provider_disabled' then raise exception 'QUOTA_PROVIDER_ENABLED';end if;
+    end$$;
+    rollback;`);
+}
 async function buildAndSmoke(directory, commit, api, anon) {
   const buildEnv = { ...env, VITE_APP_ENV: 'local', VITE_SUPABASE_URL: localUrl(api), VITE_SUPABASE_ANON_KEY: anon, GITHUB_SHA: commit };
   await run(process.execPath, [npmCli, 'ci', '--no-audit', '--no-fund'], { cwd: directory, env: buildEnv, timeout: 180000 });
@@ -140,6 +158,11 @@ try {
     const probe = "import assert from 'node:assert/strict';import {pathToFileURL} from 'node:url';const {formatDraftList}=await import(pathToFileURL(process.argv[1]).href);const rows=Array.from({length:20},(_,i)=>({position:i+1,kind:'expense',description:'Concepto ficticio '.repeat(9),amount:i===0?null:999999999999.99,currency:i%2?'USD':'ARS',occurred_on:i===0?null:'2026-10-26',installments:60,first_installment_month:'2026-11',status:'pending',missing_fields:i===0?['amount','date']:['review']}));const body=formatDraftList(rows);assert.ok(body.length<=4096);assert.ok(body.includes('importe pendiente'));assert.ok(body.includes('20.'));assert.ok(!body.includes('$ 0'));assert.equal(rows[0].amount,null);";
     for (const directory of [candidate, previous]) await run(process.execPath, ['--input-type=module', '-e', probe, join(directory, 'supabase/functions/whatsapp-webhook/draft-summary.ts')], { cwd: directory, env });
   });
+  await step('corte_ia_en_candidato_y_rollback', async () => {
+    // Ejecutar el gate real de ambos commits; no bastan compilar ni comprobar Auth.
+    const probe = "import assert from 'node:assert/strict';import {pathToFileURL} from 'node:url';const {createAiQuotaGate,AiQuotaExceeded}=await import(pathToFileURL(process.argv[1]).href);let reservations=0;const gate=createAiQuotaGate({token:'lease',rpc:async(name,args)=>{assert.equal(name,'reserve_whatsapp_ai_quota');assert.equal(args.p_id,'fixture');assert.equal(args.p_attempt,1);reservations++;return{allowed:false,reason:'exhausted'};}},{id:'fixture',attempts:1});await assert.rejects(gate('qwen'),AiQuotaExceeded);assert.equal(reservations,1);";
+    for (const directory of [candidate, previous]) await run(process.execPath, ['--input-type=module', '-e', probe, join(directory, 'supabase/functions/whatsapp-webhook/ai-quota.ts')], { cwd: directory, env });
+  });
   await step('instalacion_completa', async () => {
     assert.equal(await cli(['--version']), cliVersion);
     stackAttempted = true;
@@ -176,6 +199,7 @@ try {
   await step('candidato_webhook_y_pwa', async () => {
     await startWorker(api);
     await smokeWorker(api);
+    await smokeQuotaSql(id);
     await buildAndSmoke(candidate, current, api, status.ANON_KEY);
   });
   await step('rollback_compatible_sin_restaurar_datos', async () => {
@@ -187,6 +211,7 @@ try {
     await cp(join(previous, 'supabase/functions/whatsapp-webhook'), target, { recursive: true });
     await startWorker(api);
     await smokeWorker(api);
+    await smokeQuotaSql(id);
     await buildAndSmoke(previous, tools.release.rollbackCommit, api, status.ANON_KEY);
     assert.equal(await sql("select count(*) from public.transactions where user_id='" + id + "' and amount_ars=100 and status='confirmed';"), '1');
     assert.equal(await sql('select count(*) from public.whatsapp_message_queue;'), '0');
