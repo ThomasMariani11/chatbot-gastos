@@ -20,30 +20,30 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 
 ## Punto de reanudación — 26/10/2026
 
-- **Última versión publicada:** 1688c7b, PR #42; migración 033 aplicada/verificada, whatsapp-webhook v56 ACTIVE conservado, 735 pruebas y cuatro controles más Publicar aprobados.
+- **Última versión publicada:** bd896f0, PR #43; migración 034 aplicada/verificada, puente v57 seguido de whatsapp-webhook v58 ACTIVE, 781 pruebas y cuatro controles más Pages aprobados. Aceptación WhatsApp de BE-08 verificada; cerrado en su alcance.
 - **Cierres recientes:** FE-07 (flujo protegido aceptado por el propietario en Pesito instalado en iPhone), FE-09 y seguimiento de homónimos FE-11. FE-12 ya estaba cerrado en su alcance.
-- **BE-04 cerrado en el alcance probado.** PR #40/e311db4 y webhook v55: CI completo, verificación técnica y aceptación del propietario ($123 / «Colectivo 60», descartado con CANCELAR). **BE-05 cerrado en su alcance**, con consultas separadas verificadas en v56. BE-07 también quedó cerrado en su alcance tras 033/PR #42; siguiente revisión BE-08. [Evidencia y límites](VALIDACION_BE_04.md).
+- **BE-04 cerrado en el alcance probado.** PR #40/e311db4 y webhook v55: CI completo, verificación técnica y aceptación del propietario ($123 / «Colectivo 60», descartado con CANCELAR). **BE-05 cerrado en su alcance**, con consultas separadas verificadas en v56. BE-07 y BE-08 también quedaron cerrados en su alcance tras 033/PR #42 y 034/PR #43. [Evidencia y límites](VALIDACION_BE_04.md).
 - **Orden dentro del bloque del bot:** BE-04 → BE-05 (ruteo de consultas) → BE-07 (confirmación de la versión revisada) → BE-08 (datos faltantes), con BE-12/BE-17 cuando compartan código o pruebas. Ajustar este orden solo si la revisión encuentra una dependencia concreta.
-- **BE-07 cerrado en el alcance probado.** 033/PR #42 publicadas; confirmación retenida al RETOMAR, versión mostrada vigente, reintentos, grupos cerrados y atomicidad verificados con 735 pruebas y PostgreSQL concurrente. Función productiva exactamente coincidente, atributos conservados y salud comprobada. [Evidencia y límites](VALIDACION_BE_07.md). **Siguiente: revisar BE-08**, operaciones incompletas y dudas, preservando las protecciones ya existentes. Este cierre no autoriza otra publicación.
-- **BE-08 en curso:** borradores incompletos, normalización y completado por posición preparados con 034; 781 pruebas generales y 53 del procesador sin red aprobadas. PR #43: cuatro controles aprobados en el candidato funcional 4f83c07, incluida concurrencia e instalación/rollback; verificar también el SHA documental final antes de integrar. Pendientes publicación autorizada por etapas y aceptación. Producción permanece en 033/v56. [Validación y rollback](VALIDACION_BE_08.md).
+- **BE-07 cerrado en el alcance probado.** 033/PR #42 publicadas; confirmación retenida al RETOMAR, versión mostrada vigente, reintentos, grupos cerrados y atomicidad verificados con 735 pruebas y PostgreSQL concurrente. Función productiva exactamente coincidente, atributos conservados y salud comprobada. [Evidencia y límites](VALIDACION_BE_07.md). BE-08 se cerró después con 034/PR #43 y aceptación. Continúa la infraestructura pendiente según la tabla siguiente.
+- **BE-08 cerrado en su alcance:** PR #43/bd896f0, 034 y webhook v58; CI y verificación técnica aprobados. Prueba del propietario verificada: $101 conservado, importe faltante completado a $202 en posición 2, resumen nuevo y descarte; cero transacciones nuevas, grupos abiertos o trabajos sin terminar. [Aceptación y límites](VALIDACION_BE_08.md).
 - **Se conservan las decisiones:** costo $0; retención desactivada; backups INF-08 al final.
 
 ## Próximos bloques — recomendación al 26/10/2026
 
-Secuencia revisada sobre main 1688c7b después de publicar BE-07 en PR #42 y aplicar 033; webhook v56 conservado. La última publicación pasó 735 pruebas y los controles de CI/Publicar; fuente Edge, protecciones y salud de cola fueron comprobadas. El propietario aceptó BE-04 con $123 / «Colectivo 60» y CANCELAR. Los cierres FE-07/09/11 permanecen vigentes. BE-05 quedó aceptado con las consultas separadas del propietario; BE-07 cerrado con las regresiones y verificación SQL productiva. BE-08 está implementado en una rama separada; falta CI final, publicación autorizada por etapas y aceptación. La secuencia no autoriza por sí sola nuevas publicaciones.
+Secuencia revisada sobre main bd896f0 después de publicar BE-08 en PR #43 y aplicar 034; webhook v58. La última publicación funcional pasó 781 pruebas y los controles de CI/Publicar; fuente Edge, protecciones y salud de cola fueron comprobadas. El propietario aceptó BE-04 con $123 / «Colectivo 60» y CANCELAR. Los cierres FE-07/09/11 permanecen vigentes. BE-05 quedó aceptado con las consultas separadas del propietario; BE-07 cerrado con las regresiones y verificación SQL productiva. BE-08 quedó cerrado en su alcance tras PR #43/bd896f0, 034/v58 y aceptación WhatsApp verificada. Corresponde revisar la infraestructura pendiente sin reabrir estos cierres. La secuencia no autoriza por sí sola nuevas publicaciones.
 
 | Orden | Bloque | Qué falta y por qué va aquí | Criterio para avanzar |
 | --- | --- | --- | --- |
 | Cerrado en su alcance | **FE-07 + FE-12** | Publicados, verificación técnica y flujo protegido aceptado por el propietario en PWA instalada en iPhone. | Compatibilidad física general permanece como seguimiento separado, sin presumir escenarios no ejecutados. |
 | Publicado y verificado | **FE-09 + seguimiento FE-11** | PR #39, 54dce9e; cálculo corregido y homónimos/error/reintento probados con datos ficticios. | Cerrados en su alcance. [Validación y límites](VALIDACION_FE_09_11.md). |
 | Cerrados en su alcance | **BE-04 / BE-05 / BE-07** | PR #40/v55, #41/v56 y #42/033; regresiones, concurrencia, despliegues y aceptación según evidencia de cada bloque. | Límites de IA, gramática y lectura efectiva del resumen documentados; no cerrar otros bloques por extensión. |
-| 1 — en curso | **BE-08**, con BE-12 y BE-17 | Implementación y 034 preparadas: conservar/resolver incompletos; puente nullable previo a SQL y rollback compatible. | CI del SHA final, autorización de publicación por etapas y aceptación WhatsApp; no cerrar solo por pruebas locales. [Evidencia](VALIDACION_BE_08.md). |
-| 2 | **Infraestructura pendiente** | INF-15 (costos y documentación), INF-13/FE-19 (límites de hosting/aceptación) e INF-14 (retención). La CSP y las alertas ya están publicadas. | Controles y documentación coherentes; verificar límites antes de cambiar configuración; retención continúa desactivada hasta aprobación. |
+| Cerrado en su alcance | **BE-08** | PR #43/bd896f0, 034 y v58 publicados/verificados, aceptación del propietario completada. | Faltante resuelto por posición, otro ítem conservado y descarte sin transacciones; BE-12/17 no se cierran por extensión. [Evidencia](VALIDACION_BE_08.md). |
+| 1 — siguiente | **Infraestructura pendiente** | INF-15 (costos y documentación), INF-13/FE-19 (límites de hosting/aceptación) e INF-14 (retención). La CSP y las alertas ya están publicadas. | Controles y documentación coherentes; verificar límites antes de cambiar configuración; retención continúa desactivada hasta aprobación. |
 | Último | **INF-08** | Backups y recuperación aplazados por decisión del propietario. | Retomar evaluación y autorización cuando se priorice; no habilitar almacenamiento ni servicios ahora. |
 
 **Seguimientos que no se dan por cerrados:** un código histórico usado sin usuario asociado (BE-02), compatibilidad física general fuera del flujo instalado de iPhone ya aceptado, dependencias de desarrollo INF-07/FE-08, cobertura transversal FE-21/BE-17 y otros ítems abiertos de las tablas. Los avisos de dependencias registrados el 23/10 requieren una comprobación vigente antes de actualizar; no se ejecutó otro audit en esta revisión. Una incidencia nueva puede cambiar este orden.
 
-**Alcance del bloque actual:** completar BE-08 y su publicación por etapas, manteniendo separados BE-12/17; BE-04/05/07 permanecen cerrados en su alcance. Reproducir un caso concreto del bot con datos ficticios y contratos reales; corregir solo lo que siga fallando. No agrupar cambios de interpretación, confirmación y datos incompletos en una publicación sin regresiones específicas. FE-09/11 no se reabren por ese trabajo.
+**Alcance del siguiente bloque:** revisar infraestructura pendiente (INF-15 y seguimientos INF-13/FE-19 e INF-14), manteniendo separados BE-12/17; BE-04/05/07/08 permanecen cerrados en su alcance. Verificar los controles reales antes de proponer cambios; los textos históricos de auditoría no prueban que el defecto siga abierto. Retención continúa desactivada y backups al final. FE-09/11 no se reabren por ese trabajo.
 
 ## Revisión incremental del 23/10/2026 — registro histórico
 
@@ -558,7 +558,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | Terminada |
 | 8 | BE-07 | Alta | Confirmación durante procesamiento | INF-03, INF-04 | Terminada en su alcance; 033/PR #42 publicadas y verificadas |
 | 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | Terminada |
-| 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | En curso; 034/runtime preparados, falta CI/publicación/aceptación |
+| 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | Terminada en su alcance; 034/PR #43/v58 y aceptación WhatsApp verificadas |
 | 11 | BE-09 | Alta | Saldo por moneda y límites mensuales | — | Pendiente |
 | 12 | BE-11 | Media | Listas antiguas, excedentes y numeración | INF-03 | Pendiente |
 | 13 | BE-12 | Media | Correcciones y resumen completo | — | En curso |
@@ -657,9 +657,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-08 — Conservar operaciones incompletas y dudas
 
-- [ ] Terminada.
+- [x] Terminada en el alcance probado.
 - **Revalidación al 26/10/2026:** 020/023 ya conservan missing_fields y confianza cero. El fallo vigente era rechazar toda extracción parcial válida y exigir amount/occurred_on no nulos; la fecha desconocida también se sustituía por hoy. No se presume que sigan abiertos todos los defectos históricos.
-- **Avance:** 034 y código preparados para persistir/completar faltantes por posición sin guardar parcialmente; 781 pruebas generales, 53 del procesador, tipos/lint/build y SQL locales aprobados. PR #43/4f83c07 con cuatro controles aprobados, incluidas concurrencia e instalación/rollback. Falta verificar el último SHA documental, publicar el puente + 034 + webhook con autorización y completar la aceptación. [Detalle y límites](VALIDACION_BE_08.md).
+- **Publicado al 26/10/2026:** PR #43/bd896f0, puente v57, 034 y webhook v58 ACTIVE. 781 pruebas, CI/Pages completo, definiciones/permisos, historial, código Edge y salud verificados. Aceptación del propietario verificada: completo/incompleto, completar el 2, resumen nuevo y descarte; cero transacciones nuevas y cero pendientes. Cerrada en su alcance. [Detalle y límites](VALIDACION_BE_08.md).
 - **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:830`, `:889`, `:901`; `supabase/migrations/014_draft_movement_batches.sql:27`.
 - **Trabajo:** adaptar esquema y dominio para borradores incompletos; persistir dudas y confianza; distinguir agregar, corregir y completar. Validar respuestas del extractor en runtime y evitar que una instrucción ambigua modifique la lista.
 - **Cierre:** completos e incompletos conviven sin pérdidas; se solicita el dato faltante; no se guarda el grupo hasta completar o quitar el ítem; valores predeterminados se aplican solo cuando corresponde; confianza cero se conserva.
@@ -878,3 +878,7 @@ Completar una entrada al cerrar cada tarea:
 | 26/10/2026 | Preparación BE-08 | 034, normalización compartida, datos faltantes por posición y lector/rollback nullable | 781 Vitest, 53 Deno routing sin red, tipos/lint/build, 12 SQL y seis guards locales aprobados; concurrencia/ensayo completo pendientes CI | Sin producción, IA real ni mensajes a clientes; 033/v56 conservados | CI del SHA final, aprobación del puente + 034 + webhook y aceptación; retención apagada y backups al final |
 
 | 26/10/2026 | CI BE-08 | PR #43, candidato funcional 4f83c07 | Cuatro controles aprobados en run 40396083121; PostgreSQL 17.11 concurrente, 34 migraciones y lectores/runtime/PWA candidato + rollback | Sin producción ni proveedores reales; cambio documental posterior vuelve a CI | Autorizar puente compatible + 034 + webhook y acordar aceptación WhatsApp |
+
+| 26/10/2026 | Publicación BE-08 | PR #43/bd896f0; puente v57 → 034 → webhook v58 ACTIVE | 781 pruebas, cuatro controles y Pages, funciones/ACL/historial completos, 20 módulos Edge, smoke 401, salud y PWA verificados | Sin datos financieros de prueba, IA real, reenvíos ni cambios de proveedores; cola habilitada | Aceptación WhatsApp del propietario con incompleto/completado y CANCELAR; backups al final y retención desactivada |
+
+| 26/10/2026 | Cierre BE-08 | Prueba propia de completos/incompletos, completar por posición y cancelar | 22:18–22:19 Argentina; $101 intacto, segundo de NULL a $202, grupo descartado, un intento por mensaje y cero transacciones/grupos abiertos/trabajos nuevos sin terminar | Lectura acotada al fixture/cuenta; sin envíos ni cambios productivos del agente | Infraestructura pendiente según secuencia; BE-12/17 separados, backups al final y retención desactivada |

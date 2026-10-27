@@ -1,7 +1,7 @@
 # Validación BE-08 — operaciones incompletas y dudas
 
 Fecha: 26/10/2026 (Argentina). Base: main 1688c7b, migración 033, webhook v56.
-Estado: implementación preparada en PR #43; candidato funcional 4f83c07404daeec16693079f9fcbbca9a73c3070 con cuatro controles aprobados. Pendientes autorización de publicación, migración 034 y aceptación WhatsApp. No está cerrado ni desplegado.
+Estado: PR #43 integrada/publicada en bd896f0; migración 034 aplicada/verificada y webhook v58 ACTIVE. Cuatro controles y Pages aprobados. Aceptación WhatsApp del propietario verificada: BE-08 cerrado en el alcance probado. La preparación que sigue es histórica.
 
 ## Reproducción y alcance
 
@@ -49,3 +49,32 @@ BE-08 continúa en curso hasta registrar CI, publicación/verificación y acepta
 ## CI y revisión del candidato
 
 [PR #43](https://github.com/ThomasMariani11/chatbot-gastos/pull/43), candidato funcional 4f83c07404daeec16693079f9fcbbca9a73c3070; [run 40396083121](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40396083121) aprobó Frontend, Webhook, PostgreSQL y Ensayo de release. Publicar se omite en PR como corresponde. El job Frontend incluye npm audit, 781 pruebas, SQL/guards y build; el Webhook ejecutó su suite completa Linux con red denegada. Se revisaron las fases saneadas y la evidencia nativa. Un ajuste documental posterior debe volver a pasar los controles sobre su nuevo SHA antes de integrar; no cambia la fuente funcional validada. Producción sigue en 033/v56, sin nuevas pruebas ni escrituras remotas.
+
+## Publicación autorizada — 26/10/2026
+
+- El propietario autorizó el puente compatible, 034 e integración/publicación de PR #43. Head aprobado b4402c661957069d1df760e8f8caf068477efc17, integrado por squash en **bd896f02206a3cffa22d292ac1ef230778e0b0c8**, árbol idéntico al candidato. [CI main y Pages](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40405253148) aprobados, con 781 pruebas, Webhook completo, PostgreSQL 17.11 concurrente y ensayo de instalación/rollback. El conector GitHub rechazó el permiso de integración; se usó el acceso Git autenticado del repositorio, sin bypass de controles ni publicación anticipada de Pages.
+- Preflight: historial 001–033, v56 ACTIVE, 17 módulos descargados coincidentes con main 1688c7b, cola habilitada, cero procesos/leases y recuperación succeeded. Fuente/atributos anteriores guardados como evidencia de código, sin exportar mensajes ni transacciones.
+- Etapa 1: puente 80e920dcad9581bbff2d54b2c48ae2e255fe6882 desplegado como **v57 ACTIVE**; 18 módulos coincidentes con el archivo de ese SHA, verify_jwt=false y dos rechazos HTTP 401 sin firma/secreto verificados.
+- Etapa 2: **034 aplicada y registrada atómicamente** en schema_migrations. Se preservó el SQL aprobado, normalizado a LF, SHA-256 dea36522e3ad3ab2ae4270165c1bb6844b82c7402b87a456cbca66016788d635; MD5 del texto registrado 446e7dcf405d6abcec21e3ccce36e3a1. La transacción verificó historial, hashes de las funciones anteriores y ausencia de procesos/leases bajo bloqueos breves; lock_timeout 5 s y statement_timeout 20 s. No se apagó ni reconstruyó la cola. Sin backfills ni reenvíos.
+- Las seis funciones completas coinciden con el resultado calculado al aplicar el SQL sobre código previo en base descartable. Propietario, ACL, SECURITY DEFINER y search_path de las cuatro funciones existentes conservados; permisos efectivos anon/authenticated rechazados y backend preservado. Los dos helpers nuevos no son ejecutables por service_role. Columnas nullable y trigger habilitado comprobados.
+- Etapa 3: webhook final **v58 ACTIVE**, bundle 48c3889d141fc4282a9df719fbe4b379ea2471138df918311d868fc8cc5596a7, verify_jwt=false; 20 módulos descargados coincidentes con el código publicado. Nuevos rechazos 401 sin firma/secreto, PWA version.json y SW del SHA bd896f0, bundle servido y CSP presente verificados.
+- Salud posterior: esquema 001–034, cola habilitada, cero procesos/leases, recuperación succeeded. Se conservan conteos: 94 trabajos v2 procesados; ocho v1 pendientes y 30 v1 procesados heredados. No se alteraron teléfonos, suscripciones, proveedores, modelos o movimientos de clientes, ni se mandaron mensajes externos.
+- Evidencia saneada: C:/Users/thomi/AppData/Local/Temp/pesito-be08-release-2026-10-26/ (autorización, preflight, fuentes anteriores/puente/final, preparación/hashes, migración/verificación, salud, Edge, PWA y release-result). Manifiesto local release-production actualizado con alcance y aceptación pendiente.
+- **BE-08 publicado y verificado técnicamente; falta aceptación WhatsApp del propietario.** Probar la lista con importe faltante, completar el 2, revisar y CANCELAR, sin confirmar ni guardar movimientos ficticios. Si RESUMEN muestra pendientes previos, no descartarlos para hacer la prueba. Costo $0, retención desactivada y backups al final.
+
+## Aceptación y cierre — 26/10/2026
+
+El propietario realizó la prueba y solicitó revisarla/cerrar el bloque. La lectura quedó restringida a la cuenta encontrada mediante el mensaje ficticio exacto, posterior a v58; no se inventariaron otras conversaciones ni se expusieron teléfonos/identidades.
+
+| Paso | Hora Argentina | Resultado | Intentos | Tiempo del trabajo |
+| --- | --- | --- | --- | --- |
+| RESUMEN previo | 22:18:56 | Procesado, paso de envío terminado | 1 | 2515 ms |
+| Lista completa/incompleta | 22:19:12 | Dos propuestas: $101 y otro importe NULL con missingFields amount | 1 | 865 ms |
+| Completar el 2 | 22:19:25 | $202 en posición 2; $101 de la posición 1 intacto | 1 | 735 ms |
+| Descarte | 22:19:37 | Respuesta de descarte y grupo descartado, dos ítems removed | 1 | 1804 ms |
+
+El completado capturó el grupo mostrado en versión 2 y el descarte capturó el mismo grupo en versión 3: se emitió un resumen actualizado antes de cancelar. Los dos conceptos corresponden a la prueba y no había otros ítems en ese grupo. Todos los trabajos quedaron processed, effect_applied y paso de envío terminado, un solo intento y sin pausa. Cero transacciones nuevas en esa cuenta desde la carga, cero grupos abiertos y cero trabajos nuevos pendientes/procesando/fallidos/en espera. Se conservaron posiciones 1/2, ARS y todos los campos resueltos; el ensayo no guardó gastos ficticios.
+
+Los tiempos son desde recepción a processed del trabajo, no latencia total hasta que el usuario leyó el resumen: no incluyen necesariamente el debounce. El estado de envío no es comprobante de lectura/entrega física. No se añadieron pruebas reales de audio/foto en esta aceptación; normalización multimedia, fechas/dudas, cuotas, monedas, concurrencia y atomicidad se acreditan en las pruebas aisladas/CI descritas arriba.
+
+**BE-08 cerrado en el alcance de esas regresiones, publicación/verificación y aceptación del propietario.** No cierra BE-12/BE-17 ni promete interpretación universal de IA. Revisión de solo lectura: sin cambios de base/runtime/proveedores, mensajes externos ni nuevas transacciones del agente. Evidencia saneada: acceptance.json y acceptance-complete.json en la carpeta del release. Continuar con la infraestructura pendiente según el plan; backups INF-08 al final y retención desactivada.
