@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-26",
+  "task": "INF-15",
+  "status": "ci_passed_publication_pending",
+  "candidate": "6f2abd626b16301b259a297eb372589eeedea0ca",
+  "policy": {
+    "qwen_requests_per_day": 100,
+    "whisper_requests_per_day": 200,
+    "scope": "shared_across_all_users_and_workers",
+    "timezone": "America/Argentina/Buenos_Aires",
+    "panel_thresholds_percent": [
+      75,
+      90
+    ],
+    "reserved_requests_include_failures": true,
+    "token_or_money_ledger": false,
+    "gemini_allowed": false
+  },
+  "checks": {
+    "vitest": 800,
+    "deno_routing": 70,
+    "sql": 12,
+    "release_guards": 6,
+    "workflow": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40440830920",
+    "jobs": [
+      {
+        "name": "Ensayo de release",
+        "conclusion": "success"
+      },
+      {
+        "name": "Webhook",
+        "conclusion": "success"
+      },
+      {
+        "name": "PostgreSQL",
+        "conclusion": "success"
+      },
+      {
+        "name": "Frontend",
+        "conclusion": "success"
+      }
+    ],
+    "high_critical_npm_advisories": 0,
+    "moderate_dev_tooling_advisories": 2
+  },
+  "production_changed": false,
+  "external_ai_requests": 0,
+  "customer_messages_sent": 0,
+  "billing_changed": false,
+  "retention_enabled": false
+}

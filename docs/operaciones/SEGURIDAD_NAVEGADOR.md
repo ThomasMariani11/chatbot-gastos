@@ -2,7 +2,7 @@
 
 ## Alcance de INF-13 / FE-19
 
-23/10/2026: CSP y política de referencia preparadas y validadas localmente. Publicación y aceptación autenticada de producción pendientes. La protección de framing y otras cabeceras exclusivas de HTTP siguen abiertas: no se declara cerrado INF-13 completo.
+26/10/2026: CSP y política de referencia publicadas desde PR #23 y revalidadas en producción con la sesión del propietario, gráficos/fuentes/administración y actualización. FE-19 terminado en ese alcance. La protección de framing y otras cabeceras exclusivas de HTTP siguen abiertas: INF-13 completo continúa parcial.
 
 La PWA continúa en GitHub Pages, sin proxy, dominio nuevo, facturación ni cambios en Supabase o WhatsApp. La CSP protege el documento del navegador; no reemplaza autorización, RLS, validación de entradas ni la seguridad del webhook.
 
@@ -26,7 +26,7 @@ La CSP se inyecta únicamente al compilar. Vite de desarrollo conserva HMR; sus 
 
 ## Límites del hosting actual
 
-La lectura HTTP de producción del 23/10/2026, antes de publicar este cambio, devuelve HSTS max-age=31556952, sin Content-Security-Policy, Referrer-Policy, X-Content-Type-Options, X-Frame-Options ni Permissions-Policy. Tampoco existían CSP/referrer en HTML. Ver evidencia vinculada.
+La lectura HTTP de producción del 26/10/2026 devuelve HSTS max-age=31556952, sin Content-Security-Policy, Referrer-Policy, X-Content-Type-Options, X-Frame-Options ni Permissions-Policy en cabeceras. CSP y no-referrer sí están presentes en HTML, antes de recursos. Ver evidencia productiva vinculada.
 
 La configuración actual de GitHub Pages no ofrece control de cabeceras de respuesta. No se agregan archivos _headers, nginx.conf ni meta http-equiv ficticios que el hosting no aplicaría. CSP y no-referrer se entregan por HTML.
 
@@ -43,12 +43,13 @@ Para esas protecciones hace falta un hosting/CDN con cabeceras configurables. Su
 5. Exigir los cuatro checks de PR y publicar únicamente con autorización del propietario. Esta tarea no requiere SQL, Edge Function ni claves privadas. Verificar versión, HTML efectivo y assets por HTTP.
 6. Aceptación del propietario: abrir sesión, revisar gráficos/administración y volver a la app instalada. Si no se probó Safari/iOS, modo offline o actualización de una instalación existente, registrarlos como pendientes, no como aprobados.
 
-Reversión: volver al frontend anterior a esta política desde una revisión validada, por el pipeline protegido, sin restaurar datos ni alterar el webhook. Una copia antigua del shell puede no recibir la política hasta actualizarse; las futuras publicaciones siguen usando el flujo de PWA existente. La deuda FE-07 sobre formularios al actualizar permanece abierta.
+Reversión: volver al frontend anterior a esta política desde una revisión validada, por el pipeline protegido, sin restaurar datos ni alterar el webhook. Una copia antigua del shell puede no recibir la política hasta actualizarse; las futuras publicaciones siguen usando el flujo de PWA existente. FE-07 quedó cerrado para el flujo protegido, incluida la aceptación del propietario desde Pesito instalado en iPhone el 25/10; no se confunde esa aceptación con cobertura universal de Safari/CSP/offline.
 
 ## Evidencia y referencias
 
 - [Validación INF-13](../planes/VALIDACION_INF_13.md).
-- [Evidencia saneada](../planes/evidencias/INF_13_2026-10-23.json).
+- [Evidencia productiva 26/10](../planes/evidencias/INF_13_FE_19_2026-10-26.json).
+- [Evidencia aislada histórica 23/10](../planes/evidencias/INF_13_2026-10-23.json).
 - [W3C: CSP en meta y límites](https://w3c.github.io/webappsec-csp/#meta-element).
 - [MDN: Referrer-Policy en HTML](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy#integration_with_html).
 - [GitHub: hosting estático Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages).

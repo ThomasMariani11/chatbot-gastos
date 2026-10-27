@@ -14,7 +14,7 @@ export type PreparationContext = {
 };
 export class AiQuotaExceeded extends OperationalFailure {
   constructor() {
-    super("rate_limit", "groq", 429);
+    super("rate_limit", "groq");
   }
 }
 export function createAiQuotaGate(

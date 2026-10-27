@@ -1,6 +1,6 @@
 # INF-15 — Cupo compartido de IA de la beta
 
-Estado: implementación preparada; pendiente de CI, aprobación y publicación de 035 + webhook + PWA. Producción conserva 001–034 y webhook v58. Revisión de cuentas y emisor: 26/10/2026, publicada en PR #45; snapshot original en evidencias/INF_15_2026-10-26.json. La autorización posterior resolvió la observación inicial de integración de PR #44; ambas PR están integradas.
+Estado: implementación preparada; CI aprobado del candidato 6f2abd6; pendiente de aprobación y publicación de 035 + webhook + PWA. Producción conserva 001–034 y webhook v58. Revisión de cuentas y emisor: 26/10/2026, publicada en PR #45; snapshot original en evidencias/INF_15_2026-10-26.json. La autorización posterior resolvió la observación inicial de integración de PR #44; ambas PR están integradas.
 
 ## Política aprobada por el propietario
 
@@ -28,7 +28,7 @@ whatsapp_ai_quota_dashboard exige administrador autenticado y devuelve solo los 
 - Tipos Deno, lint Deno/ESLint y TypeScript/build aprobados. Bundle 871,54 kB/249,86 gzip; sigue la advertencia previa de tamaño.
 - 12 escenarios SQL de renovaciones y seis guardas de release aprobados.
 - npm audit --audit-level=high no encontró altas/críticas; informó dos moderadas del tooling Vitest/@vitest/mocker. No se actualizaron dependencias dentro de este bloque.
-- Concurrencia PostgreSQL de dos conexiones y ensayo completo Supabase/rollback preparados para CI Linux. Docker local no estaba iniciado; no se presenta esa comprobación como ejecutada localmente. La suite integral Deno de endpoints sigue ejecutándose en Linux por la limitación de caché Windows ya documentada; sin ampliar permisos.
+- Concurrencia PostgreSQL de dos conexiones y ensayo completo Supabase/rollback aprobados en CI Linux (run 40440830920, candidato 6f2abd6). Docker local no estaba iniciado; no se presenta esa comprobación como ejecutada localmente. La suite integral Deno de endpoints sigue ejecutándose en Linux por la limitación de caché Windows ya documentada; sin ampliar permisos.
 
 ## Publicación y reversión propuestas
 
@@ -40,3 +40,5 @@ whatsapp_ai_quota_dashboard exige administrador autenticado y devuelve solo los 
 6. Rollback permitido: d62f42af4a15c25ba941e48b8da579fc0f0f2071. Ya aplica el gate, conserva el esquema 035 y el frontend previo. No volver a v58 ni al puente 80e920d: omitirían el corte nuevo. No borrar tablas/recibos ni restaurar datos.
 
 El cierre de este alcance exige publicación y aceptación. No promete bloquear cambios futuros de plan/emisor desde sus consolas: cualquier lanzamiento, número propio o servicio pago requiere nueva revisión/autorización. La retención continúa desactivada y los backups se mantienen al final.
+
+Evidencia del candidato: [INF_15_CUPO_2026-10-26.json](evidencias/INF_15_CUPO_2026-10-26.json). Los cuatro controles aprobaron; la documentación posterior conserva esa referencia de SHA y requiere sus propios checks antes de integrar.

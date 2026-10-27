@@ -959,6 +959,8 @@ describe('INF-15: cupo durable compartido y autorización',()=>{
  });
  it('Whisper tiene 200 unidades propias y no consume Qwen',async()=>{
   const q=await quotaJob('quota-audio');expect(await quota(q,'whisper')).toMatchObject({allowed:true,limit:200,used:1});expect(await quota(q)).toMatchObject({allowed:true,limit:100,used:1});
+  await db.exec("update public.ai_quota_days set reserved=199 where lane='whisper';update public.whatsapp_message_queue set attempts=2");q.attempts=2;expect(await quota(q,'whisper')).toMatchObject({allowed:true,used:200});
+  await db.exec('update public.whatsapp_message_queue set attempts=3');q.attempts=3;expect(await quota(q,'whisper')).toMatchObject({allowed:false,reason:'exhausted',used:200});expect(await quota(q)).toMatchObject({allowed:true,used:2});
  });
  it('otro día no bloquea hoy y el reinicio es medianoche de Argentina',async()=>{
   await db.exec("insert into public.ai_quota_days(day,lane,reserved)values((clock_timestamp() at time zone 'America/Argentina/Buenos_Aires')::date-1,'qwen',100)");
