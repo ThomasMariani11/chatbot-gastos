@@ -131,7 +131,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Terminada |
 | 12 | INF-14 | Media | Observabilidad y retención | F14 | En curso; retención sin activar |
 | 13 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | En curso; CSP publicada, cabeceras y aceptación pendientes |
-| 14 | INF-15 | Media | Controles de costos y documentación | F15 | Pendiente |
+| 14 | INF-15 | Media | Controles de costos y documentación | F15 | En curso; Free/emisor de prueba verificados, runbook y regresiones preparados |
 | 15 | INF-08 | Alta, a verificar | Backups y recuperación | F08 | Pendiente; última del plan |
 
 ### INF-01 — Restringir funciones SQL privilegiadas
@@ -281,8 +281,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-15 — Corregir documentación y controles de costos
 
-- [ ] Terminada.
-- **Problema confirmado:** se documenta un corte el 30/09/2026, pero el webhook no consulta paid_service_messages_authorized ni cost_guard_date. No se comprobaron cargos indebidos.
+- [ ] Terminada. **En curso al 26/10/2026:** cuentas Groq/Supabase Free, cupos/uso y emisor de prueba Meta revisados; controles reales y campos heredados documentados, tres regresiones nuevas sin red. No se modifica runtime/SQL/facturación. Presupuesto/corte global y alertas de consumo no se dan por implementados. [Validación y pendientes](VALIDACION_INF_15.md).
+- **Revalidación:** la guía ya no promete el corte antiguo, pero debe describir la selección Groq/Gemini, enfriamiento por instancia y ausencia de límite monetario global. Los dos campos históricos siguen sin consultarse; se documentan como heredados, sin alterar datos. No se comprobaron cargos indebidos.
 - **Archivos:** `GUIA-PUESTA-EN-MARCHA.md:115`; `supabase/migrations/001_initial.sql:63`.
 - **Trabajo:** verificar tarifas, cuotas y presupuestos actuales de Meta, Gemini y Supabase; acordar límites y alertas; actualizar documentación para que coincida con la protección efectiva. Revisar qué hacer con campos de configuración sin uso.
 - **Cierre:** controles y documentación coinciden; límites y alertas se prueban; cualquier corte requiere una fecha y comportamiento vigentes, sin aplicar retroactivamente el corte vencido.
@@ -882,3 +882,5 @@ Completar una entrada al cerrar cada tarea:
 | 26/10/2026 | Publicación BE-08 | PR #43/bd896f0; puente v57 → 034 → webhook v58 ACTIVE | 781 pruebas, cuatro controles y Pages, funciones/ACL/historial completos, 20 módulos Edge, smoke 401, salud y PWA verificados | Sin datos financieros de prueba, IA real, reenvíos ni cambios de proveedores; cola habilitada | Aceptación WhatsApp del propietario con incompleto/completado y CANCELAR; backups al final y retención desactivada |
 
 | 26/10/2026 | Cierre BE-08 | Prueba propia de completos/incompletos, completar por posición y cancelar | 22:18–22:19 Argentina; $101 intacto, segundo de NULL a $202, grupo descartado, un intento por mensaje y cero transacciones/grupos abiertos/trabajos nuevos sin terminar | Lectura acotada al fixture/cuenta; sin envíos ni cambios productivos del agente | Infraestructura pendiente según secuencia; BE-12/17 separados, backups al final y retención desactivada |
+
+| 26/10/2026 | Inicio INF-15 | Revisión solo lectura de Groq/Supabase/Meta, runbook y snapshot saneado, deprecación documental de flags heredados | Free y cupos efectivos confirmados; 56 rutas Deno, tipos/lint; tres regresiones de 429/503/checkpoint y ausencia de plantillas | Sin claves, facturación, SQL/runtime ni mensajes reales nuevos; cierre BE-08 subido en PR #44 | CI y revisión de preparación; INF-15 general abierto para alcance de controles globales/alertas; integrar main requiere aprobación explícita |

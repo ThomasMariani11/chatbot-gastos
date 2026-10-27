@@ -1,0 +1,103 @@
+{
+  "dateArgentina": "2026-10-26",
+  "scope": "Read-only account consoles, aggregate database metadata and synthetic tests; no production mutation",
+  "runtime": {
+    "commit": "bd896f02206a3cffa22d292ac1ef230778e0b0c8",
+    "edge": 58,
+    "migration": "034"
+  },
+  "groq": {
+    "plan": "Free",
+    "project": "Default Project",
+    "limitsScope": "organization base limits",
+    "qwen": {
+      "rpm": 30,
+      "rpd": 1000,
+      "tpm": 8000,
+      "tpd": 200000
+    },
+    "whisper": {
+      "rpm": 20,
+      "rpd": 2000,
+      "audioSecondsHour": 7200,
+      "audioSecondsDay": 28800
+    }
+  },
+  "supabase": {
+    "plan": "Free",
+    "usageRefreshMayLag": true,
+    "egressGB": {
+      "used": 0.16,
+      "included": 5
+    },
+    "databaseMB": {
+      "used": 35,
+      "included": 500
+    },
+    "storageGB": {
+      "used": 0,
+      "included": 1
+    },
+    "mau": {
+      "used": 6,
+      "included": 50000
+    },
+    "edgeInvocations": {
+      "used": 683,
+      "included": 500000
+    },
+    "realtimeMessages": {
+      "used": 189,
+      "included": 2000000
+    },
+    "realtimePeakConnections": {
+      "used": 4,
+      "included": 200
+    },
+    "logIngestionGB": {
+      "used": 0.33,
+      "included": 1
+    },
+    "logQueryGB": {
+      "used": 4.15,
+      "included": 100
+    }
+  },
+  "meta": {
+    "appMode": "development/unpublished",
+    "sender": "Meta provided test number",
+    "senderMatchesApprovedOperationalSender": true,
+    "testNumberRead": true,
+    "billingSetupNotExecuted": true,
+    "productionSetupShowsRegistrationAndPaymentOptions": true,
+    "billingLedgerReviewed": false,
+    "publicPricingSourcesDisagree": true
+  },
+  "configuration": {
+    "groqSecretPresent": true,
+    "geminiSecretPresent": true,
+    "secretValuesRead": false,
+    "paidFlagsUnusedByRuntime": true,
+    "legacyPaidFlagTrueRows": 1,
+    "legacyDateExpiredRows": 4,
+    "notificationsEnabled": true,
+    "approvedOperationalTestSenderPresent": true,
+    "retentionEnabled": false,
+    "activeOperationalAlerts": 0
+  },
+  "prohibitions": {
+    "billingActivated": false,
+    "plansChanged": false,
+    "keysChanged": false,
+    "realAiCalls": 0,
+    "whatsappMessages": 0,
+    "customerFinancialWrites": 0
+  },
+  "validation": {
+    "routingTestsPassed": 56,
+    "newSyntheticRegressions": 3,
+    "denoCheckPassed": true,
+    "denoLintPassed": true,
+    "networkDenied": true
+  }
+}

@@ -2,6 +2,10 @@
 
 Fecha: 20/10/2026. Objetivo: pruebas con cuatro usuarios y costo adicional USD 0. No se activa facturación ni se cambia el bot en este análisis.
 
+## Revisión vigente — 26/10/2026
+
+Groq está integrado y la cuenta sigue en Free, con los mismos límites base observados de Qwen/Whisper. La credencial productiva fue renovada sin vencimiento el 23/10; no usar las claves de evaluación antiguas para verificar cuotas. [Estado y controles actuales](../operaciones/COSTOS_Y_CUPOS.md). Las mediciones y estimaciones del 20/10 que siguen son históricas: los prompts cambiaron, por lo que no garantizan una cantidad diaria de mensajes. El enfriamiento actual usa headers por instancia; no es un presupuesto diario durable compartido.
+
 ## Límites de esta cuenta
 
 Leídos en la consola autenticada y contrastados con la documentación pública. Se comparten entre los usuarios de la app que utilizan la misma organización; no son cupos por persona ni se multiplican creando claves nuevas.
@@ -22,7 +26,7 @@ Fuente: [Groq: límites por organización, respuestas 429 y headers de cupo](htt
 - Audio en la ruta probada: una llamada a Whisper y otra a Qwen. Son presupuestos de modelos diferentes, no dos llamadas de Qwen.
 - Varios movimientos juntos: pueden salir de una sola llamada, aunque aumentan los tokens de respuesta.
 - Correcciones que requieran IA, repeticiones y reintentos consumen más cupo. Confirmaciones y consultas deterministas pueden evitarlo.
-- Los movimientos ingresados desde la app no consumen automáticamente Groq. La app todavía no tiene esta integración publicada.
+- Los movimientos ingresados desde la app no consumen automáticamente Groq. La integración del bot ya está publicada; la carga manual de la PWA no usa esos modelos.
 
 ## Estimación con consumo medido
 
@@ -52,7 +56,7 @@ No se agotó el cupo ni se provocó un 429 en producción para demostrarlo. Se v
 
 ## Recomendación para la beta
 
-Planificar inicialmente hasta unas 20 llamadas de extracción por persona/día con esta mezcla de referencia; no imponerlo como una garantía ni como una cuota nueva al cliente. Medir consumo real antes de fijar límites. Mantener las reglas para comandos/textos claros, agrupar movimientos y evitar reintentos indiscriminados. Agregar un presupuesto compartido de tokens, métricas de cupo y recuperación con espera limitada al integrar Groq.
+Planificar inicialmente hasta unas 20 llamadas de extracción por persona/día con esta mezcla de referencia; no imponerlo como una garantía ni como una cuota nueva al cliente. Medir consumo real antes de fijar límites. Mantener las reglas para comandos/textos claros, agrupar movimientos y evitar reintentos indiscriminados. La recuperación con espera limitada ya está implementada; un presupuesto durable compartido y métricas contables de tokens siguen como trabajo por acordar, no como controles instalados.
 
 Si se alcanza un límite, mantener la operación pendiente o solicitar texto según el caso; no perderla ni guardarla automáticamente. No presentar el plan gratuito como ilimitado ni prometer ausencia de fallos para cuatro usuarios.
 

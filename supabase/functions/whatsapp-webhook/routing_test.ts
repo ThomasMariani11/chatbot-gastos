@@ -2473,3 +2473,100 @@ Deno.test("BE-08: un proveedor no puede fabricar una intención interna de compl
     else Deno.env.set("GROQ_API_KEY", groq);
   }
 });
+
+// INF-15: agotamiento de cuota/configuración doble sin cambiar a otro proveedor.
+for (const status of [429, 503]) {
+  Deno.test(
+    "INF-15: Groq " + status + " pide texto una vez sin recurrir a Gemini",
+    async () => {
+      const previousFetch = globalThis.fetch;
+      const groq = Deno.env.get("GROQ_API_KEY"),
+        gemini = Deno.env.get("GEMINI_API_KEY");
+      try {
+        resetGroqBudgetForTests();
+        Deno.env.set("GROQ_API_KEY", "gsk_synthetic_cost_review");
+        Deno.env.set("GEMINI_API_KEY", "synthetic_gemini_cost_review");
+        const requests: string[] = [];
+        globalThis.fetch = ((url: RequestInfo | URL) => {
+          requests.push(String(url));
+          assert(
+            String(url) === "https://api.groq.com/openai/v1/chat/completions",
+            "Cambió de proveedor al fallar Groq",
+          );
+          return Promise.resolve(
+            new Response("PRIVATE_QUOTA_ERROR", {
+              status,
+              headers: { "retry-after": "60" },
+            }),
+          );
+        }) as typeof fetch;
+        const input = job("¿Gasté 5000 en farmacia?");
+        let saved: unknown;
+        const first = await prepareMessage(database().db, input, (value) => {
+          saved = value;
+          return Promise.resolve();
+        });
+        assert(
+          first.kind === "reply" &&
+            String(first.text).includes("No cargué nada"),
+          "No aclaró que el mensaje no se cargó",
+        );
+        assert(
+          (saved as { intent?: string })?.intent === "request_text",
+          "No conservó el checkpoint",
+        );
+        input.parsed_result = saved;
+        globalThis.fetch = (() => {
+          throw new Error("No debe repetir IA al recuperar el checkpoint");
+        }) as typeof fetch;
+        const retry = await prepareMessage(database().db, input, () => {
+          throw new Error("Checkpoint repetido");
+        });
+        assert(
+          semanticJson(first) === semanticJson(retry) && requests.length === 1,
+          "El reintento cambió la respuesta o consumió cuota otra vez",
+        );
+      } finally {
+        resetGroqBudgetForTests();
+        globalThis.fetch = previousFetch;
+        if (groq === undefined) Deno.env.delete("GROQ_API_KEY");
+        else Deno.env.set("GROQ_API_KEY", groq);
+        if (gemini === undefined) Deno.env.delete("GEMINI_API_KEY");
+        else Deno.env.set("GEMINI_API_KEY", gemini);
+      }
+    },
+  );
+}
+Deno.test("INF-15: rechazo de ventana de Meta no activa plantillas", () =>
+  withMediaFixture(async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    globalThis.fetch = ((_url: RequestInfo | URL, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return Promise.resolve(
+        Response.json({
+          error: { code: 131047, message: "PRIVATE_WINDOW_ERROR" },
+        }, { status: 400 }),
+      );
+    }) as typeof fetch;
+    let failure: unknown;
+    try {
+      await sendWhatsAppText("5491111111111", "Solo prueba ficticia");
+    } catch (error) {
+      failure = error;
+    }
+    assert(
+      failureMetadata(failure).provider === "meta_send",
+      "Ocultó el rechazo de Meta",
+    );
+    assert(
+      bodies.length === 2 &&
+        bodies.every((body) =>
+          body.type === "text" && !Object.hasOwn(body, "template")
+        ),
+      "Activó plantillas u otros envíos al rechazar el texto",
+    );
+    assert(
+      new Set(bodies.map((body) => body.to)).size === 2,
+      "Repitió una variante de destino",
+    );
+  }));
