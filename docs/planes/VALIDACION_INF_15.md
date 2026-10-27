@@ -1,41 +1,42 @@
-# Validación INF-15 — costos y documentación
+# INF-15 — Cupo compartido de IA de la beta
 
-Fecha: 26/10/2026 (Argentina). Base documental: PR #44, 23f39cc; base funcional: PR #43/bd896f0, 034 y webhook v58. Estado: **revisión de beta preparada; INF-15 general continúa en curso**. Sin publicación funcional ni cambios de cuentas/datos. La integración de PR #44 fue rechazada por revisión automática por faltar autorización explícita para main; el commit y la PR quedaron guardados en GitHub.
+Estado: implementación preparada; pendiente de CI, aprobación y publicación de 035 + webhook + PWA. Producción conserva 001–034 y webhook v58. Revisión de cuentas y emisor: 26/10/2026, publicada en PR #45; snapshot original en evidencias/INF_15_2026-10-26.json. La autorización posterior resolvió la observación inicial de integración de PR #44; ambas PR están integradas.
 
-## Revisión efectiva
+## Política aprobada por el propietario
 
-- Fuente activa: helpers selecciona Groq cuando hay GROQ_API_KEY no vacía; el catch no activa Gemini. Si falta Groq, puede seleccionarse Gemini, con Flash Lite/Flash; no se presume gratuita esa cuenta de Google. Secrets list se utilizó solo para comprobar presencia de nombres; no se leyeron valores ni claves privilegiadas.
-- Código y metadatos agregados: paid_service_messages_authorized y cost_guard_date no son consultados por el webhook. Cuatro fechas antiguas vencidas y una bandera verdadera no significan cargos ni un permiso vigente de compra. Se documentó su deprecación funcional sin editar filas/columnas/migraciones históricas.
-- Consola Groq autenticada: Free/Current Plan, Default Project; límites base Qwen 30 RPM, 1000 RPD, 8000 TPM y 200000 TPD; Whisper Turbo 20 RPM, 2000 RPD, 7200 ASH y 28800 ASD. No se generaron claves ni solicitudes reales. Son límites observados, no disponibilidad garantizada para cuatro personas.
-- Consola Supabase: organización productiva FREE, NANO, 0,16/5 GB egress, 35/500 MB de base, 683/500000 invocaciones, 189/2000000 mensajes Realtime y pico 4/200 conexiones. El snapshot incluye los otros recursos; el panel advierte refresco diferido. No se activó Pro, Spend Cap, un complemento ni un presupuesto pago.
-- Después del login realizado por el propietario, Meta Developers muestra una app en desarrollo y el número de prueba. Ese emisor coincide con el previamente aprobado en whatsapp_ops_config; registro propio/pagos aparecen en la configuración de producción y no se ejecutaron. No se abrió ningún payload de clientes, se generaron tokens, enviaron pruebas o revisaron medios de pago/facturas.
-- Configuración operativa: cola y avisos habilitados, emisor de prueba aprobado, cero alertas activas. Cron de recuperación/observabilidad por minuto; limpieza horaria programada, pero retention_enabled=false. El cron activo no implica eliminación efectiva ni necesariamente una llamada Edge por tick.
-- Fuentes públicas primarias actualizadas enlazadas en el runbook. Las páginas de precios y FAQ de Meta no coinciden en gratuidad de servicio; esa discrepancia impide usar una frase general como prueba de cero costo de un número real. No se interpreta como un cargo encontrado en la cuenta actual.
+- 100 solicitudes de textos complejos/fotos y 200 transcripciones por día entre los cuatro usuarios, sin multiplicarlas por persona ni por proceso.
+- Reinicio a las 00:00 de America/Argentina/Buenos_Aires, calculado por la base; avisos en el panel al 75%, 90% y agotamiento. Actualiza cada 30 segundos mientras el panel está visible. No se añade un envío automático por WhatsApp por este cupo; los avisos técnicos existentes conservan su política.
+- CONFIRMAR, CANCELAR, RESUMEN, consultas, correcciones y movimientos resueltos localmente no reservan IA. Un audio usa Whisper; solo reserva también Qwen si su transcripción necesita interpretación. Una imagen corresponde a una solicitud, aunque incluya varios movimientos.
+- El límite cuenta **solicitudes reservadas**, no tokens, segundos de audio ni dólares facturados. Un error/timeout también consume la unidad reservada; no se devuelve por una respuesta incierta. Los límites del proveedor siguen aplicando y pueden agotarse antes.
 
-## Cambios preparados
+## Contrato y aislamiento
 
-Runbook COSTOS_Y_CUPOS, snapshot saneado y guía/README actualizados para la ruta Groq y controles reales; capacidad histórica etiquetada como estimación. No se instala un presupuesto ficticio que el runtime ignore ni se reutiliza la fecha vencida. Se distingue límite organizacional del proveedor de enfriamiento por instancia, lectura manual de consumo de alerta automática, y envío aceptado de entrega/cargo.
+035 crea ai_quota_policy, ai_quota_days y ai_quota_reservations. Sin textos, teléfonos ni comprobantes: solo trabajo, intento, carril, día y hora de reserva. Tablas con RLS y sin escritura directa para anon/authenticated/service_role. El backend solo reserva mediante la RPC protegida.
 
-Se proponen umbrales operativos de revisión 75%/90%, expresamente manuales y pendientes de acordar. No se activa ninguna alerta por email/WhatsApp, corte de acceso, pausa de bot o facturación por este documento. Los avisos técnicos existentes conservan sus umbrales de INF-14.
+reserve_whatsapp_ai_quota exige lease válido, trabajo v2 en procesamiento sin aplicar, intento vigente y cuenta/suscripción habilitada. Bloquea la política/contador del carril antes de reservar. La clave (job_id, attempt, lane) impide volver a usar el mismo intento. No comparte un lease entre clientes ni concede reserva a un trabajo ya aplicado.
 
-## Regresiones
+El gate se ejecuta antes de cada HTTP de Whisper/Qwen. Si la base falla o la señal vence, no se llama al proveedor. Si se agota el cupo, se persiste request_text/quota y se pide texto simple; no se añade ningún movimiento de ese mensaje, ni se eliminan los otros pendientes. Reintentar el envío o recuperar ese checkpoint no repite IA. Un nuevo intento sin checkpoint puede reservar otra unidad conservadora; siempre sujeto al límite global.
 
-Se añaden tres casos sobre módulos reales a routing_test, todos sin red:
+No existe política para Gemini en esta beta: si se retira la clave Groq, el runtime candidato también deniega las solicitudes a Google antes de HTTP. No se modifican claves, modelos, planes, facturación, emisor Meta ni tiempos de proveedores.
 
-1. Groq 429 con ambas claves ficticias: una sola solicitud a Groq, petición de texto persistida, cero solicitudes a Gemini y recuperación del mismo checkpoint sin otra interpretación.
-2. Groq 503: mismas garantías, con diagnóstico de indisponibilidad.
-3. Meta rechaza texto por ventana 131047: como máximo dos peticiones de texto para las variantes argentinas, mismo contrato, ninguna plantilla ni nuevo proveedor. No demuestra tarifas de Meta, solo que el código no habilita otro producto al fallar.
+whatsapp_ai_quota_dashboard exige administrador autenticado y devuelve solo los dos contadores agregados. Un cliente normal no puede leerlos. Un error de lectura oculta valores anteriores y ofrece reintentar; no inventa un consumo cero. No se agrega una API de configuración editable en el cliente.
 
-56/56 routing Deno, tipos y lint aprobados localmente. No se modifica runtime, SQL, dependencias, permisos ni configuración productiva; no hace falta redeploy de Edge ni repetir pruebas financieras de BE-08. CI completo del candidato pendiente; la suite integral de endpoints continúa verificándose en Linux por la limitación de caché Windows ya documentada. No se amplían permisos ni se invoca IA para probar un cupo.
+## Validación local
 
-## Pendientes y criterio de cierre
+- 800 Vitest: incluye 126 escenarios de cola SQL (11 nuevos de cuotas) y ocho pruebas del panel: umbrales, datos inválidos, error/reintento, señal de aborto y ausencia de sondeos tras desmontaje.
+- 70 rutas Deno sin red: cupo agotado en texto/audio/foto, cero HTTP de IA, recuperación sin reinterpretación, fallo SQL cerrado, aborto tras reserva, Gemini denegado, transcripción local sin Qwen y contexto real del trabajador.
+- Tipos Deno, lint Deno/ESLint y TypeScript/build aprobados. Bundle 871,54 kB/249,86 gzip; sigue la advertencia previa de tamaño.
+- 12 escenarios SQL de renovaciones y seis guardas de release aprobados.
+- npm audit --audit-level=high no encontró altas/críticas; informó dos moderadas del tooling Vitest/@vitest/mocker. No se actualizaron dependencias dentro de este bloque.
+- Concurrencia PostgreSQL de dos conexiones y ensayo completo Supabase/rollback preparados para CI Linux. Docker local no estaba iniciado; no se presenta esa comprobación como ejecutada localmente. La suite integral Deno de endpoints sigue ejecutándose en Linux por la limitación de caché Windows ya documentada; sin ampliar permisos.
 
-Esta preparación corrige la documentación y prueba los controles actuales, pero **no cierra INF-15 general**:
+## Publicación y reversión propuestas
 
-- No existe bloqueo global que detecte cambios de plan/emisor/proveedor en todas las rutas ni presupuesto diario transaccional de tokens compartido entre instancias. El límite global actual de Groq se aplica en el proveedor Free; no se presenta el enfriamiento en memoria como tal presupuesto.
-- Concretar si se exige impedir automáticamente cambios de emisor/proveedor antes de incorporarlos, qué debe ocurrir con mensajes retenidos y qué alertas de consumo realmente se necesitan. Preparar contrato y regresiones antes de cambiar runtime/SQL; requiere publicación autorizada.
-- Mantener Gemini inactivo mientras Groq esté configurado; verificar su facturación antes de habilitarlo. No revocar claves vigentes como parte de esta revisión.
-- Antes de número propio/plan pago/lanzamiento, verificar tarifas efectivas y facturación, resolver discrepancias y definir corte/alertas. No certificar costo universal cero ni disponibilidad por una captura de un plan Free.
-- Subir y revisar esta preparación; integrar PR #44 y la PR dependiente solo con autorización explícita de main. Retención desactivada y backups al final.
+1. Exigir los cuatro checks del candidato. El ensayo instala todo en Supabase local y comprueba autorización, reserva SQL/duplicado/Gemini denegado y conservación de datos sintéticos. Ejecuta el gate del candidato y del commit de rollback, además de los smoke existentes.
+2. Obtener autorización concreta del propietario para 035, webhook y PWA. Comprobar que producción siga en el baseline esperado y no haya trabajos/leases anteriores activos. Si los hay, esperar a que terminen antes del cambio; no borrar cola ni forzar confirmaciones.
+3. Pausar brevemente la cola con el procedimiento vigente, esperar trabajos activos y aplicar/registrar/verificar 035. Los webhooks siguen persistiendo ingresos; la pausa no borra mensajes. Publicar el webhook desde checkout limpio con mínimo 035, verificar smoke/autenticación y reactivar. Aplicar primero SQL, después runtime.
+4. Integrar/publicar PWA cuando la RPC esté disponible; verificar SHA, panel admin y rechazo a cliente. Publicar el frontend antes de 035 mostraría un error de cupo, por eso no se invierte el orden.
+5. Aceptación con un mensaje ficticio, RESUMEN y CANCELAR, sin confirmación financiera; comprobar contadores según la ruta elegida. Para agotamiento usar fixtures aisladas, no consumir 100/200 solicitudes reales ni manipular consumo de clientes.
+6. Rollback permitido: d62f42af4a15c25ba941e48b8da579fc0f0f2071. Ya aplica el gate, conserva el esquema 035 y el frontend previo. No volver a v58 ni al puente 80e920d: omitirían el corte nuevo. No borrar tablas/recibos ni restaurar datos.
 
-Evidencia pública saneada: [INF_15_2026-10-26.json](evidencias/INF_15_2026-10-26.json). Lecturas agregadas/solicitudes GitHub privadas: C:/Users/thomi/AppData/Local/Temp/pesito-inf15-2026-10-26/. Sin teléfonos de clientes, claves, payloads, facturas ni contenidos financieros. Las observaciones son del momento indicado, no monitoreo permanente.
+El cierre de este alcance exige publicación y aceptación. No promete bloquear cambios futuros de plan/emisor desde sus consolas: cualquier lanzamiento, número propio o servicio pago requiere nueva revisión/autorización. La retención continúa desactivada y los backups se mantienen al final.

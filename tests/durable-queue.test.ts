@@ -990,3 +990,9 @@ describe('INF-15: cupo durable compartido y autorización',()=>{
   await db.query("select set_config('request.jwt.claim.sub',$1,true)",[a]);await expect(rpc('whatsapp_ai_quota_dashboard')).rejects.toThrow('AI_QUOTA_ADMIN_REQUIRED');
  });
 });
+it('INF-15: el smoke SQL del ensayo se ejecuta contra el esquema completo aislado',async()=>{
+ const release=await readFile(new URL('../scripts/rehearse-release.mjs',import.meta.url),'utf8');
+ const sql=release.match(/async function smokeQuotaSql\(id\)[\s\S]*?await sql\(`begin;([\s\S]*?)rollback;`\);/)?.[1];
+ expect(sql).toBeDefined();await db.exec(sql!.replaceAll('${id}',a));
+ expect((await db.query<{reserved:number}>("select reserved from public.ai_quota_days where lane='qwen'")).rows[0].reserved).toBe(1);
+});

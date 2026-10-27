@@ -1475,3 +1475,10 @@ details[open] > summary .admin-summary-chevron {
     font-size: 14px !important;
   }
 }
+
+.bot-ops-quota { margin: 16px 0; padding: 14px; border: 1px solid #dce6e0; border-radius: 14px; background: #f8fbf9; }
+.bot-ops-quota h3 { margin: 0 0 4px; font-size: 15px; }
+.bot-ops-quota ul { margin: 12px 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+.bot-ops-quota li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; font-size: 13px; }
+.bot-ops-quota progress { grid-column: 1 / -1; width: 100%; height: 8px; accent-color: var(--mint-dark); }
+.bot-ops-quota summary { cursor: pointer; font-size: 12px; }

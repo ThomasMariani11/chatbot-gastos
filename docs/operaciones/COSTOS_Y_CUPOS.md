@@ -2,6 +2,12 @@
 
 Revisión: 26/10/2026 (Argentina). Objetivo del propietario: costo adicional USD 0 para cuatro usuarios. Preparación en rama separada; sin cambios de plan, facturación, secretos, SQL ni webhook productivo. La gratuidad depende de las cuentas y del emisor efectivos, no del número de usuarios ni de un flag del cliente.
 
+## Cambio preparado: límite diario compartido
+
+El propietario aprobó 100 solicitudes complejas/fotos y 200 transcripciones por día, compartidas, con avisos 75%/90% en el panel. La implementación 035 + gate de backend + contador de administrador está preparada, todavía **sin publicar**. Reinicia a medianoche de Argentina. Reserva antes de HTTP y cuenta fallos de forma conservadora; reglas locales y confirmaciones siguen disponibles al agotarse. Gemini queda denegado por política en esta beta. No cuenta tokens/dólares ni garantiza disponibilidad del proveedor.
+
+La siguiente descripción del runtime es la de producción v58, anterior al candidato. Para contrato, pruebas, publicación ordenada y rollback que mantiene el corte, ver [validación actual](../planes/VALIDACION_INF_15.md). No confundir código preparado con control ya activo.
+
 ## Estado comprobado
 
 | Servicio | Comprobación | Alcance |
@@ -59,7 +65,7 @@ Se declaran **heredados y sin efecto de bloqueo**. No usarlos en una guía o int
 
 1. Antes de cada cambio de proveedor, emisor o plan, verificar en sus consolas el plan y los cupos efectivos. Registrar fecha y metadatos saneados; nunca copiar claves o medios de pago al repo.
 2. Mantener Groq/Supabase en Free, conservar el emisor de prueba confirmado y no activar plantillas, paid tiers ni complementos. Retirar GROQ_API_KEY puede habilitar Gemini: tratarlo como cambio de proveedor y revisar facturación de Google antes, no como rotación inocua.
-3. Revisar Usage/Rate Limits de Groq y Usage de Supabase durante la beta. Como criterio operativo propuesto: investigar al 75% de un cupo y acordar reducción del uso antes del 90%. **Son umbrales de revisión manual, no alarmas o cortes automáticos instalados.** No cortar confirmaciones pendientes ni eliminar mensajes para maquillar consumo.
+3. Revisar Usage/Rate Limits de Groq y Usage de Supabase durante la beta. Para los cupos reales de los proveedores, investigar manualmente al 75% y antes del 90%. Los nuevos avisos del contador propio están implementados en el candidato, pendientes de publicación; no leen el consumo facturado del proveedor. No cortar confirmaciones pendientes ni eliminar mensajes para maquillar consumo.
 4. Ante 429, no crear claves nuevas para evadir cupos ni habilitar un plan pago. Conservar el checkpoint/cola y pedir texto para la vía local. Con imagen/audio ambiguo, el pedido de texto no significa que se haya cargado el comprobante. El panel muestra degradación si se acumulan pedidos de texto según INF-14.
 5. Antes de aumentar usuarios, tamaño de medios o reintentos, medir volumen de peticiones/tokens, duración de audios, tamaño de base/egress/logs e invocaciones Edge. Los cron activos se ejecutan cada minuto para recuperación/observación; la limpieza horaria no elimina contenido mientras retention_enabled=false. No equivalen necesariamente a una invocación Edge por tick.
 6. Cualquier paso a número propio o plan pago necesita revisar precios, facturación, límites y mecanismos de corte. Un presupuesto de alerta no es garantía de ausencia de cargos. Los backups siguen al final y la retención desactivada.
@@ -70,4 +76,4 @@ Consultadas el 26/10/2026: la [FAQ oficial](https://whatsappbusiness.com/resourc
 
 ## Evidencia y pendientes
 
-[Snapshot saneado](../planes/evidencias/INF_15_2026-10-26.json) y [validación INF-15](../planes/VALIDACION_INF_15.md). Sin claves, teléfonos de clientes, contenido financiero ni facturas privadas. Es una preparación documental y de regresiones: no cambia el webhook ni su política de proveedores en producción. La revisión del emisor de prueba y de las cuentas Free quedó completada. El cierre general sigue abierto para cualquier garantía de corte global, aprobación de umbrales/alertas de consumo y tratamiento definitivo de los campos heredados; no se promete un bloqueo universal de USD 0 desde el código actual. Pasar a un emisor real o habilitar Gemini requiere otra comprobación y autorización.
+[Snapshot saneado](../planes/evidencias/INF_15_2026-10-26.json) y [validación INF-15](../planes/VALIDACION_INF_15.md). Sin claves, teléfonos de clientes, contenido financiero ni facturas privadas. La revisión original de PR #45 fue documental; la nueva implementación está preparada y pendiente de publicación de 035/runtime/PWA. La revisión del emisor de prueba y de las cuentas Free quedó completada. El cierre general sigue abierto para cualquier garantía de corte global, publicación/aceptación del contador aprobado y cualquier retirada futura de campos heredados; no se promete un bloqueo universal de USD 0 desde el código actual. Pasar a un emisor real o habilitar Gemini requiere otra comprobación y autorización.
