@@ -261,6 +261,36 @@ assert.equal(decodePlan(await reserve(quotaJobs[quotaWinner],quotaActors[quotaWi
 assert.equal((await execute('select count(*) from public.ai_quota_reservations;')).output,'1');
 assert.equal((await execute('select sum(reserved) from public.ai_quota_days;')).output,'1');
 
-const evidence={ai_quota_shared_concurrent:true,ai_quota_duplicate_denied:true,postgres:(await execute('show server_version;')).output,isolated_database:true,incomplete_batch_confirmation_blocked:true,completion_concurrent_idempotent:true,completion_stale_version_rejected:true,concurrent_sessions:2,retained_confirmation_requires_fresh_review:true,confirmation_apply_concurrent_idempotent:true,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
+// INF-14: contenido terminado bloqueado por otra sesión se omite, luego se limpia.
+// Solo en inf03_queue_test/127.0.0.1, sin cron ni proveedores reales.
+for(let i=0;i<quotaJobs.length;i++){
+ const q=quotaJobs[i],token=quotaActors[i][1];
+ await execute(`select public.claim_whatsapp_actor('${quotaActors[i][0]}','${token}');`);
+ await execute(`select public.apply_whatsapp_job('${q.id}','${token}','{"kind":"reply","text":null}');select public.finish_whatsapp_job('${q.id}','${token}');`);
+}
+await execute(`select public.claim_whatsapp_actor('synthetic-native','${tokens[2]}');`);
+const retentionJobs=[];
+for(const id of ['retention-native-a','retention-native-b']){await be07Enqueue(id,'Contenido ficticio');const q=await be07Next();await be07Apply(q,{kind:'reply',text:'Solo fixture'});await be07Finish(q);retentionJobs.push(q);}
+await execute(`update public.whatsapp_message_queue set processed_at=clock_timestamp()-interval '31 days' where id in ('${retentionJobs[0].id}','${retentionJobs[1].id}');update public.whatsapp_ops_config set retention_enabled=true;`);
+const retentionSnapshot=async()=>JSON.parse((await execute("select jsonb_build_object('finance',(select coalesce(jsonb_agg(to_jsonb(t) order by id),'[]') from public.transactions t),'drafts',(select coalesce(jsonb_agg(to_jsonb(d) order by id),'[]') from public.draft_items d),'receipts',(select coalesce(jsonb_agg(to_jsonb(r) order by job_id,attempt,lane),'[]') from public.ai_quota_reservations r),'days',(select coalesce(jsonb_agg(to_jsonb(c) order by day,lane),'[]') from public.ai_quota_days c));")).output);
+const retentionBefore=await retentionSnapshot();
+const held=execute(`begin;select id from public.whatsapp_message_queue where id='${retentionJobs[0].id}' for update;select pg_advisory_xact_lock(7140027);select pg_sleep(3);commit;`);
+let retentionLock=false;
+for(let n=0;n<50;n++){
+ if((await execute("select exists(select 1 from pg_locks where locktype='advisory' and objid=7140027 and granted);")).output==='t'){retentionLock=true;break;}
+ await new Promise(resolve=>setTimeout(resolve,10));
+}
+assert.ok(retentionLock,'No se adquirió el lock de la fixture');
+assert.equal((await execute('select public.prune_whatsapp_ops_content();')).output,'1','No omitió el mensaje bloqueado');
+await held;
+assert.equal((await execute('select public.prune_whatsapp_ops_content();')).output,'1','No recuperó el mensaje después de liberar su lock');
+const retentionRace=await Promise.all([0,1].map(()=>execute('select public.prune_whatsapp_ops_content();')));
+assert.deepEqual(retentionRace.map(r=>r.output),['0','0']);
+await be07Enqueue('retention-native-a','Contenido ficticio repetido');
+assert.equal((await execute("select count(*) from public.whatsapp_message_queue where wa_message_id like 'retention-native-%';")).output,'2','El reenvío revivió un mensaje redactado');
+assert.deepEqual(await retentionSnapshot(),retentionBefore,'La limpieza modificó finanzas/borradores/recibos de IA');
+await execute('update public.whatsapp_ops_config set retention_enabled=false;');
+
+const evidence={retention_skip_locked:true,retention_repeat_idempotent:true,retention_preserves_finance_drafts_ai:true,retention_reenqueue_deduplicated:true,ai_quota_shared_concurrent:true,ai_quota_duplicate_denied:true,postgres:(await execute('show server_version;')).output,isolated_database:true,incomplete_batch_confirmation_blocked:true,completion_concurrent_idempotent:true,completion_stale_version_rejected:true,concurrent_sessions:2,retained_confirmation_requires_fresh_review:true,confirmation_apply_concurrent_idempotent:true,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
 if(process.env.PESITO_TEST_EVIDENCE) await writeFile(process.env.PESITO_TEST_EVIDENCE,JSON.stringify(evidence,null,2));
 console.log(JSON.stringify(evidence));

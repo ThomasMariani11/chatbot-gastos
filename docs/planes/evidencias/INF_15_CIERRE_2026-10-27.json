@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-27",
+  "task": "INF-15",
+  "status": "closed_in_tested_scope",
+  "sourceCommit": "ebdd6eedc2ce7718452e672015b848786c610ae6",
+  "pullRequest": 46,
+  "migration": "035",
+  "edgeVersion": 59,
+  "queueEnabled": true,
+  "retentionEnabled": false,
+  "workflow": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40442554650",
+  "checksPassed": 5,
+  "quota": {
+    "complexAndPhotos": 100,
+    "transcriptions": 200,
+    "thresholdsPercent": [
+      75,
+      90
+    ]
+  },
+  "acceptance": {
+    "date": "2026-10-27",
+    "fixtureCount": 1,
+    "textParsedLocally": true,
+    "audioWhisperOnly": true,
+    "photoQwenOnce": true,
+    "cancelledGroups": 3,
+    "confirmedTestTransactions": 0,
+    "duplicateJobs": 0,
+    "unfinishedJobs": 0,
+    "dailyQuota": [
+      {
+        "lane": "qwen",
+        "limit": 100,
+        "used": 1
+      },
+      {
+        "lane": "whisper",
+        "limit": 200,
+        "used": 1
+      }
+    ],
+    "providerFailures": 0
+  },
+  "keysChanged": false,
+  "billingChanged": false,
+  "agentCustomerMessagesSent": 0
+}

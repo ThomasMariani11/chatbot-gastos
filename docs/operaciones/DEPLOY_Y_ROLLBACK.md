@@ -1,12 +1,16 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
+## Contrato vigente — 27/10/2026
+
+Producción: **035, webhook v59 y PR #46/ebdd6ee**, publicados y aceptados. El mínimo y rollback se leen de config/environments.json: **d62f42af4a15c25ba941e48b8da579fc0f0f2071**, manteniendo 035 y el corte diario. Las referencias de 027/BE-08 a commits anteriores son históricas y no sirven como rollback del cupo actual. Retención desactivada; prepararla/probarla no autoriza activarla. [INF-15](../planes/VALIDACION_INF_15.md), [retención INF-14](../planes/VALIDACION_INF_14_RETENCION.md).
+
 ## Mapa actual
 
 ```text
 PR -> Frontend + Webhook + PostgreSQL + Ensayo de release
 merge main -> mismos controles -> Pages (PWA estática)
 operador -> migraciones Supabase -> verificación -> Edge Function -> smoke
-Meta -> HMAC webhook -> cola PostgreSQL -> worker por usuario -> Meta/Gemini
+Meta -> HMAC webhook -> cola PostgreSQL -> worker por usuario -> Meta/Groq
 pg_cron -> dispatch privado -> worker (misma credencial en Vault y Edge)
 ```
 
@@ -36,7 +40,7 @@ No reenviar trabajos v1 fallidos ni eliminar pendientes para que los conteos que
 
 ## Instalación nueva y migraciones posteriores
 
-- Instalación vacía: aplicar **todas las migraciones completas en orden (001–034; verificadas en producción el 26/10/2026)**, con Auth y publicación supabase_realtime preparados por Supabase. No usar un PostgreSQL común sin esquemas/extensiones como si fuera Supabase. El ensayo CI verifica el stack real con datos sintéticos.
+- Instalación vacía: aplicar **todas las migraciones completas en orden (001–035; verificadas en producción hasta el 27/10/2026)**, con Auth y publicación supabase_realtime preparados por Supabase. No usar un PostgreSQL común sin esquemas/extensiones como si fuera Supabase. El ensayo CI verifica el stack real con datos sintéticos.
 - Instalación existente: comparar el historial real con los archivos y sus hashes; aplicar únicamente las migraciones nuevas aprobadas, sin reescribir las ya aplicadas. Si hay deriva, parar y revisarla.
 - Preparar primero la expansión compatible del esquema; validar permisos, índices y dependencias antes de publicar el consumidor. Cualquier cambio destructivo requiere otro plan, no un down automático.
 - Antes de usar CLI remoto, verificar el contenido de supabase/.temp/project-ref coincide exactamente con ystyatotldslfmucvgsq. link solo cuando corresponda y nunca en el workdir local. Mantener SSL y restricciones de red; no abrir 0.0.0.0/0 ni resetear contraseña por un problema de conexión.

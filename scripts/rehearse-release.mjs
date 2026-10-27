@@ -102,6 +102,23 @@ async function smokeQuotaSql(id) {
     end$$;
     rollback;`);
 }
+async function smokeRetentionSql(id) {
+  // Solo el stack local descartable; la política vuelve a false al hacer ROLLBACK.
+  await sql(`begin;
+    insert into public.whatsapp_message_queue(wa_message_id,wa_id,user_id,payload,queue_version,status,effect_applied,processed_at)
+    values('release-retention','synthetic-retention','${id}','{"id":"release-retention","type":"audio","audio":{"id":"PRIVATE_FIXTURE"}}',2,'processed',true,clock_timestamp()-interval '31 days');
+    update public.whatsapp_ops_config set retention_enabled=true;
+    do $$declare before_finance jsonb;begin
+      select coalesce(jsonb_agg(to_jsonb(t) order by id),'[]'::jsonb) into before_finance from public.transactions t;
+      if public.prune_whatsapp_ops_content()<>1 then raise exception 'RETENTION_BATCH_FAILED';end if;
+      if (select payload->>'redacted' from public.whatsapp_message_queue where wa_message_id='release-retention') is distinct from 'true' then raise exception 'RETENTION_CONTENT_NOT_REDACTED';end if;
+      if (select payload ? 'audio' from public.whatsapp_message_queue where wa_message_id='release-retention') then raise exception 'RETENTION_PRIVATE_CONTENT_RETAINED';end if;
+      if (select coalesce(jsonb_agg(to_jsonb(t) order by id),'[]'::jsonb) from public.transactions t) is distinct from before_finance then raise exception 'RETENTION_FINANCIAL_DATA_CHANGED';end if;
+      if public.prune_whatsapp_ops_content()<>0 then raise exception 'RETENTION_REPLAY_FAILED';end if;
+    end$$;
+    rollback;`);
+  assert.equal(await sql('select not retention_enabled from public.whatsapp_ops_config where singleton;'), 't');
+}
 async function buildAndSmoke(directory, commit, api, anon) {
   const buildEnv = { ...env, VITE_APP_ENV: 'local', VITE_SUPABASE_URL: localUrl(api), VITE_SUPABASE_ANON_KEY: anon, GITHUB_SHA: commit };
   await run(process.execPath, [npmCli, 'ci', '--no-audit', '--no-fund'], { cwd: directory, env: buildEnv, timeout: 180000 });
@@ -196,6 +213,7 @@ try {
     assert.ok([401, 403, 404].includes(denied.status), 'La RPC privada no debe estar habilitada a anon.');
     return user.id;
   });
+  await step('retencion_aislada_con_finanzas_preservadas', async () => { await smokeRetentionSql(id); });
   await step('candidato_webhook_y_pwa', async () => {
     await startWorker(api);
     await smokeWorker(api);

@@ -998,3 +998,107 @@ it('INF-15: el smoke SQL del ensayo se ejecuta contra el esquema completo aislad
  expect(sql).toBeDefined();await db.exec(sql!.replaceAll('${id}',a));
  expect((await db.query<{reserved:number}>("select reserved from public.ai_quota_days where lane='qwen'")).rows[0].reserved).toBe(1);
 });
+
+// INF-14: limpieza real de 027, solo en esta base efímera con fixtures propias.
+describe('INF-14: retención 30/90 y preservación de recuperación',()=>{
+ const preview=async()=>(await db.query<Record<string,unknown>>(await readFile(new URL('../ops/sql/whatsapp-retention-preview.sql',import.meta.url),'utf8'))).rows[0];
+ async function completed(id:string,age='31 days',type='text'){
+  await enqueue({...message(id),type,...(type==='audio'?{audio:{id:'PRIVATE_AUDIO'}}:type==='image'?{image:{id:'PRIVATE_IMAGE'}}:{})});
+  await db.query("update public.whatsapp_message_queue set status='processed',effect_applied=true,processed_at=clock_timestamp()-$1::interval,parsed_result='{\"private\":\"PRIVATE_PARSED\"}',reply_text='PRIVATE_REPLY',error_message='PRIVATE_ERROR' where wa_message_id=$2",[age,id]);
+  return(await db.query<{id:string}>('select id from public.whatsapp_message_queue where wa_message_id=$1',[id])).rows[0].id;
+ }
+ async function metrics(age:string){await db.query("insert into public.whatsapp_ops_metrics(bucket,event,samples,duration_total_ms,duration_max_ms,operations_total,attempts_total)values(clock_timestamp()-$1::interval,'queue_worker',1,1,1,0,1)",[age]);}
+ async function notice(state:string,age:string){const result=await db.query<{id:string}>("insert into public.whatsapp_ops_notifications(recipient_user_id,snapshot,state,finished_at)values($1,'[]',$2,clock_timestamp()-$3::interval) returning id",[admin,state,age]);return result.rows[0].id;}
+ it('apagada no redacta contenido ni elimina métricas/avisos ni modifica la fecha de limpieza',async()=>{
+  await completed('retention-disabled');await metrics('91 days');await notice('sent','91 days');
+  const before=(await db.query('select to_jsonb(c) as config from public.whatsapp_ops_config c')).rows;
+  expect(Number((await preview()).messages_eligible)).toBe(1);expect(await rpc('prune_whatsapp_ops_content')).toBe(0);
+  expect((await db.query('select content_redacted_at from public.whatsapp_message_queue')).rows).toEqual([{content_redacted_at:null}]);
+  expect((await db.query<{n:number}>('select count(*)::int n from public.whatsapp_ops_metrics')).rows[0].n).toBe(1);
+  expect((await db.query<{n:number}>('select count(*)::int n from public.whatsapp_ops_notifications')).rows[0].n).toBe(1);
+  expect((await db.query('select to_jsonb(c) as config from public.whatsapp_ops_config c')).rows).toEqual(before);
+ });
+ it('el corte se basa en procesamiento, no en recepción, y respeta los 30 días',async()=>{
+  await completed('older','30 days 1 minute');await completed('recent','29 days 23 hours 59 minutes');
+  await completed('recent-processing','1 day');await db.exec("update public.whatsapp_message_queue set received_at=clock_timestamp()-interval '60 days' where wa_message_id='recent-processing'");
+  await completed('missing-processing');await db.exec("update public.whatsapp_message_queue set processed_at=null where wa_message_id='missing-processing'");
+  expect(Number((await preview()).messages_eligible)).toBe(1);await db.exec('update public.whatsapp_ops_config set retention_enabled=true');expect(await rpc('prune_whatsapp_ops_content')).toBe(1);
+  expect((await db.query<{wa_message_id:string}>("select wa_message_id from public.whatsapp_message_queue where content_redacted_at is not null")).rows).toEqual([{wa_message_id:'older'}]);
+ });
+ it('cada lote redacta 500 como máximo y repetir la limpieza es idempotente',async()=>{
+  await db.query("insert into public.whatsapp_message_queue(wa_message_id,wa_id,user_id,payload,queue_version,status,effect_applied,processed_at)select 'batch-'||i,'synthetic-a',$1,jsonb_build_object('id','batch-'||i,'type','text','text','PRIVATE_CONTENT'),2,'processed',true,clock_timestamp()-interval '31 days'-make_interval(secs=>i) from generate_series(1,601)i",[a]);
+  const forecast=await preview();expect(Number(forecast.messages_eligible)).toBe(601);expect(Number(forecast.messages_next_batch)).toBe(500);
+  await db.exec('update public.whatsapp_ops_config set retention_enabled=true');expect(await rpc('prune_whatsapp_ops_content')).toBe(500);expect(Number((await preview()).messages_eligible)).toBe(101);
+  expect(await rpc('prune_whatsapp_ops_content')).toBe(101);expect(await rpc('prune_whatsapp_ops_content')).toBe(0);expect(Number((await preview()).messages_eligible)).toBe(0);
+ });
+ it.each(['pending','processing','failed','waiting'])('conserva íntegro el trabajo %s aunque tenga fechas antiguas',async status=>{
+  await completed('unfinished');await db.query("update public.whatsapp_message_queue set status=$1,pause_reason='manual_review'",[status]);
+  const before=(await db.query('select to_jsonb(q) as value from public.whatsapp_message_queue q')).rows;
+  await db.exec('update public.whatsapp_ops_config set retention_enabled=true');expect(await rpc('prune_whatsapp_ops_content')).toBe(0);expect(Number((await preview()).unfinished_preserved)).toBe(1);
+  expect((await db.query('select to_jsonb(q) as value from public.whatsapp_message_queue q')).rows).toEqual(before);
+ });
+ it('protege un ítem pendiente aun en grupo cerrado y una lista abierta aun con ítem quitado',async()=>{
+  await add('closed-with-pending');await db.exec("update public.draft_groups set status='discarded';update public.whatsapp_message_queue set processed_at=clock_timestamp()-interval '31 days'");
+  await add('open-with-removed');await db.exec("update public.draft_items set status='removed' where wa_message_id='open-with-removed';update public.whatsapp_message_queue set processed_at=clock_timestamp()-interval '31 days'");
+  const before=(await db.query('select to_jsonb(d) as value from public.draft_items d order by id')).rows;
+  expect(Number((await preview()).protected_by_draft)).toBe(2);await db.exec('update public.whatsapp_ops_config set retention_enabled=true');expect(await rpc('prune_whatsapp_ops_content')).toBe(0);
+  expect((await db.query('select to_jsonb(d) as value from public.draft_items d order by id')).rows).toEqual(before);
+ });
+ it.each(['original','original:2'])('protege transacciones pendientes vinculadas por %s',async source=>{
+  await completed('original');await db.query("insert into public.transactions(user_id,kind,description,amount_ars,occurred_on,status,source,wa_message_id)values($1,'expense','Solo fixture',123,current_date,'pending','text',$2)",[a,source]);
+  const financial=(await db.query('select to_jsonb(t) as value from public.transactions t')).rows;
+  expect(Number((await preview()).protected_by_transaction)).toBe(1);await db.exec('update public.whatsapp_ops_config set retention_enabled=true');expect(await rpc('prune_whatsapp_ops_content')).toBe(0);
+  expect((await db.query('select to_jsonb(t) as value from public.transactions t')).rows).toEqual(financial);
+ });
+ it('un prefijo parecido o pendiente de otra cuenta no protege un mensaje ajeno',async()=>{
+  await completed('prefix');await db.query("insert into public.transactions(user_id,kind,description,amount_ars,occurred_on,status,source,wa_message_id)values($1,'expense','Otra cuenta',123,current_date,'pending','text','prefix:2'),($2,'expense','Otro prefijo',123,current_date,'pending','text','prefix-other')",[b,a]);
+  expect(Number((await preview()).protected_by_transaction)).toBe(0);await db.exec('update public.whatsapp_ops_config set retention_enabled=true');expect(await rpc('prune_whatsapp_ops_content')).toBe(1);
+  expect((await db.query<{n:number}>('select count(*)::int n from public.transactions')).rows[0].n).toBe(2);
+ });
+ it.each(['audio','image'])('redacta el contenido %s y conserva identidad, tipo, diagnóstico y deduplicación',async type=>{
+  const id=await completed('private-media','31 days',type);await db.query("update public.whatsapp_message_queue set ops_issue='{\"kind\":\"clarification\",\"reason\":\"rate_limit\",\"provider\":\"groq\",\"stage\":\"interpret\"}',ops_issue_at=clock_timestamp()-interval '31 days' where id=$1",[id]);
+  await db.exec('update public.whatsapp_ops_config set retention_enabled=true');expect(await rpc('prune_whatsapp_ops_content')).toBe(1);
+  const row=(await db.query<{payload:unknown;parsed_result:null;reply_text:null;error_message:null;ops_issue:unknown}>('select payload,parsed_result,reply_text,error_message,ops_issue from public.whatsapp_message_queue where id=$1',[id])).rows[0];
+  expect(row).toEqual({payload:{id:'private-media',from:'synthetic-a',type,redacted:true},parsed_result:null,reply_text:null,error_message:null,ops_issue:{kind:'clarification',reason:'rate_limit',provider:'groq',stage:'interpret'}});
+  await enqueue({...message('private-media'),type});expect((await db.query<{n:number}>('select count(*)::int n from public.whatsapp_message_queue')).rows[0].n).toBe(1);
+  expect((await db.query<{n:number}>('select count(*)::int n from public.inbound_events')).rows[0].n).toBe(1);
+ });
+ it('conserva recibos y contadores de IA al redactar el trabajo procesado',async()=>{
+  const q=await quotaJob('retention-ai');await quota(q,'qwen');await apply(q,{kind:'reply',text:null});await finish(q);
+  await db.query("update public.whatsapp_message_queue set processed_at=clock_timestamp()-interval '31 days' where id=$1",[q.id]);
+  const receipts=(await db.query('select to_jsonb(r) as value from public.ai_quota_reservations r')).rows,days=(await db.query('select to_jsonb(d) as value from public.ai_quota_days d')).rows;
+  await db.exec('update public.whatsapp_ops_config set retention_enabled=true');expect(await rpc('prune_whatsapp_ops_content')).toBe(1);
+  expect((await db.query('select to_jsonb(r) as value from public.ai_quota_reservations r')).rows).toEqual(receipts);expect((await db.query('select to_jsonb(d) as value from public.ai_quota_days d')).rows).toEqual(days);
+  expect(Number((await preview()).quota_receipts_preserved)).toBe(1);
+ });
+ it('90 días: elimina solo métricas antiguas y avisos enviados/cancelados terminados',async()=>{
+  await metrics('91 days');await metrics('89 days');
+  for(const state of ['sent','cancelled','pending','sending','failed','uncertain','blocked'])await notice(state,'91 days');await notice('sent','89 days');await notice('cancelled','89 days');const noDate=await notice('sent','91 days');await db.query('update public.whatsapp_ops_notifications set finished_at=null where id=$1',[noDate]);
+  const forecast=await preview();expect(Number(forecast.metrics_eligible)).toBe(1);expect(Number(forecast.notices_eligible)).toBe(2);
+  await db.exec('update public.whatsapp_ops_config set retention_enabled=true');expect(await rpc('prune_whatsapp_ops_content')).toBe(0);
+  expect((await db.query<{n:number}>('select count(*)::int n from public.whatsapp_ops_metrics')).rows[0].n).toBe(1);
+  expect((await db.query<{n:number}>('select count(*)::int n from public.whatsapp_ops_notifications')).rows[0].n).toBe(8);
+ });
+ it('un fallo de borrado de métricas revierte también redacción y fecha de limpieza',async()=>{
+  await completed('retention-atomic');await metrics('91 days');await db.exec("update public.whatsapp_ops_config set retention_enabled=true;create function public.retention_fail_fixture()returns trigger language plpgsql as $$begin raise exception 'SYNTHETIC_RETENTION_FAILURE';end$$;create trigger retention_fail_fixture before delete on public.whatsapp_ops_metrics for each row execute function public.retention_fail_fixture();");
+  await expect(rpc('prune_whatsapp_ops_content')).rejects.toThrow('SYNTHETIC_RETENTION_FAILURE');
+  expect((await db.query('select content_redacted_at from public.whatsapp_message_queue')).rows).toEqual([{content_redacted_at:null}]);expect((await db.query('select last_retention_at from public.whatsapp_ops_config')).rows).toEqual([{last_retention_at:null}]);expect((await db.query<{n:number}>('select count(*)::int n from public.whatsapp_ops_metrics')).rows[0].n).toBe(1);
+ });
+ it('mantenimiento queda privado incluso para service_role y no reduce el mínimo de 30 días',async()=>{
+  for(const role of ['anon','authenticated','service_role'])expect((await db.query<{allowed:boolean}>("select has_function_privilege($1,'public.prune_whatsapp_ops_content()','EXECUTE') as allowed",[role])).rows[0].allowed).toBe(false);
+  await db.exec('savepoint invalid_retention');await expect(db.exec('update public.whatsapp_ops_config set retention_days=29')).rejects.toThrow();await db.exec('rollback to savepoint invalid_retention;release savepoint invalid_retention');
+ });
+});
+it('INF-14: ejecuta el smoke de retención del ensayo sobre el esquema aislado',async()=>{
+ const release=await readFile(new URL('../scripts/rehearse-release.mjs',import.meta.url),'utf8');
+ const sql=release.match(/async function smokeRetentionSql\(id\)[\s\S]*?await sql\(`begin;([\s\S]*?)rollback;`\);/)?.[1];expect(sql).toBeDefined();
+ await db.exec(sql!.replaceAll('${id}',a));expect((await db.query<{n:number}>('select count(*)::int n from public.transactions')).rows[0].n).toBe(0);
+});
+it('INF-14: la propuesta de activación exige aprobación técnica, fuente vigente y política 30',async()=>{
+ const sql=(await readFile(new URL('../ops/sql/whatsapp-retention-enable.sql',import.meta.url),'utf8')).replace(/^begin;$/m,'').replace(/^commit;$/m,'');
+ await db.exec('savepoint activation');await expect(db.exec(sql)).rejects.toThrow('INF14_OWNER_APPROVAL_REQUIRED');await db.exec('rollback to savepoint activation;release savepoint activation');
+ expect((await db.query('select retention_enabled from public.whatsapp_ops_config')).rows[0]).toEqual({retention_enabled:false});
+ await db.exec("select set_config('pesito.retention_approval','30d-content-90d-metrics-v1',true);update public.whatsapp_ops_config set retention_days=31;savepoint policy_changed");await expect(db.exec(sql)).rejects.toThrow('INF14_POLICY_CHANGED');await db.exec('rollback to savepoint policy_changed;release savepoint policy_changed;update public.whatsapp_ops_config set retention_days=30');
+ await db.exec(sql);expect((await db.query('select retention_enabled,last_retention_at from public.whatsapp_ops_config')).rows[0]).toEqual({retention_enabled:true,last_retention_at:null});
+ expect((await db.query<{n:number}>('select count(*)::int n from public.whatsapp_message_queue')).rows[0].n).toBe(0);
+});

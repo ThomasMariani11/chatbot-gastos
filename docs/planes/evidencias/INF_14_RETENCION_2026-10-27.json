@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-27",
+  "task": "INF-14",
+  "status": "prepared_not_activated",
+  "baselineCommit": "ebdd6eedc2ce7718452e672015b848786c610ae6",
+  "readOnlyProductionPreview": {
+    "management_sql_ok": true,
+    "estimated_at": "2026-10-27 13:20:25.576744+00",
+    "retention_enabled": false,
+    "retention_days": 30,
+    "last_retention_at": null,
+    "old_completed_with_content": 0,
+    "protected_by_draft": 0,
+    "protected_by_transaction": 0,
+    "messages_eligible": 0,
+    "messages_next_batch": 0,
+    "oldest_eligible_processed_at": null,
+    "unfinished_preserved": 0,
+    "legacy_preserved": 38,
+    "metrics_eligible": 0,
+    "notices_eligible": 0,
+    "unresolved_notices_preserved": 0,
+    "quota_receipts_preserved": 2
+  },
+  "productionPolicyVerification": {
+    "management_sql_ok": true,
+    "prune_matches_027": true,
+    "security_definer": true,
+    "function_settings": [
+      "search_path=pg_catalog, public"
+    ],
+    "retention_enabled": false,
+    "retention_days": 30,
+    "retention_cron": [
+      {
+        "active": true,
+        "schedule": "17 * * * *"
+      }
+    ],
+    "anon_execute": false,
+    "client_execute": false,
+    "backend_execute": false,
+    "migration_head": "035"
+  },
+  "productionCleanupCalls": 0,
+  "productionConfigChanges": 0,
+  "proposedDays": {
+    "completedContent": 30,
+    "aggregatesAndFinishedNotices": 90
+  },
+  "isolatedNewCases": 19,
+  "nativeConcurrencyAndFullStack": "pending_ci",
+  "noHostedDatabaseClone": true,
+  "noExternalProviderCalls": true,
+  "backupsDeferred": true
+}
