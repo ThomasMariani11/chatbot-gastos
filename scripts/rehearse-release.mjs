@@ -84,6 +84,29 @@ async function smokeWorker(api) {
   assert.equal((await request(api, path + '?action=worker', { body: '{}' })).status, 401);
   assert.equal((await request(api, path + '?action=worker', { body: '{}', headers: { 'x-worker-secret': workerSecret } })).status, 200);
 }
+async function smokeDraftEditSql(id) {
+  // Solo fixtures del stack local; también se ejecuta con runtime rollback/037.
+  await sql(`begin;
+    update public.whatsapp_queue_control set enabled=true;
+    update public.whatsapp_links set wa_id='synthetic-release-edit',status='active' where user_id='${id}';
+    select public.enqueue_whatsapp_messages('[{"id":"release-edit-add","from":"synthetic-release-edit","type":"text","text":{"body":"Solo sintético"}}]'::jsonb);
+    select public.claim_whatsapp_actor('synthetic-release-edit','65000000-0000-4000-8000-000000000037');
+    do $$declare j jsonb;r jsonb;g jsonb;v integer;begin
+      j:=public.next_whatsapp_job('synthetic-release-edit','65000000-0000-4000-8000-000000000037');
+      perform public.apply_whatsapp_job((j->>'id')::uuid,'65000000-0000-4000-8000-000000000037','{"kind":"add","items":[{"kind":"expense","description":"Fixture","totalAmountArs":100,"currency":"ARS","occurredOn":"2026-10-27","installments":1,"confidence":1,"missingFields":[]}]}'::jsonb);
+      perform public.finish_whatsapp_job((j->>'id')::uuid,'65000000-0000-4000-8000-000000000037');
+      g:=public.get_active_draft_group('${id}');v:=(g->>'version')::integer;
+      perform public.enqueue_whatsapp_messages('[{"id":"release-edit-patch","from":"synthetic-release-edit","type":"text","text":{"body":"El 1 moneda USD"}}]'::jsonb);
+      j:=public.next_whatsapp_job('synthetic-release-edit','65000000-0000-4000-8000-000000000037');
+      r:=public.apply_whatsapp_job((j->>'id')::uuid,'65000000-0000-4000-8000-000000000037',jsonb_build_object('kind','edit','position',1,'group_id',g->>'group_id','version',v,'patch',jsonb_build_object('currency','USD','amount',123.45,'category','Otros','installments',3,'first_installment_month','2026-11')));
+      if r->>'reply_text' is not null then raise exception 'EDIT_RELEASE_REJECTED';end if;
+      if not exists(select 1 from public.draft_items where group_id=(g->>'group_id')::uuid and position=1 and amount=123.45 and currency='USD' and installments=3 and first_installment_month='2026-11') then raise exception 'EDIT_RELEASE_MISMATCH';end if;
+      if (select version from public.draft_groups where id=(g->>'group_id')::uuid)<>v+1 then raise exception 'EDIT_VERSION_MISMATCH';end if;
+      if has_function_privilege('service_role','public.edit_pending_draft_item(uuid,uuid,integer,integer,jsonb)','execute') then raise exception 'EDIT_HELPER_EXPOSED';end if;
+    end$$;
+    rollback;`);
+}
+
 async function smokeQuotaSql(id) {
   // Todo el trabajo se revierte; solo usa el usuario ficticio creado por este ensayo.
   await sql(`begin;
@@ -236,6 +259,7 @@ try {
     await startWorker(api);
     await smokeWorker(api);
     await smokeQuotaSql(id);
+    await smokeDraftEditSql(id);
     await buildAndSmoke(candidate, current, api, status.ANON_KEY);
   });
   await step('rollback_compatible_sin_restaurar_datos', async () => {
@@ -248,6 +272,7 @@ try {
     await startWorker(api);
     await smokeWorker(api);
     await smokeQuotaSql(id);
+    await smokeDraftEditSql(id);
     await buildAndSmoke(previous, tools.release.rollbackCommit, api, status.ANON_KEY);
     assert.equal(await sql("select count(*) from public.transactions where user_id='" + id + "' and amount_ars=100 and status='confirmed';"), '1');
     assert.equal(await sql('select count(*) from public.whatsapp_message_queue;'), '0');

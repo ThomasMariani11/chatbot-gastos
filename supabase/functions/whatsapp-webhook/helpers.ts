@@ -1,3 +1,4 @@
+import type { PendingEdit } from "./draft-edit.ts";
 import type { BeforeAiRequest } from "./ai-quota.ts";
 import { normalizeDraftMovements } from "./draft-normalization.ts";
 import type { CompletionAction } from "./draft-completion.ts";
@@ -39,6 +40,7 @@ export type GeminiParsedOutput = {
   intent:
     | "add_movements"
     | "edit_item"
+    | "edit_pending"
     | "remove_item"
     | "confirm"
     | "cancel"
@@ -49,6 +51,7 @@ export type GeminiParsedOutput = {
     | "request_text"; // Checkpoint interno: nunca vuelve a invocar IA.
   movements: ExtractedMovement[];
   completion?: CompletionAction;
+  pendingEdit?: PendingEdit;
   completionReply?: string;
   requestTextReason?: "size" | "type" | "quota";
   operationalFailure?: FailureMetadata; // Solo diagnóstico interno controlado por el procesador.

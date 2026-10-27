@@ -2,7 +2,7 @@
 
 ## Estado vigente — 27/10/2026
 
-**BE-09 preparado, sin publicar.** 036 añade resumen SQL exacto por moneda/cuenta/mes y presupuesto ARS, sin límite de filas transferidas al bot; monthly_summary conserva firma y queda ARS solamente. Formato validado con centavos BigInt. 871 Vitest y 75 rutas Deno locales aprobadas; CI/API real del stack aislado y autorización de publicación pendientes. [Validación y contrato](VALIDACION_BE_09.md).
+**BE-09 cerrado en el alcance probado.** PR #48 publicada en f96ab87, migración 036 y webhook v60 ACTIVE. 871 Vitest, 75 rutas Deno y los cinco controles de main aprobados. Consulta real del propietario 27/10 a las 13:30: respuesta enviada en 5,122 s, un intento, cero IA; contenido contrastado con SQL, cero movimientos creados y cero trabajos propios pendientes. [Validación](VALIDACION_BE_09.md).
 
 **Decisión del propietario:** el cambio de hosting y las cabeceras HTTP pendientes de INF-13 se postergan hasta que esté terminada la parte funcional de la app. Los backups INF-08 también continúan para la etapa final. No se evalúa ni migra hosting en el próximo bloque; se conserva la CSP ya publicada.
 
@@ -28,11 +28,11 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 
 ## Punto de reanudación — 27/10/2026
 
-- Producción: **7f26e33 / PR #47 documental; runtime de PR #46, 001–035 y whatsapp-webhook v59**. Fuente desplegada y permisos comprobados, cola habilitada; los cinco controles de main aprobaron. Rollback compatible d62f42af4a15c25ba941e48b8da579fc0f0f2071 con esquema 035 conservado. No volver al puente de BE-08 ni a v58, que omiten el cupo nuevo.
+- Producción: **f96ab87 / PR #48, 001–036 y whatsapp-webhook v60 ACTIVE**. Fuentes, ACL, PWA/SW/CSP, cinco controles y consulta real del propietario verificados. Rollback compatible de BE-09: 7f26e33 conservando 036; no volver a runtimes que omiten el gate 035. BE-12/037 permanece preparado en rama, sin aplicar ni publicar.
 - INF-15 y FE-19 cerrados en sus alcances verificados. INF-13 parcial por cabeceras HTTP y framing: no cambiar hosting/URL sin preparar una vista previa y obtener aprobación.
 - FE-01/02/03/04/05/06/07/09/11/12 y BE-04/05/07/08 conservan los cierres y límites de sus validaciones. No se reabren ni se cierran BE-12/17 por extensión.
 - INF-14: preparación publicada en PR #47 y retención 30/90 validada en aislado; mantener retention_enabled=false sin nueva autorización. La estimación del 27/10 a las 10:20 dio 0 mensajes, 0 métricas y 0 avisos elegibles; 38 registros v1 y dos recibos IA conservados.
-- Bloque funcional actual: **BE-09 preparado** tras revalidar el código y las pruebas; agregación SQL/centavos y compatibilidad corregidas en rama, pendientes de CI/publicación y aceptación. No asumir que todos los hallazgos históricos sigan presentes; coordinar FE-18/BE-17 solo cuando compartan contrato o pruebas.
+- Bloque funcional actual: **BE-09 cerrado** con 036/PR #48/v60 y consulta real del propietario. **BE-12 en preparación** por instrucción del propietario; BE-11 conserva su seguimiento separado. No asumir que todos los hallazgos históricos sigan presentes; coordinar FE-18/BE-17 solo cuando compartan contrato o pruebas.
 - Decisiones vigentes: costo adicional $0, sin cambios de claves/planes/emisor, retención desactivada y backups INF-08 al final.
 
 ## Próximos bloques — 27/10/2026
@@ -41,7 +41,8 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 | --- | --- | --- | --- |
 | Cerrado en su alcance | INF-15 | Publicado y aceptado: cupos compartidos, reglas locales y cancelaciones correctas. | [Validación](VALIDACION_INF_15.md). |
 | Cerrado en su alcance | FE-19 | CSP publicada y compatibilidad revalidada. | Limitaciones físicas/HTTP registradas en INF-13. |
-| 1 — preparado | **BE-09** | 036 + consulta mensual SQL por moneda, importes exactos y legacy ARS; sin cambios productivos. | CI/API local, autorización para publicar y aceptación de saldo del propietario; FE-18/BE-17 no se cierran por extensión. |
+| Cerrado en su alcance | **BE-09** | 036/PR #48/v60, saldos SQL exactos y consulta real verificada. | FE-18/BE-17 no se cierran por extensión. |
+| Actual — solicitado | **BE-12** | Correcciones versionadas de concepto, categoría, moneda, fecha y cuotas; revalidar lo ya resuelto por BE-08. | Pruebas del parser, procesador y SQL real; publicación requiere revisión del cambio concreto. |
 | Preparado y publicado; sin activar | **INF-14** | Política 30/90 validada y documentada en PR #47. | Retención false hasta una autorización específica; no impide avanzar con mejoras funcionales. |
 | Etapa final de la app | **INF-13 / hosting** | Headers HTTP y protección de framing, postergados por el propietario hasta terminar la funcionalidad. | Retomar entonces la evaluación con costo $0 y vista previa; aprobar el cambio después de probar Auth/PWA/rollback. |
 | Último | **INF-08** | Backups y recuperación aplazados por el propietario. | Nueva evaluación/autorización cuando se priorice; no habilitar almacenamiento ahora. |
@@ -564,7 +565,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 8 | BE-07 | Alta | Confirmación durante procesamiento | INF-03, INF-04 | Terminada en su alcance; 033/PR #42 publicadas y verificadas |
 | 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | Terminada |
 | 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | Terminada en su alcance; 034/PR #43/v58 y aceptación WhatsApp verificadas |
-| 11 | BE-09 | Alta | Saldo por moneda y límites mensuales | — | Pendiente |
+| 11 | BE-09 | Alta | Saldo por moneda y límites mensuales | — | Terminada en su alcance; 036/PR #48/v60 y aceptación verificadas |
 | 12 | BE-11 | Media | Listas antiguas, excedentes y numeración | INF-03 | Pendiente |
 | 13 | BE-12 | Media | Correcciones y resumen completo | — | En curso |
 | 14 | BE-13 | Media | Consistencia del alta y bootstrap administrativo | INF-10 | Pendiente |
@@ -671,7 +672,7 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-09 — Calcular saldos por moneda y con fechas válidas
 
-- [ ] Terminada. **Preparada al 27/10/2026:** 036, RPC privada agregada y formato exacto; 871 Vitest/75 Deno aprobados localmente. CI y publicación/aceptación pendientes. [Validación](VALIDACION_BE_09.md).
+- [x] Terminada en el alcance probado. **Publicada y aceptada el 27/10/2026:** 036/PR #48/v60; 871 Vitest, 75 rutas Deno y cinco controles de main aprobados. Consulta del propietario enviada en 5,122 s; contenido coincide con SQL, cero IA, movimientos nuevos o trabajos propios pendientes. [Validación](VALIDACION_BE_09.md).
 - **Revalidación vigente:** el bot ya separa monedas, usa límite mensual exclusivo y detecta errores; seguían vigentes descarga sin paginar/sumas Number y mezcla de monedas en monthly_summary. Se reprodujo la mezcla en la función real antes de 036; el límite de filas se prueba en API local, sin presumir el max_rows alojado.
 - **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:614`, `:618`, `:633`; `supabase/migrations/001_initial.sql:114`.
 - **Trabajo:** agregación SQL por moneda, límite mensual exclusivo en el primer día del mes siguiente, manejo de errores y centavos. Evitar depender de transferir todas las filas; verificar el límite efectivo de PostgREST.
@@ -703,6 +704,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Trabajo compartido:** INF-03; depende de BE-06 y BE-08.
 
 ### BE-12 — Completar correcciones y datos del resumen
+
+- **Revalidación 27/10/2026:** BE-08 ya muestra moneda, fecha y mes inicial de cuotas. Se trabaja en ediciones locales versionadas de todos los campos, validación de categoría y cambios atómicos; BE-11 no se da por cerrado. 037 y cambios de webhook preparados; 939 Vitest y 80 rutas Deno aprobados localmente. CI completo/publicación/aceptación pendientes. [Contrato, pruebas y límites](VALIDACION_BE_12.md).
 
 - **Avance al 20/10/2026 — ahorro de IA:** comandos ampliados, aclaración de correcciones sin IA y gramática conservadora para textos simples/listas mixtas, fechas y cuotas con total explícito. Tests importan el parser real; métricas permitidas sin contenido. 306 Vitest, 35 Deno sin red, tipos/lint/build aprobados. Publicado: PR 13, commit ce216ec, webhook v45 ACTIVE; cuatro checks CI aprobados, base 025 y cola habilitada. Aceptación WhatsApp verificada (5 mensajes en 0,65–2,27 s, `local_rule` en movimientos/corrección/comandos y cero `ai_attempt`); no cierra los otros campos de BE-12, BE-08 ni INF-12. [Reglas y validación](REGLAS_LOCALES_WHATSAPP.md).
 

@@ -72,7 +72,20 @@ function database(suspended = false) {
     rpc: () => {
       draftReads++;
       return Promise.resolve({
-        data: { items: [], is_stale: false },
+        data: {
+          group_id: "fixture-group",
+          version: 3,
+          items: [{
+            position: 2,
+            kind: "expense",
+            description: "Original",
+            amount: 100,
+            currency: "ARS",
+            status: "pending",
+            occurred_on: "2026-10-27",
+          }],
+          is_stale: false,
+        },
         error: null,
       });
     },
@@ -182,11 +195,12 @@ Deno.test("corrección por posición no invoca IA ni crea un checkpoint de alta"
     return Promise.resolve();
   });
   assert(
-    result.kind === "edit" && result.position === 2 && result.amount === 250,
+    result.kind === "edit" && result.position === 2 &&
+      (result.patch as { amount: number }).amount === 250,
     "Corrección interpretada como alta",
   );
   assert(
-    result.description === null && checkpoints === 0,
+    !("description" in (result.patch as object)) && checkpoints === 0,
     "Se reinterpretó o cambió el concepto",
   );
 });
@@ -3061,4 +3075,196 @@ Deno.test("BE-09: respuesta parcial o truncada del agregado no anuncia saldo cer
       "Aceptó respuesta inválida de saldo",
     );
   }
+});
+
+Deno.test("BE-12: todos los campos locales usan grupo/versión, sin checkpoint ni IA", async () => {
+  const old = globalThis.fetch;
+  let calls = 0;
+  try {
+    globalThis.fetch = (() => {
+      calls++;
+      throw new Error("NO_AI_EXPECTED");
+    }) as typeof fetch;
+    for (
+      const text of [
+        "El 2 concepto Café",
+        "El 2 categoría Salud",
+        "El 2 moneda USD",
+        "El 2 fecha 2024-02-29",
+        "El 2 cuotas 3 desde 2026-11",
+        "El 2: importe 123,45; moneda USD",
+      ]
+    ) {
+      const result = await prepareMessage(
+        database().db,
+        job(text),
+        () => {
+          throw new Error("NO_CHECKPOINT_EXPECTED");
+        },
+        undefined,
+        () => {
+          throw new Error("NO_QUOTA_EXPECTED");
+        },
+      );
+      assert(
+        result.kind === "edit" && result.group_id === "fixture-group" &&
+          result.version === 3 && result.position === 2,
+        "Perdió identidad/version de edición",
+      );
+    }
+    assert(calls === 0, "Consumió red/IA para una edición local");
+  } finally {
+    globalThis.fetch = old;
+  }
+});
+Deno.test("BE-12: objetivo quitado/inexistente no se edita ni se agrega", async () => {
+  const fixture = database();
+  fixture.db.rpc = (() =>
+    Promise.resolve({
+      data: { group_id: "fixture-group", version: 3, items: [] },
+      error: null,
+    })) as unknown as typeof fixture.db.rpc;
+  const result = await prepareMessage(
+    fixture.db,
+    job("El 2 moneda USD"),
+    () => {
+      throw new Error("NO_CHECKPOINT");
+    },
+  );
+  assert(
+    result.kind === "reply" && String(result.text).includes("No encontré"),
+    "No rechazó el objetivo ausente",
+  );
+});
+
+Deno.test("BE-12: Whisper corrige localmente y checkpoint conserva versión sin Qwen", () =>
+  withMediaFixture(async () => {
+    const oldKey = Deno.env.get("GROQ_API_KEY");
+    try {
+      resetGroqBudgetForTests();
+      Deno.env.set("GROQ_API_KEY", "gsk_synthetic_key");
+      let qwen = 0, whisper = 0;
+      globalThis.fetch = ((url: RequestInfo | URL) => {
+        const u = String(url);
+        return Promise.resolve(
+          u.includes("graph.facebook.com")
+            ? Response.json({
+              url: "https://media.example.invalid",
+              mime_type: "audio/ogg",
+            })
+            : u.includes("media.example.invalid")
+            ? new Response(new Uint8Array([1]))
+            : u.includes("/audio/transcriptions")
+            ? (whisper++, Response.json({ text: "El 2 moneda USD" }))
+            : (qwen++, new Response("UNEXPECTED_PROVIDER", { status: 503 })),
+        );
+      }) as typeof fetch;
+      const input = job("");
+      input.payload = {
+        id: "be12-audio",
+        from: input.wa_id,
+        type: "audio",
+        audio: { id: "synthetic-media" },
+      };
+      let saved: unknown;
+      const result = await prepareMessage(database().db, input, (r) => {
+        saved = r;
+        return Promise.resolve();
+      });
+      assert(
+        result.kind === "edit" && result.group_id === "fixture-group" &&
+          result.version === 3 &&
+          (result.patch as { currency: string }).currency === "USD",
+        "Audio no conserva corrección/version",
+      );
+      assert(
+        whisper === 1 && qwen === 0,
+        "Consumió interpretación adicional tras transcribir",
+      );
+      input.parsed_result = saved;
+      const retry = await prepareMessage(database().db, input, () => {
+        throw new Error("DUPLICATE_CHECKPOINT");
+      });
+      assert(
+        semanticJson(retry) === semanticJson(result) && whisper === 1 &&
+          qwen === 0,
+        "El reintento volvió a interpretar o retargetear",
+      );
+    } finally {
+      if (oldKey === undefined) Deno.env.delete("GROQ_API_KEY");
+      else Deno.env.set("GROQ_API_KEY", oldKey);
+    }
+  }));
+
+Deno.test("BE-12: categoría interpretada se conserva en un checkpoint versionado", async () => {
+  const oldFetch = globalThis.fetch,
+    oldGemini = Deno.env.get("GEMINI_API_KEY"),
+    oldGroq = Deno.env.get("GROQ_API_KEY");
+  try {
+    Deno.env.set("GEMINI_API_KEY", "synthetic-key");
+    Deno.env.delete("GROQ_API_KEY");
+    let calls = 0;
+    globalThis.fetch = (() => {
+      calls++;
+      return Promise.resolve(Response.json({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                intent: "edit_item",
+                movements: [],
+                edit: {
+                  targetPosition: 2,
+                  amount: null,
+                  description: null,
+                  category: "Salud",
+                },
+              }),
+            }],
+          },
+        }],
+      }));
+    }) as typeof fetch;
+    let saved: unknown;
+    const input = job("la compra que te pasé pertenece a Salud");
+    const result = await prepareMessage(database().db, input, (r) => {
+      saved = r;
+      return Promise.resolve();
+    });
+    assert(
+      result.kind === "edit" && result.version === 3 &&
+        (result.patch as { category: string }).category === "Salud",
+      "La categoría del extractor se descartó",
+    );
+    input.parsed_result = saved;
+    const retry = await prepareMessage(database().db, input, () => {
+      throw new Error("NO_REPEAT_CHECKPOINT");
+    });
+    assert(
+      semanticJson(retry) === semanticJson(result) && calls === 1,
+      "El reintento perdió versión o invocó proveedor",
+    );
+  } finally {
+    globalThis.fetch = oldFetch;
+    if (oldGemini === undefined) Deno.env.delete("GEMINI_API_KEY");
+    else Deno.env.set("GEMINI_API_KEY", oldGemini);
+    if (oldGroq === undefined) Deno.env.delete("GROQ_API_KEY");
+    else Deno.env.set("GROQ_API_KEY", oldGroq);
+  }
+});
+Deno.test("BE-12: un checkpoint de edición antiguo pide repetir sin adivinar destino", async () => {
+  const input = job("texto original");
+  input.parsed_result = {
+    intent: "edit_item",
+    movements: [],
+    edit: { targetPosition: 2, amount: 900 },
+  };
+  const result = await prepareMessage(database().db, input, () => {
+    throw new Error("NO_REPEAT");
+  });
+  assert(
+    result.kind === "reply" &&
+      String(result.text).includes("repetí la corrección"),
+    "Checkpoint sin versión modificó la lista",
+  );
 });

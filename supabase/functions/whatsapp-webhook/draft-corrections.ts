@@ -3,7 +3,7 @@ const normalize = (text: string) =>
     .replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
 export function looksLikeDraftCorrection(text: string): boolean {
-  return /^(?:(?:el|la)\s+(?:(?:movimiento|operacion|gasto|ingreso)\s+)?\d+\b|(?:cambia|corregi|corrige|modifica)\b)/
+  return /^(?:(?:el|la)\s+(?:(?:movimiento|operacion|gasto|ingreso)\s+)?\d+\b|(?:cambia|corregi|corrige|modifica|edita)\b)/
     .test(normalize(text));
 }
 
