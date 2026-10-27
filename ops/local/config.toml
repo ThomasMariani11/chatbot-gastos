@@ -2,6 +2,7 @@
 project_id = "pesito-rehearsal"
 [api]
 port = 54321
+max_rows = 1000
 [db]
 port = 54322
 major_version = 17

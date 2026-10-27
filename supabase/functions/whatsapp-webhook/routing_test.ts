@@ -1980,72 +1980,73 @@ Deno.test("BE-05: consultas comerciales completas con cifras no usan IA ni borra
     globalThis.fetch = previous;
   }
 });
-Deno.test("BE-05: saldo auténtico lee solo la cuenta y conserva ARS/USD separados", async () => {
+Deno.test("BE-05/BE-09: saldo consulta una RPC agregada de la cuenta, sin IA ni borradores", async () => {
   const previous = globalThis.fetch;
   try {
     globalThis.fetch = (() => {
-      throw new Error("NO_PROVIDER_FOR_BALANCE");
+      throw Error("NO_PROVIDER_FOR_BALANCE");
     }) as typeof fetch;
-    const fixture = database();
-    const original = fixture.db.from.bind(fixture.db);
-    const filters: Array<[string, string, unknown]> = [];
+    const fixture = database(), original = fixture.db.from.bind(fixture.db);
     fixture.db.from = ((table: string) => {
-      if (table !== "transactions" && table !== "budgets") {
-        return original(table);
-      }
-      const data = table === "transactions"
-        ? [
-          { kind: "expense", currency: "ARS", amount_ars: 125.5 },
-          { kind: "income", currency: "ARS", amount_ars: 500 },
-          { kind: "expense", currency: "USD", amount_ars: 10 },
-          { kind: "income", currency: "USD", amount_ars: 20 },
-        ]
-        : { amount_ars: 1000 };
-      const chain = {
-        select: () => chain,
-        eq: (key: string, value: unknown) => {
-          filters.push([table, key, value]);
-          return chain;
-        },
-        gte: () => chain,
-        lt: () => Promise.resolve({ data, error: null }),
-        maybeSingle: () => Promise.resolve({ data, error: null }),
-      };
-      return chain;
+      assert(
+        table !== "transactions" && table !== "budgets",
+        "Descargó filas financieras",
+      );
+      return original(table);
     }) as typeof fixture.db.from;
+    let calls = 0;
+    fixture.db.rpc = ((name: string, args: Record<string, string>) => {
+      calls++;
+      assert(
+        name === "whatsapp_monthly_summary" &&
+          args.p_user_id === "fixture-user" &&
+          /^\d{4}-\d{2}-01$/.test(args.p_month),
+        "RPC sin usuario/mes válidos",
+      );
+      return Promise.resolve({
+        error: null,
+        data: {
+          version: 1,
+          month: args.p_month.slice(0, 7),
+          budget_ars: "1000.00",
+          remaining_budget_ars: "874.50",
+          currencies: [{
+            currency: "ARS",
+            expenses: "125.50",
+            income: "500.00",
+            balance: "374.50",
+            operations: "2",
+          }, {
+            currency: "USD",
+            expenses: "10.00",
+            income: "20.00",
+            balance: "10.00",
+            operations: "2",
+          }],
+        },
+      });
+    }) as unknown as typeof fixture.db.rpc;
     const result = await prepareMessage(
       fixture.db,
       job("¿Cuánto dinero me queda?"),
       () => {
-        throw new Error("NO_BALANCE_CHECKPOINT");
+        throw Error("NO_BALANCE_CHECKPOINT");
       },
     );
     const body = String(result.text);
     assert(
-      result.kind === "reply" && body.includes("$ 125,5") &&
-        body.includes("$ 500") && body.includes("$ 374,5") &&
+      result.kind === "reply" && body.includes("$ 125,50") &&
+        body.includes("$ 374,50") && body.includes("$ 874,50") &&
         body.includes("US$ 10") && body.includes("US$ 20") &&
-        body.includes("$ 874,5") && fixture.draftReads() === 0,
-      "Se mezclaron monedas, pendientes o totales",
-    );
-    for (const table of ["transactions", "budgets"]) {
-      assert(
-        filters.some(([t, key, value]) =>
-          t === table && key === "user_id" && value === "fixture-user"
-        ),
-        "Lectura de saldo sin filtro de propietario",
-      );
-    }
-    assert(
-      filters.some(([t, key, value]) =>
-        t === "transactions" && key === "status" && value === "confirmed"
-      ),
-      "El saldo incluyó propuestas",
+        body.includes("Disponible del presupuesto (ARS)") && calls === 1 &&
+        fixture.draftReads() === 0,
+      "Resumen incorrecto o ruta de IA/borrador utilizada",
     );
   } finally {
     globalThis.fetch = previous;
   }
 });
+
 Deno.test("BE-05: correcciones con palabra suscripción y comandos conservan sus rutas", async () => {
   for (
     const [text, kind] of [
@@ -2936,4 +2937,128 @@ Deno.test("INF-15: trabajador entrega lease e identidad al gate y conserva seña
       calls.at(-1) === "release_whatsapp_actor",
     "El gate no atraviesa el worker real",
   );
+});
+// BE-09: la ruta real no interpreta con IA ni modifica borradores al consultar saldo.
+for (
+  const [instant, expected] of [["2026-03-01T01:00:00Z", "2026-02"], [
+    "2024-03-01T01:00:00Z",
+    "2024-02",
+  ], ["2027-01-01T02:00:00Z", "2026-12"]]
+) {
+  Deno.test("BE-09: mes financiero de Argentina en " + instant, async () => {
+    const RealDate = globalThis.Date;
+    class FixedDate extends RealDate {
+      constructor(value?: string | number) {
+        super(value === undefined ? instant : value);
+      }
+      static override now() {
+        return new RealDate(instant).getTime();
+      }
+    }
+    try {
+      globalThis.Date = FixedDate as DateConstructor;
+      const fixture = database();
+      let calls = 0;
+      fixture.db.rpc = ((name: string, args: Record<string, string>) => {
+        calls++;
+        assert(
+          name === "whatsapp_monthly_summary" &&
+            args.p_month === expected + "-01",
+          "Usó el mes UTC o un límite inválido",
+        );
+        return Promise.resolve({
+          error: null,
+          data: {
+            version: 1,
+            month: expected,
+            budget_ars: null,
+            remaining_budget_ars: null,
+            currencies: ["ARS", "USD"].map((currency) => ({
+              currency,
+              expenses: "0",
+              income: "0",
+              balance: "0",
+              operations: "0",
+            })),
+          },
+        });
+      }) as unknown as typeof fixture.db.rpc;
+      const result = await prepareMessage(
+        fixture.db,
+        job("saldo disponible"),
+        () => {
+          throw Error("No debe guardar checkpoint de extracción");
+        },
+        undefined,
+        () => {
+          throw Error("No debe reservar IA");
+        },
+      );
+      assert(
+        calls === 1 && String(result.text).includes(expected) &&
+          String(result.text).includes("Balance neto: $ 0"),
+        "No respondió el mes local sin IA",
+      );
+    } finally {
+      globalThis.Date = RealDate;
+    }
+  });
+}
+Deno.test("BE-09: fallo SQL del saldo no se oculta como cero ni se desvía a IA", async () => {
+  const fixture = database();
+  fixture.db.rpc = (() =>
+    Promise.resolve({
+      data: null,
+      error: { message: "PRIVATE_SQL_DETAIL" },
+    })) as unknown as typeof fixture.db.rpc;
+  let failure: unknown;
+  try {
+    await prepareMessage(
+      fixture.db,
+      job("saldo disponible"),
+      () => {
+        throw Error("Checkpoint inesperado");
+      },
+      undefined,
+      () => {
+        throw Error("IA inesperada");
+      },
+    );
+  } catch (e) {
+    failure = e;
+  }
+  assert(
+    failureMetadata(failure).provider === "database" &&
+      failureMetadata(failure).operation === "QUEUE_BALANCE_READ" &&
+      String(failure) === "Error: OPERATIONAL_FAILURE",
+    "Filtró un error o anunció cero",
+  );
+});
+Deno.test("BE-09: respuesta parcial o truncada del agregado no anuncia saldo cero", async () => {
+  for (
+    const data of [null, [], { version: 1, month: "2000-01", currencies: [] }, {
+      version: 1,
+    }]
+  ) {
+    const fixture = database();
+    fixture.db.rpc = (() =>
+      Promise.resolve({
+        data,
+        error: null,
+      })) as unknown as typeof fixture.db.rpc;
+    let failure: unknown;
+    try {
+      await prepareMessage(
+        fixture.db,
+        job("mi balance"),
+        () => Promise.resolve(),
+      );
+    } catch (e) {
+      failure = e;
+    }
+    assert(
+      failureMetadata(failure).operation === "QUEUE_BALANCE_READ",
+      "Aceptó respuesta inválida de saldo",
+    );
+  }
 });
