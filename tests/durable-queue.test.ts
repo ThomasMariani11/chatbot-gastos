@@ -106,6 +106,7 @@ beforeAll(async()=>{
   await db.exec(await readFile(new URL('028_whatsapp_issue_details.sql',migrationUrl),'utf8'));
   await db.exec(await readFile(new URL('033_require_current_review_for_confirmation.sql',migrationUrl),'utf8'));
   await db.exec(await readFile(new URL('034_incomplete_draft_items.sql',migrationUrl),'utf8'));
+  await db.exec(await readFile(new URL('035_shared_ai_quota.sql',migrationUrl),'utf8'));
 },30000);
 beforeEach(async()=>{await db.exec('begin; update public.whatsapp_queue_control set enabled=true');});
 afterEach(async()=>{await db.exec('rollback');});
@@ -938,5 +939,54 @@ describe('BE-08: dudas, aislamiento y capacidad',()=>{
   await enqueue(message('be08-free','synthetic-a','quitá el 2'));const remove=(await next())!;await apply(remove,{kind:'remove',position:2});await finish(remove);
   const resumed=(await next())!;expect(resumed.payload.id).toBe('be08-capacity');await apply(resumed,{kind:'add',items:[movement('Retenido')]});await finish(resumed);
   expect((await db.query('select position from public.draft_items where description=$1',['Retenido'])).rows[0]).toEqual({position:21});
+ });
+});
+
+
+type QuotaReply={allowed:boolean;reason?:string;used?:number;limit?:number;day?:string};
+const quota=(job:Job,lane='qwen',token=t1)=>rpc<QuotaReply>('reserve_whatsapp_ai_quota',{p_id:job.id,p_token:token,p_attempt:job.attempts,p_lane:lane});
+async function quotaJob(id:string,wa='synthetic-a',token=t1){await enqueue(message(id,wa));await claim(wa,token);return(await next(wa,token))!;}
+describe('INF-15: cupo durable compartido y autorización',()=>{
+ it('reserva antes de usar y rechaza repetir el mismo intento',async()=>{
+  const q=await quotaJob('quota-once');expect(await quota(q)).toMatchObject({allowed:true,used:1,limit:100});expect(await quota(q)).toMatchObject({allowed:false,reason:'already_reserved'});
+  expect((await db.query('select reserved from public.ai_quota_days')).rows).toEqual([{reserved:1}]);
+ });
+ it('comparte exactamente 100 consultas entre dos clientes, sin conceder la 101',async()=>{
+  const qa=await quotaJob('quota-a'),qb=await quotaJob('quota-b','synthetic-b',t2);
+  for(let i=1;i<=50;i++){await db.query('update public.whatsapp_message_queue set attempts=$1 where id in ($2,$3)',[i,qa.id,qb.id]);qa.attempts=i;qb.attempts=i;expect((await quota(qa)).allowed).toBe(true);expect((await quota(qb,'qwen',t2)).allowed).toBe(true);}
+  await db.exec('update public.whatsapp_message_queue set attempts=51');qa.attempts=51;expect(await quota(qa)).toMatchObject({allowed:false,reason:'exhausted',used:100,limit:100});
+  expect((await db.query<{n:number}>('select count(*)::int as n from public.ai_quota_reservations')).rows[0].n).toBe(100);
+ });
+ it('Whisper tiene 200 unidades propias y no consume Qwen',async()=>{
+  const q=await quotaJob('quota-audio');expect(await quota(q,'whisper')).toMatchObject({allowed:true,limit:200,used:1});expect(await quota(q)).toMatchObject({allowed:true,limit:100,used:1});
+ });
+ it('otro día no bloquea hoy y el reinicio es medianoche de Argentina',async()=>{
+  await db.exec("insert into public.ai_quota_days(day,lane,reserved)values((clock_timestamp() at time zone 'America/Argentina/Buenos_Aires')::date-1,'qwen',100)");
+  const q=await quotaJob('quota-new-day');expect((await quota(q)).used).toBe(1);
+  const snap=await rpc<{day:string;resets_at:string;lanes:Array<{used:number;limit:number;level:string}>}>('whatsapp_ai_quota_dashboard');expect(snap.lanes[0]).toMatchObject({used:1,limit:100,level:'ok'});
+  expect((await db.query<{t:string}>("select to_char($1::timestamptz at time zone 'America/Argentina/Buenos_Aires','HH24:MI:SS') as t",[snap.resets_at])).rows[0].t).toBe('00:00:00');
+ });
+ it('el panel marca 75%, 90% y agotado a partir de las reservas',async()=>{
+  const q=await quotaJob('quota-levels');await quota(q);
+  for(const [used,level]of [[74,'ok'],[75,'warning'],[89,'warning'],[90,'critical'],[100,'exhausted']] as const){await db.query("update public.ai_quota_days set reserved=$1 where lane='qwen'",[used]);const snap=await rpc<{lanes:Array<{lane:string;level:string}>}>('whatsapp_ai_quota_dashboard');expect(snap.lanes.find(r=>r.lane==='qwen')?.level).toBe(level);}
+ });
+ it('Gemini, proveedores desconocidos y una política pausada no conceden permiso',async()=>{
+  const q=await quotaJob('quota-disabled');for(const lane of ['gemini','unknown'])expect(await quota(q,lane)).toMatchObject({allowed:false,reason:'provider_disabled'});
+  await db.exec("update public.ai_quota_policy set enabled=false where lane='qwen'");expect(await quota(q)).toMatchObject({allowed:false,reason:'provider_disabled'});expect((await db.query<{n:number}>('select count(*)::int n from public.ai_quota_reservations')).rows[0].n).toBe(0);
+ });
+ it('rechaza lease ajeno, intento adulterado y un trabajo ya aplicado',async()=>{
+  const q=await quotaJob('quota-fence');await expect(quota(q,'qwen',t2)).rejects.toThrow('QUEUE_LEASE_LOST');await expect(quota({...q,attempts:99})).rejects.toThrow('AI_QUOTA_JOB_UNAVAILABLE');
+  await apply(q,{kind:'reply',text:null});await expect(quota(q)).rejects.toThrow('AI_QUOTA_JOB_UNAVAILABLE');expect((await db.query<{n:number}>('select count(*)::int n from public.ai_quota_reservations')).rows[0].n).toBe(0);
+ });
+ it('una suspensión posterior impide consumir',async()=>{
+  const q=await quotaJob('quota-suspended');await db.query("update public.profiles set subscription_status='suspended' where id=$1",[a]);await expect(quota(q)).rejects.toThrow('AI_QUOTA_ACCOUNT_UNAVAILABLE');expect((await db.query<{n:number}>('select count(*)::int n from public.ai_quota_reservations')).rows[0].n).toBe(0);
+ });
+ it('un fallo entre reserva y contador no deja consumo parcial',async()=>{
+  const q=await quotaJob('quota-atomic');await db.exec("create function public.quota_fail_fixture()returns trigger language plpgsql as $$begin raise exception 'SYNTHETIC_QUOTA_FAILURE';end$$;create trigger quota_fail_fixture before update on public.ai_quota_days for each row execute function public.quota_fail_fixture();");
+  await expect(quota(q)).rejects.toThrow('SYNTHETIC_QUOTA_FAILURE');expect((await db.query<{n:number}>('select count(*)::int n from public.ai_quota_reservations')).rows[0].n).toBe(0);expect((await db.query<{n:number}>('select coalesce(sum(reserved),0)::int n from public.ai_quota_days')).rows[0].n).toBe(0);
+ });
+ it('clientes y backend no pueden escribir tablas ni leer el panel como cliente',async()=>{
+  const priv=(await db.query("select has_table_privilege('authenticated','public.ai_quota_days','SELECT') as client_read,has_table_privilege('service_role','public.ai_quota_days','UPDATE') as backend_write,has_function_privilege('anon','public.whatsapp_ai_quota_dashboard()','execute') as anon_dashboard,has_function_privilege('authenticated','public.reserve_whatsapp_ai_quota(uuid,uuid,integer,text)','execute') as client_reserve")).rows[0];expect(priv).toEqual({client_read:false,backend_write:false,anon_dashboard:false,client_reserve:false});
+  await db.query("select set_config('request.jwt.claim.sub',$1,true)",[a]);await expect(rpc('whatsapp_ai_quota_dashboard')).rejects.toThrow('AI_QUOTA_ADMIN_REQUIRED');
  });
 });

@@ -1,3 +1,4 @@
+import type { PreparationContext } from "./ai-quota.ts";
 import { writeOperationalLog } from "./logging.ts";
 import { LIMITS, timeoutSignal, withinSignal } from "./limits.ts";
 import { failureMetadata } from "./failures.ts";
@@ -70,6 +71,7 @@ export type QueueDependencies = {
     job: Job,
     checkpoint: (result: unknown) => Promise<void>,
     signal?: AbortSignal,
+    context?: PreparationContext,
   ) => Promise<Record<string, unknown>>;
   send: (
     recipient: string,
@@ -193,10 +195,20 @@ async function processJob(
   const signal = timeoutSignal(LIMITS.jobMs);
   const scoped: QueueDependencies = {
     ...deps,
-    rpc: <T>(name: string, args?: Record<string, unknown>) =>
-      withinSignal(() => deps.rpc<T>(name, args, signal), signal),
+    rpc: <T>(
+      name: string,
+      args?: Record<string, unknown>,
+      requestSignal?: AbortSignal,
+    ) =>
+      withinSignal(
+        () => deps.rpc<T>(name, args, requestSignal ?? signal),
+        signal,
+      ),
     prepare: (job, checkpoint) =>
-      withinSignal(() => deps.prepare(job, checkpoint, signal), signal),
+      withinSignal(
+        () => deps.prepare(job, checkpoint, signal, { token, rpc: scoped.rpc }),
+        signal,
+      ),
     send: (recipient, text) =>
       withinSignal(() => deps.send(recipient, text, signal), signal),
   };

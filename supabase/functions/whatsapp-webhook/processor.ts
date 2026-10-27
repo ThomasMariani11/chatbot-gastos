@@ -1,3 +1,5 @@
+import { AiQuotaExceeded } from "./ai-quota.ts";
+import type { BeforeAiRequest } from "./ai-quota.ts";
 import { parseDraftCompletion } from "./draft-completion.ts";
 import { normalizeDraftMovements } from "./draft-normalization.ts";
 import { parseDraftMovements } from "./local-movements.ts";
@@ -47,6 +49,7 @@ export async function prepareMessage(
   job: Job,
   checkpoint: (result: unknown) => Promise<void>,
   parent?: AbortSignal,
+  beforeAiRequest?: BeforeAiRequest,
 ): Promise<Record<string, unknown>> {
   const message = job.payload;
   const text = message.text?.body?.trim() ?? message.image?.caption?.trim() ??
@@ -256,6 +259,7 @@ export async function prepareMessage(
         : await extractFromGemini({
           text,
           signal,
+          beforeAiRequest,
           mediaBase64: media?.base64,
           mimeType: media?.mimeType,
           resolveCompletion: (transcript) => {
@@ -300,7 +304,9 @@ export async function prepareMessage(
       result = {
         intent: "request_text",
         movements: [],
-        requestTextReason: failure.reason === "media_too_large"
+        requestTextReason: error instanceof AiQuotaExceeded
+          ? "quota"
+          : failure.reason === "media_too_large"
           ? "size"
           : failure.reason === "unsupported_media"
           ? "type"
@@ -333,7 +339,9 @@ export async function prepareMessage(
   }
   const requestText = () =>
     reply(
-      result?.requestTextReason === "size"
+      result?.requestTextReason === "quota"
+        ? 'Llegamos al cupo diario de interpretación automática. Tus pendientes se conservan. Pasame el gasto o ingreso en texto simple, por ejemplo: "Gasté 1500 en supermercado". Podés seguir revisando, confirmando o cancelando tu lista. No cargué movimientos de este mensaje.'
+        : result?.requestTextReason === "size"
         ? "El archivo es demasiado grande. Podés mandar una foto de hasta 5 MiB o un audio de hasta 10 MiB, o escribirme el concepto y el monto. No cargué movimientos de ese archivo."
         : result?.requestTextReason === "type"
         ? "No puedo leer ese formato de archivo. Mandame una foto JPG/PNG o escribime el gasto o ingreso con el concepto y el monto. No cargué movimientos de ese archivo."

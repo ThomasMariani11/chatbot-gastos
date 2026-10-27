@@ -1,3 +1,4 @@
+import { createAiQuotaGate } from "./ai-quota.ts";
 import { OperationalFailure } from "./failures.ts";
 import {
   createOperationalMetrics,
@@ -68,8 +69,18 @@ async function routeRequest(request: Request): Promise<Response> {
           runActor(waId, {
             rpc,
             stopStartingSignal,
-            prepare: (job, checkpoint, signal) =>
-              prepareMessage(db, job, checkpoint, signal),
+            prepare: (job, checkpoint, signal, context) => {
+              if (!context) {
+                throw new OperationalFailure("configuration", "database");
+              }
+              return prepareMessage(
+                db,
+                job,
+                checkpoint,
+                signal,
+                createAiQuotaGate(context, job),
+              );
+            },
             send: sendWhatsAppText,
             format: (draft) =>
               formatDraftList((draft.items ?? []) as DraftListItem[]),
