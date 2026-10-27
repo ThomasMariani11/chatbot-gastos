@@ -1,5 +1,9 @@
 # Monitoreo del bot y conservación de contenido (INF-14 / BE-16)
 
+## Estado vigente — 27/10/2026
+
+Panel y avisos publicados y aceptados. Retención **desactivada**; propuesta 30/90 revalidada sobre 035/v59, con pruebas aisladas y estimación productiva de solo lectura. Hoy: 0 mensajes, 0 métricas y 0 avisos elegibles. Preparar/subir pruebas o documentación no autoriza borrar datos ni habilitar la limpieza. [Validación INF-14](../planes/VALIDACION_INF_14_RETENCION.md).
+
 ## Alcance y responsable
 
 Responsable: propietario de Pesito, con su cuenta administradora y WhatsApp vinculado. El panel **Estado del bot** se actualiza cada 30 segundos mientras está visible. Un cron revisa los incidentes cada minuto. La cola sigue siendo la fuente durable; las métricas son agregados de intentos y su persistencia es de mejor esfuerzo. Una interrupción puede perder muestras, nunca debe reabrir un movimiento por un error de telemetría.
@@ -41,11 +45,13 @@ Las tablas internas tienen RLS y no admiten acceso directo de clientes ni servic
 
 **No activar sin aprobación expresa del propietario.** La migración instala el mecanismo con retention_enabled=false. Ejecutarlo así devuelve cero y no borra nada.
 
-Propuesta: después de 30 días desde su procesamiento, retirar contenido de mensajes v2 terminados (payload de texto/media, interpretación, respuesta y error). Conservar identificadores de deduplicación, origen/tipo, estado, intentos y trazabilidad. No modificar movimientos financieros ni borradores; proteger mensajes ligados a listas abiertas/ítems pendientes o transacciones pendientes, además de mensajes no terminados, revisión manual y cola heredada v1. Cada ejecución procesa como máximo 500 registros.
+Propuesta: después de 30 días desde su procesamiento, retirar contenido de mensajes v2 terminados (payload de texto/media, interpretación, respuesta y error). Conservar identificadores de deduplicación, origen/tipo, estado, intentos y trazabilidad. No modificar movimientos financieros ni borradores; proteger mensajes ligados a listas abiertas/ítems pendientes o transacciones pendientes, además de mensajes no terminados, revisión manual y cola heredada v1. Cada ejecución redacta como máximo 500 mensajes, omitiendo filas bloqueadas. Ese límite **no** se aplica a los DELETE de métricas/avisos: se retiran los elegibles de más de 90 días en esa ejecución. Medir esos conteos antes de activar; no afirmar que el total de filas afectadas esté limitado a 500.
 
 Solo si se aprueba y activa esta política, retirar también métricas agregadas y avisos enviados/cancelados de más de 90 días. Los avisos fallidos/inciertos se conservan para investigar. El cron horario se prepara a minuto 17; no hay eliminación efectiva mientras la bandera esté desactivada. No es un backup ni una política integral de borrado de datos personales.
 
-## Publicación y reversión
+## Publicación original de 027 — registro histórico
+
+Las instrucciones y el rollback de esta sección describen 027/v52; **no usar ese commit con el esquema/cupo vigente**. El contrato actual exige 035 y el rollback d62f42a de config/environments.json.
 
 1. Validar CI: Frontend, Webhook, PostgreSQL y Ensayo de release. Todos los fallos se simulan con datos ficticios y sin Meta/IA reales.
 2. Aplicar 027 atómicamente sobre 026, verificar permisos y cron, manteniendo avisos y limpieza desactivados.
@@ -72,3 +78,14 @@ Prueba de aceptación de la versión anterior (v52): el 22/10/2026 se simuló un
 ### Vista rápida del panel
 
 Estado del bot muestra tres contadores (cola, proceso y mensajes para revisar), tarjetas breves con cliente/causa/fecha y estado de los avisos. Los códigos del proveedor, intentos y referencia quedan en Detalle técnico; el historial y los ajustes/métricas se abren bajo demanda. Los mensajes de fallo de actualización o envío permanecen visibles. No se modifican umbrales ni permisos al simplificar la presentación.
+
+## Revisión y propuesta de activación 30/90
+
+1. Ejecutar en sesión SQL privilegiada la consulta [whatsapp-retention-preview.sql](../../ops/sql/whatsapp-retention-preview.sql). Es un SELECT de conteos; no llama a prune, no modifica banderas ni devuelve textos/IDs/telefonía. La fecha del resultado importa: es una estimación sin bloquear filas, no garantiza qué encontrará un cron futuro. Las protecciones por borrador/transacción pueden superponerse: no sumar esos conteos como categorías excluyentes.
+2. Exigir CI y revisar los casos de [VALIDACION_INF_14_RETENCION.md](../planes/VALIDACION_INF_14_RETENCION.md). La limpieza se ejecuta exclusivamente en bases ficticias/descartables durante esas pruebas. No clonar datos alojados.
+3. Obtener aprobación **expresa** para retirar contenido de mensajes terminados después de 30 días y métricas/avisos enviados o cancelados después de 90 días. No afecta movimientos, borradores, pendientes, v1 ni recibos/contadores IA. Sí se pierde el contenido original procesado que se redacte: no es un archivo ni un backup, y la identidad/metadatos de deduplicación continúan guardados.
+4. Solo después de esa aprobación preparar una llamada de Management API/SQL a [whatsapp-retention-enable.sql](../../ops/sql/whatsapp-retention-enable.sql), en el proyecto aprobado. El archivo exige la marca técnica pesito.retention_approval=30d-content-90d-metrics-v1 en la misma conexión, política aún desactivada de 30 días, fuente vigente y cron esperado; esa marca no sustituye el consentimiento humano. No está conectado a CI/deploy ni se ejecuta automáticamente.
+5. Al habilitar, actuará el cron ya existente al minuto 17 de cada hora. El script no llama a prune inmediatamente, no cambia plazos ni crea recursos. Leer flag/días/cron antes y después; revisar conteos posteriores sin contenido. Su integración documental o la publicación de la PWA no habilitan nada.
+6. Para parar futuras limpiezas, el dueño SQL puede desactivar retention_enabled conservando el esquema. Una ejecución ya iniciada puede terminar antes del cambio. Desactivar no restaura texto/interpretación/respuestas ni métricas previamente retiradas. No usar down/reset, no restablecer payloads ficticios ni alterar movimientos para aparentar recuperación.
+
+La revisión mantiene backups al final y no agrega servicios ni costos. Los logs administrados por Supabase/GitHub, las tablas heredadas y los metadatos del cupo IA tienen políticas separadas; no se presentan como eliminados por esta función.

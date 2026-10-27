@@ -1,6 +1,6 @@
 # INF-15 — Cupo compartido de IA de la beta
 
-Estado: implementación preparada; CI aprobado del candidato 6f2abd6; pendiente de aprobación y publicación de 035 + webhook + PWA. Producción conserva 001–034 y webhook v58. Revisión de cuentas y emisor: 26/10/2026, publicada en PR #45; snapshot original en evidencias/INF_15_2026-10-26.json. La autorización posterior resolvió la observación inicial de integración de PR #44; ambas PR están integradas.
+Estado vigente: **publicado y cerrado en el alcance probado el 27/10/2026**. PR #46/ebdd6ee, migración 035 y webhook v59 ACTIVE; cinco controles de main aprobados. La preparación que sigue documenta el contrato implementado.
 
 ## Política aprobada por el propietario
 
@@ -34,7 +34,7 @@ whatsapp_ai_quota_dashboard exige administrador autenticado y devuelve solo los 
 
 1. Exigir los cuatro checks del candidato. El ensayo instala todo en Supabase local y comprueba autorización, reserva SQL/duplicado/Gemini denegado y conservación de datos sintéticos. Ejecuta el gate del candidato y del commit de rollback, además de los smoke existentes.
 2. Obtener autorización concreta del propietario para 035, webhook y PWA. Comprobar que producción siga en el baseline esperado y no haya trabajos/leases anteriores activos. Si los hay, esperar a que terminen antes del cambio; no borrar cola ni forzar confirmaciones.
-3. Pausar brevemente la cola con el procedimiento vigente, esperar trabajos activos y aplicar/registrar/verificar 035. Los webhooks siguen persistiendo ingresos; la pausa no borra mensajes. Publicar el webhook desde checkout limpio con mínimo 035, verificar smoke/autenticación y reactivar. Aplicar primero SQL, después runtime.
+3. Pausar brevemente la cola con el procedimiento vigente, esperar trabajos activos y aplicar/registrar/verificar 035. Mientras queue_control está desactivada, recepción devuelve 503 y Meta puede reintentar; la pausa no borra mensajes ya persistidos. Publicar el webhook desde checkout limpio con mínimo 035, verificar smoke/autenticación y reactivar. Aplicar primero SQL, después runtime.
 4. Integrar/publicar PWA cuando la RPC esté disponible; verificar SHA, panel admin y rechazo a cliente. Publicar el frontend antes de 035 mostraría un error de cupo, por eso no se invierte el orden.
 5. Aceptación con un mensaje ficticio, RESUMEN y CANCELAR, sin confirmación financiera; comprobar contadores según la ruta elegida. Para agotamiento usar fixtures aisladas, no consumir 100/200 solicitudes reales ni manipular consumo de clientes.
 6. Rollback permitido: d62f42af4a15c25ba941e48b8da579fc0f0f2071. Ya aplica el gate, conserva el esquema 035 y el frontend previo. No volver a v58 ni al puente 80e920d: omitirían el corte nuevo. No borrar tablas/recibos ni restaurar datos.
@@ -42,3 +42,13 @@ whatsapp_ai_quota_dashboard exige administrador autenticado y devuelve solo los 
 El cierre de este alcance exige publicación y aceptación. No promete bloquear cambios futuros de plan/emisor desde sus consolas: cualquier lanzamiento, número propio o servicio pago requiere nueva revisión/autorización. La retención continúa desactivada y los backups se mantienen al final.
 
 Evidencia del candidato: [INF_15_CUPO_2026-10-26.json](evidencias/INF_15_CUPO_2026-10-26.json). Los cuatro controles aprobaron; la documentación posterior conserva esa referencia de SHA y requiere sus propios checks antes de integrar.
+
+## Publicación y aceptación — 27/10/2026
+
+Autorización explícita del propietario para 035, PR #46, webhook y PWA. Pausa breve con guardas de historial/quietud; 035 aplicada y registrada en una transacción, fuentes/permisos verificados, v59 publicado desde bcd5c17 limpio y cola reactivada. Durante la pausa de queue_control el webhook puede responder 503 y Meta reintentar: no persistía ingresos mientras estaba desactivada. No se borraron ni reenviaron pendientes. Se comprobaron 21 módulos ejecutables descargados; movement-types.ts solo declara tipos y no se incluye en el bundle.
+
+PR #46 integrada en ebdd6eedc2ce7718452e672015b848786c610ae6; [CI main/Pages](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40442554650) aprobado. HTML, SW, versión, bundle y panel con sesión del propietario verificados; acceso no administrador rechazado.
+
+Aceptación WhatsApp 10:07–10:09 Argentina: $123 por texto sin IA, $234 por audio con una reserva Whisper/cero Qwen, foto con una reserva Qwen/cero Whisper. Los tres grupos quedaron descartados por CANCELAR; siete mensajes procesados en un intento sin diagnóstico de error, cero movimientos nuevos, duplicados o trabajos pendientes. Contadores 1/100 y 1/200 coinciden con la captura del propietario. No se agotaron cupos reales para probar límites; ese escenario sigue cubierto en aislado.
+
+[Evidencia de cierre saneada](evidencias/INF_15_CIERRE_2026-10-27.json). Retención desactivada, facturación/claves sin cambios y backups al final.
