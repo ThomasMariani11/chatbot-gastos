@@ -55,7 +55,7 @@ async function request(api, path, { key, body, headers = {}, method = body === u
   });
   return response;
 }
-const metaSecret = randomBytes(32).toString('hex'), workerSecret = randomBytes(32).toString('hex');
+const metaSecret = randomBytes(32).toString('hex'), workerSecret = randomBytes(32).toString('hex'), syntheticPassword = randomBytes(32).toString('hex');
 async function startWorker(api) {
   serving = run(process.execPath, [npmCli, 'exec', '--yes', '--package=supabase@' + cliVersion, '--', 'supabase', '--workdir', work, 'functions', 'serve', 'whatsapp-webhook', '--no-verify-jwt', '--env-file', join(temp, 'synthetic.env')], { cwd: root, env, timeout: 600000, background: true });
   const deadline = Date.now() + 120000;
@@ -198,7 +198,7 @@ try {
   const id = await step('auth_sql_y_datos_sinteticos', async () => {
     await sql("insert into public.invitation_codes(code,duration_days) values('INF10-LOCAL',30);");
     const created = await request(api, '/auth/v1/admin/users', { key: status.SERVICE_ROLE_KEY, body: {
-      email: 'inf10@example.invalid', password: randomBytes(32).toString('hex'), email_confirm: true,
+      email: 'inf10@example.invalid', password: syntheticPassword, email_confirm: true,
       user_metadata: { invitation_code: 'INF10-LOCAL', first_name: 'Ensayo', last_name: 'Local' },
     } });
     assert.equal(created.status, 200);
@@ -212,6 +212,24 @@ try {
     const denied = await request(api, '/rest/v1/rpc/get_active_draft_group', { key: status.ANON_KEY, body: { p_user_id: user.id } });
     assert.ok([401, 403, 404].includes(denied.status), 'La RPC privada no debe estar habilitada a anon.');
     return user.id;
+  });
+  await step('resumen_mensual_por_api_sin_truncar', async () => {
+    // El límite 1000 es exclusivamente del stack local, fijado en ops/local/config.toml.
+    await sql("insert into public.transactions(user_id,kind,description,amount_ars,currency,occurred_on,status,source) select '" + id + "','expense','BE09 local bulk',0.01,'ARS','2024-02-29','confirmed','pwa' from generate_series(1,1501);insert into public.transactions(user_id,kind,description,amount_ars,currency,occurred_on,status,source) values('"+id+"','expense','BE09 local USD',1.01,'USD','2024-02-15','confirmed','pwa'),('"+id+"','income','BE09 local USD',2.02,'USD','2024-02-15','confirmed','pwa');insert into public.budgets(user_id,month,amount_ars)values('"+id+"','2024-02-01',100);");
+    try {
+      const raw=await request(api,'/rest/v1/transactions?select=id&user_id=eq.'+id+'&status=eq.confirmed&currency=eq.ARS&occurred_on=gte.2024-02-01&occurred_on=lt.2024-03-01',{key:status.SERVICE_ROLE_KEY,headers:{Prefer:'count=exact'}});
+      assert.ok([200,206].includes(raw.status));assert.equal((await raw.json()).length,1000);assert.equal(raw.headers.get('content-range'),'0-999/1501');
+      const result=await request(api,'/rest/v1/rpc/whatsapp_monthly_summary',{key:status.SERVICE_ROLE_KEY,body:{p_user_id:id,p_month:'2024-02-15'}});assert.equal(result.status,200);const summary=await result.json();
+      assert.equal(summary.month,'2024-02');assert.equal(summary.remaining_budget_ars,'84.99');assert.deepEqual(summary.currencies,[{currency:'ARS',expenses:'15.01',income:'0',balance:'-15.01',operations:'1501'},{currency:'USD',expenses:'1.01',income:'2.02',balance:'1.01',operations:'2'}]);
+      const login=await request(api,'/auth/v1/token?grant_type=password',{key:status.ANON_KEY,body:{email:'inf10@example.invalid',password:syntheticPassword}});assert.equal(login.status,200);const session=await login.json();assert.equal(typeof session.access_token,'string');
+      for(const headers of [{},{Authorization:'Bearer '+session.access_token}]){
+        const denied=await request(api,'/rest/v1/rpc/whatsapp_monthly_summary',{key:status.ANON_KEY,headers,body:{p_user_id:id,p_month:'2024-02-01'}});assert.ok([401,403,404].includes(denied.status));await denied.body?.cancel();
+      }
+      const old=await request(api,'/rest/v1/rpc/monthly_summary',{key:status.ANON_KEY,headers:{Authorization:'Bearer '+session.access_token},body:{target_month:'2024-02-15'}});assert.equal(old.status,200);assert.deepEqual(await old.json(),[{expenses:15.01,income:0,balance:-15.01}]);
+      evidence.monthlySummary={configuredLocalRowCap:1000,underlyingArsRows:1501,untruncatedAggregate:true,legacyArsOnly:true,clientBackendRpcDenied:true};
+    } finally {
+      await sql("delete from public.transactions where user_id='"+id+"' and description in('BE09 local bulk','BE09 local USD');delete from public.budgets where user_id='"+id+"' and month='2024-02-01';");
+    }
   });
   await step('retencion_aislada_con_finanzas_preservadas', async () => { await smokeRetentionSql(id); });
   await step('candidato_webhook_y_pwa', async () => {

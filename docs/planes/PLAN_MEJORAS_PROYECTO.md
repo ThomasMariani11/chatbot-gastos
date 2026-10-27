@@ -2,9 +2,13 @@
 
 ## Estado vigente — 27/10/2026
 
+**BE-09 preparado, sin publicar.** 036 añade resumen SQL exacto por moneda/cuenta/mes y presupuesto ARS, sin límite de filas transferidas al bot; monthly_summary conserva firma y queda ARS solamente. Formato validado con centavos BigInt. 871 Vitest y 75 rutas Deno locales aprobadas; CI/API real del stack aislado y autorización de publicación pendientes. [Validación y contrato](VALIDACION_BE_09.md).
+
+**Decisión del propietario:** el cambio de hosting y las cabeceras HTTP pendientes de INF-13 se postergan hasta que esté terminada la parte funcional de la app. Los backups INF-08 también continúan para la etapa final. No se evalúa ni migra hosting en el próximo bloque; se conserva la CSP ya publicada.
+
 **INF-15 cerrado en el alcance probado.** PR #46 integrada/publicada en ebdd6ee, migración 035 y webhook v59 ACTIVE. 800 pruebas, cuatro controles y Publicar aprobados. Aceptación del propietario 10:07–10:09 Argentina: texto $123 sin IA, audio $234 con una transcripción y cero Qwen, foto con una consulta; contadores 1/100 y 1/200, tres CANCELAR, cero movimientos nuevos, duplicados o trabajos pendientes. [Cierre](VALIDACION_INF_15.md) y [evidencia](evidencias/INF_15_CIERRE_2026-10-27.json).
 
-**INF-14: retención preparada, desactivada.** 19 pruebas nuevas sobre limpieza 30/90, consulta de estimación de solo lectura y ensayo con datos ficticios. Producción: cero registros elegibles hoy; ningún borrado ni activación. 819 pruebas y cuatro controles aprobados en 5a007c4, incluida concurrencia/stack completo; integración y decisión de activación pendientes. [Validación](VALIDACION_INF_14_RETENCION.md). **FE-19 cerrado** en compatibilidad verificada; INF-13 sigue parcial por headers HTTP/framing y decisión de hosting. Backups al final.
+**INF-14: retención preparada, desactivada.** 19 pruebas nuevas sobre limpieza 30/90, consulta de estimación de solo lectura y ensayo con datos ficticios. Producción: cero registros elegibles hoy; ningún borrado ni activación. PR #47 integrada/publicada en 7f26e33; 819 pruebas y cinco controles de main aprobados, incluida concurrencia/stack completo. La publicación no activó retención; esa decisión sigue separada. [Validación](VALIDACION_INF_14_RETENCION.md). **FE-19 cerrado** en compatibilidad verificada; INF-13 sigue parcial por headers HTTP/framing y decisión de hosting. Backups al final.
 
 **FE-01, FE-02 y FE-03 terminados.** Migración 029 aplicada, [PR #30](https://github.com/ThomasMariani11/chatbot-gastos/pull/30) publicada en d8aaacd, CI completo y aceptación en producción ejecutada por Codex por instrucción del propietario. La compra ficticia se creó, renombró, editó tras eliminar la cuota 2 y eliminó al terminar; cero cuotas de prueba activas. [Evidencia y límites](VALIDACION_FE_01_02_03.md).
 
@@ -24,10 +28,11 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 
 ## Punto de reanudación — 27/10/2026
 
-- Producción: **ebdd6ee / PR #46, 001–035 y whatsapp-webhook v59**. Fuente desplegada y permisos comprobados, cola habilitada; los cinco controles de main aprobaron. Rollback compatible d62f42af4a15c25ba941e48b8da579fc0f0f2071 con esquema 035 conservado. No volver al puente de BE-08 ni a v58, que omiten el cupo nuevo.
+- Producción: **7f26e33 / PR #47 documental; runtime de PR #46, 001–035 y whatsapp-webhook v59**. Fuente desplegada y permisos comprobados, cola habilitada; los cinco controles de main aprobaron. Rollback compatible d62f42af4a15c25ba941e48b8da579fc0f0f2071 con esquema 035 conservado. No volver al puente de BE-08 ni a v58, que omiten el cupo nuevo.
 - INF-15 y FE-19 cerrados en sus alcances verificados. INF-13 parcial por cabeceras HTTP y framing: no cambiar hosting/URL sin preparar una vista previa y obtener aprobación.
 - FE-01/02/03/04/05/06/07/09/11/12 y BE-04/05/07/08 conservan los cierres y límites de sus validaciones. No se reabren ni se cierran BE-12/17 por extensión.
-- Próximo trabajo: **INF-14, retención 30/90**. Validar primero en aislado; mantener production retention_enabled=false. Estimación actual: 0 mensajes, 0 métricas y 0 avisos elegibles; 38 registros heredados v1 y dos recibos IA se conservan.
+- INF-14: preparación publicada en PR #47 y retención 30/90 validada en aislado; mantener retention_enabled=false sin nueva autorización. La estimación del 27/10 a las 10:20 dio 0 mensajes, 0 métricas y 0 avisos elegibles; 38 registros v1 y dos recibos IA conservados.
+- Bloque funcional actual: **BE-09 preparado** tras revalidar el código y las pruebas; agregación SQL/centavos y compatibilidad corregidas en rama, pendientes de CI/publicación y aceptación. No asumir que todos los hallazgos históricos sigan presentes; coordinar FE-18/BE-17 solo cuando compartan contrato o pruebas.
 - Decisiones vigentes: costo adicional $0, sin cambios de claves/planes/emisor, retención desactivada y backups INF-08 al final.
 
 ## Próximos bloques — 27/10/2026
@@ -36,8 +41,9 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 | --- | --- | --- | --- |
 | Cerrado en su alcance | INF-15 | Publicado y aceptado: cupos compartidos, reglas locales y cancelaciones correctas. | [Validación](VALIDACION_INF_15.md). |
 | Cerrado en su alcance | FE-19 | CSP publicada y compatibilidad revalidada. | Limitaciones físicas/HTTP registradas en INF-13. |
-| 1 — preparado | **INF-14** | Retención 30 días de contenido terminado y 90 días de métricas/avisos terminados. | Ensayos aislados/CI aprobados; presentar efectos; activar solo con autorización expresa. Sin borrados productivos de prueba. |
-| 2 — decisión separada | **INF-13** | Headers HTTP y protección de framing que el hosting actual no configura. | Evaluar alternativa con costo $0 y vista previa; probar Auth/PWA/rollback antes de cambiar URL/proveedor. |
+| 1 — preparado | **BE-09** | 036 + consulta mensual SQL por moneda, importes exactos y legacy ARS; sin cambios productivos. | CI/API local, autorización para publicar y aceptación de saldo del propietario; FE-18/BE-17 no se cierran por extensión. |
+| Preparado y publicado; sin activar | **INF-14** | Política 30/90 validada y documentada en PR #47. | Retención false hasta una autorización específica; no impide avanzar con mejoras funcionales. |
+| Etapa final de la app | **INF-13 / hosting** | Headers HTTP y protección de framing, postergados por el propietario hasta terminar la funcionalidad. | Retomar entonces la evaluación con costo $0 y vista previa; aprobar el cambio después de probar Auth/PWA/rollback. |
 | Último | **INF-08** | Backups y recuperación aplazados por el propietario. | Nueva evaluación/autorización cuando se priorice; no habilitar almacenamiento ahora. |
 
 Siguen abiertos: seguimiento histórico BE-02 (un código usado sin usuario), compatibilidad física fuera del flujo iPhone aceptado, revisión de dependencias de desarrollo INF-07/FE-08, cobertura transversal FE-21/BE-17 y las tareas pendientes de sus tablas. Los estados históricos que siguen no sustituyen esta secuencia vigente.
@@ -127,7 +133,7 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 | 10 | INF-11 | Media | Actions y permisos mínimos | F11 | Terminada |
 | 11 | INF-12 | Media | Timeouts y límites de multimedia | F12 | Terminada |
 | 12 | INF-14 | Media | Observabilidad y retención | F14 | En curso; retención sin activar |
-| 13 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | Parcial; FE-19 cerrado, headers HTTP/framing pendientes |
+| 13 | INF-13 | Media | CSP y cabeceras de seguridad | F13 | Parcial; cambio de hosting postergado a la etapa final por el propietario |
 | 14 | INF-15 | Media | Controles de costos y documentación | F15 | Terminada en el alcance de beta; PR #46/035/v59 y aceptación |
 | 15 | INF-08 | Alta, a verificar | Backups y recuperación | F08 | Pendiente; última del plan |
 
@@ -252,6 +258,8 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Cierre:** proveedores lentos y archivos grandes no agotan invocaciones ni memoria; mensajes admitidos siguen funcionando y los fallos se recuperan conforme a INF-04.
 
 ### INF-13 — Incorporar CSP y cabeceras de seguridad
+
+- **Decisión vigente del propietario — 27/10/2026:** postergar el cambio de hosting y los headers que dependen de él hasta terminar la funcionalidad de la app. Mantener CSP/hosting actuales y retomar la evaluación en la etapa final; no marcar esta deuda como resuelta.
 
 - **Estado vigente al 26/10/2026:** CSP/meta no-referrer publicadas y compatibilidad revalidada con sesión, gráficos, fuentes, administración y actualización. FE-19 cerrado en alcance probado. INF-13 parcial por headers HTTP y framing; requiere decisión de hosting, sin cambiar proveedor/URL en este bloque.
 
@@ -663,8 +671,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-09 — Calcular saldos por moneda y con fechas válidas
 
-- [ ] Terminada.
-- **Problema reproducido:** suma ARS y USD como pesos; utiliza el día 31 en todos los meses; ignora errores de lectura y puede mostrar cero. monthly_summary también mezcla monedas.
+- [ ] Terminada. **Preparada al 27/10/2026:** 036, RPC privada agregada y formato exacto; 871 Vitest/75 Deno aprobados localmente. CI y publicación/aceptación pendientes. [Validación](VALIDACION_BE_09.md).
+- **Revalidación vigente:** el bot ya separa monedas, usa límite mensual exclusivo y detecta errores; seguían vigentes descarga sin paginar/sumas Number y mezcla de monedas en monthly_summary. Se reprodujo la mezcla en la función real antes de 036; el límite de filas se prueba en API local, sin presumir el max_rows alojado.
 - **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:614`, `:618`, `:633`; `supabase/migrations/001_initial.sql:114`.
 - **Trabajo:** agregación SQL por moneda, límite mensual exclusivo en el primer día del mes siguiente, manejo de errores y centavos. Evitar depender de transferir todas las filas; verificar el límite efectivo de PostgREST.
 - **Cierre:** ARS/USD separados; febrero, años bisiestos y meses de 30 días correctos; resultados completos para volúmenes superiores al límite de filas; errores no se informan como saldo cero.
@@ -889,3 +897,7 @@ Completar una entrada al cerrar cada tarea:
 | 27/10/2026 | Cierre INF-15 | 035, PR #46/ebdd6ee y v59 publicados; aceptación texto/audio/foto | Cinco controles y 800 pruebas; contadores 1/100 y 1/200; tres grupos descartados | Sin transacciones de prueba, duplicados o trabajos pendientes | INF-14 retención preparado; INF-13 parcial, backups al final |
 
 | 27/10/2026 | Preparación INF-14 | Política existente 30/90 revalidada; consulta de estimación y activación con guardas, sin ejecutar en cloud | 819 Vitest, 12 SQL, seis guardas y cuatro checks de 5a007c4; PostgreSQL SKIP LOCKED, preservación financiera/deduplicación/cupos y stack aislado | Retención false; 0 mensajes/métricas/avisos elegibles al leer; sin cambios productivos | Integrar preparación y decidir explícitamente activación; INF-13 después, backups al final |
+
+| 27/10/2026 | Reordenamiento solicitado por el propietario | Hosting/INF-13 postergado hasta finalizar la funcionalidad; backups siguen al final | Cambio documental; sin implementación ni despliegue | PR #47 publicada, retención false; CSP vigente conservada | Revalidar BE-09 como siguiente bloque funcional antes de corregir |
+
+| 27/10/2026 | Preparación BE-09 | 036 y agregación SQL por cuenta/moneda/mes, presupuesto ARS consistente y centavos exactos; legacy ARS con firma conservada | 871 Vitest, 75 Deno, lint/tipos/build, 12 SQL y seis guardas locales | Sin migración, webhook ni datos productivos nuevos | CI/API local y aprobación de publicación; hosting y backups al final, retención apagada |

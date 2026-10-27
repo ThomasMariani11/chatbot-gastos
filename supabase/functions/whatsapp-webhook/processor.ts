@@ -1,3 +1,4 @@
+import { formatMonthlySnapshot } from "./monthly-summary.ts";
 import { AiQuotaExceeded } from "./ai-quota.ts";
 import type { BeforeAiRequest } from "./ai-quota.ts";
 import { parseDraftCompletion } from "./draft-completion.ts";
@@ -169,48 +170,14 @@ export async function prepareMessage(
 
   if (query === "balance") {
     const month = localDate().slice(0, 7);
-    const next = new Date(`${month}-01T12:00:00Z`);
-    next.setUTCMonth(next.getUTCMonth() + 1);
-    const txs = checked(
-      await db.from("transactions").select("amount_ars,kind,currency").eq(
-        "user_id",
-        link.user_id,
-      ).eq("status", "confirmed")
-        .gte("occurred_on", `${month}-01`).lt(
-          "occurred_on",
-          next.toISOString().slice(0, 10),
-        ),
+    const snapshot = checked(
+      await db.rpc("whatsapp_monthly_summary", {
+        p_user_id: link.user_id,
+        p_month: month + "-01",
+      }),
       "QUEUE_BALANCE_READ",
     );
-    const budgetRow = checked(
-      await db.from("budgets").select("amount_ars").eq("user_id", link.user_id)
-        .eq("month", `${month}-01`).maybeSingle(),
-      "QUEUE_BUDGET_READ",
-    );
-    const totals = (currency: string, kind: string) =>
-      (txs ?? []).filter((t) => t.currency === currency && t.kind === kind)
-        .reduce((sum, t) => sum + Number(t.amount_ars), 0);
-    const expense = totals("ARS", "expense"),
-      income = totals("ARS", "income"),
-      budget = Number(budgetRow?.amount_ars ?? 0);
-    let body = `📊 *Resumen de ${month}:*\n\n• Total gastado: $ ${
-      expense.toLocaleString("es-AR")
-    }\n• Total ingresos: $ ${
-      income.toLocaleString("es-AR")
-    }\n• Balance neto: $ ${(income - expense).toLocaleString("es-AR")}`;
-    if ((txs ?? []).some((t) => t.currency === "USD")) {
-      body += `\n\n• Gastos USD: US$ ${
-        totals("USD", "expense").toLocaleString("es-AR")
-      }\n• Ingresos USD: US$ ${
-        totals("USD", "income").toLocaleString("es-AR")
-      }`;
-    }
-    body += budget > 0
-      ? `\n• *Disponible restante: $ ${
-        (budget - expense).toLocaleString("es-AR")
-      }*`
-      : "\n\n💡 Podés fijar un presupuesto mensual en la app.";
-    return reply(body);
+    return reply(formatMonthlySnapshot(snapshot, month));
   }
 
   const draft = checked(
