@@ -1,0 +1,26 @@
+{
+  "verifiedAt": "2026-10-28T15:21:54.024Z",
+  "dateArgentina": "2026-10-28",
+  "windowArgentina": {
+    "from": "2026-10-28T12:17:06.893091",
+    "to": "2026-10-28T12:18:30.924573"
+  },
+  "messagesProcessed": 7,
+  "initialBatchOperations": 20,
+  "heldOperations": 1,
+  "heldProcessingPasses": 2,
+  "capacityResumes": 1,
+  "technicalRetries": 0,
+  "originalPositionsPreserved": true,
+  "removedPosition": 2,
+  "heldInsertedAtPosition": 21,
+  "heldInsertedOnce": true,
+  "allAliasesProcessed": true,
+  "aiReservations": 0,
+  "testGroupDiscarded": true,
+  "testFinancialRows": 0,
+  "openOwnerGroups": 0,
+  "activeOwnerJobs": 0,
+  "emptyFinalSummaryRecorded": true,
+  "scope": "Owner text test 20+1, aliases, stable positions and cancellation. Meta send accepted; no device-read receipt asserted. Old-list aging, repeated waits, failures and concurrency remain isolated CI evidence."
+}

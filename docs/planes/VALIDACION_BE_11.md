@@ -1,6 +1,6 @@
 # BE-11 — Recuperación de listas y capacidad sin bloqueos
 
-Fecha: 28/10/2026. Base publicada: PR #49 / 1e45c94, esquema 037 y webhook v61. **Implementación preparada en rama; 038 y el webhook candidato no están publicados.** Hosting y backups siguen al final; retención desactivada, sin cambio de proveedores, claves o cupos.
+Fecha: 28/10/2026. Base publicada: PR #49 / 1e45c94, esquema 037 y webhook v61. **Publicado y aceptado el 28/10/2026: PR #50 / 0cc65d9, 038 y webhook v62.** Hosting y backups siguen al final; retención desactivada, sin cambio de proveedores, claves o cupos.
 
 ## Revalidación
 
@@ -33,8 +33,8 @@ Las guardas de 033 y la liberación de mensajes stale se conservan literalmente;
 - **996 Vitest (57 nuevos)** y **83 rutas Deno (tres nuevas)** aprobados localmente. Código y SQL reales importados, sin copias del parser. Normalización/alias, 18+3, confirmar lista previa sin guardar la nueva, veinte liberaciones sin revisión falsa, varios mensajes en orden, 21/101 operaciones, claves de checkpoint, backoff y cinco fallos reales, metadata/ACL y migración de checkpoints previos.
 - RETOMAR/DESCARTAR/CANCELAR con mensaje nuevo mixto ARS/USD conserva sus datos. Una confirmación por alias sigue sin guardar la lista antigua. Numeración con huecos y vuelta al resumen vigentes cubiertas junto a BE-07/BE-12.
 - Tipos/lint/build, 12 renovaciones SQL y seis guardas de release aprobados. Bundle frontend sin cambios: 871,54 kB / 249,86 gzip; advertencia de tamaño preexistente.
-- SQL exacto del smoke de recuperación ejecutado con PGlite aislado. PostgreSQL de dos sesiones y Supabase local completo/rollback preparados para CI Linux; Docker local no está disponible. Sus resultados finales se registrarán en la PR. No se presume que esos procesos se ejecutaran en esta PC.
-- No se consultaron mensajes de clientes, se llamó a proveedores reales ni se enviaron WhatsApps durante esta implementación. La aceptación productiva aún no se realizó.
+- SQL exacto del smoke de recuperación ejecutado con PGlite aislado. PostgreSQL de dos sesiones y Supabase local completo/rollback preparados para CI Linux; Docker local no está disponible. Ambos aprobaron en CI del candidato y main. No se ejecutaron en esta PC.
+- No se consultaron mensajes de clientes, se llamó a proveedores reales ni se enviaron WhatsApps durante esta implementación. La aceptación posterior del propietario se registra abajo.
 
 ## Publicación y rollback propuestos
 
@@ -42,4 +42,12 @@ Después de revisar CI y obtener autorización: exigir candidato limpio, histori
 
 Rollback de runtime: 1e45c94f46a3b2ce1e3106d429570e0d3b1ab390, mínimo 037, conservando 038 y sus guardas. El código previo ignora la columna adicional; la cola y la RPC mantienen firmas. Al conservar 038 siguen disponibles las correcciones SQL de alias/reintentos y la salida de exceso; el aviso del runtime previo tiene la redacción anterior. No revertir counters ni borrar checkpoints/recibos. El ensayo comprueba candidato y runtime anterior sobre la misma base.
 
-Aceptación sugerida: probar control por alias y numeración con una lista ficticia, cancelar al final. Envejecimiento 25 horas, saturación, reinicios, fallos y concurrencia se ensayan en aislado para no alterar datos reales de clientes. El cierre depende de publicación y aceptación acordada, sin atribuir cobertura universal a una prueba de WhatsApp.
+Aceptación sugerida: probar control por alias y numeración con una lista ficticia, cancelar al final. Envejecimiento 25 horas, saturación, reinicios, fallos y concurrencia se ensayan en aislado para no alterar datos reales de clientes. La publicación y aceptación de ese alcance se completaron según el registro siguiente; no se atribuye cobertura universal a una prueba de WhatsApp.
+
+## Publicación y aceptación — 28/10/2026
+
+038 aplicada/registrada atómicamente tras comparar las fuentes con el esquema probado. Seis funciones verificadas, ACL preservadas, helpers privados también comprobados vía API (401); no había mensajes esperando capacidad a inicializar. Webhook v62 ACTIVE, 23 módulos iguales al candidato y smoke 401 de webhook/worker. Main 0cc65d96cdee3735f36da6f9ed95dc67e69f1e22, cinco controles aprobados, PWA/version/SW/bundle/CSP comprobados. [CI de publicación](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40712839331). Rama integrada retirada; repositorio limpio al terminar el despliegue.
+
+Aceptación del propietario 12:17–12:18 Argentina: siete mensajes procesados, lote inicial de 20 y uno retenido. ver lista/sacame el 2/borralo atendidos. El retenido se incorporó una sola vez como 21 después de quitar el 2; posiciones originales conservadas. Dos pasadas y una vuelta de capacidad para ese mensaje, sin reintentos técnicos ni nueva IA. Cero IA en toda la prueba. Cancelación: grupo descartado, cero movimientos financieros de prueba, grupos abiertos o trabajos propios pendientes. Resumen vacío registrado a las 12:18:30. [Evidencia saneada](evidencias/BE_11_CIERRE_2026-10-28.json).
+
+BE-11 cerrado en el alcance publicado y probado. Meta aceptó los envíos; no se presume recibo de lectura del dispositivo. Envejecimiento, esperas repetidas, fallos, concurrencia y rollback se comprobaron en aislado/CI, no provocándolos en clientes. Hosting/backups y activación de retención conservan sus estados separados. Los apartados de preparación anteriores registran el orden y los límites, no una publicación pendiente.

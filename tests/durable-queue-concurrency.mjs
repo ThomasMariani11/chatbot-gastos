@@ -333,6 +333,30 @@ assert.equal((await execute(`select capacity_resumes from public.whatsapp_messag
 assert.equal((await execute(`select count(*) from public.draft_items where wa_message_id='be11-native-held';`)).output,'2','Duplicó movimientos al recuperar');
 assert.deepEqual((await retentionSnapshot()).finance,be11FinanceBefore,'La recuperación guardó movimientos sin confirmar');
 
-const evidence={capacity_resume_concurrent_idempotent:true,capacity_recovery_preserves_finance:true,draft_edit_concurrent_idempotent:true,draft_edit_stale_version_rejected:true,draft_edit_preserves_finance:true,monthly_summary_concurrent_readonly:true,retention_skip_locked:true,retention_repeat_idempotent:true,retention_preserves_finance_drafts_ai:true,retention_reenqueue_deduplicated:true,ai_quota_shared_concurrent:true,ai_quota_duplicate_denied:true,postgres:(await execute('show server_version;')).output,isolated_database:true,incomplete_batch_confirmation_blocked:true,completion_concurrent_idempotent:true,completion_stale_version_rejected:true,concurrent_sessions:2,retained_confirmation_requires_fresh_review:true,confirmation_apply_concurrent_idempotent:true,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
+// BE-13: dos sesiones intentan consumir la misma invitación en el alta de Auth.
+const be13ProfilesBefore=(await execute('select json_agg(p order by id) from public.profiles p;')).output;
+await execute((await readFile(new URL('039_atomic_user_signup.sql',migrations),'utf8')).replace(/\r\n/g,'\n'));
+assert.equal((await execute('select json_agg(p order by id) from public.profiles p;')).output,be13ProfilesBefore,'039 modificó perfiles existentes');
+const be13Ids=['13000000-0000-4000-8000-000000000011','13000000-0000-4000-8000-000000000012'];
+await execute("insert into public.invitation_codes(code,duration_days)values('BE13-CONCURRENT',30);");
+const be13Attempts=await Promise.all(be13Ids.map((id,n)=>execute(`begin;insert into auth.users(id,email,raw_user_meta_data)values('${id}','be13-race-${n}@example.invalid','{"invitation_code":"BE13-CONCURRENT"}');select pg_sleep(0.4);commit;`,true)));
+assert.equal(be13Attempts.filter(r=>r.code===0).length,1,'Una invitación activó dos altas');
+assert.match(be13Attempts.find(r=>r.code!==0).error,/REGISTRATION_INITIALIZATION_FAILED/);
+const be13Winner=be13Ids[be13Attempts.findIndex(r=>r.code===0)],be13Loser=be13Ids[be13Attempts.findIndex(r=>r.code!==0)];
+assert.equal((await execute(`select count(*) from auth.users where id='${be13Loser}';`)).output,'0','Quedó un Auth huérfano');
+assert.equal((await execute(`select used_by from public.invitation_codes where code='BE13-CONCURRENT';`)).output,be13Winner);
+assert.equal((await execute(`select count(*) from public.categories where user_id='${be13Winner}';`)).output,'16');
+// Un fallo posterior al trigger también revierte la invitación; el mismo intento puede repetirse.
+await execute("insert into public.invitation_codes(code,duration_days)values('BE13-RETRY',15);create function public.be13_late_failure()returns trigger language plpgsql as $$begin raise exception 'fixture late failure';end$$;create trigger zz_be13_late_failure after insert on auth.users for each row execute function public.be13_late_failure();");
+const be13Retry=`insert into auth.users(id,email,raw_user_meta_data)values('${be13Loser}','be13-retry@example.invalid','{"invitation_code":"BE13-RETRY"}');`;
+assert.notEqual((await execute(be13Retry,true)).code,0);
+assert.equal((await execute("select is_used from public.invitation_codes where code='BE13-RETRY';")).output,'f');
+assert.equal((await execute(`select count(*) from public.profiles where id='${be13Loser}';`)).output,'0');
+await execute('drop trigger zz_be13_late_failure on auth.users;drop function public.be13_late_failure();');
+await execute(be13Retry);
+assert.equal((await execute(`select count(*) from public.app_settings where user_id='${be13Loser}';`)).output,'1');
+assert.equal((await execute("select count(*) from public.profiles where role='admin';")).output,'1');
+
+const evidence={signup_concurrent_one_winner:true,signup_failure_and_retry_atomic:true,signup_preserves_existing_profiles:true,capacity_resume_concurrent_idempotent:true,capacity_recovery_preserves_finance:true,draft_edit_concurrent_idempotent:true,draft_edit_stale_version_rejected:true,draft_edit_preserves_finance:true,monthly_summary_concurrent_readonly:true,retention_skip_locked:true,retention_repeat_idempotent:true,retention_preserves_finance_drafts_ai:true,retention_reenqueue_deduplicated:true,ai_quota_shared_concurrent:true,ai_quota_duplicate_denied:true,postgres:(await execute('show server_version;')).output,isolated_database:true,incomplete_batch_confirmation_blocked:true,completion_concurrent_idempotent:true,completion_stale_version_rejected:true,concurrent_sessions:2,retained_confirmation_requires_fresh_review:true,confirmation_apply_concurrent_idempotent:true,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
 if(process.env.PESITO_TEST_EVIDENCE) await writeFile(process.env.PESITO_TEST_EVIDENCE,JSON.stringify(evidence,null,2));
 console.log(JSON.stringify(evidence));
