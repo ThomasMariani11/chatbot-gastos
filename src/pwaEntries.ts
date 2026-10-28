@@ -1,3 +1,4 @@
+import { INSTALLMENT_BOUNDS_ERROR, isValidInstallmentSchedule } from './installmentPlans';
 import { supabase } from './supabase';
 
 export type EntryDraft = { type: 'movement' | 'plan'; payload: Record<string, unknown> };
@@ -27,9 +28,8 @@ export function validateDraft(draft: EntryDraft): void {
   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   if (year < 1 || month < 1 || month > 12 || day < 1 || day > [31,leap ? 29 : 28,31,30,31,30,31,31,30,31,30,31][month-1]) throw new Error('Ingresá una fecha válida.');
   if (draft.type === 'movement' && !['expense','income'].includes(String(p.kind))) throw new Error('Seleccioná un tipo válido.');
-  if (draft.type === 'plan' && (!Number.isInteger(p.installment_count) || Number(p.installment_count) < 2 || Number(p.installment_count) > 60
-    || !Number.isInteger(p.reference_number) || Number(p.reference_number) < 1 || Number(p.reference_number) > Number(p.installment_count)
-    || !['total','quota'].includes(String(p.amount_mode)))) throw new Error('Revisá la cantidad y referencia de cuotas (2 a 60).');
+  if (draft.type === 'plan' && (!isValidInstallmentSchedule(p.installment_count, p.reference_number)
+    || !['total','quota'].includes(String(p.amount_mode)))) throw new Error(INSTALLMENT_BOUNDS_ERROR);
 }
 
 export function readEntryAttempt(storage: EntryStorage, userId: string): EntryAttempt | null {

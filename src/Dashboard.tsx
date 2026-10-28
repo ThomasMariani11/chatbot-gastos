@@ -11,7 +11,20 @@ import { categoryVisual, movementVisual } from './categoryVisuals';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { supabase } from './supabase';
-import { mutateInstallmentPlan, readInstallmentPlan, planPatch, planError, type PlanSnapshot } from './installmentPlans';
+import {
+  INSTALLMENT_BOUNDS_ERROR,
+  isValidInstallmentCount,
+  isValidInstallmentSchedule,
+  MAX_INSTALLMENT_COUNT,
+  MIN_INSTALLMENT_COUNT,
+  mutateInstallmentPlan,
+  parseInstallmentCountInput,
+  planError,
+  planPatch,
+  PRESET_INSTALLMENT_COUNTS,
+  readInstallmentPlan,
+  type PlanSnapshot,
+} from './installmentPlans';
 import { EntrySender, browserEntryStorage, entryError, type EntryAttempt, type EntryDraft } from './pwaEntries';
 import { createDashboardLoader, canShowDashboard, type LoadView } from './dashboardLoader';
 import { readDashboardSnapshot } from './dashboardData';
@@ -94,7 +107,7 @@ function IconMovements({ className = 'nav-icon' }: { className?: string }) { ret
 function IconInstallments({ className = 'nav-icon' }: { className?: string }) { return <Icon name="card" className={className} />; }
 function IconSettings({ className = 'nav-icon' }: { className?: string }) { return <Icon name="settings" className={className} />; }
 
-const PRESET_INSTALLMENT_COUNTS = [2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48];
+const isPresetInstallmentCount = (count: number) => (PRESET_INSTALLMENT_COUNTS as readonly number[]).includes(count);
 
 export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSignOut, isAdmin, onOpenAdmin }: Props) {
   // Solo el primer nombre para el saludo de bienvenida ("Hola, María 👋")
@@ -337,7 +350,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         setEditDate(row.occurred_on);
         setEditInstallmentNumber(row.installment_number);
         setEditInstallmentCount(row.installment_count);
-        setIsCustomEditInstallmentCount(!PRESET_INSTALLMENT_COUNTS.includes(row.installment_count));
+        setIsCustomEditInstallmentCount(!isPresetInstallmentCount(row.installment_count));
         setCustomEditCountInput(String(row.installment_count));
         setEditPlan(snapshot);
       }).catch(error => { if (active) setEditPlanError(planError(error)); });
@@ -567,7 +580,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     if (attempt.type === 'plan') {
       const count = Number(p.installment_count);
       setInstallmentCount(count); setCurrentInstallmentNumber(Number(p.reference_number));
-      setIsCustomInstallmentCount(!PRESET_INSTALLMENT_COUNTS.includes(count)); setCustomCountInput(String(count));
+      setIsCustomInstallmentCount(!isPresetInstallmentCount(count)); setCustomCountInput(String(count));
       setInstallmentAmountMode(p.amount_mode === 'quota' ? 'quota' : 'total');
     }
   }
@@ -619,9 +632,20 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     if (entrySender.busy || pendingEntry || entryStorageIssue) return;
     const selected = categories.find(category => category.id === categoryId && category.kind === manualKind);
     if (!selected) { setEntryMessage('Seleccioná una categoría válida.'); return; }
+    let resolvedInstallmentCount = installmentCount;
+    if (manualKind === 'expense' && isInstallments) {
+      const parsedCount = isCustomInstallmentCount
+        ? parseInstallmentCountInput(customCountInput)
+        : (isValidInstallmentCount(installmentCount) ? installmentCount : null);
+      if (parsedCount === null || !isValidInstallmentSchedule(parsedCount, currentInstallmentNumber)) {
+        setEntryMessage(INSTALLMENT_BOUNDS_ERROR);
+        return;
+      }
+      resolvedInstallmentCount = parsedCount;
+    }
     const common = { description: formDescription.trim(), amount: parseAmountNumber(formAmount), currency: manualCurrency, category_id: selected.id };
     await submitEntry(manualKind === 'expense' && isInstallments
-      ? { type: 'plan', payload: { ...common, amount_mode: installmentAmountMode, installment_count: installmentCount, reference_date: formDate, reference_number: currentInstallmentNumber } }
+      ? { type: 'plan', payload: { ...common, amount_mode: installmentAmountMode, installment_count: resolvedInstallmentCount, reference_date: formDate, reference_number: currentInstallmentNumber } }
       : { type: 'movement', payload: { ...common, kind: manualKind, occurred_on: formDate } });
   }
 
@@ -640,7 +664,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     setEditDate(item.date);
     const count = item.installmentCount ?? 3;
     setEditInstallmentCount(count);
-    const isCustom = !PRESET_INSTALLMENT_COUNTS.includes(count);
+    const isCustom = !isPresetInstallmentCount(count);
     setIsCustomEditInstallmentCount(isCustom);
     setCustomEditCountInput(String(count));
     const num = Math.min(item.installmentNumber ?? 1, count);
@@ -651,19 +675,32 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   async function saveMovementEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingMovement || editBusy.current) return;
+    setEditPlanError('');
     const description = editDescription.trim();
     const amount = parseAmountNumber(editAmount);
-    if (!description || !Number.isFinite(amount) || amount <= 0 || !editDate) return;
+    if (!description || !Number.isFinite(amount) || amount <= 0 || !editDate) {
+      setEditPlanError('Revisá descripción, categoría, importe, moneda y fecha.');
+      return;
+    }
     const selectedCategory = categories.find(c => c.id === editCategoryId && c.kind === editKind);
-    if (!selectedCategory) return window.alert('Seleccioná una categoría válida.');
+    if (!selectedCategory) {
+      setEditPlanError('Seleccioná una categoría válida.');
+      return;
+    }
     editBusy.current = true;
     setIsSavingEdit(true);
     try {
       if (editingMovement.installmentCount && editingMovement.installmentCount > 1) {
         const original = editPlan?.rows.find(row => row.id === editingMovement.id);
         if (!editPlan || !original) throw new Error('Esperá a que termine de cargar el plan o volvé a abrirlo.');
+        const resolvedEditCount = isCustomEditInstallmentCount
+          ? parseInstallmentCountInput(customEditCountInput)
+          : (isValidInstallmentCount(editInstallmentCount) ? editInstallmentCount : null);
+        if (resolvedEditCount === null || !isValidInstallmentSchedule(resolvedEditCount, editInstallmentNumber)) {
+          throw new Error(INSTALLMENT_BOUNDS_ERROR);
+        }
         const payload = planPatch(original, { description, amount, currency: editCurrency,
-          categoryId: selectedCategory.id, date: editDate, number: editInstallmentNumber, count: editInstallmentCount }, editApplyToAll);
+          categoryId: selectedCategory.id, date: editDate, number: editInstallmentNumber, count: resolvedEditCount }, editApplyToAll);
         if (Object.keys(payload).length) {
           editRequest.current ??= crypto.randomUUID();
           const snapshot = await mutateInstallmentPlan({ requestId: editRequest.current, action: 'edit',
@@ -681,7 +718,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       setMonth(editDate.slice(0, 7));
       refreshDashboard();
     } catch (error) {
-      window.alert(planError(error));
+      setEditPlanError(planError(error));
     } finally {
       editBusy.current = false;
       setIsSavingEdit(false);
@@ -1477,7 +1514,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     {showAdd && (
 
       <div className="modal-backdrop" role="presentation" onClick={closeAddForm}>
-        <form className="movement-form" onSubmit={addMovement} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
+        <form className="movement-form" noValidate onSubmit={addMovement} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
             <div>
               <p className="eyebrow">{pendingEntry ? 'ENVÍO PENDIENTE' : 'NUEVO MOVIMIENTO'}</p>
@@ -1624,33 +1661,30 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               </div>
               {isCustomInstallmentCount && (
                 <label style={{ marginTop: '-4px' }}>
-                  <span>Ingresá el número de cuotas (2 a 60):</span>
+                  <span>Ingresá el número de cuotas ({MIN_INSTALLMENT_COUNT} a {MAX_INSTALLMENT_COUNT}):</span>
                   <input
+                    name="customInstallmentCount"
                     type="number"
-                    min="2"
-                    max="60"
+                    min={MIN_INSTALLMENT_COUNT}
+                    max={MAX_INSTALLMENT_COUNT}
+                    step="1"
+                    inputMode="numeric"
                     value={customCountInput}
                     onChange={(e) => {
                       const valStr = e.target.value;
                       setCustomCountInput(valStr);
-                      const parsed = parseInt(valStr, 10);
-                      if (!isNaN(parsed) && parsed >= 2) {
-                        const clamped = Math.min(60, parsed);
-                        setInstallmentCount(clamped);
-                        if (currentInstallmentNumber > clamped) setCurrentInstallmentNumber(clamped);
+                      const parsed = parseInstallmentCountInput(valStr);
+                      if (parsed !== null) {
+                        setInstallmentCount(parsed);
+                        if (currentInstallmentNumber > parsed) setCurrentInstallmentNumber(parsed);
                       }
                     }}
                     onBlur={() => {
-                      const parsed = parseInt(customCountInput, 10);
-                      if (isNaN(parsed) || parsed < 2) {
-                        setCustomCountInput('2');
-                        setInstallmentCount(2);
-                      } else if (parsed > 60) {
-                        setCustomCountInput('60');
-                        setInstallmentCount(60);
-                      } else {
+                      const parsed = parseInstallmentCountInput(customCountInput);
+                      if (parsed !== null) {
                         setCustomCountInput(String(parsed));
                         setInstallmentCount(parsed);
+                        if (currentInstallmentNumber > parsed) setCurrentInstallmentNumber(parsed);
                       }
                     }}
                     placeholder="Ej. 7, 8, 14..."
@@ -1732,7 +1766,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
 
     {editingMovement && (
       <div className="modal-backdrop" role="presentation" onClick={() => { if (!editBusy.current) setEditingMovement(null); }}>
-        <form className="movement-form" onSubmit={saveMovementEdit} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
+        <form className="movement-form" noValidate onSubmit={saveMovementEdit} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
             <div>
               <p className="eyebrow">MODIFICAR MOVIMIENTO</p>
@@ -1748,7 +1782,8 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               <Icon name="close" />
             </button>
           </div>
-          {editingPlanId && !editPlan && <p role="status">{editPlanError || 'Cargando cuotas…'}</p>}
+          {editingPlanId && !editPlan && !editPlanError && <p role="status">Cargando cuotas…</p>}
+          {editPlanError && <p role="alert">{editPlanError}</p>}
           <fieldset disabled={isSavingEdit || Boolean(editingPlanId && !editPlan)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: '14px' }}>
           {editingMovement.installmentCount && editingMovement.installmentCount > 1 && (
             <div className="installment-edit-box">
@@ -1796,33 +1831,29 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               </div>
               {isCustomEditInstallmentCount && (
                 <label style={{ marginTop: '8px' }}>
-                  <span>Cantidad total de cuotas (2 a 60):</span>
+                  <span>Cantidad total de cuotas ({MIN_INSTALLMENT_COUNT} a {MAX_INSTALLMENT_COUNT}):</span>
                   <input
+                    name="customEditInstallmentCount"
                     type="number"
-                    min="2"
-                    max="60"
+                    min={MIN_INSTALLMENT_COUNT}
+                    max={MAX_INSTALLMENT_COUNT}
+                    step="1"
+                    inputMode="numeric"
                     value={customEditCountInput}
                     onChange={(e) => {
                       const valStr = e.target.value;
                       setCustomEditCountInput(valStr);
-                      const parsed = parseInt(valStr, 10);
-                      if (!isNaN(parsed) && parsed >= 2) {
-                        const clamped = Math.min(60, parsed);
-                        setEditInstallmentCount(clamped);
-                        if (editInstallmentNumber > clamped) setEditInstallmentNumber(clamped);
+                      const parsed = parseInstallmentCountInput(valStr);
+                      if (parsed !== null) {
+                        setEditInstallmentCount(parsed);                        if (editInstallmentNumber > parsed) setEditInstallmentNumber(parsed);
                       }
                     }}
                     onBlur={() => {
-                      const parsed = parseInt(customEditCountInput, 10);
-                      if (isNaN(parsed) || parsed < 2) {
-                        setCustomEditCountInput('2');
-                        setEditInstallmentCount(2);
-                      } else if (parsed > 60) {
-                        setCustomEditCountInput('60');
-                        setEditInstallmentCount(60);
-                      } else {
+                      const parsed = parseInstallmentCountInput(customEditCountInput);
+                      if (parsed !== null) {
                         setCustomEditCountInput(String(parsed));
                         setEditInstallmentCount(parsed);
+                        if (editInstallmentNumber > parsed) setEditInstallmentNumber(parsed);
                       }
                     }}
                     placeholder="Ej. 7, 8, 14..."
