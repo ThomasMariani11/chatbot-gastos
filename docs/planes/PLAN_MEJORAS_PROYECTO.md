@@ -51,6 +51,10 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 | Cerrado en su alcance | **BE-12** | PR #49 / 037 / v61; correcciones y aceptación del propietario verificadas. | [Validación y límites](VALIDACION_BE_12.md). |
 | Cerrado en su alcance | **BE-11** | 038/PR #50/v62, recuperación 20+1 y alias aceptados. | [Validación y límites](VALIDACION_BE_11.md). |
 | En revisión; sin publicar | **BE-13** | Alta atómica 039, reintentos seguros y mensajes veraces; administrador inicial excluido por decisión del propietario. | Pruebas locales aprobadas; completar CI aislado y autorizar SQL/PWA antes de publicar. |
+| Nuevo | **FE-23** | Símbolo de WhatsApp para soporte en vista cliente (Dashboard / Ajustes). | Acceso directo a support_phone con icono visible, accesible y no invasivo. |
+| Nuevo | **BE-19** | Notificación por WhatsApp al renovar suscripción (+X días y fecha nueva). | Aviso automático si el usuario tiene WhatsApp vinculado y activo, con idempotencia. |
+| Nuevo | **FE-24 / BE-20** | Extender categorías (catálogo base y personalizadas en PWA/bot). | Integridad (id, user_id), límites por usuario y coherencia en bot de WhatsApp. |
+| Nuevo | **NOTIF-01 (FE-25 / BE-21)** | Notificaciones para los clientes (vencimientos, recordatorios, resúmenes). | Tareas programadas seguras, opt-out de usuario en Ajustes y respeto de límites. |
 | Preparado y publicado; sin activar | **INF-14** | Política 30/90 validada y documentada en PR #47. | Retención false hasta una autorización específica; no impide avanzar con mejoras funcionales. |
 | Etapa final de la app | **INF-13 / hosting** | Headers HTTP y protección de framing, postergados por el propietario hasta terminar la funcionalidad. | Retomar entonces la evaluación con costo $0 y vista previa; aprobar el cambio después de probar Auth/PWA/rollback. |
 | Último | **INF-08** | Backups y recuperación aplazados por el propietario. | Nueva evaluación/autorización cuando se priorice; no habilitar almacenamiento ahora. |
@@ -337,6 +341,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | Terminada en alcance verificado; headers HTTP siguen en INF-13 |
 | 21 | FE-20 | Baja | Cancelar navegación pendiente al desmontar | — | Terminada |
 | 22 | FE-22 | Baja | Cascada CSS de pestañas de acceso | FE-16 | Terminada |
+| 23 | FE-23 | Baja | Símbolo de WhatsApp para soporte en vista cliente | — | Pendiente |
+| 24 | FE-24 | Media | Extender categorías en PWA y selector de movimientos | BE-20 | Pendiente |
+| 25 | FE-25 | Media | Centro de avisos y preferencias de notificaciones cliente | BE-21, NOTIF-01 | Pendiente |
 
 ### FE-01 — Unificar el contrato de cuotas de WhatsApp y PWA
 
@@ -540,6 +547,44 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Trabajo:** acotar estilos de botones y dar especificidad coherente a las pestañas, por ejemplo auth-tabs .auth-tab y su variante active; evitar !important como parche general. Revisar representación visual, estado seleccionado y foco.
 - **Cierre:** selección y apariencia coinciden en ingreso/registro, móvil/escritorio y navegación por teclado; sin alterar botones de envío; contraste conforme a FE-16.
 
+### FE-23 — Símbolo de WhatsApp para soporte en vista cliente
+
+- [ ] Pendiente.
+- **Categoría:** Usabilidad y Soporte.
+- **Alcance:** en la vista cliente de la PWA (Dashboard y Ajustes), agregar un acceso directo visible y accesible con el icono de WhatsApp para contactar a soporte.
+- **Archivos:** `src/Dashboard.tsx`, `src/Settings.tsx`, `src/ui.css`.
+- **Trabajo:**
+  1. Utilizar el número de soporte configurado en el sistema (`support_phone` de `system_config`, con fallback a `whatsapp_bot_phone` si está ausente).
+  2. Implementar enlace directo seguro `https://wa.me/<phone>?text=...` con texto inicial contextualizado (ej. "Hola, necesito soporte con mi cuenta de Pesito").
+  3. Asegurar accesibilidad (etiqueta `aria-label="Contactar a soporte por WhatsApp"`, foco visible, contraste de colores).
+  4. Posicionamiento responsivo: no solapar el botón flotante de nuevo movimiento (`fab`) en pantallas móviles ni interferir con la navegación inferior o modales.
+- **Cierre:** enlace visible y funcional en Dashboard y Ajustes; redirección con número sanitizado; pruebas de renderizado y accesibilidad aprobadas.
+
+### FE-24 — Extender categorías en PWA y selector de movimientos
+
+- [ ] Pendiente.
+- **Categoría:** Mejora y UX.
+- **Alcance:** ampliar el catálogo predeterminado de categorías y permitir al usuario gestionar categorías personalizadas en la PWA.
+- **Archivos:** `src/Dashboard.tsx`, `src/Settings.tsx`, `src/categories.ts`, `src/categoryVisuals.ts`.
+- **Trabajo:**
+  1. Incorporar nuevas categorías solicitadas al catálogo base (ej: Suscripciones, Mascotas, Cuidado Personal, Inversiones).
+  2. Interfaz en Ajustes o modal para crear y personalizar categorías (nombre, color, icono, tipo gasto/ingreso), respetando el límite por usuario.
+  3. Actualización de selectors de movimiento y edición (`availableCategories`, `availableEditCategories`) para reflejar altas y cambios sin recargar la app.
+  4. Preservar `Otros` como categoría segura por defecto ante bajas o eliminaciones.
+- **Cierre:** nuevas categorías utilizables en alta y edición; validaciones de unicidad y límite en UI; pruebas unitarias y DOM aprobadas.
+
+### FE-25 — Centro de avisos y preferencias de notificaciones cliente
+
+- [ ] Pendiente.
+- **Categoría:** Feature / Retención.
+- **Alcance:** visualización de avisos informativos importantes en la PWA (vencimiento próximo de membresía, novedades) y panel de preferencias de notificaciones.
+- **Archivos:** `src/Dashboard.tsx`, `src/Settings.tsx`, `src/ui.css`.
+- **Trabajo:**
+  1. Banner o pill no intrusivo en Dashboard cuando la suscripción vence en <= 7 días o <= 1 día con botón directo a renovación.
+  2. Toggle en Ajustes (`app_settings`) para que el usuario pueda activar/desactivar recordatorios automáticos por WhatsApp.
+  3. Estado sincronizado con el backend sin peticiones redundantes.
+- **Cierre:** aviso visual claro en fechas críticas; control de preferencias persistente; tests de renderizado y accesibilidad aprobados.
+
 ### Resultados y límites de la auditoría de frontend
 
 - ESLint, TypeScript y build aprobados en una copia temporal; 26 tests aprobados en cinco archivos. Un EPERM del sandbox afectó el primer intento de tests; repetir con permisos adecuados resolvió el problema, sin atribuirlo al proyecto.
@@ -583,6 +628,9 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 16 | BE-15 | Media | Integraciones y límites de multimedia | INF-12 | Terminada |
 | 17 | BE-16 | Media | Logs y errores seguros | INF-09, INF-14 | Terminada |
 | 18 | BE-18 | Baja | Separación del código y llamadas remotas | — | Terminada |
+| 19 | BE-19 | Media | Notificación por WhatsApp al renovar suscripción | FE-06, BE-02 | Pendiente |
+| 20 | BE-20 | Media | Extensión y gestión segura de categorías en base y bot | FE-24 | Pendiente |
+| 21 | BE-21 | Media | Tareas programadas de notificaciones para clientes | FE-25, NOTIF-01 | Pendiente |
 
 Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por las renovaciones y la autorización. Su posición no implica postergar los cierres críticos hasta completar todo el sistema de pruebas.
 
@@ -800,6 +848,45 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Trabajo:** separar dominio puro, integraciones, repositorio transaccional y recepción/worker; unificar comandos; reducir escrituras mediante RPC o lotes sin sacrificar atomicidad. Revisar índices y consultas usando mediciones, no suposiciones.
 - **Cierre:** comportamiento y permisos preservados por regresiones; módulos testeables; llamadas y latencia comparadas para lotes; cambios de rendimiento respaldados por evidencia.
 - **Dependencias:** diseño fiable de BE-06, BE-07 y BE-10; pruebas de BE-17.
+
+### BE-19 — Notificación por WhatsApp al renovar suscripción
+
+- [ ] Pendiente.
+- **Categoría:** Feature / Automatización y Notificación transaccional.
+- **Alcance:** cuando se renueva la suscripción de un cliente (por panel administrativo `extend_subscription` o canje de código `redeem_invitation_code`), el bot envía automáticamente un mensaje de confirmación por WhatsApp indicando la extensión efectuada (+X días) y el nuevo vencimiento.
+- **Archivos:** `supabase/migrations/` (integración con `extend_subscription` y `redeem_invitation_code`), `supabase/functions/whatsapp-webhook/admin-send.ts` o outbox de notificaciones.
+- **Trabajo:**
+  1. Al completarse una extensión exitosa, si el usuario tiene `whatsapp_links` activo con `wa_id`, generar el aviso correspondiente.
+  2. Mensaje amigable y exacto: días añadidos (+30 días, etc.) o plan vitalicio, y fecha final calculada por el servidor (`subscription_until`).
+  3. Entrega duradera o despacho directo por Meta Graph API usando el emisor verificado; control de idempotencia para no duplicar si se reintenta la petición.
+  4. No bloquear la transacción de renovación si el proveedor de WhatsApp experimenta un error de red transitorio.
+- **Cierre:** renovación manual en admin y canje de código envían mensaje al chat de WhatsApp vinculado; usuario sin WhatsApp no falla; pruebas de integración con rollback aprobadas.
+
+### BE-20 — Extensión y gestión segura de categorías en base y bot
+
+- [ ] Pendiente.
+- **Categoría:** Modelo de Datos e Integridad.
+- **Alcance:** soporte en base de datos para categorías extendidas y personalizadas por usuario, alineado con el clasificador del bot de WhatsApp.
+- **Archivos:** `supabase/migrations/` (catálogo y restricciones de categorías), `supabase/functions/whatsapp-webhook/draft-corrections.ts`, `supabase/functions/whatsapp-webhook/processor.ts`.
+- **Trabajo:**
+  1. Migración para agregar nuevas categorías estándar del sistema a usuarios existentes y a la función de bootstrap (`039_atomic_user_signup.sql`).
+  2. RPC o políticas seguras para alta/modificación de categorías por usuario, con restricción `(id, user_id)` y límite de cantidad activa (ej. máximo 30).
+  3. Resolución dinámica en el bot de WhatsApp: búsqueda por nombre insensible a mayúsculas/acentos en las categorías activas del usuario, conservando fallback estricto a `Otros`.
+- **Cierre:** migración expansiva compatible; pruebas de integridad relacional; bot reconoce categorías nuevas; cero regresiones en transacciones existentes.
+
+### BE-21 — Tareas programadas de notificaciones para clientes (NOTIF-01)
+
+- [ ] Pendiente.
+- **Categoría:** Feature / Automatización y Notificaciones.
+- **Alcance:** motor programado de avisos a clientes por WhatsApp: vencimiento próximo de suscripción, resumen mensual de fin de mes y recordatorios de registro.
+- **Archivos:** `supabase/migrations/` (job pg_cron / cola de notificaciones), `supabase/functions/whatsapp-webhook/` (despacho seguro).
+- **Trabajo:**
+  1. Consulta periódica (ej. diaria vía pg_cron) que identifique cuentas activas con suscripción a vencer en 7 días y en 1 día.
+  2. Resumen de fin de mes opcional para cuentas con bot activo.
+  3. Verificación de opt-in/preferencias del cliente en `app_settings` antes de enviar.
+  4. Encolado idempotente: evitar que una ejecución repetida del cron envíe más de un aviso por ciclo o alerte dos veces el mismo día.
+  5. Registro seguro en logs sin exponer datos financieros ni nombres personales.
+- **Cierre:** simulación de cron en base aislada emite notificaciones en fechas correctas sin duplicados; cuentas vencidas o que desactivaron avisos no reciben mensajes; pruebas de volumen y fallos transitorios aprobadas.
 
 ### Resultados y límites de la auditoría de backend
 
