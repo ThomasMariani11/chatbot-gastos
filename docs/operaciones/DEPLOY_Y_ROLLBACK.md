@@ -140,6 +140,12 @@ Después de 034, el rollback de runtime solo puede usar ese puente o un lector p
 
 Contrato del candidato: mínimo 036 y rollback de runtime 7f26e33 (mínimo 035), conservando la expansión 036. Nueva RPC privada para el backend; monthly_summary conserva firma y pasa a ARS solamente. Aplicar SQL y verificar ACL/cache antes del webhook; no requiere pausa de cola. No ejecutar down ni modificar movimientos para validar. Publicado y verificado: f96ab87/PR #48, 036 y webhook v60; consulta del propietario aceptada. [Validación](../planes/VALIDACION_BE_09.md).
 
-## BE-12 / 037 — preparado, sin aplicar
+## BE-12 / 037 — publicado y verificado
 
 Candidato mínimo 037, rollback f96ab87 (mínimo 036) conservando 037. Aplicar SQL y comprobar funciones/ACL antes del webhook, tras CI y autorización. Ediciones versionadas bajo lease y patch validado completo antes de escribir; no altera movimientos confirmados. El helper es privado incluso para service_role. Preserva el formato legacy del runtime anterior; checkpoints nuevos llevan grupo/versión y no deben reinterpretarse al volver a v60. Dejar terminar trabajos iniciados o pedir repetir la corrección si fuera necesario. Sin cambios de proveedores, claves, cuotas, hosting o retención. [Validación y límites](../planes/VALIDACION_BE_12.md).
+
+Cierre productivo del 28/10/2026: 037 aplicada, PR #49 integrada en 1e45c94, webhook v61 y PWA verificados con cinco controles aprobados. Aceptación del propietario y cancelación sin movimientos de prueba guardados completadas; ver VALIDACION_BE_12.md. Las instrucciones de preparación anteriores registran el orden y el rollback, no un despliegue pendiente.
+
+## BE-11 / 038 — preparado, sin aplicar
+
+Mínimo del candidato 038, rollback de runtime 1e45c94 (mínimo 037) conservando 038. Tras CI y autorización, verificar historial/fuentes/ACL y las pausas de cola, aplicar/registrar SQL y publicar el webhook. Se agrega capacity_resumes y se ajusta metadata de checkpoints ya aplicados waiting/capacity sin error, sin cambiar estado/contenido ni reenviarlos; no se modifican movimientos financieros. El cron normal podrá atender alias que antes no eran elegibles. Mantener attempts monotónico y no reiniciar recibos IA. Helpers privados y guardas de 033 conservados. Ver [validación y rollback](../planes/VALIDACION_BE_11.md).

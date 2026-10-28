@@ -1,6 +1,10 @@
 # Plan de mejoras del proyecto
 
-## Estado vigente — 27/10/2026
+## Estado vigente — 28/10/2026
+
+**BE-11 preparado, sin publicar.** 038 alinea comandos de resolución, unifica excedentes mayores de 20 y separa vueltas de capacidad de fallos técnicos sin reutilizar attempts. 996 Vitest y 83 rutas Deno locales aprobados; recuperación concurrente y ensayo/rollback completo preparados para CI. [Contrato y límites](VALIDACION_BE_11.md).
+
+**BE-12 cerrado en el alcance publicado y probado.** PR #49 integrada en 1e45c94, migración 037 y webhook v61 ACTIVE; 939 Vitest, 80 rutas Deno y cinco controles de main aprobados. Aceptación del propietario 28/10 a las 11:19–11:21 Argentina: cinco ediciones del mismo pendiente, EUR/posición 99 rechazados, cancelación y resumen vacío; cero movimientos de prueba guardados, grupos abiertos o trabajos pendientes. Correcciones sin IA; el alta inicial reservó una consulta Qwen. [Cierre](VALIDACION_BE_12.md) y [evidencia](evidencias/BE_12_CIERRE_2026-10-28.json).
 
 **BE-09 cerrado en el alcance probado.** PR #48 publicada en f96ab87, migración 036 y webhook v60 ACTIVE. 871 Vitest, 75 rutas Deno y los cinco controles de main aprobados. Consulta real del propietario 27/10 a las 13:30: respuesta enviada en 5,122 s, un intento, cero IA; contenido contrastado con SQL, cero movimientos creados y cero trabajos propios pendientes. [Validación](VALIDACION_BE_09.md).
 
@@ -26,23 +30,24 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 
 [PR #39](https://github.com/ThomasMariani11/chatbot-gastos/pull/39) integrada y publicada por autorización explícita del propietario, versión **54dce9e**. 628 pruebas y cuatro controles más Publicar aprobados. Totales por registros existentes, centavos y moneda; corte explícito desde hoy o desde el mes futuro elegido. Paginación de cuotas sin entregar subtotales. Identidad, fallo SQL/rollback y reintento verificados con planes homónimos ficticios en Dashboard y RPC reales sobre base descartable. SHA, SW, bundle y CSP publicados comprobados. Sin migración, webhook ni compras productivas de prueba. **FE-09 y seguimiento FE-11 cerrados en su alcance.** [Evidencia y límites](VALIDACION_FE_09_11.md).
 
-## Punto de reanudación — 27/10/2026
+## Punto de reanudación — 28/10/2026
 
-- Producción: **f96ab87 / PR #48, 001–036 y whatsapp-webhook v60 ACTIVE**. Fuentes, ACL, PWA/SW/CSP, cinco controles y consulta real del propietario verificados. Rollback compatible de BE-09: 7f26e33 conservando 036; no volver a runtimes que omiten el gate 035. BE-12/037 permanece preparado en rama, sin aplicar ni publicar.
+- Producción: **1e45c94 / PR #49, 001–037 y whatsapp-webhook v61 ACTIVE**. Fuentes, ACL, PWA/SW/CSP y cinco controles verificados; BE-12 aceptado por el propietario. Rollback compatible de runtime: f96ab87, conservando 037 y comprobando checkpoints; ver su validación. No volver a runtimes que omitan las protecciones de confirmación o cupos.
 - INF-15 y FE-19 cerrados en sus alcances verificados. INF-13 parcial por cabeceras HTTP y framing: no cambiar hosting/URL sin preparar una vista previa y obtener aprobación.
-- FE-01/02/03/04/05/06/07/09/11/12 y BE-04/05/07/08 conservan los cierres y límites de sus validaciones. No se reabren ni se cierran BE-12/17 por extensión.
+- FE-01/02/03/04/05/06/07/09/11/12 y BE-04/05/07/08/09/12 conservan sus cierres y límites. BE-17 sigue abierto en su alcance transversal; BE-11 se revalida por separado.
 - INF-14: preparación publicada en PR #47 y retención 30/90 validada en aislado; mantener retention_enabled=false sin nueva autorización. La estimación del 27/10 a las 10:20 dio 0 mensajes, 0 métricas y 0 avisos elegibles; 38 registros v1 y dos recibos IA conservados.
-- Bloque funcional actual: **BE-09 cerrado** con 036/PR #48/v60 y consulta real del propietario. **BE-12 en preparación** por instrucción del propietario; BE-11 conserva su seguimiento separado. No asumir que todos los hallazgos históricos sigan presentes; coordinar FE-18/BE-17 solo cuando compartan contrato o pruebas.
+- Bloque actual: **BE-11 preparado en rama**, pendiente de CI final/publicación/aceptación. Alias detrás de espera, exceso imposible y conteo de capacidad corregidos en 038; BE-09/BE-12 conservan sus cierres. No se modifica producción en la preparación.
 - Decisiones vigentes: costo adicional $0, sin cambios de claves/planes/emisor, retención desactivada y backups INF-08 al final.
 
-## Próximos bloques — 27/10/2026
+## Próximos bloques — 28/10/2026
 
 | Orden | Bloque | Qué falta | Criterio para avanzar |
 | --- | --- | --- | --- |
 | Cerrado en su alcance | INF-15 | Publicado y aceptado: cupos compartidos, reglas locales y cancelaciones correctas. | [Validación](VALIDACION_INF_15.md). |
 | Cerrado en su alcance | FE-19 | CSP publicada y compatibilidad revalidada. | Limitaciones físicas/HTTP registradas en INF-13. |
 | Cerrado en su alcance | **BE-09** | 036/PR #48/v60, saldos SQL exactos y consulta real verificada. | FE-18/BE-17 no se cierran por extensión. |
-| Actual — solicitado | **BE-12** | Correcciones versionadas de concepto, categoría, moneda, fecha y cuotas; revalidar lo ya resuelto por BE-08. | Pruebas del parser, procesador y SQL real; publicación requiere revisión del cambio concreto. |
+| Cerrado en su alcance | **BE-12** | PR #49 / 037 / v61; correcciones y aceptación del propietario verificadas. | [Validación y límites](VALIDACION_BE_12.md). |
+| Actual — preparado | **BE-11** | 038 + aviso coherente y recuperación de cola; 996 Vitest/83 Deno locales. | CI final, autorización de publicación y aceptación. [Validación](VALIDACION_BE_11.md). |
 | Preparado y publicado; sin activar | **INF-14** | Política 30/90 validada y documentada en PR #47. | Retención false hasta una autorización específica; no impide avanzar con mejoras funcionales. |
 | Etapa final de la app | **INF-13 / hosting** | Headers HTTP y protección de framing, postergados por el propietario hasta terminar la funcionalidad. | Retomar entonces la evaluación con costo $0 y vista previa; aprobar el cambio después de probar Auth/PWA/rollback. |
 | Último | **INF-08** | Backups y recuperación aplazados por el propietario. | Nueva evaluación/autorización cuando se priorice; no habilitar almacenamiento ahora. |
@@ -566,8 +571,8 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | Terminada |
 | 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | Terminada en su alcance; 034/PR #43/v58 y aceptación WhatsApp verificadas |
 | 11 | BE-09 | Alta | Saldo por moneda y límites mensuales | — | Terminada en su alcance; 036/PR #48/v60 y aceptación verificadas |
-| 12 | BE-11 | Media | Listas antiguas, excedentes y numeración | INF-03 | Pendiente |
-| 13 | BE-12 | Media | Correcciones y resumen completo | — | En curso |
+| 12 | BE-11 | Media | Listas antiguas, excedentes y numeración | INF-03 | Preparado en 038; CI/publicación/aceptación pendientes |
+| 13 | BE-12 | Media | Correcciones y resumen completo | — | Terminada en alcance probado; 037/PR #49/v61 y aceptación |
 | 14 | BE-13 | Media | Consistencia del alta y bootstrap administrativo | INF-10 | Pendiente |
 | 15 | BE-14 | Media | Vinculación atómica y límites de intentos | — | Pendiente |
 | 16 | BE-15 | Media | Integraciones y límites de multimedia | INF-12 | Terminada |
@@ -692,12 +697,20 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-11 — Retener mensajes ante listas antiguas o falta de capacidad
 
+- **Implementación preparada el 28/10/2026:** 038, comandos de resolución coherentes, mensajes >20 sin espera imposible y contador de capacidad independiente del presupuesto de fallos. 996 Vitest/83 Deno locales aprobados. Se preservan los avances de listas antiguas y numeración; CI completo/publicación/aceptación pendientes. [Validación](VALIDACION_BE_11.md). Las notas de revalidación/propuesta siguientes registran el punto de partida.
+
+- **Revalidación del 28/10/2026, sobre esquema 037:** ya se retiene el mensaje nuevo ante una lista antigua y se recupera al resolverla; CANCELAR en ese caso descarta la lista anterior y permite procesar el audio nuevo. También se cuentan operaciones activas y las eliminaciones permiten posiciones superiores a 20 sin renumerar. Cinco regresiones existentes de SQL real aprobaron en PGlite aislado. No se presentan esos defectos históricos como si siguieran todos vigentes.
+- **Pendiente reproducido:** el parser acepta `ver lista`, `sacame el 2`, `borralo` y `¡sí!`, pero next_whatsapp_job no los admite detrás de un mensaje waiting. Los comandos canónicos sí pasan. La prueba usa fixtures, sin producción ni IA. [Diagnóstico](evidencias/BE_11_REVALIDACION_2026-10-28.json).
+- **Diferencia actual de contratos:** processor.ts rechaza explícitamente un único mensaje de más de 20 y pide dividirlo, mientras apply_whatsapp_job conserva un add de más de 20 en waiting/capacity. Esa segunda ruta nunca cabe en una lista de 20. Hay que unificar ambas sin crear un bloqueo permanente; no se encontró ni se presume una pérdida real de movimientos de clientes.
+- **Propuesta para implementar:** (1) alinear comandos/normalización entre parser, next y due, conservando autorización, lease y revisión antes de confirmar; (2) si la lista tiene 18 y llega un mensaje con tres operaciones, retener las tres juntas y retomarlas en orden después de liberar capacidad o confirmar las anteriores; (3) si un solo mensaje trae más de 20, rechazar el alta completa con cantidad/límite/instrucción de división claros, conservar el original para diagnóstico y permitir seguir usando el bot; no partirlo ni guardar los primeros 20 automáticamente; (4) probar RETOMAR/DESCARTAR, varios retenidos, reenvíos, reinicios y numeración con huecos. Nada se guarda sin CONFIRMAR sobre un resumen vigente.
+- **Estado de esa revisión inicial:** propuesta documentada antes de implementar; reemplazado por la preparación 038 registrada arriba. Producción continúa en 037/v61 hasta autorización/publicación. Los párrafos siguientes conservan el historial de la auditoría y no reemplazan esta revalidación.
+
 - **Seguimiento de audio 16/10/2026:** la prueba nueva confirmó 503 en ambos modelos. Se implementa pedido de texto inmediato tras agotar los dos modelos, con checkpoint persistente y sin reintentos de IA en la cola. Flash Lite primero; medios con 10 s por intento. No se crean movimientos del audio fallido. Ver [validación](VALIDACION_FALLBACK_TEXTO.md). Webhook v43 publicado y smoke 401 aprobado; cuatro checks CI aprobados, 198 Vitest y 21 Deno. Prueba real aprobada: respuesta al audio en 3,55 s, un solo gasto confirmado de ARS 123 desde el texto y cero desde el audio, sin mensajes bloqueados. Gemini sigue devolviendo 503; INF-11 es el siguiente punto.
 
 - **Incidente 16/10/2026:** CANCELAR ante una lista de más de 24 h se retenía junto con el audio nuevo. Corrección 025 y diagnóstico seguro de preparación implementados; 197 tests + 17 Deno aprobados. 025 aplicada y webhook v42 activo tras cuatro checks aprobados; pendiente prueba de audio con diagnóstico nuevo. El alcance general de BE-11 sigue abierto. [Detalle](VALIDACION_AUDIO_LISTA_ANTIGUA.md).
 
 - [ ] Terminada.
-- **Problema confirmado:** el gasto nuevo que llega con una lista antigua no queda retenido para retomarlo; los excedentes no tienen transición de recuperación. El límite depende de la posición máxima incluyendo eliminados, no de la cantidad activa.
+- **Hallazgo original de la auditoría (ver revalidación vigente arriba):** el gasto nuevo que llega con una lista antigua no queda retenido para retomarlo; los excedentes no tienen transición de recuperación. El límite depende de la posición máxima incluyendo eliminados, no de la cantidad activa.
 - **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:588`, `:863`; `supabase/migrations/014_draft_movement_batches.sql:24`.
 - **Trabajo:** conservar el mensaje hasta RETOMAR/DESCARTAR o liberar capacidad; no truncar un mensaje parcialmente. Mantener números estables sin limitar su identificador histórico a 20; contar operaciones activas bajo bloqueo. Definir qué hacer si un único mensaje supera 20.
 - **Cierre:** retomar o descartar conserva el gasto nuevo; excedentes explicados y recuperables; eliminaciones liberan capacidad sin renumerar; el usuario puede resolver mensajes mayores de 20 sin pérdida silenciosa.
@@ -705,14 +718,16 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-12 — Completar correcciones y datos del resumen
 
+- **Cierre 28/10/2026:** PR #49 / 1e45c94 / 037 / v61 publicados y aceptados por el propietario. Cinco ediciones, rechazos y cancelación verificados, sin movimientos de prueba guardados ni IA en correcciones. [Validación](VALIDACION_BE_12.md) y [evidencia](evidencias/BE_12_CIERRE_2026-10-28.json). Los avances siguientes son históricos.
+
 - **Revalidación 27/10/2026:** BE-08 ya muestra moneda, fecha y mes inicial de cuotas. Se trabaja en ediciones locales versionadas de todos los campos, validación de categoría y cambios atómicos; BE-11 no se da por cerrado. 037 y cambios de webhook preparados; 939 Vitest y 80 rutas Deno aprobados localmente. CI completo/publicación/aceptación pendientes. [Contrato, pruebas y límites](VALIDACION_BE_12.md).
 
 - **Avance al 20/10/2026 — ahorro de IA:** comandos ampliados, aclaración de correcciones sin IA y gramática conservadora para textos simples/listas mixtas, fechas y cuotas con total explícito. Tests importan el parser real; métricas permitidas sin contenido. 306 Vitest, 35 Deno sin red, tipos/lint/build aprobados. Publicado: PR 13, commit ce216ec, webhook v45 ACTIVE; cuatro checks CI aprobados, base 025 y cola habilitada. Aceptación WhatsApp verificada (5 mensajes en 0,65–2,27 s, `local_rule` en movimientos/corrección/comandos y cero `ai_attempt`); no cierra los otros campos de BE-12, BE-08 ni INF-12. [Reglas y validación](REGLAS_LOCALES_WHATSAPP.md).
 
 - **Avance al 15/10/2026:** durante la prueba INF-03 se detectó una corrección convertida en un gasto nuevo. Webhook v40 interpreta correcciones explícitas de importe sin IA y bloquea altas desde instrucciones de edición. 163 tests y 12 Deno aprobados. Pendiente repetir WhatsApp y completar los demás campos de BE-12. [Detalle y validación](CORRECCION_PENDIENTES_2026-10-15.md).
 
-- [ ] Terminada.
-- **Problema confirmado:** categoría declarada en la edición pero no aplicada; no se verifica existencia/estado del objetivo; una actualización sin filas puede anunciar éxito. El resumen omite fecha y mes inicial de cuotas; el contrato de edición no representa moneda, fecha ni cuotas.
+- [x] Terminada en el alcance publicado y probado el 28/10/2026.
+- **Hallazgo histórico resuelto en el alcance de BE-12:** categoría declarada en la edición pero no aplicada; no se verifica existencia/estado del objetivo; una actualización sin filas puede anunciar éxito. El resumen omite fecha y mes inicial de cuotas; el contrato de edición no representa moneda, fecha ni cuotas.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:818`, `:821`, `:828`, `:405`.
 - **Trabajo:** contrato validado para campos corregibles; verificar objetivo pendiente y pertenencia; aplicar todos los cambios de forma atómica y devolver el resultado real. Mostrar moneda, fecha y cuotas relevantes para revisar.
 - **Cierre:** posiciones inexistentes, quitadas y ajenas rechazadas sin modificar otros pendientes; importe, concepto, categoría, moneda, fecha y cuotas corregidos según el contrato; resumen coincide con lo guardado.

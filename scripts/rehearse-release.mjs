@@ -84,6 +84,42 @@ async function smokeWorker(api) {
   assert.equal((await request(api, path + '?action=worker', { body: '{}' })).status, 401);
   assert.equal((await request(api, path + '?action=worker', { body: '{}', headers: { 'x-worker-secret': workerSecret } })).status, 200);
 }
+async function smokeWaitingRecoverySql(id) {
+  // Aislado y transaccional; se repite con runtime anterior sobre esquema 038.
+  await sql(`begin;
+    update public.whatsapp_queue_control set enabled=true;
+    update public.whatsapp_links set wa_id='synthetic-release-wait',status='active' where user_id='${id}';
+    select public.enqueue_whatsapp_messages('[{"id":"release-wait-fill","from":"synthetic-release-wait","type":"text","text":{"body":"Solo fixture"}}]'::jsonb);
+    select public.claim_whatsapp_actor('synthetic-release-wait','65000000-0000-4000-8000-000000000038');
+    do $$declare j jsonb;r jsonb;items jsonb;n integer;begin
+      select jsonb_agg(jsonb_build_object('kind','expense','description','BE11 fixture','totalAmountArs',i,'currency','ARS','occurredOn','2026-10-28','installments',1,'confidence',1,'missingFields','[]'::jsonb)) into items from generate_series(1,20)i;
+      j:=public.next_whatsapp_job('synthetic-release-wait','65000000-0000-4000-8000-000000000038');
+      perform public.apply_whatsapp_job((j->>'id')::uuid,'65000000-0000-4000-8000-000000000038',jsonb_build_object('kind','add','items',items));
+      perform public.finish_whatsapp_job((j->>'id')::uuid,'65000000-0000-4000-8000-000000000038');
+      perform public.enqueue_whatsapp_messages('[{"id":"release-wait-held","from":"synthetic-release-wait","type":"text","text":{"body":"Lote ficticio"}}]'::jsonb);
+      j:=public.next_whatsapp_job('synthetic-release-wait','65000000-0000-4000-8000-000000000038');
+      perform public.apply_whatsapp_job((j->>'id')::uuid,'65000000-0000-4000-8000-000000000038',jsonb_build_object('kind','add','items',jsonb_build_array(items->0,items->1)));
+      perform public.finish_whatsapp_job((j->>'id')::uuid,'65000000-0000-4000-8000-000000000038');
+      for n in 1..2 loop
+        perform public.enqueue_whatsapp_messages(jsonb_build_array(jsonb_build_object('id','release-wait-remove-'||n,'from','synthetic-release-wait','type','text','text',jsonb_build_object('body','sacame el '||n))));
+        j:=public.next_whatsapp_job('synthetic-release-wait','65000000-0000-4000-8000-000000000038');
+        if j->>'wa_message_id' is distinct from 'release-wait-remove-'||n then raise exception 'WAITING_ALIAS_BLOCKED';end if;
+        perform public.apply_whatsapp_job((j->>'id')::uuid,'65000000-0000-4000-8000-000000000038',jsonb_build_object('kind','remove','position',n));
+        perform public.finish_whatsapp_job((j->>'id')::uuid,'65000000-0000-4000-8000-000000000038');
+        j:=public.next_whatsapp_job('synthetic-release-wait','65000000-0000-4000-8000-000000000038');
+        if j->>'wa_message_id' is distinct from 'release-wait-held' then raise exception 'WAITING_MESSAGE_LOST';end if;
+        perform public.apply_whatsapp_job((j->>'id')::uuid,'65000000-0000-4000-8000-000000000038',jsonb_build_object('kind','add','items',jsonb_build_array(items->0,items->1)));
+        perform public.finish_whatsapp_job((j->>'id')::uuid,'65000000-0000-4000-8000-000000000038');
+      end loop;
+      if (select capacity_resumes from public.whatsapp_message_queue where wa_message_id='release-wait-held')<>2 or (select status from public.whatsapp_message_queue where wa_message_id='release-wait-held')<>'processed' then raise exception 'WAITING_RECOVERY_INVALID';end if;
+      perform public.enqueue_whatsapp_messages('[{"id":"release-wait-oversized","from":"synthetic-release-wait","type":"text","text":{"body":"Lote grande ficticio"}}]'::jsonb);
+      j:=public.next_whatsapp_job('synthetic-release-wait','65000000-0000-4000-8000-000000000038');
+      r:=public.apply_whatsapp_job((j->>'id')::uuid,'65000000-0000-4000-8000-000000000038',jsonb_build_object('kind','add','items',items||jsonb_build_array(items->0)));
+      if r->>'reply_text' is distinct from public.whatsapp_over_limit_reply(21) or r->>'pause_reason' is not null then raise exception 'WAITING_OVERSIZE_BLOCK';end if;
+    end $$;
+    rollback;`);
+}
+
 async function smokeDraftEditSql(id) {
   // Solo fixtures del stack local; también se ejecuta con runtime rollback/037.
   await sql(`begin;
@@ -260,6 +296,7 @@ try {
     await smokeWorker(api);
     await smokeQuotaSql(id);
     await smokeDraftEditSql(id);
+    await smokeWaitingRecoverySql(id);
     await buildAndSmoke(candidate, current, api, status.ANON_KEY);
   });
   await step('rollback_compatible_sin_restaurar_datos', async () => {
@@ -273,6 +310,7 @@ try {
     await smokeWorker(api);
     await smokeQuotaSql(id);
     await smokeDraftEditSql(id);
+    await smokeWaitingRecoverySql(id);
     await buildAndSmoke(previous, tools.release.rollbackCommit, api, status.ANON_KEY);
     assert.equal(await sql("select count(*) from public.transactions where user_id='" + id + "' and amount_ars=100 and status='confirmed';"), '1');
     assert.equal(await sql('select count(*) from public.whatsapp_message_queue;'), '0');

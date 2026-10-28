@@ -1,3 +1,5 @@
+import { parseLocalCommand } from "../supabase/functions/whatsapp-webhook/local-commands";
+import { formatOverLimitReply } from "../supabase/functions/whatsapp-webhook/draft-summary";
 import { OperationalFailure } from '../supabase/functions/whatsapp-webhook/failures';
 import { createLogWriter } from '../supabase/functions/whatsapp-webhook/logging';
 import { PGlite } from '@electric-sql/pglite';
@@ -14,6 +16,9 @@ const admin='30000000-0000-4000-8000-000000000003';
 const t1='31000000-0000-4000-8000-000000000001', t2='31000000-0000-4000-8000-000000000002';
 const migrationUrl = new URL('../supabase/migrations/', import.meta.url);
 let applyPropertiesBefore: unknown;
+let capacitySeedSnapshot: Array<{wa_message_id:string;capacity_resumes:number}>;
+let be11PropertiesBefore: unknown;
+const be11PropertiesSql="select proname,proowner,proacl::text,prosecdef,proconfig from pg_proc where oid in('public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure,'public.next_whatsapp_job(text,uuid)'::regprocedure,'public.due_whatsapp_actors()'::regprocedure,'public.fail_whatsapp_job(uuid,uuid)'::regprocedure) order by proname";
 const applyPropertiesSql = "select proowner,proacl::text,prosecdef,proconfig from pg_proc where oid='public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure";
 const movement = (description='Supermercado', amount=100) => ({kind:'expense',description,totalAmountArs:amount,currency:'ARS',occurredOn:'2026-10-15',installments:1,confidence:1,missingFields:[]});
 const message = (id:string, from='synthetic-a', body='Gasté 100 en supermercado') => ({id,from,type:'text',timestamp:String(Math.floor(Date.now()/1000)),text:{body}});
@@ -108,6 +113,11 @@ beforeAll(async()=>{
   await db.exec(await readFile(new URL('034_incomplete_draft_items.sql',migrationUrl),'utf8'));
   await db.exec(await readFile(new URL('035_shared_ai_quota.sql',migrationUrl),'utf8'));
   await db.exec(await readFile(new URL('037_versioned_draft_edits.sql',migrationUrl),'utf8'));
+  be11PropertiesBefore=(await db.query(be11PropertiesSql)).rows;
+  await db.query("insert into public.whatsapp_message_queue(wa_message_id,wa_id,user_id,payload,queue_version,status,attempts,effect_applied,pause_reason)values('be11-seed-cap','synthetic-migration-seed',$1,'{}',2,'waiting',6,true,'capacity'),('be11-seed-manual','synthetic-migration-seed',$1,'{}',2,'waiting',6,true,'manual_review'),('be11-seed-failed','synthetic-migration-seed',$1,'{}',2,'failed',6,false,'capacity')",[a]);
+  await db.exec(await readFile(new URL('038_waiting_queue_recovery.sql',migrationUrl),'utf8'));
+  capacitySeedSnapshot=(await db.query<{wa_message_id:string;capacity_resumes:number}>("select wa_message_id,capacity_resumes from public.whatsapp_message_queue where wa_id='synthetic-migration-seed' order by wa_message_id")).rows;
+  await db.exec("delete from public.whatsapp_message_queue where wa_id='synthetic-migration-seed'");
 },30000);
 beforeEach(async()=>{await db.exec('begin; update public.whatsapp_queue_control set enabled=true');});
 afterEach(async()=>{await db.exec('rollback');});
@@ -280,11 +290,12 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     expect((await db.query("select description,amount::text as amount,status,legacy_transaction_id is not null as linked from public.draft_items")).rows).toEqual([{description:'Propuesta vieja',amount:'123.00',status:'pending',linked:true}]);
     expect((await db.query("select to_jsonb(t) as row from public.transactions t where status='confirmed'")).rows).toEqual(confirmedBefore);
   });
-  it('un mensaje con más de 20 operaciones queda retenido íntegro sin inserciones parciales',async()=>{
+  it('BE-11: un mensaje mayor de 20 se rechaza completo sin dejar una espera imposible',async()=>{
     await enqueue(message('one')); await claim(); const job=(await next())!;
     const result=await apply(job,{kind:'add',items:Array.from({length:21},()=>movement())}); await finish(result);
     expect((await db.query('select count(*)::int as n from public.draft_items')).rows[0]).toEqual({n:0});
-    expect((await db.query('select status,pause_reason from public.whatsapp_message_queue')).rows[0]).toEqual({status:'waiting',pause_reason:'capacity'});
+    expect((await db.query('select status,pause_reason from public.whatsapp_message_queue')).rows[0]).toEqual({status:'processed',pause_reason:null});
+    expect(result.reply_text).toContain('Recibí 21 movimientos');
   });
   it('un intento agotado no desaparece: pasa a revisión y envía un aviso durable',async()=>{
     await enqueue(message('one')); await claim();
@@ -1194,3 +1205,89 @@ it('BE-12: service_role aplica por RPC pero no puede saltar el helper privado',a
  await db.exec('set local role service_role');const result=await apply(q,{kind:'edit',group_id:g.group_id,version:g.version,position:1,patch:{amount:123.45,category:'Otros'}});await db.exec('reset role');expect(result.reply_text).toBeNull();
  expect((await db.query<{amount:string}>('select amount::text from public.draft_items where group_id=$1 and position=1',[g.group_id])).rows[0].amount).toBe('123.45');
 });
+
+describe('BE-11: resolver esperas sin perder ni duplicar movimientos',()=>{
+ const readGroup=()=>rpc<{group_id:string;version:number;items:Array<{id:string;position:number;description:string;amount:number;status:string}>}>('get_active_draft_group',{p_user_id:a});
+ async function held(items:unknown[],id='be11-held'){
+  await enqueue(message(id,'synthetic-a','Lote ficticio conservado'));const q=(await next())!;
+  await rpc('checkpoint_whatsapp_job',{p_id:q.id,p_token:t1,p_result:{intent:'add_movements',movements:items}});
+  const result=await apply(q,{kind:'add',items});await finish(q);return result;
+ }
+ async function command(text:string,id='be11-command'){
+  await enqueue(message(id,'synthetic-a',text));const q=(await next())!;expect(q).not.toBeNull();expect(q.payload.id).toBe(id);
+  const action=parseLocalCommand(text);expect(action).not.toBeNull();const out=await apply(q,action!);await finish(q);return out;
+ }
+ it.each(['RESUMEN','ver lista','  VER  LA\nLISTA. ','pendientes','mis pendientes','Quitá el 2','sacame el 2','borrame la operación 2','eliminame el gasto 2','CANCELAR','borralo','borrar todo','cancelalo','rechazar','❌','¡sí!','👍🏽','✅','ok','de una','retomar','descartar','ayuda','hola','gracias'])('el filtro SQL admite el comando real del parser: %s',async raw=>{
+  expect(parseLocalCommand(raw)).not.toBeNull();expect(await rpc('whatsapp_can_pass_waiting',{p_payload:message('synthetic', 'synthetic-a',raw)})).toBe(true);
+ });
+ it.each(['Gasté 123 super','confirmar y gasté 500','resumen de gastos nuevos','no gastar más','ver lista y gasté 100','quitame la deuda futura'])('no deja pasar una carga/pregunta como autorización: %s',async raw=>{
+  const parsed=parseLocalCommand(raw);const eligible=await rpc('whatsapp_can_pass_waiting',{p_payload:message('synthetic','synthetic-a',raw)});
+  expect(eligible).toBe(parsed?.kind==='reply'); // Remoción inválida puede pedir aclaración; nunca autoriza guardar.
+ });
+ it.each(['El 2 fue de 250','La operación 2 moneda USD','Corregí el 2 por 123','5000','$ 1.234,50','2026-10-28'])('conserva correcciones/completados sin IA: %s',async raw=>expect(await rpc('whatsapp_can_pass_waiting',{p_payload:message('synthetic','synthetic-a',raw)})).toBe(true));
+ it.each(['ver lista','sacame el 2','borralo','¡sí!'])('la cola y recuperación programada dejan llegar el alias: %s',async text=>{
+  await add('be11-alias',Array.from({length:20},(_,i)=>movement('Ficticio '+i,i+1)));await held([movement('Retenido')]);
+  await enqueue(message('be11-alias-command','synthetic-a',text));await db.exec("update public.whatsapp_worker_state set lease_until=clock_timestamp()-interval '1 second'");
+  expect(await rpc('due_whatsapp_actors')).toContain('synthetic-a');await claim();const q=(await next())!;expect(q.payload.id).toBe('be11-alias-command');
+  const result=await apply(q,parseLocalCommand(text)!);expect(result.effect_applied).toBe(true);
+ });
+ it('18 + 3 se retienen completos y reaparecen después de liberar un espacio',async()=>{
+  await add('be11-18',Array.from({length:18},(_,i)=>movement('Previo '+i,i+1)));const before=await readGroup();const items=[movement('Retenido A',101),movement('Retenido B',202),movement('Retenido C',303)];const q=await held(items);
+  expect(q.reply_text).toContain('Tenés 18');expect(q.reply_text).toContain('trae 3');expect((await readGroup()).items).toHaveLength(18);
+  await command('sacame el 2');const released=(await next())!;expect(released.id).toBe(q.id);expect(released.parsed_result).toEqual({intent:'add_movements',movements:items});
+  await apply(released,{kind:'add',items});await finish(released);const after=await readGroup();expect(after.items).toHaveLength(20);expect(after.items.slice(-3).map(i=>[i.position,i.description,i.amount])).toEqual([[19,'Retenido A',101],[20,'Retenido B',202],[21,'Retenido C',303]]);
+  for(const row of before.items.filter(i=>i.position!==2))expect(after.items.find(i=>i.id===row.id)).toEqual(row);
+  expect((await db.query<{n:number}>('select count(*)::int n from public.transactions')).rows[0].n).toBe(0);
+ });
+ it('confirmar la lista anterior libera el mensaje completo pero no guarda el nuevo',async()=>{
+  await add('be11-confirm-old',Array.from({length:18},(_,i)=>movement('Previo '+i,i+1)));const items=[movement('Nuevo A'),movement('Nuevo B'),movement('Nuevo C')],q=await held(items);await show();
+  const confirmed=await command('¡sí!');expect(confirmed.reply_text).toContain('Se guardaron 18');const released=(await next())!;expect(released.id).toBe(q.id);await apply(released,{kind:'add',items});await finish(released);
+  expect((await readGroup()).items).toHaveLength(3);expect((await db.query<{n:number}>('select count(*)::int n from public.transactions')).rows[0].n).toBe(18);expect((await db.query<{n:number}>("select count(*)::int n from public.transactions where description like 'Nuevo %'")).rows[0].n).toBe(0);
+ });
+ it('veinte liberaciones no cuentan como errores técnicos ni repiten interpretación',async()=>{
+  await add('be11-repeated',Array.from({length:20},(_,i)=>movement('Previo '+i,i+1)));const items=Array.from({length:20},(_,i)=>movement('Retenido '+i,i+1));const original=await held(items);
+  for(let i=1;i<=20;i++){
+   await command('sacame el '+i,'be11-remove-'+i);const q=(await next())!;expect(q.id).toBe(original.id);expect(q.effect_applied).toBe(false);expect(q.parsed_result).toEqual({intent:'add_movements',movements:items});await apply(q,{kind:'add',items});await finish(q);
+  }
+  const group=await readGroup();expect(group.items).toHaveLength(20);expect(group.items.map(i=>i.position)).toEqual(Array.from({length:20},(_,i)=>21+i));
+  expect((await db.query<{attempts:number;capacity_resumes:number;status:string}>('select attempts,capacity_resumes,status from public.whatsapp_message_queue where id=$1',[original.id])).rows[0]).toEqual({attempts:21,capacity_resumes:20,status:'processed'});
+ },15000);
+ it('varios mensajes conservan orden y el siguiente vuelve a esperar si no cabe',async()=>{
+  await add('be11-order-initial',Array.from({length:20},(_,i)=>movement('Previo '+i,i+1)));const first=await held([movement('Primero')],'be11-first');await enqueue(message('be11-second','synthetic-a','Segundo ficticio'));expect(await next()).toBeNull();
+  await command('sacame el 1');let q=(await next())!;expect(q.id).toBe(first.id);await apply(q,{kind:'add',items:[movement('Primero')]});await finish(q);
+  q=(await next())!;expect(q.payload.id).toBe('be11-second');await apply(q,{kind:'add',items:[movement('Segundo')]});await finish(q);
+  await command('sacame el 2','be11-remove-second');q=(await next())!;expect(q.payload.id).toBe('be11-second');await apply(q,{kind:'add',items:[movement('Segundo')]});await finish(q);
+  expect((await readGroup()).items.slice(-2).map(i=>i.description)).toEqual(['Primero','Segundo']);
+ });
+ it('un mensaje mayor de 20 no bloquea el siguiente ni inserta una parte',async()=>{
+  await add('be11-oversize-base',[movement('Conservar',12.34)]);const before=await readGroup(),q=await held(Array.from({length:21},(_,i)=>movement('No agregar '+i)));
+  expect(q.reply_text).toBe(formatOverLimitReply(21));expect(await readGroup()).toEqual(before);await enqueue(message('be11-after-oversize'));const following=(await next())!;expect(following.payload.id).toBe('be11-after-oversize');await apply(following,{kind:'add',items:[movement('Siguiente')]});await finish(following);expect((await readGroup()).items).toHaveLength(2);
+ });
+ it('el backoff usa fallos, no las vueltas de capacidad, y conserva attempts para deduplicar',async()=>{
+  await enqueue(message('be11-backoff'));await claim();const q=(await next())!;await db.query('update public.whatsapp_message_queue set attempts=21,capacity_resumes=20 where id=$1',[q.id]);await rpc('fail_whatsapp_job',{p_id:q.id,p_token:t1});
+  const row=(await db.query<{seconds:number;attempts:number;capacity_resumes:number}>('select extract(epoch from scheduled_for-clock_timestamp())::float8 seconds,attempts,capacity_resumes from public.whatsapp_message_queue where id=$1',[q.id])).rows[0];expect(row.seconds).toBeGreaterThan(8);expect(row.seconds).toBeLessThanOrEqual(10);expect(row.attempts).toBe(21);expect(row.capacity_resumes).toBe(20);
+ });
+ it('cinco fallos reales todavía pasan a revisión manual',async()=>{
+  await enqueue(message('be11-real-failures'));await claim();await db.exec('update public.whatsapp_message_queue set attempts=8,capacity_resumes=3');const q=(await next())!;expect(q.effect_applied).toBe(true);expect((q as Job&{pause_reason:string}).pause_reason).toBe('manual_review');expect(q.attempts).toBe(9);
+ });
+ it('inicializa solo checkpoints exitosos de capacidad y mantiene ACL privadas',async()=>{
+  expect(capacitySeedSnapshot).toEqual([{wa_message_id:'be11-seed-cap',capacity_resumes:5},{wa_message_id:'be11-seed-failed',capacity_resumes:0},{wa_message_id:'be11-seed-manual',capacity_resumes:0}]);expect((await db.query(be11PropertiesSql)).rows).toEqual(be11PropertiesBefore);
+  for(const role of ['anon','authenticated','service_role'])for(const fn of ['public.whatsapp_can_pass_waiting(jsonb)','public.whatsapp_over_limit_reply(integer)'])expect((await db.query<{allowed:boolean}>('select has_function_privilege($1,$2,\'execute\') allowed',[role,fn])).rows[0].allowed).toBe(false);
+ });
+});
+
+it.each(['RETOMAR','DESCARTAR','CANCELAR'])('BE-11: %s resuelve la lista antigua y conserva íntegro el mensaje nuevo',async control=>{
+ await add('be11-stale-base',[movement('Anterior',99)]);const old=await rpc<{group_id:string}>('get_active_draft_group',{p_user_id:a});await db.exec("update public.draft_groups set last_activity_at=clock_timestamp()-interval '25 hours'");
+ await enqueue(message('be11-stale-new','synthetic-a','Dos movimientos nuevos'));const held=(await next())!;await apply(held,{kind:'summary'});await finish(held);
+ await enqueue(message('be11-stale-control','synthetic-a',control));const cmd=(await next())!;await apply(cmd,parseLocalCommand(control)!);await finish(cmd);
+ const recovered=(await next())!;expect(recovered.id).toBe(held.id);expect(recovered.payload.text?.body).toBe('Dos movimientos nuevos');const items=[movement('Nuevo A',101),{...movement('Nuevo B',202),kind:'income',currency:'USD'}];await apply(recovered,{kind:'add',items});await finish(recovered);
+ const g=await rpc<{items:Array<{description:string;currency:string}>}>('get_active_draft_group',{p_user_id:a});expect(g.items.map(i=>i.description)).toEqual(control==='RETOMAR'?['Anterior','Nuevo A','Nuevo B']:['Nuevo A','Nuevo B']);expect(g.items.at(-1)?.currency).toBe('USD');
+ expect((await db.query<{status:string}>('select status from public.draft_groups where id=$1',[old.group_id])).rows[0].status).toBe(control==='RETOMAR'?'open':'discarded');expect((await db.query<{n:number}>('select count(*)::int n from public.transactions')).rows[0].n).toBe(0);
+});
+it('BE-11: un alias de confirmación sigue sin autorizar una lista antigua',async()=>{
+ await add('be11-stale-guard');await show();await db.exec("update public.draft_groups set last_activity_at=clock_timestamp()-interval '25 hours'");await enqueue(message('be11-stale-held'));const held=(await next())!;await apply(held,{kind:'summary'});await finish(held);await enqueue(message('be11-stale-yes','synthetic-a','¡sí!'));const yes=(await next())!;const result=await apply(yes,{kind:'confirm'});await finish(yes);expect(result.reply_text).toContain('24 horas');expect((await db.query<{n:number}>('select count(*)::int n from public.transactions')).rows[0].n).toBe(0);
+});
+it('BE-11: payload multimedia no se interpreta como control por traer un campo text',async()=>{
+ expect(await rpc('whatsapp_can_pass_waiting',{p_payload:{type:'audio',text:{body:'CONFIRMAR'},audio:{id:'synthetic'}}})).toBe(false);
+});
+it.each([21,100,101])('BE-11: SQL y procesador usan el mismo aviso para %s movimientos',async n=>expect(await rpc('whatsapp_over_limit_reply',{p_count:n})).toBe(formatOverLimitReply(n)));

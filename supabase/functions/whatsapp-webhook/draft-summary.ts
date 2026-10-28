@@ -114,3 +114,10 @@ export function formatDraftList(items: DraftListItem[]): string {
   if (body.length > 4096) throw new Error("DRAFT_SUMMARY_CAPACITY");
   return body;
 }
+
+export function formatOverLimitReply(count: number): string {
+  if (!Number.isSafeInteger(count) || count <= 20) {
+    throw new Error("INVALID_OVERSIZED_BATCH");
+  }
+  return `Recibí ${count} movimientos en un solo mensaje. El máximo es 20 por lista. No agregué ninguno de este mensaje. Dividilo en mensajes de hasta 20; si ya tenés pendientes, primero revisalos y confirmalos o liberá espacio. Tu lista anterior se conserva.`;
+}

@@ -1,6 +1,6 @@
 # BE-12 — Correcciones versionadas y resumen de pendientes
 
-Fecha: 27/10/2026. Base publicada: PR #48/f96ab87, esquema 036 y webhook v60. **Cambio preparado en rama; 037 y el webhook nuevo no están publicados.** BE-11 conserva su seguimiento separado. Hosting/backups siguen para la etapa final y la retención desactivada.
+Fecha: 27/10/2026. Base publicada: PR #48/f96ab87, esquema 036 y webhook v60. **Publicado y aceptado el 28/10/2026: PR #49 / 1e45c94, 037 y webhook v61.** BE-11 conserva su seguimiento separado. Hosting/backups siguen para la etapa final y la retención desactivada.
 
 ## Revalidación y alcance
 
@@ -38,7 +38,7 @@ Conserva fecha/moneda/mes inicial y añade categoría para revisar el cambio. Ha
 - Edición seguida de revisión/confirmación real con USD 123,46 en tres cuotas: 41,15 + 41,15 + 41,16; concepto y categoría conservados. Solo fixtures aisladas.
 - Procesador Deno con red denegada y HTTP simulado: texto sin IA, audio con una transcripción sin Qwen, categoría del extractor, checkpoint/reintento y objetivo ausente. No se llamó a proveedores reales ni se enviaron WhatsApps.
 - Tipos/lint/build, 12 renovaciones SQL y seis guardas de release aprobados. El bundle frontend no cambia (871,54 kB / 249,86 gzip); advertencia de tamaño preexistente.
-- Docker local no está disponible. PostgreSQL nativo de dos sesiones y ensayo completo de instalación/rollback están preparados para CI Linux; sus resultados finales se registrarán después. No se presume que hayan pasado localmente ni que la publicación/aceptación WhatsApp esté realizada.
+- Docker local no está disponible. PostgreSQL nativo de dos sesiones y ensayo completo de instalación/rollback están preparados para CI Linux; aprobaron en CI del candidato y main. No se ejecutaron localmente. El cierre productivo y sus límites se registran abajo.
 
 ## Publicación propuesta y rollback
 
@@ -46,4 +46,12 @@ Después de CI y autorización: comprobar historial 001–036, definición de ap
 
 Rollback de runtime: f96ab87701425374810b9ac2076e3b4524db3767, mínimo 036, conservando 037. Un runtime anterior no entiende el checkpoint interno nuevo; no reprocesarlo artificialmente ni reescribir su destino: dejar terminar los iniciados con el candidato o pedir repetir la corrección si se requiere volver atrás. Mantener 033/034/035/036 y sus protecciones; no ejecutar down, restore ni retirar permisos. El ensayo comprueba el runtime anterior sobre el esquema nuevo y el formato legacy.
 
-Aceptación posterior con el propietario: crear un pendiente ficticio, corregir concepto/moneda/categoría/fecha/cuotas y dos campos juntos, revisar el resumen y cancelar sin confirmar. La ruta de confirmación con cuotas y fallos se prueba en aislado. BE-12 no se marca cerrado hasta publicar y completar la aceptación acordada.
+Aceptación posterior con el propietario: crear un pendiente ficticio, corregir concepto/moneda/categoría/fecha/cuotas y dos campos juntos, revisar el resumen y cancelar sin confirmar. La ruta de confirmación con cuotas y fallos se prueba en aislado. Ese criterio se completó en el alcance registrado abajo.
+
+## Publicación y aceptación — 28/10/2026
+
+037 aplicada y registrada atómicamente con historial/fuentes esperadas, comparadas contra el esquema probado; cuatro funciones verificadas, ACL preservadas y helper privado. Webhook v61 ACTIVE con 23 módulos iguales al candidato. Main 1e45c94f46a3b2ce1e3106d429570e0d3b1ab390, cinco controles aprobados; PWA/version/SW/bundle/CSP comprobados. [CI de publicación](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40702954643).
+
+Aceptación del propietario 11:19–11:21 Argentina: once mensajes procesados en un intento cada uno. Cinco ediciones del mismo pendiente; concepto/categoría/importe/moneda/fecha/cuotas correctos, grupo versión 7. EUR y posición 99 rechazados sin cambiarlo. Cancelación: grupo descartado, cero movimientos financieros de prueba, cero grupos abiertos/trabajos propios pendientes y resumen vacío registrado a las 11:21:49. Correcciones con cero IA; el alta inicial reservó una consulta Qwen (no se afirma consumo cero global). Cero Whisper. [Evidencia sin contenido privado](evidencias/BE_12_CIERRE_2026-10-28.json).
+
+Meta aceptó los envíos; no se presume recibo de lectura del dispositivo. Audio, fallos, concurrencia y confirmación con cuotas se validaron en aislado/CI, no provocándolos en clientes reales. BE-12 cerrado en ese alcance. BE-11, hosting, backups y activación de retención conservan sus estados separados.
