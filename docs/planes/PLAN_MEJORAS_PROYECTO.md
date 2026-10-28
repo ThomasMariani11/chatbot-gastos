@@ -579,7 +579,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 14 | BE-13 | Media | Consistencia del alta y bootstrap administrativo | INF-10 | Pendiente |
 | 15 | BE-14 | Media | Vinculación atómica y límites de intentos | — | Terminada |
 | 16 | BE-15 | Media | Integraciones y límites de multimedia | INF-12 | Terminada |
-| 17 | BE-16 | Media | Logs y errores seguros | INF-09, INF-14 | Pendiente |
+| 17 | BE-16 | Media | Logs y errores seguros | INF-09, INF-14 | Terminada |
 | 18 | BE-18 | Baja | Separación del código y llamadas remotas | — | Pendiente |
 
 Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por las renovaciones y la autorización. Su posición no implica postergar los cierres críticos hasta completar todo el sistema de pruebas.
@@ -771,7 +771,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-16 — Separar errores de negocio, persistencia y envío
 
-- [ ] Terminada.
+- [x] Terminada.
+- **Cierre al 28/10/2026:** Terminada. Migración 041 con mensajes de negocio limpios y sanitización de excepciones en confirm_draft_group y discard_draft_group; fail_whatsapp_job registra QUEUE_SEND_RETRY en whatsapp_message_queue e inbound_events si effect_applied es true; queue.ts asigna stage "send" sin reinterpretar ante fallos de entrega; helpers.ts traslada API key de Gemini a header x-goog-api-key; 7 pruebas en tests/safe-errors.test.ts (1,058 tests pasando en total). [Validación](VALIDACION_BE_16.md).
 - **Problema confirmado:** logs con mensajes financieros, teléfonos y respuestas crudas; errores SQL enviados al usuario y avisos que pueden confundir fallo de interpretación con fallo de entrega.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:97`, `:349`, `:375`, `:662`, `:926`.
 - **Trabajo:** códigos y eventos estructurados; mensajes públicos seguros y específicos; correlación que no exponga datos personales; tiempos y cantidades de operaciones/reintentos. Evitar registrar URLs que contengan credenciales.

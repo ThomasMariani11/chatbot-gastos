@@ -68,7 +68,13 @@ export type GeminiParsedOutput = {
 export { formatDraftList } from "./draft-summary.ts";
 export type { DraftListItem } from "./draft-summary.ts";
 
-const graphVersion = Deno.env.get("WHATSAPP_GRAPH_API_VERSION") || "v26.0";
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+};
+
+const graphVersion = (typeof Deno !== "undefined" ? Deno.env.get("WHATSAPP_GRAPH_API_VERSION") : undefined) || "v26.0";
 const graphBase = `https://graph.facebook.com/${graphVersion}`;
 const encoder = new TextEncoder();
 
@@ -406,6 +412,10 @@ Mensaje del usuario: ${input.text ?? ""}`;
     }
   }
 
+  if (!apiKey) {
+    throw new OperationalFailure("configuration", "gemini");
+  }
+
   const parts: Array<Record<string, unknown>> = [{ text: prompt }];
   if (input.mediaBase64 && input.mimeType) {
     parts.push({
@@ -447,10 +457,13 @@ Mensaje del usuario: ${input.text ?? ""}`;
         await input.beforeAiRequest?.("gemini", signal);
         signal.throwIfAborted();
         return fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent`,
           {
             method: "POST",
-            headers: { "content-type": "application/json" },
+            headers: {
+              "content-type": "application/json",
+              "x-goog-api-key": apiKey,
+            },
             signal,
             body,
           },
