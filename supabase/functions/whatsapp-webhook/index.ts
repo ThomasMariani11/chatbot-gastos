@@ -17,6 +17,7 @@ import {
 import type { DraftListItem } from "./helpers.ts";
 import { readMessages, runActor } from "./queue.ts";
 import { prepareMessage } from "./processor.ts";
+import type { WebhookDatabaseClient } from "./context-repository.ts";
 import { writeOperationalLog } from "./logging.ts";
 
 declare const EdgeRuntime: { waitUntil: (task: Promise<unknown>) => void };
@@ -74,7 +75,7 @@ async function routeRequest(request: Request): Promise<Response> {
                 throw new OperationalFailure("configuration", "database");
               }
               return prepareMessage(
-                db,
+                db as unknown as WebhookDatabaseClient,
                 job,
                 checkpoint,
                 signal,

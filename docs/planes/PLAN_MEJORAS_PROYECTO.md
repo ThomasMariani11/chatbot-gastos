@@ -582,7 +582,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 15 | BE-14 | Media | Vinculación atómica y límites de intentos | — | Terminada |
 | 16 | BE-15 | Media | Integraciones y límites de multimedia | INF-12 | Terminada |
 | 17 | BE-16 | Media | Logs y errores seguros | INF-09, INF-14 | Terminada |
-| 18 | BE-18 | Baja | Separación del código y llamadas remotas | — | Pendiente |
+| 18 | BE-18 | Baja | Separación del código y llamadas remotas | — | Terminada |
 
 Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por las renovaciones y la autorización. Su posición no implica postergar los cierres críticos hasta completar todo el sistema de pruebas.
 
@@ -794,7 +794,7 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-18 — Separar responsabilidades y reducir llamadas remotas
 
-- [ ] Terminada.
+- [x] Terminada. Validación y detalle en [VALIDACION_BE_18.md](VALIDACION_BE_18.md).
 - **Mejora observada:** handler de unas 945 líneas, confirmación/cancelación duplicadas y una escritura remota por movimiento. No se midió un cuello de botella productivo.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:413`, `:654`, `:788`, `:877`.
 - **Trabajo:** separar dominio puro, integraciones, repositorio transaccional y recepción/worker; unificar comandos; reducir escrituras mediante RPC o lotes sin sacrificar atomicidad. Revisar índices y consultas usando mediciones, no suposiciones.
