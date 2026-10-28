@@ -1,15 +1,37 @@
 import { Icon } from './Icons';
 import { useProfileDraft } from './useProfileDraft';
 import { useUpdateBlocker } from './PwaUpdates';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { AdminPanel } from './AdminPanel';
-import { Dashboard } from './Dashboard';
-import { Login } from './Login';
-import { Paywall } from './Paywall';
-import { Settings, type UserProfile } from './Settings';
+import { lazyWithRetry, ScreenErrorBoundary, ScreenFallback } from './lazyWithRetry';
+import type { UserProfile } from './Settings';
 import { supabase } from './supabase';
 import { hasActiveSubscription } from './subscription';
+
+const Dashboard = lazyWithRetry(
+  () => import('./Dashboard').then((m) => ({ default: m.Dashboard })),
+  { chunkKey: 'dashboard' },
+);
+
+const Settings = lazyWithRetry(
+  () => import('./Settings').then((m) => ({ default: m.Settings })),
+  { chunkKey: 'settings' },
+);
+
+const AdminPanel = lazyWithRetry(
+  () => import('./AdminPanel').then((m) => ({ default: m.AdminPanel })),
+  { chunkKey: 'admin' },
+);
+
+const Paywall = lazyWithRetry(
+  () => import('./Paywall').then((m) => ({ default: m.Paywall })),
+  { chunkKey: 'paywall' },
+);
+
+const Login = lazyWithRetry(
+  () => import('./Login').then((m) => ({ default: m.Login })),
+  { chunkKey: 'login' },
+);
 
 type View = 'dashboard' | 'settings' | 'admin';
 
@@ -23,8 +45,20 @@ export function App() {
   }, []);
 
   if (session === undefined) return <main className="auth-page"><p className="loading-copy">Abriendo Pesito…</p></main>;
-  if (!session) return <Login />;
-  return <AuthenticatedApp key={session.user.id} session={session} />;
+  if (!session) {
+    return (
+      <ScreenErrorBoundary fallbackTitle="No pudimos cargar el ingreso">
+        <Suspense fallback={<ScreenFallback label="Abriendo Pesito…" />}>
+          <Login />
+        </Suspense>
+      </ScreenErrorBoundary>
+    );
+  }
+  return (
+    <ScreenErrorBoundary>
+      <AuthenticatedApp key={session.user.id} session={session} />
+    </ScreenErrorBoundary>
+  );
 }
 
 function AuthenticatedApp({ session }: { session: Session }) {
@@ -171,8 +205,8 @@ function AuthenticatedApp({ session }: { session: Session }) {
               type="button"
               className="modal-btn-cancel"
               style={{
-    cursor: 'pointer'
-}}
+                cursor: 'pointer',
+              }}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setShowSignOutConfirm(false)}
             >
@@ -182,11 +216,11 @@ function AuthenticatedApp({ session }: { session: Session }) {
               type="button"
               className="danger-button"
               style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer'
-}}
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => void handleConfirmSignOut()}
             >
@@ -222,14 +256,16 @@ function AuthenticatedApp({ session }: { session: Session }) {
   if (!isSubscriptionActive && profile) {
     return (
       <>
-        <Paywall
-          userId={session.user.id}
-          userEmail={session.user.email}
-          subscriptionStatus={profile.subscription_status}
-          subscriptionUntil={profile.subscription_until}
-          onSuccess={() => void loadProfile()}
-          onSignOut={handleRequestSignOut}
-        />
+        <Suspense fallback={<ScreenFallback label="Abriendo suscripción…" />}>
+          <Paywall
+            userId={session.user.id}
+            userEmail={session.user.email}
+            subscriptionStatus={profile.subscription_status}
+            subscriptionUntil={profile.subscription_until}
+            onSuccess={() => void loadProfile()}
+            onSignOut={handleRequestSignOut}
+          />
+        </Suspense>
         {renderSignOutModal()}
       </>
     );
@@ -238,11 +274,13 @@ function AuthenticatedApp({ session }: { session: Session }) {
   if (view === 'admin' && isAdmin) {
     return (
       <>
-        <AdminPanel
-          userId={session.user.id}
-          onBack={() => navigateTo('dashboard')}
-          onSignOut={handleRequestSignOut}
-        />
+        <Suspense fallback={<ScreenFallback label="Abriendo Administración…" />}>
+          <AdminPanel
+            userId={session.user.id}
+            onBack={() => navigateTo('dashboard')}
+            onSignOut={handleRequestSignOut}
+          />
+        </Suspense>
         {renderSignOutModal()}
       </>
     );
@@ -251,17 +289,19 @@ function AuthenticatedApp({ session }: { session: Session }) {
   if (view === 'settings') {
     return (
       <>
-        <Settings
-          userId={session.user.id}
-          userEmail={session.user.email}
-          userProfile={profile}
-          nameDraft={nameDraft}
-          isAdmin={isAdmin}
-          onOpenAdmin={() => navigateTo('admin')}
-          onBack={() => navigateTo('dashboard')}
-          onSignOut={handleRequestSignOut}
-          onRefreshProfile={() => void loadProfile()}
-        />
+        <Suspense fallback={<ScreenFallback label="Abriendo Ajustes…" />}>
+          <Settings
+            userId={session.user.id}
+            userEmail={session.user.email}
+            userProfile={profile}
+            nameDraft={nameDraft}
+            isAdmin={isAdmin}
+            onOpenAdmin={() => navigateTo('admin')}
+            onBack={() => navigateTo('dashboard')}
+            onSignOut={handleRequestSignOut}
+            onRefreshProfile={() => void loadProfile()}
+          />
+        </Suspense>
         {renderSignOutModal()}
       </>
     );
@@ -269,15 +309,17 @@ function AuthenticatedApp({ session }: { session: Session }) {
 
   return (
     <>
-      <Dashboard
-        userId={session.user.id}
-        userEmail={session.user.email}
-        userProfile={profile}
-        isAdmin={isAdmin}
-        onOpenAdmin={() => navigateTo('admin')}
-        onOpenSettings={() => navigateTo('settings')}
-        onSignOut={handleRequestSignOut}
-      />
+      <Suspense fallback={<ScreenFallback label="Abriendo Pesito…" />}>
+        <Dashboard
+          userId={session.user.id}
+          userEmail={session.user.email}
+          userProfile={profile}
+          isAdmin={isAdmin}
+          onOpenAdmin={() => navigateTo('admin')}
+          onOpenSettings={() => navigateTo('settings')}
+          onSignOut={handleRequestSignOut}
+        />
+      </Suspense>
       {renderSignOutModal()}
     </>
   );
