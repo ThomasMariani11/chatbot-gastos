@@ -26,9 +26,22 @@ export function useSwipeBack({
   const [isSwiping, setIsSwiping] = useState(false);
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!enabled || typeof window === 'undefined') return;
+    const clearBackTimer = () => {
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+
+    if (!enabled || typeof window === 'undefined') {
+      clearBackTimer();
+      setDragOffset(0);
+      setIsSwiping(false);
+      return;
+    }
 
     let startX = 0;
     let startY = 0;
@@ -36,16 +49,34 @@ export function useSwipeBack({
     let isHorizontal = false;
     let startTime = 0;
 
+    const resetSwipeState = () => {
+      clearBackTimer();
+      tracking = false;
+      isHorizontal = false;
+      if (trackDrag) setDragOffset(0);
+      setIsSwiping(false);
+    };
+
     const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
+      if (e.touches.length !== 1) {
+        if (tracking || isHorizontal || timerRef.current !== null) {
+          resetSwipeState();
+        }
+        return;
+      }
       const target = e.target as HTMLElement | null;
-      if (target?.closest('input, textarea, select, [data-no-swipe]')) return;
+      if (target?.closest('input, textarea, select, [data-no-swipe]')) {
+        tracking = false;
+        isHorizontal = false;
+        return;
+      }
 
       const touch = e.touches[0];
       // Permite iniciar el gesto desde el borde o tercio izquierdo (hasta 130px o 35% de la pantalla)
       const maxStart = edgeThreshold ?? Math.max(120, window.innerWidth * 0.35);
 
       if (touch.clientX <= maxStart) {
+        clearBackTimer();
         startX = touch.clientX;
         startY = touch.clientY;
         tracking = true;
@@ -53,11 +84,16 @@ export function useSwipeBack({
         startTime = Date.now();
       } else {
         tracking = false;
+        isHorizontal = false;
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!tracking || e.touches.length !== 1) return;
+      if (!tracking) return;
+      if (e.touches.length !== 1) {
+        resetSwipeState();
+        return;
+      }
       const touch = e.touches[0];
       const deltaX = touch.clientX - startX;
       const deltaY = touch.clientY - startY;
@@ -103,6 +139,10 @@ export function useSwipeBack({
       }
 
       const touch = e.changedTouches[0];
+      if (!touch) {
+        resetSwipeState();
+        return;
+      }
       const deltaX = touch.clientX - startX;
       const deltaY = touch.clientY - startY;
       const duration = Date.now() - startTime;
@@ -111,11 +151,17 @@ export function useSwipeBack({
       const isQuickFlick = deltaX > 35 && duration < 250 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4;
       const isLongSwipe = deltaX >= threshold && Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
 
+      tracking = false;
+      isHorizontal = false;
+
       if (isQuickFlick || isLongSwipe) {
+        clearBackTimer();
+        setIsSwiping(false);
         if (trackDrag) {
           // Deslizar suavemente fuera de la pantalla antes de ejecutar onBack
           setDragOffset(window.innerWidth);
-          setTimeout(() => {
+          timerRef.current = setTimeout(() => {
+            timerRef.current = null;
             setDragOffset(0);
             setIsSwiping(false);
             onBackRef.current();
@@ -128,16 +174,10 @@ export function useSwipeBack({
         if (trackDrag) setDragOffset(0);
         setIsSwiping(false);
       }
-
-      tracking = false;
-      isHorizontal = false;
     };
 
     const handleTouchCancel = () => {
-      tracking = false;
-      isHorizontal = false;
-      if (trackDrag) setDragOffset(0);
-      setIsSwiping(false);
+      resetSwipeState();
     };
 
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -146,6 +186,7 @@ export function useSwipeBack({
     window.addEventListener('touchcancel', handleTouchCancel, { passive: true });
 
     return () => {
+      clearBackTimer();
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);

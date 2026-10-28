@@ -515,7 +515,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-20 — Cancelar temporizadores de navegación al desmontar
 
-- [ ] Terminada.
+- [x] Terminada. Validación y detalle en [VALIDACION_FE_20.md](VALIDACION_FE_20.md).
 - **Categoría:** Bug. **Problema reproducido:** el gesto swipe back programa onBack con setTimeout sin cancelarlo al limpiar el efecto; una fixture invocó la navegación después del desmontaje.
 - **Archivos:** src/useSwipeBack.ts:118, :148.
 - **Trabajo:** conservar el temporizador en una ref y limpiarlo al desmontar, cancelar el gesto o deshabilitar el hook. Revisar listeners y estado de animación sin interferir con gestos nativos.
