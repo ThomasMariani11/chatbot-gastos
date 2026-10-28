@@ -327,7 +327,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Terminada; publicada y verificada en su alcance |
 | 11 | FE-13 | Media | Validación de invitación fuera de orden | — | Terminada |
 | 12 | FE-08 | Alta; desarrollo | Dependencias vulnerables | INF-07 | Pendiente |
-| 13 | FE-10 | Media | Límite de cuotas y contrato SQL | FE-21 | Avance publicado en 029; cierre específico por verificar |
+| 13 | FE-10 | Media | Límite de cuotas y contrato SQL | FE-21 | Terminada |
 | 14 | FE-14 | Media | Permitir ampliación del navegador | — | Pendiente |
 | 15 | FE-15 | Media | Diálogos, foco y etiquetas accesibles | FE-07 | Pendiente |
 | 16 | FE-16 | Media | Contraste de botones | FE-22 | Pendiente |
@@ -418,11 +418,11 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-10 — Alinear el límite de cuotas con el esquema
 
-- **Avance al 25/10/2026:** 029 y la PR #30 ya incorporaron contrato de 2–60 cuotas; alta y edición muestran ese límite. La incompatibilidad original de 120 es histórica. Verificar cobertura específica de límites y valores fraccionarios antes de cerrar todo FE-10; no repetir la migración ni ampliar el máximo sin una decisión explícita. [Validación relacionada](VALIDACION_FE_01_02_03.md).
-
-- [ ] Terminada.
-- **Categoría:** Bug. **Problema confirmado:** el formulario acepta y anuncia hasta 120 cuotas, mientras transactions.installment_count y los borradores admiten como máximo 60 según las migraciones. No se intentó insertar 61 cuotas en producción.
-- **Archivos:** src/Dashboard.tsx:1523, :1527, :1534; supabase/migrations/001_initial.sql:42; supabase/migrations/014_draft_movement_batches.sql:31.
+- [x] Terminada.
+- **Cierre al 28/10/2026:** Terminada. Contrato compartido de 2 a 60 cuotas (`MIN_INSTALLMENT_COUNT = 2`, `MAX_INSTALLMENT_COUNT = 60`, `parseInstallmentCountInput`, `isValidInstallmentSchedule`) entre `src/installmentPlans.ts`, `src/pwaEntries.ts` y `src/Dashboard.tsx`; rechazo explícito de valores fuera de rango, decimales o vacíos en alta y edición antes de llamar a la API con mensaje claro en `role="alert"`; pruebas de límites y decimales en `tests/installment-plan-editor.test.ts` y `tests/installments-dashboard-ui.test.ts`. [Validación](VALIDACION_FE_10.md).
+- **Avance al 25/10/2026:** 029 y la PR #30 ya incorporaron contrato de 2–60 cuotas; alta y edición muestran ese límite. La incompatibilidad original de 120 es histórica. [Validación relacionada](VALIDACION_FE_01_02_03.md).
+- **Categoría:** Bug. **Problema confirmado:** el formulario aceptaba y anunciaba hasta 120 cuotas o truncaba/ajustaba silenciosamente entradas inválidas, mientras transactions.installment_count y los borradores admiten como máximo 60 según las migraciones.
+- **Archivos:** src/Dashboard.tsx; src/installmentPlans.ts; src/pwaEntries.ts; supabase/migrations/001_initial.sql:42; supabase/migrations/014_draft_movement_batches.sql:31.
 - **Trabajo:** compartir el límite de 60 entre dominio, alta, edición y controles; validar enteros antes de llamar a la API. Si se decide ampliar a 120, cambiar previamente todos los contratos y restricciones mediante una migración aprobada.
 - **Cierre:** límites, decimales y entradas inválidas probados en alta y edición; mensaje de validación claro; ningún valor aceptado por el cliente es rechazado por una restricción incompatible.
 

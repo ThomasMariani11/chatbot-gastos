@@ -1,4 +1,40 @@
 import { supabase } from './supabase';
+
+export const MIN_INSTALLMENT_COUNT = 2;
+export const MAX_INSTALLMENT_COUNT = 60;
+export const PRESET_INSTALLMENT_COUNTS = [2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48] as const;
+export const INSTALLMENT_BOUNDS_ERROR = 'Revisá la cantidad y referencia de cuotas (2 a 60).';
+
+export function isValidInstallmentCount(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= MIN_INSTALLMENT_COUNT &&
+    value <= MAX_INSTALLMENT_COUNT
+  );
+}
+
+export function isValidInstallmentSchedule(count: unknown, referenceNumber: unknown): boolean {
+  return (
+    isValidInstallmentCount(count) &&
+    typeof referenceNumber === 'number' &&
+    Number.isInteger(referenceNumber) &&
+    referenceNumber >= 1 &&
+    referenceNumber <= count
+  );
+}
+
+export function parseInstallmentCountInput(raw: string | number): number | null {
+  if (typeof raw === 'number') {
+    return isValidInstallmentCount(raw) ? raw : null;
+  }
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const parsed = Number(trimmed);
+  return isValidInstallmentCount(parsed) ? parsed : null;
+}
+
 export type PlanRow = {
   id: string; description: string; amount_ars: number; currency: 'ARS' | 'USD';
   occurred_on: string; category_id: string | null; kind: 'expense';
@@ -13,12 +49,15 @@ export function parsePlanSnapshot(value: unknown): PlanSnapshot {
   const rows = data.rows.map((value: unknown) => {
     if (!value || typeof value !== 'object') throw new Error('Cuota inválida.');
     const row = value as PlanRow;
-    if (typeof row.id !== 'string' || typeof row.description !== 'string' || !Number.isFinite(Number(row.amount_ars)) || Number(row.amount_ars) <= 0 || !['ARS','USD'].includes(row.currency) || typeof row.occurred_on !== 'string' || !Number.isInteger(row.installment_number) || row.installment_number < 1 || !Number.isInteger(row.installment_count) || row.installment_count < 2 || row.installment_count > 60) throw new Error('Cuota inválida.');
+    if (typeof row.id !== 'string' || typeof row.description !== 'string' || !Number.isFinite(Number(row.amount_ars)) || Number(row.amount_ars) <= 0 || !['ARS','USD'].includes(row.currency) || typeof row.occurred_on !== 'string' || !isValidInstallmentSchedule(row.installment_count, row.installment_number)) throw new Error('Cuota inválida.');
     return { ...row, amount_ars: Number(row.amount_ars) };
   });
   return { group_id: data.group_id, version: data.version, rows };
 }
 export function planPatch(original: PlanRow, edited: PlanEditor, all: boolean): Record<string, unknown> {
+  if (!isValidInstallmentSchedule(edited.count, edited.number)) {
+    throw new Error(INSTALLMENT_BOUNDS_ERROR);
+  }
   const patch: Record<string, unknown> = {};
   if (edited.description.trim() !== original.description) patch.description = edited.description.trim();
   if (Math.round(edited.amount * 100) !== Math.round(original.amount_ars * 100)) patch.amount = edited.amount;
