@@ -178,12 +178,12 @@ declare
       end if;
     end;$new$;
 begin
-  select pg_get_functiondef('public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure) into definition;
-  if position(new_link in definition) > 0 then return; end if;
-  if position(old_link in definition) = 0 then
+  select replace(pg_get_functiondef('public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure), chr(13), '') into definition;
+  if position(replace(new_link, chr(13), '') in definition) > 0 then return; end if;
+  if position(replace(old_link, chr(13), '') in definition) = 0 then
     raise exception 'BE14_APPLY_DEFINITION_UNEXPECTED';
   end if;
-  execute replace(definition, old_link, new_link);
+  execute replace(definition, replace(old_link, chr(13), ''), replace(new_link, chr(13), ''));
 end;
 $migration$;
 
