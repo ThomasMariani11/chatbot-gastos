@@ -332,7 +332,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 15 | FE-15 | Media | Diálogos, foco y etiquetas accesibles | FE-07 | Pendiente |
 | 16 | FE-16 | Media | Contraste de botones | FE-22 | Pendiente |
 | 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Terminada; homónimos/fallo/reintento verificados en entorno aislado; cierre con PR #39 |
-| 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Pendiente |
+| 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Terminada |
 | 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Pendiente |
 | 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | Terminada en alcance verificado; headers HTTP siguen en INF-13 |
 | 21 | FE-20 | Baja | Cancelar navegación pendiente al desmontar | — | Pendiente |
@@ -484,9 +484,10 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-17 — Separar la descarga inicial por pantallas
 
-- [ ] Terminada.
-- **Categoría:** Rendimiento. **Problema medido:** imports anticipados de Dashboard, Ajustes y Administración producen un JS principal de 809,54 kB, 231,27 kB gzip. El código de gráficos se incorpora antes de necesitarlo; Vite advierte un chunk mayor de 500 kB.
-- **Archivos:** src/App.tsx:3, :4, :5, :6, :7; vite.config.ts:9.
+- [x] Terminada.
+- **Cierre al 28/10/2026:** Terminada. Separación de pantallas mediante React.lazy (Dashboard, Settings, AdminPanel, Paywall, Login) con cargador resiliente lazyWithRetry, recuperación protegida ante despliegues nuevos en GitHub Pages y límite de recarga en sessionStorage para prevenir bucles; límites de error accesibles (ScreenErrorBoundary) y avisos de carga (ScreenFallback). JS principal reducido de 873,75 kB a 424,47 kB (-51,4%), gzip de 250,61 kB a 122,46 kB (-51,1%); advertencia de chunks mayores a 500 kB de Vite eliminada; 12 pruebas en tests/lazy-loading.test.ts (1.073 pruebas pasando en total). [Validación](VALIDACION_FE_17.md).
+- **Categoría:** Rendimiento. **Problema medido:** imports anticipados de Dashboard, Ajustes y Administración producían un JS principal de 873,75 kB, 250,61 kB gzip. El código de gráficos se incorporaba antes de necesitarlo; Vite advertía un chunk mayor de 500 kB.
+- **Archivos:** src/App.tsx; src/lazyWithRetry.tsx; tests/lazy-loading.test.ts.
 - **Trabajo:** lazy/dynamic import por pantallas y Suspense con fallback útil; medir qué dependencias quedan en el ingreso. No separar chunks arbitrariamente sin comparar tamaño, peticiones y tiempos; manejar fallo de carga tras un despliegue.
 - **Cierre:** registrar tamaños antes/después y reducción de JS inicial; ingreso, navegación y actualización PWA funcionan en red lenta y con fallo de chunk; medir rendimiento en dispositivos representativos.
 
