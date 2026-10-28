@@ -216,7 +216,7 @@ async function processJob(
   if (Number.isFinite(received)) {
     deps.metric("queue_wait", { duration_ms: Math.max(0, start - received) });
   }
-  let stage: FailureStage = "interpret";
+  let stage: FailureStage = job.effect_applied ? "send" : "interpret";
   try {
     let applied = job;
     if (!job.effect_applied) {
@@ -260,6 +260,7 @@ async function processJob(
         p_token: token,
         p_action: action,
       });
+      stage = "send";
     }
     if (applied.reply_text) {
       stage = "send";
