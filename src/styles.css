@@ -14,7 +14,7 @@
   border-radius: 17px;
 }
 
-.auth-card button:disabled,
+.auth-card form button[type="submit"]:disabled,
 .primary-button:disabled {
   cursor: wait;
   opacity: .6;
@@ -1515,7 +1515,7 @@ button:active:not(:disabled),
   gap: 6px;
   border: none;
   background: transparent;
-  color: #64736d;
+  color: #475852;
   font-size: 13px;
   font-weight: 700;
   padding: 7px 15px;
@@ -1539,7 +1539,9 @@ button:active:not(:disabled),
 
 .currency-pill.active {
   background: #ffffff;
-  color: var(--ink);
+  color: var(--mint-dark);
+  border: 1px solid #b9d8c9;
+  font-weight: 800;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
 }
 
@@ -1580,7 +1582,7 @@ button:active:not(:disabled),
 .mode-pill {
   border: none;
   background: transparent;
-  color: #64736d;
+  color: #475852;
   font-size: 13px;
   font-weight: 700;
   padding: 3px 8px;
@@ -1605,7 +1607,9 @@ button:active:not(:disabled),
 
 .mode-pill.active {
   background: #ffffff;
-  color: var(--ink);
+  color: var(--mint-dark);
+  border: 1px solid #b9d8c9;
+  font-weight: 800;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
@@ -1739,8 +1743,8 @@ button:active:not(:disabled),
 
 .admin-header-btn.danger {
   background: #ffffff;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  border: 1px solid #f5b5b5;
+  color: #b91c1c;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1917,7 +1921,7 @@ button:active:not(:disabled),
   background: transparent;
   font-size: 14px;
   font-weight: 700;
-  color: #64748b;
+  color: #475569;
   padding: 8px 18px;
   border-radius: 8px;
   cursor: pointer;
@@ -1966,7 +1970,7 @@ button:active:not(:disabled),
 .pill-btn {
   border: 1px solid #e2e8f0;
   background: #ffffff;
-  color: #64748b;
+  color: #475569;
   font-size: 13px;
   font-weight: 600;
   padding: 6px 12px;
@@ -2113,8 +2117,8 @@ button:active:not(:disabled),
 
 .action-btn.small.danger {
   background: #fff5f5;
-  border-color: #fecaca;
-  color: #dc2626;
+  border-color: #f5b5b5;
+  color: #b91c1c;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -2173,43 +2177,54 @@ button:active:not(:disabled),
    ======================================================== */
 .auth-tabs {
   display: flex;
-  background: #f1f5f3;
+  background: #eef3f0;
+  border: 1px solid #d5e0da;
   border-radius: 12px;
   padding: 4px;
   margin: 18px 0 20px;
   gap: 4px;
 }
 
-.auth-tab {
+.auth-tabs .auth-tab {
   flex: 1;
+  min-height: var(--control-height, 44px);
   padding: 10px 14px;
-  border: 0;
+  border: 1px solid transparent;
   background: transparent;
   border-radius: 9px;
   font-size: 13px;
   font-weight: 700;
   color: var(--muted);
   cursor: pointer;
-  transition: all .15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   font-family: inherit;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
 
-.auth-tab.active {
-  background: #fff;
-  color: var(--ink);
+.auth-tabs .auth-tab.active,
+.auth-tabs .auth-tab[aria-selected="true"] {
+  background: #ffffff;
+  color: var(--mint-dark);
+  border-color: #b9d8c9;
+  font-weight: 800;
   box-shadow: 0 2px 8px rgba(24, 60, 46, 0.08);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .auth-tab:hover:not(.active) {
+  .auth-tabs .auth-tab:hover:not(.active) {
     color: var(--ink);
+    background: rgba(255, 255, 255, 0.55);
   }
 }
 
-.auth-tab:active {
+.auth-tabs .auth-tab:focus-visible {
+  outline: 3px solid var(--mint-dark);
+  outline-offset: 2px;
+}
+
+.auth-tabs .auth-tab:active {
   transform: scale(0.97);
 }
 
@@ -2747,8 +2762,8 @@ button:active:not(:disabled),
 .admin-modal-actions .danger-button {
   width: auto !important;
   background: #fee2e2 !important;
-  color: #dc2626 !important;
-  border: 1px solid #fca5a5 !important;
+  color: #b91c1c !important;
+  border: 1px solid #f87171 !important;
   padding: 10px 20px !important;
   height: 44px !important;
   margin: 0 !important;
@@ -2761,8 +2776,8 @@ button:active:not(:disabled),
 @media (hover: hover) and (pointer: fine) {
   .admin-modal-actions .danger-button:hover {
     background: #fecaca !important;
-    color: #b91c1c !important;
-    border-color: #f87171 !important;
+    color: #991b1b !important;
+    border-color: #ef4444 !important;
   }
 }
 

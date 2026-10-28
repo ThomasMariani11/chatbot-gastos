@@ -157,8 +157,8 @@
 /* Eliminar: misma estructura, tamaño y altura, tono sutil en sintonía */
 .modal-btn-delete {
   background: #fdf4f3;
-  border: 1px solid #f3d4d2;
-  color: #c4403d;
+  border: 1px solid #e6b8b5;
+  color: #a82e2b;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -181,16 +181,16 @@
 
 /* Guardar: tono verde menta principal de Pesito con mismo alto y forma */
 .modal-btn-save {
-  background: var(--mint);
-  border: 1px solid #1ea575;
-  color: #ffffff;
-  box-shadow: 0 3px 12px rgba(32, 185, 132, 0.25);
+  background: var(--button-primary-bg);
+  border: 1px solid var(--button-primary-hover);
+  color: var(--button-primary-ink);
+  box-shadow: 0 3px 12px rgba(4, 120, 87, 0.22);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .modal-btn-save:hover {
-    background: #199e70;
-    box-shadow: 0 4px 16px rgba(32, 185, 132, 0.35);
+    background: var(--button-primary-hover);
+    box-shadow: 0 4px 16px rgba(4, 120, 87, 0.32);
   }
 }
 
