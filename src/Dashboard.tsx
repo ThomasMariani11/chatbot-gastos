@@ -848,7 +848,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                 <a
                   href={waLinkReady.url}
                   className="whatsapp-onboarding-btn"
-                  style={{ background: '#128c7e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  style={{ background: 'var(--button-primary-bg)', color: 'var(--button-primary-ink)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Icon name="message" /> Abrir WhatsApp ahora (Código: {waLinkReady.code})
                 </a>

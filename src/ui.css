@@ -37,18 +37,18 @@
 
 :root {
   --muted: #52655b;
-  --mint-dark: #08744f;
+  --mint-dark: #047857;
   --control-radius: 12px;
   --control-height: 44px;
-  --button-primary-bg: #20b984;
-  --button-primary-ink: #103b2e;
-  --button-primary-hover: #30c493;
-  --button-secondary-bg: #fff;
-  --button-secondary-ink: #314c3e;
-  --button-border: #b9cbbf;
+  --button-primary-bg: #047857;
+  --button-primary-ink: #ffffff;
+  --button-primary-hover: #065f46;
+  --button-secondary-bg: #ffffff;
+  --button-secondary-ink: #1f352b;
+  --button-border: #9eb5a8;
   --button-danger-bg: #fff1f1;
-  --button-danger-ink: #a83236;
-  --button-danger-border: #dba9aa;
+  --button-danger-ink: #991b1b;
+  --button-danger-border: #d6989a;
 }
 body :is(button, [role='button'], select) {
   min-height: var(--control-height);
@@ -184,12 +184,12 @@ body .button-secondary {
   display: grid;
   place-items: center;
 }
-.auth-card .auth-tab {
+.auth-tabs .auth-tab {
   min-height: var(--control-height);
   color: var(--muted);
 }
-.auth-card .auth-tab.active {
-  color: var(--button-primary-ink);
+.auth-tabs .auth-tab.active {
+  color: var(--mint-dark);
 }
 @media (hover: hover) and (pointer: fine) {
   body
@@ -286,8 +286,8 @@ body :is(.install-app-pill,.admin-topbar-pill) { display: inline-flex; align-ite
 
 .settings-page > header > p:not(.eyebrow) { color: var(--muted) !important; }
 .settings-page > header .eyebrow { color: var(--mint-dark) !important; }
-.auth-card button.auth-tab { background: transparent; color: var(--muted); border-radius: var(--control-radius); }
-.auth-card button.auth-tab.active { background: #fff; color: var(--mint-dark); }
+.auth-tabs .auth-tab { background: transparent; color: var(--muted); border-radius: 9px; }
+.auth-tabs .auth-tab.active { background: #ffffff; color: var(--mint-dark); }
 .auth-card button.button-link { background: transparent; color: var(--mint-dark); box-shadow: none; }
 .admin-section-heading > div { flex: 1; min-width: 0; }
 @media (max-width: 700px) { .admin-section-heading > div { flex-basis: 180px; } }

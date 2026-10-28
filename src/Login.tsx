@@ -41,6 +41,26 @@ export function Login() {
   const codeRequestRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loginTabRef = useRef<HTMLButtonElement | null>(null);
+  const registerTabRef = useRef<HTMLButtonElement | null>(null);
+
+  function selectAuthMode(nextMode: AuthMode, focusTarget = false) {
+    setMode(nextMode);
+    setMessage('');
+    setIsError(false);
+    if (nextMode === 'login') {
+      ++codeRequestRef.current;
+      abortControllerRef.current?.abort();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      if (focusTarget) loginTabRef.current?.focus();
+    } else {
+      if (inviteCode) void checkCode(inviteCode).catch(() => undefined);
+      if (focusTarget) registerTabRef.current?.focus();
+    }
+  }
 
   useEffect(() => () => {
     ++codeRequestRef.current;
@@ -292,33 +312,42 @@ export function Login() {
         </p>
 
         {/* Pestañas Iniciar Sesión / Registrarse */}
-        <div className="auth-tabs" role="tablist">
+        <div
+          className="auth-tabs"
+          role="tablist"
+          aria-label="Modo de acceso"
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+              e.preventDefault();
+              selectAuthMode(mode === 'login' ? 'register' : 'login', true);
+            } else if (e.key === 'Home') {
+              e.preventDefault();
+              selectAuthMode('login', true);
+            } else if (e.key === 'End') {
+              e.preventDefault();
+              selectAuthMode('register', true);
+            }
+          }}
+        >
           <button
+            ref={loginTabRef}
             type="button"
             role="tab"
             aria-selected={mode === 'login'}
             className={`auth-tab ${mode === 'login' ? 'active' : ''}`}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              setMode('login');
-              setMessage('');
-              setIsError(false);
-            }}
+            onClick={() => selectAuthMode('login')}
           >
             Iniciar sesión
           </button>
           <button
+            ref={registerTabRef}
             type="button"
             role="tab"
             aria-selected={mode === 'register'}
             className={`auth-tab ${mode === 'register' ? 'active' : ''}`}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              setMode('register');
-              setMessage('');
-              setIsError(false);
-              if (inviteCode) void checkCode(inviteCode).catch(() => undefined);
-            }}
+            onClick={() => selectAuthMode('register')}
           >
             Crear cuenta
           </button>

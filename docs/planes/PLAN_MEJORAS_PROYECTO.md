@@ -475,7 +475,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-16 — Corregir el contraste de botones
 
-- [ ] Terminada.
+- [x] Terminada. Validación y detalle en [VALIDACION_FE_16_22.md](VALIDACION_FE_16_22.md).
 - **Categoría:** Accesibilidad. **Problema medido:** blanco sobre #20b984 tiene contraste 2,52:1. El navegador confirmó esa combinación en el botón de registro con texto de 16 px; no alcanza 4,5:1 para texto normal ni 3:1 para texto grande.
 - **Archivos:** app/globals.css:1; app/forms.css:2.
 - **Trabajo:** definir variantes de color accesibles para botones, manteniendo el color de marca donde no afecte legibilidad. Por ejemplo, fondo #047857 con texto blanco; revisar hover, foco, error y estados aplicables.
@@ -534,7 +534,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-22 — Corregir especificidad de pestañas de acceso
 
-- [ ] Terminada.
+- [x] Terminada. Validación y detalle en [VALIDACION_FE_16_22.md](VALIDACION_FE_16_22.md).
 - **Categoría:** Bug. **Problema confirmado en navegador:** auth-card button tiene mayor especificidad que auth-tab y sobrescribe su fondo transparente/color. Al seleccionar Crear cuenta, Iniciar sesión inactivo permanece verde con blanco y el activo queda blanco.
 - **Archivos:** app/forms.css:2; src/styles.css:2147, :2164.
 - **Trabajo:** acotar estilos de botones y dar especificidad coherente a las pestañas, por ejemplo auth-tabs .auth-tab y su variante active; evitar !important como parche general. Revisar representación visual, estado seleccionado y foco.
