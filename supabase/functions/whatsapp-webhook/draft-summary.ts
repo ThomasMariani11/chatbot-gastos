@@ -67,7 +67,19 @@ export function formatDraftList(items: DraftListItem[]): string {
       ? ` · ${item.occurred_on}`
       : "";
     const prefix = `${item.position}. ${item.kind === "income" ? "🟢" : "🔴"} `;
-    const suffix = ` · ${value}${installments}${date}\n`;
+    const category = item.category_name?.replace(/\s+/g, " ").trim();
+    const categoryLimit = active.length > 10 ? 16 : 40;
+    let clippedCategory = "";
+    for (const char of category ?? "") {
+      if (clippedCategory.length + char.length > categoryLimit - 1) break;
+      clippedCategory += char;
+    }
+    const categoryText = category
+      ? " · Cat: " +
+        (category.length > categoryLimit ? clippedCategory + "…" : category)
+      : "";
+    if (category && category.length > categoryLimit) abbreviated = true;
+    const suffix = ` · ${value}${installments}${date}${categoryText}\n`;
     const missingText = missing.size
       ? `   ⚠️ Falta: ${
         [...new Set([...missing].map((field) => labels[field] ?? "aclaración"))]
@@ -96,9 +108,9 @@ export function formatDraftList(items: DraftListItem[]): string {
       '\nCompletá los datos indicando el número: "El 2 fue de 5000", "El 2 fecha 2026-10-26" o "El 2 concepto farmacia". Para aclarar toda una operación: "El 2: gasté 5000 en farmacia". Podés quitarla con "Quitá el 2". No se guarda nada hasta completar o quitar los incompletos y responder *CONFIRMAR*.';
   } else {
     body +=
-      '\nPodés seguir agregando, corregir alguno (ej: "el 2 fue de 5.000"), quitar ("quitá el 2") o responder *CONFIRMAR* para guardar todo.';
+      '\nPodés seguir agregando, corregir alguno (ej: "el 2 fue de 5.000"), quitar ("quitá el 2") o responder *CONFIRMAR* para guardar todo. También podés indicar concepto, categoría, moneda, fecha o cuotas: "El 2 moneda USD".';
   }
-  if (abbreviated) body += "\nConceptos abreviados con …";
+  if (abbreviated) body += "\nConceptos o categorías abreviados con …";
   if (body.length > 4096) throw new Error("DRAFT_SUMMARY_CAPACITY");
   return body;
 }

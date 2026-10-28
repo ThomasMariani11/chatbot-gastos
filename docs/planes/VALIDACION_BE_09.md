@@ -1,6 +1,6 @@
 # BE-09 — Saldos mensuales exactos por moneda
 
-Fecha: 27/10/2026. Base: PR #47/7f26e33, esquema 035 y webhook v59. **Cambio preparado, sin publicar ni aplicar 036 en producción.** Hosting INF-13 y backups INF-08 quedan para el final por decisión del propietario; la retención continúa desactivada.
+Fecha: 27/10/2026. Base: PR #47/7f26e33, esquema 035 y webhook v59. **Publicado y aceptado en el alcance descrito abajo: PR #48, 036 y webhook v60.** Hosting INF-13 y backups INF-08 quedan para el final por decisión del propietario; la retención continúa desactivada.
 
 ## Revalidación del hallazgo
 
@@ -24,7 +24,7 @@ Se validan meses finitos de año 0001 a 9998. Un confirmado sin fecha o con fech
 - **75 rutas Deno sin red**: RPC agregada de usuario verificado, sin descargar tablas, IA ni checkpoint de interpretación; mes de Argentina cerca de medianoche/cambio de año y errores SQL/contrato cerrado. Se mantienen las regresiones del ruteo comercial, correcciones y cuota compartida.
 - ESLint, TypeScript/build y Deno check/lint aprobados; 12 renovaciones SQL y seis guardas de release aprobados. El frontend no cambia; bundle/advertencia de tamaño previos conservados.
 - PostgreSQL nativo y ensayo Supabase completo preparados para CI Linux: consulta concurrente sin escrituras; REST limitado a 1000 frente a agregado de 1501 importes; API service_role, rechazo de cliente/anon y legacy autenticada ARS. Usuarios, clave, contraseña, token y datos son únicamente ficticios del stack local. La prueba elimina sus fixtures locales al terminar y conserva el registro financiero original del ensayo.
-- CI final pendiente al preparar esta revisión. No se clonó producción, se enviaron mensajes ni se llamó a proveedores reales. La aceptación posterior de WhatsApp no se presume realizada.
+- Preparación aislada completada antes de publicar; el cierre productivo y sus límites se registran a continuación.
 
 ## Publicación propuesta, después de CI y autorización
 
@@ -41,3 +41,11 @@ La consulta del bot sigue siendo la del **mes actual de Argentina**. No se incor
 - [Supabase: select y límite REST predeterminado](https://supabase.com/docs/reference/javascript/select).
 - [Supabase: funciones y permisos](https://supabase.com/docs/guides/database/functions).
 - [PostgreSQL: agregación y numeric](https://www.postgresql.org/docs/17/functions-aggregate.html).
+
+## Publicación y aceptación — 27/10/2026
+
+Autorización explícita para 036/PR #48/webhook. Migración aplicada y registrada atómicamente con guardas de historial y fuente; funciones/ACL verificadas. Webhook v60 ACTIVE, 22 módulos iguales al candidato, smoke 401 en webhook y worker. Main f96ab87701425374810b9ac2076e3b4524db3767, cinco controles aprobados (871 Vitest, 75 rutas Deno, PostgreSQL, ensayo instalación/rollback y Publicar). PWA, SW, bundle y CSP verificados. [CI](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40538497339).
+
+Consulta real del propietario recibida a las 13:30:44 y procesada/enviada a las 13:30:49 Argentina: 5,122 s, un intento, sin errores, cero reservas/checkpoints IA. Respuesta comparada en memoria con el formateador publicado y el agregado SQL actual; presupuesto/legacy también contrastados en solo lectura. Cero movimientos creados durante la consulta y cero trabajos propios pendientes/fallidos. Meta aceptó el envío; no se afirma un recibo de lectura del dispositivo. No se crearon fixtures USD ni operaciones financieras en producción.
+
+BE-09 cerrado en ese alcance. Hosting y backups postergados; retención continúa false. Los apartados de preparación anteriores describen el estado previo y el orden ejecutado.

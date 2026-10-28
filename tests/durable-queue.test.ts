@@ -107,6 +107,7 @@ beforeAll(async()=>{
   await db.exec(await readFile(new URL('033_require_current_review_for_confirmation.sql',migrationUrl),'utf8'));
   await db.exec(await readFile(new URL('034_incomplete_draft_items.sql',migrationUrl),'utf8'));
   await db.exec(await readFile(new URL('035_shared_ai_quota.sql',migrationUrl),'utf8'));
+  await db.exec(await readFile(new URL('037_versioned_draft_edits.sql',migrationUrl),'utf8'));
 },30000);
 beforeEach(async()=>{await db.exec('begin; update public.whatsapp_queue_control set enabled=true');});
 afterEach(async()=>{await db.exec('rollback');});
@@ -1101,4 +1102,95 @@ it('INF-14: la propuesta de activación exige aprobación técnica, fuente vigen
  await db.exec("select set_config('pesito.retention_approval','30d-content-90d-metrics-v1',true);update public.whatsapp_ops_config set retention_days=31;savepoint policy_changed");await expect(db.exec(sql)).rejects.toThrow('INF14_POLICY_CHANGED');await db.exec('rollback to savepoint policy_changed;release savepoint policy_changed;update public.whatsapp_ops_config set retention_days=30');
  await db.exec(sql);expect((await db.query('select retention_enabled,last_retention_at from public.whatsapp_ops_config')).rows[0]).toEqual({retention_enabled:true,last_retention_at:null});
  expect((await db.query<{n:number}>('select count(*)::int n from public.whatsapp_message_queue')).rows[0].n).toBe(0);
+});
+
+describe('BE-12: edición atómica con SQL y esquema reales',()=>{
+ const snap=()=>rpc<{group_id:string;version:number;items:Array<Record<string,unknown>>}>('get_active_draft_group',{p_user_id:a});
+ async function edit(patch:unknown,opts:{position?:number;version?:number;group?:string}={}){
+  const g=await snap();await enqueue(message('edit-'+Math.random()));const q=(await next())!;
+  const result=await apply(q,{kind:'edit',group_id:opts.group??g.group_id,version:opts.version??g.version,position:opts.position??1,patch});await finish(q);return result;
+ }
+ it('cambia todos los campos juntos y el resumen refleja exactamente lo persistido',async()=>{
+  await add('be12-all',[movement('Original',100),movement('Intacto',200)]);const before=await snap();
+  await edit({amount:123.45,description:'Café',currency:'USD',occurred_on:'2024-02-29',category:'Otros',installments:3,first_installment_month:'2026-11'});
+  const after=await snap(),i=after.items.find(i=>i.position===1)!;expect(after.version).toBe(before.version+1);
+  expect(i).toMatchObject({amount:123.45,description:'Café',currency:'USD',occurred_on:'2024-02-29',category_name:'Otros',installments:3,first_installment_month:'2026-11'});
+  expect(after.items.find(i=>i.position===2)).toEqual(before.items.find(i=>i.position===2));
+  expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+ });
+ it('editar solo el concepto conserva centavos, fecha y cuotas',async()=>{
+  await add('be12-description',[{...movement('Original',123.45),installments:3,firstInstallmentMonth:'2026-11'}]);
+  const before=(await snap()).items[0];await edit({description:'Renombrado'});const after=(await snap()).items[0];
+  expect(after).toEqual({...before,description:'Renombrado',updated_at:after.updated_at});
+ });
+ it.each([{amount:0},{amount:-1},{amount:1.001},{amount:1e12},{currency:'EUR'},{occurred_on:'2026-02-30'},{installments:0},{installments:61},{installments:3.5},{description:''},{category:null},{unknown:'x'}, {installments:1,first_installment_month:'2026-11'},{installments:60,first_installment_month:'9999-12'}])('rechaza patch inválido entero sin cambios parciales: %o',async patch=>{
+  await add('be12-invalid');const before=await snap();const result=await edit({description:'NO DEBE CAMBIAR',...patch});
+  expect(result.reply_text).toContain('No modifiqué la lista');expect(await snap()).toEqual(before);
+ });
+ it('una categoría desconocida no aplica tampoco el importe/concepto',async()=>{
+  await add('be12-category');const before=await snap();const result=await edit({amount:999,description:'No cambiar',category:'No existe'});
+  expect(result.reply_text).toContain('categoría activa');expect(await snap()).toEqual(before);
+ });
+ it('categorías ajenas, inactivas, ambiguas o de otro tipo se rechazan',async()=>{
+  await add('be12-category-ownership');
+  await db.query("insert into public.categories(user_id,kind,name,active)values($1,'expense','Solo ajena',true),($2,'expense','Inactiva',false),($2,'income','Sueldo ficticio',true),($2,'expense','Ambigua',true),($2,'expense','AMBIGUA',true)",[b,a]);
+  for(const category of ['Solo ajena','Inactiva','Sueldo ficticio','ambigua']){const before=await snap();expect((await edit({category})).reply_text).toContain('categoría activa');expect(await snap()).toEqual(before);}
+ });
+ it('tipo ingreso requiere quitar cuotas explícitamente y elige categoría del tipo correcto',async()=>{
+  await add('be12-kind',[{...movement(),installments:3,firstInstallmentMonth:'2026-11'}]);const before=await snap();
+  expect((await edit({kind:'income'})).reply_text).toContain('No modifiqué');expect(await snap()).toEqual(before);
+  await edit({kind:'income',installments:1});expect((await snap()).items[0]).toMatchObject({kind:'income',installments:1,first_installment_month:null,category_name:'Otros'});
+ });
+ it('rechaza versión vieja, grupo ajeno, posición inexistente o quitada',async()=>{
+  await add('be12-target',[movement(),movement('Quitar')]);const old=await snap();await edit({amount:120});const current=await snap();
+  expect((await edit({amount:999},{version:old.version})).reply_text).toContain('La lista cambió');expect(await snap()).toEqual(current);
+  const other=await db.query<{id:string}>('insert into public.draft_groups(user_id)values($1)returning id',[b]);
+  expect((await edit({amount:999},{group:other.rows[0].id})).reply_text).toContain('La lista cambió');expect(await snap()).toEqual(current);
+  expect((await edit({amount:999},{position:9})).reply_text).toContain('No encontré');
+  await enqueue(message('be12-remove'));const q=(await next())!;await apply(q,{kind:'remove',position:2});await finish(q);const removed=await snap();
+  expect((await edit({amount:999},{position:2})).reply_text).toContain('No encontré');expect(await snap()).toEqual(removed);
+ });
+ it('completar por patch quita solo faltantes resueltos y mantiene revisión',async()=>{
+  await add('be12-missing',[{...movement(),totalAmountArs:null,occurredOn:null,missingFields:['amount','date','review']}]);
+  await edit({amount:123.45,occurred_on:'2026-10-27'});expect((await snap()).items[0]).toMatchObject({amount:123.45,occurred_on:'2026-10-27',missing_fields:['review']});
+ });
+ it('un reenvío del mismo trabajo no aplica ni versiona por segunda vez',async()=>{
+  await add('be12-idempotent');const g=await snap();await enqueue(message('be12-retry'));const q=(await next())!;const action={kind:'edit',group_id:g.group_id,version:g.version,position:1,patch:{amount:123.45}};
+  await apply(q,action);const after=await snap();await apply(q,action);expect(await snap()).toEqual(after);
+ });
+ it('el helper no ofrece acceso directo a clientes ni service_role',async()=>{
+  for(const role of ['anon','authenticated','service_role'])expect((await db.query<{allowed:boolean}>("select has_function_privilege($1,'public.edit_pending_draft_item(uuid,uuid,integer,integer,jsonb)','execute') as allowed",[role])).rows[0].allowed).toBe(false);
+  expect((await db.query(applyPropertiesSql)).rows).toEqual(applyPropertiesBefore);
+ });
+});
+
+it('BE-12: un patch vacío no incrementa la versión',async()=>{await add('be12-empty');const g=await rpc('get_active_draft_group',{p_user_id:a});await enqueue(message('be12-empty-edit'));const q=(await next())!;const result=await apply(q,{kind:'edit',position:1,group_id:g.group_id,version:g.version,patch:{}});expect(result.reply_text).toContain('No modifiqué');expect(await rpc('get_active_draft_group',{p_user_id:a})).toEqual(g);});
+
+it('BE-12: una corrección nueva pasa detrás de capacidad sin soltar el excedente',async()=>{
+ await add('be12-full',Array.from({length:20},(_,n)=>movement('Ficticio '+n,n+1)));
+ await enqueue(message('be12-overflow'));const waiting=(await next())!;await apply(waiting,{kind:'add',items:[movement('En espera')]});await finish(waiting);
+ await enqueue(message('be12-capacity-edit','synthetic-a','La operación 2 moneda USD'));const q=(await next())!;expect(q).not.toBeNull();expect(q.id).not.toBe(waiting.id);
+ const g=await rpc('get_active_draft_group',{p_user_id:a});await apply(q,{kind:'edit',group_id:g.group_id,version:g.version,position:2,patch:{currency:'USD'}});await finish(q);
+ expect((await db.query<{status:string}>('select status from public.whatsapp_message_queue where id=$1',[waiting.id])).rows[0].status).toBe('waiting');
+ expect((await db.query<{currency:string}>('select currency from public.draft_items where group_id=$1 and position=2',[g.group_id])).rows[0].currency).toBe('USD');
+});
+it('BE-12: editar invalida la versión ya mostrada antes de confirmar',async()=>{
+ await add('be12-review');const shown=await show();
+ await enqueue(message('be12-review-edit'));const edit=(await next())!;await apply(edit,{kind:'edit',group_id:shown.group_id,version:shown.version,position:1,patch:{description:'Editado'}});await finish(edit);
+ await enqueue(message('be12-review-confirm','synthetic-a','confirmar'));const q=(await next())!;const result=await apply(q,{kind:'confirm'});expect(result.reply_text).toMatch(/Revisá|cambió/);
+ expect((await db.query<{n:number}>('select count(*)::int as n from public.transactions')).rows[0].n).toBe(0);
+});
+
+it('BE-12: resumen posterior y confirmación guardan los campos editados y centavos exactos',async()=>{
+ await add('be12-confirm-source');let g=await rpc<{group_id:string;version:number}>('get_active_draft_group',{p_user_id:a});
+ await enqueue(message('be12-confirm-edit'));const edit=(await next())!;await apply(edit,{kind:'edit',group_id:g.group_id,version:g.version,position:1,patch:{amount:123.46,description:'Café editado',currency:'USD',occurred_on:'2026-10-27',category:'Otros',installments:3,first_installment_month:'2026-11'}});await finish(edit);
+ g=await show();await enqueue(message('be12-confirm-final','synthetic-a','confirmar'));const confirm=(await next())!;const result=await apply(confirm,{kind:'confirm'});expect(result.reply_text).toContain('Se guardaron');
+ const rows=(await db.query<{amount:string;currency:string;description:string;category:string}>("select t.amount_ars::text as amount,t.currency,t.description,c.name as category from public.transactions t left join public.categories c on c.id=t.category_id where t.user_id=$1 order by installment_number",[a])).rows;
+ expect(rows).toHaveLength(3);expect(rows.map(r=>r.amount)).toEqual(['41.15','41.15','41.16']);for(const row of rows)expect(row).toMatchObject({currency:'USD',description:'Café editado',category:'Otros'});
+});
+
+it('BE-12: service_role aplica por RPC pero no puede saltar el helper privado',async()=>{
+ await add('be12-service');const g=await rpc('get_active_draft_group',{p_user_id:a});await enqueue(message('be12-service-edit'));const q=(await next())!;
+ await db.exec('set local role service_role');const result=await apply(q,{kind:'edit',group_id:g.group_id,version:g.version,position:1,patch:{amount:123.45,category:'Otros'}});await db.exec('reset role');expect(result.reply_text).toBeNull();
+ expect((await db.query<{amount:string}>('select amount::text from public.draft_items where group_id=$1 and position=1',[g.group_id])).rows[0].amount).toBe('123.45');
 });

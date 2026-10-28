@@ -59,7 +59,7 @@ describe('BE-08: resolver datos, no agregar por accidente',()=>{
   expect(parseDraftCompletion('El 2 fecha 2026-10-26',both,today)).toMatchObject({kind:'complete',patch:{occurred_on:today}});
   expect(parseDraftCompletion('El 2 concepto Farmacia',both,today)).toMatchObject({kind:'complete',patch:{description:'Farmacia'}});
   expect(parseDraftCompletion('El 2 fecha 2026-02-31',both,today)?.kind).toBe('reply');
-  expect(parseDraftCompletion('El 2 concepto farmacia',context,today)?.kind).toBe('reply');
+  expect(parseDraftCompletion('El 2 concepto farmacia',context,today)).toBeNull(); // Campo conocido: delegar al editor versionado.
  });
  it('una duda requiere reformulación explícita completa o quitar',()=>{
   const review={...context,items:[{...pending,amount:50,missing_fields:['review']}]};

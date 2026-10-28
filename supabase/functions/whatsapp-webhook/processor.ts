@@ -1,3 +1,4 @@
+import { buildPendingEdit, parsePendingEdit } from "./draft-edit.ts";
 import { formatMonthlySnapshot } from "./monthly-summary.ts";
 import { AiQuotaExceeded } from "./ai-quota.ts";
 import type { BeforeAiRequest } from "./ai-quota.ts";
@@ -16,10 +17,7 @@ import { writeOperationalLog } from "./logging.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.114.0";
 import type { Job } from "./queue.ts";
 import { classifyTextQuery } from "./intent.ts";
-import {
-  looksLikeDraftCorrection,
-  parseDraftCorrection,
-} from "./draft-corrections.ts";
+import { looksLikeDraftCorrection } from "./draft-corrections.ts";
 import {
   downloadWhatsAppMedia,
   extractFromGemini,
@@ -189,7 +187,9 @@ export async function prepareMessage(
     const completion = parseDraftCompletion(text, draft ?? {}, localDate());
     if (completion) return completion;
   }
-  const correction = correctionIntent ? parseDraftCorrection(text) : null;
+  const correction = correctionIntent
+    ? parsePendingEdit(text, draft ?? {})
+    : null;
   if (correction) {
     writeOperationalLog("local_rule", { rule: "correction" });
     return correction;
@@ -235,6 +235,18 @@ export async function prepareMessage(
               draft ?? {},
               localDate(),
             );
+            const edit = completion
+              ? null
+              : parsePendingEdit(transcript, draft ?? {});
+            if (edit) {
+              return edit.kind === "edit"
+                ? { intent: "edit_pending", movements: [], pendingEdit: edit }
+                : {
+                  intent: "clarify_completion",
+                  movements: [],
+                  completionReply: edit.text,
+                };
+            }
             return completion
               ? completion.kind === "complete"
                 ? { intent: "complete_item", movements: [], completion }
@@ -301,6 +313,26 @@ export async function prepareMessage(
       result.operationalFailure = interpretationIssue ??
         { reason: "invalid_response" };
     }
+    if (result.intent === "edit_item") {
+      const edit = result.edit;
+      const patch = {
+        ...(edit?.amount != null ? { amount: edit.amount } : {}),
+        ...(edit?.description != null ? { description: edit.description } : {}),
+        ...(edit?.category != null ? { category: edit.category } : {}),
+      };
+      const action = buildPendingEdit(
+        edit?.targetPosition ?? 0,
+        patch,
+        draft ?? {},
+      );
+      result = action.kind === "edit"
+        ? { intent: "edit_pending", movements: [], pendingEdit: action }
+        : {
+          intent: "clarify_completion",
+          movements: [],
+          completionReply: action.text,
+        };
+    }
     parent?.throwIfAborted();
     await checkpoint(result);
   }
@@ -319,6 +351,9 @@ export async function prepareMessage(
         : 'No pude interpretar todos los datos. Escribime el gasto o ingreso con el concepto y el monto, por ejemplo: "Gasté 1500 en supermercado". Si eran varios, mandalos todos en texto. No cargué nada de ese mensaje.',
     );
   switch (result.intent) {
+    case "edit_pending":
+      return result.pendingEdit ??
+        reply("No pude aplicar la corrección. Revisá tu lista con RESUMEN.");
     case "complete_item":
       return result.completion ??
         reply(
@@ -341,32 +376,11 @@ export async function prepareMessage(
       return result.removePosition
         ? { kind: "remove", position: result.removePosition }
         : reply("Indicame el número del movimiento que querés quitar.");
-    case "edit_item": {
-      const edit = result.edit;
-      const target = (draft?.items ?? []).find((item: DraftListItem) =>
-        item.position === edit?.targetPosition
+    case "edit_item":
+      // Checkpoint anterior al contrato versionado: no reinterpretar su destino.
+      return reply(
+        "Revisá la lista con RESUMEN y repetí la corrección indicando el número y el dato. No modifiqué la lista.",
       );
-      if (target?.missing_fields?.length) {
-        return reply(
-          'Para completar un pendiente, escribime el número y el dato, por ejemplo: "El 2 fue de 5000". No modifiqué la lista.',
-        );
-      }
-      if (
-        !edit?.targetPosition ||
-        (edit.amount != null &&
-          (!Number.isFinite(edit.amount) || edit.amount <= 0))
-      ) {
-        return reply(
-          "Indicame el número del movimiento y el dato que querés corregir.",
-        );
-      }
-      return {
-        kind: "edit",
-        position: edit.targetPosition,
-        amount: edit.amount ?? null,
-        description: edit.description ?? null,
-      };
-    }
     case "add_movements":
       if (result.movements?.length > 20) {
         return reply(

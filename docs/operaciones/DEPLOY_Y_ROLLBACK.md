@@ -136,6 +136,10 @@ Producción verificada: 034, PR #43/bd896f0 y webhook v58 ACTIVE. Se publicó pr
 
 Después de 034, el rollback de runtime solo puede usar ese puente o un lector posterior que admita amount/occurred_on NULL. El puente conserva y muestra esos ítems, con instrucciones compatibles, pero no ofrece toda la nueva funcionalidad de completado. Mantener 034 y los datos; no regresar directamente a v56/v52 ni ejecutar down o reset. El ensayo descarga únicamente el SHA de rollback fijado si un squash dejó ese objeto fuera del historial de main, sin cambiar el checkout. Incluye ejecución de ambos lectores con 20 operaciones/NULL, instalación completa y rollback de runtimes/PWA sobre el mismo esquema. [Procedimiento y aceptación](../planes/VALIDACION_BE_08.md).
 
-## BE-09 / 036 — preparado, sin aplicar
+## BE-09 / 036 — publicado y verificado
 
-Contrato del candidato: mínimo 036 y rollback de runtime 7f26e33 (mínimo 035), conservando la expansión 036. Nueva RPC privada para el backend; monthly_summary conserva firma y pasa a ARS solamente. Aplicar SQL y verificar ACL/cache antes del webhook; no requiere pausa de cola. No ejecutar down ni modificar movimientos para validar. La publicación vigente sigue en 035/v59 hasta autorización y verificación del siguiente despliegue. [Validación](../planes/VALIDACION_BE_09.md).
+Contrato del candidato: mínimo 036 y rollback de runtime 7f26e33 (mínimo 035), conservando la expansión 036. Nueva RPC privada para el backend; monthly_summary conserva firma y pasa a ARS solamente. Aplicar SQL y verificar ACL/cache antes del webhook; no requiere pausa de cola. No ejecutar down ni modificar movimientos para validar. Publicado y verificado: f96ab87/PR #48, 036 y webhook v60; consulta del propietario aceptada. [Validación](../planes/VALIDACION_BE_09.md).
+
+## BE-12 / 037 — preparado, sin aplicar
+
+Candidato mínimo 037, rollback f96ab87 (mínimo 036) conservando 037. Aplicar SQL y comprobar funciones/ACL antes del webhook, tras CI y autorización. Ediciones versionadas bajo lease y patch validado completo antes de escribir; no altera movimientos confirmados. El helper es privado incluso para service_role. Preserva el formato legacy del runtime anterior; checkpoints nuevos llevan grupo/versión y no deben reinterpretarse al volver a v60. Dejar terminar trabajos iniciados o pedir repetir la corrección si fuera necesario. Sin cambios de proveedores, claves, cuotas, hosting o retención. [Validación y límites](../planes/VALIDACION_BE_12.md).

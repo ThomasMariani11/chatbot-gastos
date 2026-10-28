@@ -13,7 +13,7 @@ describe('resumen real compatible con borradores incompletos',()=>{
  it('acota veinte conceptos largos sin perder posiciones, cifras ni cuotas',()=>{
   const rows=Array.from({length:20},(_,i)=>({...row,position:i+1,description:'💰'.repeat(80),amount:999999999999.99,currency:i%2?'USD':'ARS',occurred_on:'2026-10-26',installments:60,first_installment_month:'2026-11',missing_fields:['review']}));
   const body=formatDraftList(rows);expect(body.length).toBeLessThanOrEqual(4096);
-  expect(body).toContain('Conceptos abreviados');expect(body).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+  expect(body).toContain('Conceptos o categorías abreviados');expect(body).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
   for(let i=1;i<=20;i++)expect(body).toContain(i+'. 🔴');
   expect(body.match(/999\.999\.999\.999,99/g)).toHaveLength(20);expect(body.match(/60 cuotas desde 2026-11/g)).toHaveLength(20);
   expect(rows[0].description).toHaveLength(160);
@@ -27,4 +27,9 @@ describe('resumen real compatible con borradores incompletos',()=>{
   const body=formatDraftList([{...row,status:'removed'},{...row,position:4,missing_fields:['review'],clarification:'PRIVATE_PROVIDER_QUESTION'}]);
   expect(body).toContain('4.');expect(body).toContain('aclaración');expect(body).not.toContain('PRIVATE_');expect(body).not.toContain('1. 🔴');
  });
+});
+
+it('BE-12: categorías largas y Unicode no ocultan cifras, fecha ni cuotas',()=>{
+ const rows=Array.from({length:20},(_,i)=>({...row,position:2147483600+i,category_name:'💰'.repeat(20),description:'💰'.repeat(80),amount:999999999999.99,currency:'USD',occurred_on:'2026-10-26',installments:60,first_installment_month:'2026-11',missing_fields:['review']}));
+ const body=formatDraftList(rows);expect(body.length).toBeLessThanOrEqual(4096);expect(body.match(/Cat:/g)).toHaveLength(20);expect(body.match(/999\.999\.999\.999,99/g)).toHaveLength(20);expect(body.match(/60 cuotas desde 2026-11/g)).toHaveLength(20);expect(body).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
 });

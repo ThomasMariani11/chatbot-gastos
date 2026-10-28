@@ -49,6 +49,17 @@ export function parseDraftCompletion(
   let position: number | undefined,
     field: string | undefined,
     patch: CompletionAction["patch"] | undefined;
+  if (
+    full &&
+    /^(?:importe|monto|concepto|descripci[oó]n|categor[ií]a|moneda|fecha|cuotas|tipo)\s/i
+      .test(full[2])
+  ) return null;
+  if (
+    explicit &&
+    items.some((i) =>
+      i.position === Number(explicit[1]) && !incomplete.includes(i)
+    )
+  ) return null;
   if (full) {
     const parsed = parseDeterministicMovements(full[2], today);
     if (parsed?.length !== 1) return clarify();
@@ -103,7 +114,7 @@ export function parseDraftCompletion(
     field !== "movement" && !target.missing_fields?.includes(field!) &&
     !(field === "amount" && target.amount === null) &&
     !(field === "date" && target.occurred_on === null)
-  ) return clarify();
+  ) return null;
   return {
     kind: "complete",
     position: position!,
