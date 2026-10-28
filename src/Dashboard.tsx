@@ -28,7 +28,8 @@ import {
 } from './installmentPlans';
 import { EntrySender, browserEntryStorage, entryError, type EntryAttempt, type EntryDraft } from './pwaEntries';
 import { createDashboardLoader, canShowDashboard, type LoadView } from './dashboardLoader';
-import { readDashboardSnapshot } from './dashboardData';
+import * as dashboardDataModule from './dashboardData';
+import type { DashboardQueryCache } from './dashboardData';
 import { requestWhatsAppLinkCode } from './whatsappLink';
 import { formatAmountInput, numberToAmountInput, parseAmountNumber, formatMoney } from '../lib/finance';
 import { usePwaInstall } from './usePwaInstall';
@@ -109,6 +110,60 @@ function IconInstallments({ className = 'nav-icon' }: { className?: string }) { 
 function IconSettings({ className = 'nav-icon' }: { className?: string }) { return <Icon name="settings" className={className} />; }
 
 const isPresetInstallmentCount = (count: number) => (PRESET_INSTALLMENT_COUNTS as readonly number[]).includes(count);
+export const MOVEMENTS_PAGE_SIZE = 50;
+const DASHBOARD_POLL_INTERVAL_MS =
+  'DASHBOARD_POLL_INTERVAL_MS' in dashboardDataModule &&
+  typeof dashboardDataModule.DASHBOARD_POLL_INTERVAL_MS === 'number'
+    ? dashboardDataModule.DASHBOARD_POLL_INTERVAL_MS
+    : 30_000;
+
+function getDashboardQueryCache(userId: string): DashboardQueryCache {
+  if (
+    'createDashboardQueryCache' in dashboardDataModule &&
+    typeof dashboardDataModule.createDashboardQueryCache === 'function'
+  ) {
+    return dashboardDataModule.createDashboardQueryCache(userId);
+  }
+  const fallback: DashboardQueryCache = {
+    userId,
+    invalidateInstallments() { delete fallback.installments; },
+    invalidateMonths() { delete fallback.months; },
+    invalidateBotState() { delete fallback.botState; },
+    invalidateAll() {
+      delete fallback.botPhone;
+      delete fallback.botState;
+      delete fallback.months;
+      delete fallback.installments;
+    },
+  };
+  return fallback;
+}
+
+function getTotalsByCurrency(
+  items: ReadonlyArray<{ amount: number; currency?: 'ARS' | 'USD'; kind: 'expense' | 'income' }>,
+  currency: 'ARS' | 'USD',
+) {
+  if (
+    'computeTotalsByCurrency' in dashboardDataModule &&
+    typeof dashboardDataModule.computeTotalsByCurrency === 'function'
+  ) {
+    return dashboardDataModule.computeTotalsByCurrency(items, currency);
+  }
+  let expenseCents = 0;
+  let incomeCents = 0;
+  for (const item of items) {
+    if ((item.currency || 'ARS') !== currency) continue;
+    const cents = Math.round(Number(item.amount) * 100);
+    if (!Number.isFinite(cents) || cents <= 0) continue;
+    if (item.kind === 'expense') expenseCents += cents;
+    else if (item.kind === 'income') incomeCents += cents;
+  }
+  return {
+    expenses: expenseCents / 100,
+    income: incomeCents / 100,
+    balance: (incomeCents - expenseCents) / 100,
+  };
+}
 
 export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSignOut, isAdmin, onOpenAdmin }: Props) {
   // Solo el primer nombre para el saludo de bienvenida ("Hola, María 👋")
@@ -160,6 +215,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const [onboardingWaMsg, setOnboardingWaMsg] = useState<string | null>(null);
   const [waBotNumber, setWaBotNumber] = useState<string>('');
   const [waLinkReady, setWaLinkReady] = useState<{ url: string; code: string } | null>(null);
+  const queryCache = useMemo(() => getDashboardQueryCache(userId), [userId]);
 
   async function handleConnectWhatsApp() {
     setIsConnectingWa(true);
@@ -168,7 +224,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     try {
       const { code: nextCode } = await requestWhatsAppLinkCode();
 
-      let targetPhone = waBotNumber;
+      let targetPhone = waBotNumber || queryCache.botPhone?.value || '';
       if (!targetPhone) {
         const { data: configData } = await supabase
           .from('system_config')
@@ -176,8 +232,9 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           .eq('key', 'whatsapp_bot_phone')
           .maybeSingle();
         if (configData?.value) {
-          targetPhone = configData.value;
-          setWaBotNumber(configData.value);
+          targetPhone = String(configData.value);
+          setWaBotNumber(targetPhone);
+          queryCache.botPhone = { value: targetPhone, fetchedAt: Date.now() };
         }
       }
 
@@ -250,6 +307,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const [movementSearch, setMovementSearch] = useState('');
   const [movementKindFilter, setMovementKindFilter] = useState<'all' | 'expense' | 'income'>('all');
   const [movementCategoryFilter, setMovementCategoryFilter] = useState('all');
+  const [movementsPage, setMovementsPage] = useState(1);
   const [openInstallmentMenuId, setOpenInstallmentMenuId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -320,6 +378,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [categoriesReloadNonce, setCategoriesReloadNonce] = useState(0);
   const [editPlan, setEditPlan] = useState<PlanSnapshot | null>(null);
   const [deletePlan, setDeletePlan] = useState<PlanSnapshot | null>(null);
   const [editPlanError, setEditPlanError] = useState('');
@@ -409,9 +468,20 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     [filteredMovements, movementSearch, movementKindFilter, movementCategoryFilter],
   );
 
+  useEffect(() => {
+    setMovementsPage(1);
+  }, [month, activeCurrency, movementSearch, movementKindFilter, movementCategoryFilter]);
+
+  const totalMovementsPages = Math.max(1, Math.ceil(searchedMovements.length / MOVEMENTS_PAGE_SIZE));
+  const safeMovementsPage = Math.min(movementsPage, totalMovementsPages);
+  const paginatedMovements = useMemo(() => {
+    const start = (safeMovementsPage - 1) * MOVEMENTS_PAGE_SIZE;
+    return searchedMovements.slice(start, start + MOVEMENTS_PAGE_SIZE);
+  }, [searchedMovements, safeMovementsPage]);
+
   const groupedMovementsByDay = useMemo(
-    () => groupMovementsByDay(searchedMovements, todayKey()),
-    [searchedMovements],
+    () => groupMovementsByDay(paginatedMovements, todayKey()),
+    [paginatedMovements],
   );
 
   const hasActiveMovementFilters =
@@ -422,8 +492,12 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     [filteredMovements, filteredInstallmentPlans.length],
   );
 
-  const expenses = useMemo(() => filteredMovements.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0), [filteredMovements]);
-  const income = useMemo(() => filteredMovements.filter((item) => item.kind === 'income').reduce((sum, item) => sum + item.amount, 0), [filteredMovements]);
+  const currencyTotals = useMemo(
+    () => getTotalsByCurrency(movements, activeCurrency),
+    [movements, activeCurrency],
+  );
+  const expenses = currencyTotals.expenses;
+  const income = currencyTotals.income;
   const progress = budget > 0 ? Math.round((expenses / budget) * 100) : 0;
   const chartData = useMemo(() => {
     const grouped = new Map<string, number>();
@@ -459,7 +533,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       finally { window.clearTimeout(timeout); }
     })();
     return () => { active = false; controller.abort(); window.clearTimeout(timeout); };
-  }, [userId, refreshNonce]);
+  }, [userId, categoriesReloadNonce]);
 
   useEffect(() => {
     if (!pendingEntry && !availableCategories.some((category) => category.id === categoryId)) {
@@ -470,7 +544,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   useEffect(() => {
     const loadContext = userId + ':' + month;
     const loader = createDashboardLoader({
-      read: signal => readDashboardSnapshot(userId, month, signal),
+      read: signal => dashboardDataModule.readDashboardSnapshot(userId, month, signal, supabase, { cache: queryCache }),
       start: () => setReadView(current => ({ context: loadContext,
         status: current.context === loadContext && current.status === 'ready' ? 'ready' : 'loading', refreshing: true })),
       commit: snapshot => {
@@ -501,25 +575,57 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       fail: () => { setReadView({ context: loadContext, status: 'error', refreshing: false }); setBotState('unknown'); },
     });
     const refresh = () => { void loader.refresh(); };
+    const onTransactionChange = () => {
+      queryCache.invalidateInstallments();
+      queryCache.invalidateMonths();
+      refresh();
+    };
+    const onBotMetaChange = () => {
+      queryCache.invalidateBotState();
+      refresh();
+    };
     refresh();
     const channel = supabase.channel('dashboard-' + userId + '-' + month)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: 'user_id=eq.' + userId }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: 'user_id=eq.' + userId }, onTransactionChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets', filter: 'user_id=eq.' + userId }, refresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'whatsapp_links', filter: 'user_id=eq.' + userId }, refresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings', filter: 'user_id=eq.' + userId }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'whatsapp_links', filter: 'user_id=eq.' + userId }, onBotMetaChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings', filter: 'user_id=eq.' + userId }, onBotMetaChange)
       .subscribe();
-    const interval = window.setInterval(refresh, 5000);
-    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    const pollIfActive = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (typeof window.navigator !== 'undefined' && window.navigator.onLine === false) return;
+      refresh();
+    };
+    const interval = window.setInterval(pollIfActive, DASHBOARD_POLL_INTERVAL_MS);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        queryCache.invalidateInstallments();
+        queryCache.invalidateBotState();
+        refresh();
+      }
+    };
+    const refreshWhenOnline = () => {
+      queryCache.invalidateAll();
+      refresh();
+    };
     document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('online', refreshWhenOnline);
     return () => {
       loader.stop();
       window.clearInterval(interval);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('online', refreshWhenOnline);
       void supabase.removeChannel(channel);
     };
-  }, [month, userId, refreshNonce]);
+  }, [month, userId, refreshNonce, queryCache]);
 
   function refreshDashboard() {
+    queryCache.invalidateInstallments();
+    queryCache.invalidateMonths();
+    queryCache.invalidateBotState();
+    if (categoryStatus === 'error') {
+      setCategoriesReloadNonce(n => n + 1);
+    }
     setReadView({ context, status: 'loading', refreshing: false });
     setRefreshNonce(n => n + 1);
   }
@@ -1002,8 +1108,21 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               <>
                 <div className="movements-results-meta">
                   <span>
-                    Mostrando <strong>{searchedMovements.length}</strong>{' '}
-                    {searchedMovements.length === 1 ? 'operación' : 'operaciones'} de {labelForMonth(month).toLowerCase()}
+                    {searchedMovements.length > MOVEMENTS_PAGE_SIZE ? (
+                      <>
+                        Mostrando{' '}
+                        <strong>
+                          {(safeMovementsPage - 1) * MOVEMENTS_PAGE_SIZE + 1}–
+                          {Math.min(safeMovementsPage * MOVEMENTS_PAGE_SIZE, searchedMovements.length)}
+                        </strong>{' '}
+                        de <strong>{searchedMovements.length}</strong> operaciones de {labelForMonth(month).toLowerCase()}
+                      </>
+                    ) : (
+                      <>
+                        Mostrando <strong>{searchedMovements.length}</strong>{' '}
+                        {searchedMovements.length === 1 ? 'operación' : 'operaciones'} de {labelForMonth(month).toLowerCase()}
+                      </>
+                    )}
                   </span>
                   {hasActiveMovementFilters && (
                     <button
@@ -1071,6 +1190,31 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                     </div>
                   ))}
                 </div>
+                {totalMovementsPages > 1 && (
+                  <nav className="admin-pagination movements-pagination" aria-label="Paginación de movimientos">
+                    <span className="admin-pagination-info">
+                      Página <strong>{safeMovementsPage}</strong> de <strong>{totalMovementsPages}</strong>
+                    </span>
+                    <div className="admin-pagination-controls">
+                      <button
+                        type="button"
+                        className="action-btn small secondary"
+                        disabled={safeMovementsPage <= 1}
+                        onClick={() => setMovementsPage((p) => Math.max(1, p - 1))}
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        type="button"
+                        className="action-btn small secondary"
+                        disabled={safeMovementsPage >= totalMovementsPages}
+                        onClick={() => setMovementsPage((p) => Math.min(totalMovementsPages, p + 1))}
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </nav>
+                )}
               </>
             )}
           </article>

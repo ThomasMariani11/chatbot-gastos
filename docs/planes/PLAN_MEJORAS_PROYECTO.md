@@ -333,7 +333,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 16 | FE-16 | Media | Contraste de botones | FE-22 | Terminada |
 | 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Terminada; homónimos/fallo/reintento verificados en entorno aislado; cierre con PR #39 |
 | 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Terminada |
-| 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Pendiente |
+| 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Terminada |
 | 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | Terminada en alcance verificado; headers HTTP siguen en INF-13 |
 | 21 | FE-20 | Baja | Cancelar navegación pendiente al desmontar | — | Terminada |
 | 22 | FE-22 | Baja | Cascada CSS de pestañas de acceso | FE-16 | Terminada |
@@ -493,7 +493,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-18 — Reducir consultas y paginar resultados
 
-- [ ] Terminada.
+- [x] Terminada. Validación y detalle en [VALIDACION_FE_18.md](VALIDACION_FE_18.md).
 - **Categoría:** Rendimiento. **Problema confirmado:** siete consultas cada cinco segundos además de Realtime, aproximadamente 84 por minuto por pestaña activa sin contar carga inicial y otros refrescos. Se vuelven a traer cuotas históricas; perfiles y códigos administrativos no se paginan.
 - **Archivos:** src/Dashboard.tsx:393, :396, :528, :533; src/AdminPanel.tsx:118, :119.
 - **Trabajo:** cachear configuración estable, invalidar por eventos, pausar polling cuando corresponda y acotar consultas. Paginar listados; obtener totales completos en el servidor por moneda. Verificar máximo efectivo de filas de Supabase antes de atribuir truncamiento en producción.
