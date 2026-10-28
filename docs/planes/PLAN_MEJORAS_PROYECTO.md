@@ -577,7 +577,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 12 | BE-11 | Media | Listas antiguas, excedentes y numeración | INF-03 | Terminada en alcance probado; 038/PR #50/v62 y aceptación |
 | 13 | BE-12 | Media | Correcciones y resumen completo | — | Terminada en alcance probado; 037/PR #49/v61 y aceptación |
 | 14 | BE-13 | Media | Consistencia del alta y bootstrap administrativo | INF-10 | Pendiente |
-| 15 | BE-14 | Media | Vinculación atómica y límites de intentos | — | Pendiente |
+| 15 | BE-14 | Media | Vinculación atómica y límites de intentos | — | Terminada |
 | 16 | BE-15 | Media | Integraciones y límites de multimedia | INF-12 | Terminada |
 | 17 | BE-16 | Media | Logs y errores seguros | INF-09, INF-14 | Pendiente |
 | 18 | BE-18 | Baja | Separación del código y llamadas remotas | — | Pendiente |
@@ -750,7 +750,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-14 — Hacer atómica la vinculación y limitar intentos
 
-- [ ] Terminada.
+- [x] Terminada.
+- **Cierre al 28/10/2026:** Terminada. Migración 040 aplicada; vinculación atómica con protección contra fuerza bruta por teléfono (bloqueo tras 5 intentos fallidos), actualización inmediata de worker state y perfiles, check_invitation_code con rate limiting (15 intentos/minuto) y mensajes uniformes sin enumeración; verificación de expiración estricta en servidor (clock_timestamp()) en altas, renovaciones y consultas. 1,051 tests aprobados en 46 suites, 12 pruebas SQL y guardas de release. [Procedimiento](VALIDACION_BE_14.md).
 - **Problema confirmado en código:** búsqueda y consumo del código separados de las escrituras de vinculación; sin bloqueo de fila ni límites propios de intentos. No se ejecutó fuerza bruta real; los límites externos quedan a verificar.
 - **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:465`, `:467`, `:471`; `supabase/migrations/005_admin_and_invitations.sql:73`.
 - **Trabajo:** bloquear y consumir el código, desvincular y reasignar en una transacción; definir límites por teléfono y para consultas de invitación; vencimiento calculado en servidor; errores seguros sin revelar información innecesaria.

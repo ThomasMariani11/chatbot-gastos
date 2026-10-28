@@ -78,7 +78,7 @@ export function Login() {
         display({ checking: false, valid: true, message: `Código válido: ${durationText}`, durationDays: data.duration_days });
         return true;
       }
-      display({ checking: false, valid: false, message: 'Código inválido o ya utilizado.' });
+      display({ checking: false, valid: false, message: (typeof data.error === 'string' && data.error) ? data.error : 'Código inválido o ya utilizado.' });
       return false;
     } catch {
       display({ checking: false, valid: null, message: 'No pudimos verificar el código. Comprobá tu conexión e intentá de nuevo.' });
