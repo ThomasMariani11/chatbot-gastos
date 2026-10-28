@@ -329,7 +329,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 12 | FE-08 | Alta; desarrollo | Dependencias vulnerables | INF-07 | Terminada |
 | 13 | FE-10 | Media | Límite de cuotas y contrato SQL | FE-21 | Terminada |
 | 14 | FE-14 | Media | Permitir ampliación del navegador | — | Descartada por decisión del propietario |
-| 15 | FE-15 | Media | Diálogos, foco y etiquetas accesibles | FE-07 | Pendiente |
+| 15 | FE-15 | Media | Diálogos, foco y etiquetas accesibles | FE-07 | Terminada |
 | 16 | FE-16 | Media | Contraste de botones | FE-22 | Terminada |
 | 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Terminada; homónimos/fallo/reintento verificados en entorno aislado; cierre con PR #39 |
 | 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Terminada |
@@ -467,7 +467,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 ### FE-15 — Centralizar diálogos accesibles y etiquetas de formularios
 
 - [ ] Terminada.
-- **Categoría:** Accesibilidad. **Problema observado en código:** modales principales sin gestión completa de foco, confinamiento, Escape y retorno al botón de apertura. El importe del alta tiene un texto visual en span sin label asociado. No se realizó una prueba con lector de pantalla real.
+- [x] Terminada. Validación y detalle en [VALIDACION_FE_15.md](VALIDACION_FE_15.md). — **Categoría:** Accesibilidad. **Problema observado en código:** modales principales sin gestión completa de foco, confinamiento, Escape y retorno al botón de apertura. El importe del alta tiene un texto visual en span sin label asociado. No se realizó una prueba con lector de pantalla real.
 - **Archivos:** src/Dashboard.tsx:1374, :1431, :1457, :1637; src/AdminPanel.tsx:1065, :1172.
 - **Trabajo:** componente de diálogo compartido con semántica, título, foco inicial, fondo inerte, cierre y restauración de foco; considerar dialog.showModal o una solución accesible probada. Asociar label/htmlFor e id a controles y errores; agregar foco visible donde se elimina outline.
 - **Cierre:** teclado y lector de pantalla recorren solo el diálogo; Escape y cierre devuelven el foco; campos tienen nombres accesibles; cierre con datos sin guardar tiene un comportamiento definido.
