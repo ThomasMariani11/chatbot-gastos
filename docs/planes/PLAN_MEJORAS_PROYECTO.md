@@ -325,7 +325,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 8 | FE-06 | Alta | Extensiones concurrentes de suscripción | BE-02 | Corrección terminada; publicada y verificada |
 | 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Terminada en el flujo protegido; aceptado en PWA instalada en iPhone |
 | 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Terminada; publicada y verificada en su alcance |
-| 11 | FE-13 | Media | Validación de invitación fuera de orden | — | Pendiente |
+| 11 | FE-13 | Media | Validación de invitación fuera de orden | — | Terminada |
 | 12 | FE-08 | Alta; desarrollo | Dependencias vulnerables | INF-07 | Pendiente |
 | 13 | FE-10 | Media | Límite de cuotas y contrato SQL | FE-21 | Avance publicado en 029; cierre específico por verificar |
 | 14 | FE-14 | Media | Permitir ampliación del navegador | — | Pendiente |
@@ -448,7 +448,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-13 — Descartar respuestas antiguas de validación de invitación
 
-- [ ] Terminada.
+- [x] Terminada.
+- **Cierre al 28/10/2026:** Terminada. AbortController para cancelar peticiones HTTP en vuelo, codeState vinculado al código activo, descarte estricto por generación de solicitud y código visible; limpieza al desmontar y al cambiar de pestaña; 18 pruebas en tests/signup-ui.test.ts (1.061 tests pasando en total). [Validación](VALIDACION_FE_13.md).
 - **Categoría:** Bug. **Problema reproducido:** cancelar el debounce no cancela consultas iniciadas. La respuesta vieja de un código inválido, llegando después de una válida, dejó inválido el código actual y bloqueó el envío.
 - **Archivos:** src/Login.tsx:32, :51, :101, :104, :528.
 - **Trabajo:** asociar resultado a código y generación de solicitud; descartar respuestas anteriores; limpiar temporizador e invalidar solicitudes al desmontar o modificar el código. Manejar error de red separadamente de código inválido.

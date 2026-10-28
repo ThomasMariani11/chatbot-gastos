@@ -11,6 +11,7 @@ interface CodeCheckState {
   valid: boolean | null;
   message: string;
   durationDays?: number | null;
+  code?: string;
 }
 
 export function Login() {
@@ -21,10 +22,12 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const inviteCodeRef = useRef('');
   const [codeState, setCodeState] = useState<CodeCheckState>({
     checking: false,
     valid: null,
     message: '',
+    code: '',
   });
 
   const [message, setMessage] = useState('');
@@ -36,11 +39,13 @@ export function Login() {
 
   const registeringRef = useRef(false);
   const codeRequestRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => {
     ++codeRequestRef.current;
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    abortControllerRef.current?.abort();
   }, []);
 
   // 1. Detectar si vino código por parámetro en la URL (?invitacion=PESO-XXXX o ?code=PESO-XXXX)
@@ -50,6 +55,7 @@ export function Login() {
       const codeFromUrl = params.get('invitacion') || params.get('code') || params.get('invite');
       if (codeFromUrl) {
         const clean = codeFromUrl.trim().toUpperCase();
+        inviteCodeRef.current = clean;
         setMode('register');
         setInviteCode(clean);
         void checkCode(clean).catch(() => undefined);
@@ -62,26 +68,60 @@ export function Login() {
   // 2. Función de verificación de código de invitación vía RPC
   async function checkCode(codeToValidate: string) {
     const clean = codeToValidate.trim().toUpperCase();
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
     if (!clean) {
-      setCodeState({ checking: false, valid: null, message: '' });
+      ++codeRequestRef.current;
+      abortControllerRef.current?.abort();
+      setCodeState({ checking: false, valid: null, message: '', code: '' });
       return false;
     }
 
+    if (clean.length < 4) {
+      ++codeRequestRef.current;
+      abortControllerRef.current?.abort();
+      setCodeState({ checking: false, valid: null, message: '', code: clean });
+      return false;
+    }
+
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const request = ++codeRequestRef.current;
-    const display = (state: CodeCheckState) => { if (request === codeRequestRef.current) setCodeState(state); };
-    display({ checking: true, valid: null, message: 'Verificando código…' });
+    const isCurrent = () => request === codeRequestRef.current && clean === inviteCodeRef.current;
+
+    if (isCurrent()) {
+      setCodeState({ checking: true, valid: null, message: 'Verificando código…', code: clean });
+    }
+
     try {
-      const { data, error } = await supabase.rpc('check_invitation_code', { p_code: clean });
+      let rpcBuilder = supabase.rpc('check_invitation_code', { p_code: clean });
+      if (rpcBuilder && typeof (rpcBuilder as unknown as { abortSignal?: (s: AbortSignal) => unknown }).abortSignal === 'function') {
+        rpcBuilder = (rpcBuilder as unknown as { abortSignal: (s: AbortSignal) => typeof rpcBuilder }).abortSignal(controller.signal);
+      }
+      const { data, error } = await rpcBuilder;
+      if (controller.signal.aborted || !isCurrent()) return false;
       if (error || !data) throw new Error('CODE_CHECK_UNAVAILABLE');
       if (data.valid) {
         const durationText = data.duration_days ? `Licencia de ${data.duration_days} días` : 'Licencia vitalicia (sin vencimiento)';
-        display({ checking: false, valid: true, message: `Código válido: ${durationText}`, durationDays: data.duration_days });
+        if (isCurrent()) {
+          setCodeState({ checking: false, valid: true, message: `Código válido: ${durationText}`, durationDays: data.duration_days, code: clean });
+        }
         return true;
       }
-      display({ checking: false, valid: false, message: (typeof data.error === 'string' && data.error) ? data.error : 'Código inválido o ya utilizado.' });
+      if (isCurrent()) {
+        setCodeState({ checking: false, valid: false, message: (typeof data.error === 'string' && data.error) ? data.error : 'Código inválido o ya utilizado.', code: clean });
+      }
       return false;
     } catch {
-      display({ checking: false, valid: null, message: 'No pudimos verificar el código. Comprobá tu conexión e intentá de nuevo.' });
+      if (controller.signal.aborted || !isCurrent()) return false;
+      if (isCurrent()) {
+        setCodeState({ checking: false, valid: null, message: 'No pudimos verificar el código. Comprobá tu conexión e intentá de nuevo.', code: clean });
+      }
       throw new Error('CODE_CHECK_UNAVAILABLE');
     }
   }
@@ -89,22 +129,24 @@ export function Login() {
   // Manejar cambio en el input de código con debounce
   function handleCodeChange(val: string) {
     const clean = val.toUpperCase().replace(/\s+/g, '');
-    ++codeRequestRef.current;
-    setCodeState({ checking: false, valid: null, message: '' });
+    inviteCodeRef.current = clean;
     setInviteCode(clean);
     setMessage('');
     setIsError(false);
 
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
     }
+    abortControllerRef.current?.abort();
+    ++codeRequestRef.current;
+
+    setCodeState({ checking: false, valid: null, message: '', code: clean });
 
     if (clean.length >= 4) {
       debounceTimerRef.current = setTimeout(() => {
         void checkCode(clean).catch(() => undefined);
       }, 400);
-    } else {
-      setCodeState({ checking: false, valid: null, message: '' });
     }
   }
 
@@ -374,7 +416,9 @@ export function Login() {
                   value={inviteCode}
                   onChange={(e) => handleCodeChange(e.target.value)}
                   onBlur={() => {
-                    if (inviteCode) void checkCode(inviteCode).catch(() => undefined);
+                    if (inviteCode && inviteCode.length >= 4 && (codeState.code !== inviteCode || codeState.valid === null)) {
+                      void checkCode(inviteCode).catch(() => undefined);
+                    }
                   }}
                   autoCapitalize="characters"
                   autoCorrect="off"
@@ -383,19 +427,19 @@ export function Login() {
               </label>
 
               {/* Feedback visual del código */}
-              {codeState.checking && (
+              {codeState.checking && codeState.code === inviteCode && (
                 <div className="code-feedback-badge checking">
                   <span><Icon name="clock" /></span>
                   <span>Verificando código…</span>
                 </div>
               )}
-              {!codeState.checking && codeState.valid === true && (
+              {!codeState.checking && codeState.valid === true && codeState.code === inviteCode && (
                 <div className="code-feedback-badge valid">
                   <span><Icon name="check" /></span>
                   <span>{codeState.message}</span>
                 </div>
               )}
-              {!codeState.checking && codeState.valid !== true && Boolean(codeState.message) && (
+              {!codeState.checking && codeState.valid !== true && Boolean(codeState.message) && codeState.code === inviteCode && (
                 <div className="code-feedback-badge invalid">
                   <span><Icon name="alert" /></span>
                   <span>{codeState.message}</span>
@@ -465,7 +509,7 @@ export function Login() {
 
               <button
                 type="submit"
-                disabled={sending || codeState.checking || codeState.valid === false}
+                disabled={sending || (codeState.checking && codeState.code === inviteCode) || (codeState.valid === false && codeState.code === inviteCode)}
                 style={{ marginTop: '8px' }}
               >
                 {sending ? 'Activando cuenta…' : 'Crear cuenta y comenzar'}
@@ -494,6 +538,11 @@ export function Login() {
                   setMode('login');
                   setMessage('');
                   setIsError(false);
+                  abortControllerRef.current?.abort();
+                  if (debounceTimerRef.current) {
+                    clearTimeout(debounceTimerRef.current);
+                    debounceTimerRef.current = null;
+                  }
                 }}
               >
                 ← ¿Ya tenés cuenta? Iniciar sesión
