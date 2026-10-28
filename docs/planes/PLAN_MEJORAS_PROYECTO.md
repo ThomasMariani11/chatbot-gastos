@@ -326,17 +326,17 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 9 | FE-07 | Alta | Actualizaciones PWA sin perder formularios | INF-10 | Terminada en el flujo protegido; aceptado en PWA instalada en iPhone |
 | 10 | FE-12 | Media | Borradores de Ajustes y refresco de perfil | FE-07 | Terminada; publicada y verificada en su alcance |
 | 11 | FE-13 | Media | Validación de invitación fuera de orden | — | Terminada |
-| 12 | FE-08 | Alta; desarrollo | Dependencias vulnerables | INF-07 | Pendiente |
+| 12 | FE-08 | Alta; desarrollo | Dependencias vulnerables | INF-07 | Terminada |
 | 13 | FE-10 | Media | Límite de cuotas y contrato SQL | FE-21 | Terminada |
-| 14 | FE-14 | Media | Permitir ampliación del navegador | — | Pendiente |
+| 14 | FE-14 | Media | Permitir ampliación del navegador | — | Descartada por decisión del propietario |
 | 15 | FE-15 | Media | Diálogos, foco y etiquetas accesibles | FE-07 | Pendiente |
-| 16 | FE-16 | Media | Contraste de botones | FE-22 | Pendiente |
+| 16 | FE-16 | Media | Contraste de botones | FE-22 | Terminada |
 | 17 | FE-11 | Media | Eliminación visual por identificador | FE-02 | Terminada; homónimos/fallo/reintento verificados en entorno aislado; cierre con PR #39 |
 | 18 | FE-17 | Media | Separar carga inicial por pantallas | FE-21 | Terminada |
 | 19 | FE-18 | Media | Consultas, caché y paginación | BE-09 | Pendiente |
 | 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | Terminada en alcance verificado; headers HTTP siguen en INF-13 |
-| 21 | FE-20 | Baja | Cancelar navegación pendiente al desmontar | — | Pendiente |
-| 22 | FE-22 | Baja | Cascada CSS de pestañas de acceso | FE-16 | Pendiente |
+| 21 | FE-20 | Baja | Cancelar navegación pendiente al desmontar | — | Terminada |
+| 22 | FE-22 | Baja | Cascada CSS de pestañas de acceso | FE-16 | Terminada |
 
 ### FE-01 — Unificar el contrato de cuotas de WhatsApp y PWA
 
@@ -399,7 +399,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-08 — Actualizar dependencias vulnerables del frontend
 
-- [ ] Terminada.
+- [x] Terminada. Validación y detalle en [VALIDACION_FE_08.md](VALIDACION_FE_08.md).
 - **Categoría:** Seguridad. **Problema confirmado por npm audit:** tres paquetes de desarrollo con severidad alta: Vite 8.0.13, brace-expansion y source-map-js 1.2.1. Audit de producción reportó cero. El bypass de archivos de Vite en Windows afecta al servidor de desarrollo, no demuestra exposición desde GitHub Pages.
 - **Archivos:** package.json:30; package-lock.json:1069, :1385, :2580, :2822.
 - **Trabajo:** actualizar a versiones compatibles corregidas y revisar el lockfile; el audit observó Vite 8.3.4 como solución disponible. Verificar avisos vigentes al ejecutar y evitar actualizaciones forzadas sin revisar compatibilidad.
@@ -457,7 +457,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-14 — Permitir el zoom del navegador
 
-- [ ] Terminada.
+- [x] Descartada por decisión del propietario (se conserva el bloqueo de zoom para evitar ampliaciones accidentales en móvil).
 - **Categoría:** Accesibilidad. **Problema confirmado:** viewport con user-scalable=no y escala máxima/mínima 1; initZoomLock intercepta gestos, rueda y atajos de ampliación. Restringe el uso con baja visión.
 - **Archivos:** index.html:5; src/main.tsx:11; src/disableZoom.ts:16, :21, :45, :56.
 - **Trabajo:** usar viewport con width=device-width e initial-scale=1 y eliminar bloqueos globales. Resolver gestos específicos de la interfaz sin bloquear ampliación; comprobar texto y controles ampliados.
@@ -743,7 +743,7 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 - **Alcance acordado el 28/10/2026:** consistencia del alta, invitación, fallos y reintentos. Administrador inicial excluido expresamente; Thomas sigue siendo el único administrador y no se promueven ni modifican roles existentes. 039 no reescribe migraciones aplicadas ni repara cuentas. [Preparación y límites](VALIDACION_BE_13.md).
 
-- [ ] Terminada.
+- [x] Terminada. Migración 039 aplicada y publicada en PR #51; ver [VALIDACION_BE_13.md](VALIDACION_BE_13.md).
 - **Problema reproducido:** bootstrap_user captura cualquier excepción y permite persistir el usuario de Auth sin perfil ni configuración. La migración inicial 005 promueve a todos los usuarios existentes a administrador; su adecuación al procedimiento de instalación queda a verificar.
 - **Archivos:** `supabase/migrations/016_add_name_fields_to_profiles.sql:114`; `supabase/migrations/005_admin_and_invitations.sql:194`.
 - **Trabajo en el alcance vigente:** alta atómica, errores saneados y reintento explícito; diagnóstico de cuentas existentes de solo lectura. Administrador inicial fuera de este bloque por decisión del propietario; la observación histórica de 005 se conserva documentada y no se ejecuta sobre producción.
