@@ -48,7 +48,7 @@ No reenviar trabajos v1 fallidos ni eliminar pendientes para que los conteos que
 - Las migraciones 020–024 incluyen transacciones/guardas propias. No envolver indiscriminadamente con BEGIN/COMMIT adicionales. Si se usa Management API, construir una única transacción revisada y registrar el texto/versión exactos; verificar commit y lectura posterior antes de seguir.
 - 020 requiere quietud de trabajos v1 y ausencia de dos grupos abiertos por cliente. No resolver una guarda borrando filas; conservar y revisar el estado.
 - 021/022 requieren pg_cron, pg_net, http y Vault; dispatch contiene el endpoint del proyecto actual. Un nuevo proyecto alojado requiere migración/configuración revisada del destino antes de activar. El preparador local bloquea ese dispatch y desprograma cron, sin alterar migraciones versionadas.
-- En altas nuevas, 005 promueve usuarios preexistentes. Instalar sobre Auth vacío; designar después solo al administrador aprobado. BE-13 queda abierto.
+- En altas nuevas, 005 promueve usuarios preexistentes. Instalar sobre Auth vacío; designar después solo al administrador aprobado. El administrador inicial está excluido de BE-13 por decisión del propietario; 005 no se vuelve a ejecutar en producción.
 
 ## Webhook y activación
 
@@ -146,6 +146,12 @@ Candidato mínimo 037, rollback f96ab87 (mínimo 036) conservando 037. Aplicar S
 
 Cierre productivo del 28/10/2026: 037 aplicada, PR #49 integrada en 1e45c94, webhook v61 y PWA verificados con cinco controles aprobados. Aceptación del propietario y cancelación sin movimientos de prueba guardados completadas; ver VALIDACION_BE_12.md. Las instrucciones de preparación anteriores registran el orden y el rollback, no un despliegue pendiente.
 
-## BE-11 / 038 — preparado, sin aplicar
+## BE-11 / 038 — publicado y verificado
 
 Mínimo del candidato 038, rollback de runtime 1e45c94 (mínimo 037) conservando 038. Tras CI y autorización, verificar historial/fuentes/ACL y las pausas de cola, aplicar/registrar SQL y publicar el webhook. Se agrega capacity_resumes y se ajusta metadata de checkpoints ya aplicados waiting/capacity sin error, sin cambiar estado/contenido ni reenviarlos; no se modifican movimientos financieros. El cron normal podrá atender alias que antes no eran elegibles. Mantener attempts monotónico y no reiniciar recibos IA. Helpers privados y guardas de 033 conservados. Ver [validación y rollback](../planes/VALIDACION_BE_11.md).
+
+Cierre BE-11 del 28/10/2026: PR #50 en 0cc65d9, esquema 038 y webhook v62 verificados con cinco controles aprobados. Aceptación 20+1, alias, numeración y cancelación completa sin movimientos de prueba guardados, IA o fallos técnicos. Las instrucciones anteriores conservan el procedimiento de instalación/rollback; la publicación está completada. Ver VALIDACION_BE_11.md.
+
+## Candidato BE-13 (sin publicar)
+
+Aplicar únicamente 039 después de CI aprobado y autorización de publicación; registrar su historial en la misma transacción. Publicar luego la PWA del candidato. No desplegar webhook: v62 permanece compatible. El contrato del candidato exige 039; rollback de runtime fijado en 0cc65d9/038, conservando 039 y su atomicidad. No restaurar el catch histórico ni volver a ejecutar 005. Ver [validación BE-13](../planes/VALIDACION_BE_13.md) para diagnóstico de solo lectura, recuperación y aceptación.

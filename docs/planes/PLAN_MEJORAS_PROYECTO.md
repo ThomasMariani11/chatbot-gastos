@@ -2,7 +2,9 @@
 
 ## Estado vigente — 28/10/2026
 
-**BE-11 preparado, sin publicar.** 038 alinea comandos de resolución, unifica excedentes mayores de 20 y separa vueltas de capacidad de fallos técnicos sin reutilizar attempts. 996 Vitest y 83 rutas Deno locales aprobados; recuperación concurrente y ensayo/rollback completo preparados para CI. [Contrato y límites](VALIDACION_BE_11.md).
+**BE-13 en revisión, sin publicar.** Migración 039 y registro PWA preparados: Auth/perfil/ajustes/vínculo/categorías/invitación se completan o revierten juntos. 1036 Vitest, lint/tipos/build, 12 SQL y seis guards locales aprobados; Auth real/rollback ya aprobados en el candidato funcional; seguimiento de los cuatro controles y ajuste del fixture nativo en [PR #51](https://github.com/ThomasMariani11/chatbot-gastos/pull/51). Lectura agregada productiva: cuatro cuentas, cero perfiles/ajustes/vínculos ausentes, un único administrador (Thomas). Por decisión expresa del propietario, el administrador inicial queda excluido: no se modifican 005 ni los roles actuales. [Validación y procedimiento](VALIDACION_BE_13.md).
+
+**BE-11 cerrado en el alcance publicado y probado.** PR #50 integrada en 0cc65d9, migración 038 y webhook v62 ACTIVE; 996 Vitest, 83 rutas Deno y cinco controles de main aprobados. Aceptación del propietario 28/10 a las 12:17–12:18 Argentina: lote de 20 + uno retenido; alias atendidos, posición 2 quitada y retenido incorporado una sola vez como 21, sin renumerar. Cero IA, fallos técnicos, movimientos de prueba guardados o trabajos pendientes; cancelación y resumen vacío verificados. [Cierre](VALIDACION_BE_11.md) y [evidencia](evidencias/BE_11_CIERRE_2026-10-28.json).
 
 **BE-12 cerrado en el alcance publicado y probado.** PR #49 integrada en 1e45c94, migración 037 y webhook v61 ACTIVE; 939 Vitest, 80 rutas Deno y cinco controles de main aprobados. Aceptación del propietario 28/10 a las 11:19–11:21 Argentina: cinco ediciones del mismo pendiente, EUR/posición 99 rechazados, cancelación y resumen vacío; cero movimientos de prueba guardados, grupos abiertos o trabajos pendientes. Correcciones sin IA; el alta inicial reservó una consulta Qwen. [Cierre](VALIDACION_BE_12.md) y [evidencia](evidencias/BE_12_CIERRE_2026-10-28.json).
 
@@ -32,11 +34,11 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 
 ## Punto de reanudación — 28/10/2026
 
-- Producción: **1e45c94 / PR #49, 001–037 y whatsapp-webhook v61 ACTIVE**. Fuentes, ACL, PWA/SW/CSP y cinco controles verificados; BE-12 aceptado por el propietario. Rollback compatible de runtime: f96ab87, conservando 037 y comprobando checkpoints; ver su validación. No volver a runtimes que omitan las protecciones de confirmación o cupos.
+- Producción: **0cc65d9 / PR #50, 001–038 y whatsapp-webhook v62 ACTIVE**. Fuentes, ACL, helpers privados vía API, PWA/SW/CSP y cinco controles verificados; BE-11 aceptado por el propietario. Rollback compatible de runtime: 1e45c94, conservando 038, counters y recibos IA; ver su validación. No volver a runtimes que omitan las guardas de confirmación o cupos.
 - INF-15 y FE-19 cerrados en sus alcances verificados. INF-13 parcial por cabeceras HTTP y framing: no cambiar hosting/URL sin preparar una vista previa y obtener aprobación.
-- FE-01/02/03/04/05/06/07/09/11/12 y BE-04/05/07/08/09/12 conservan sus cierres y límites. BE-17 sigue abierto en su alcance transversal; BE-11 se revalida por separado.
+- FE-01/02/03/04/05/06/07/09/11/12 y BE-04/05/07/08/09/11/12 conservan sus cierres y límites. BE-17 sigue abierto en su alcance transversal; no se da por cerrado por extensión.
 - INF-14: preparación publicada en PR #47 y retención 30/90 validada en aislado; mantener retention_enabled=false sin nueva autorización. La estimación del 27/10 a las 10:20 dio 0 mensajes, 0 métricas y 0 avisos elegibles; 38 registros v1 y dos recibos IA conservados.
-- Bloque actual: **BE-11 preparado en rama**, pendiente de CI final/publicación/aceptación. Alias detrás de espera, exceso imposible y conteo de capacidad corregidos en 038; BE-09/BE-12 conservan sus cierres. No se modifica producción en la preparación.
+- Bloque actual: **BE-13 — consistencia del alta**. Implementado en rama para revisión, sin SQL ni PWA productivos nuevos; 039 requiere publicación posterior. Administrador inicial excluido por el propietario, Thomas conserva su rol. No se reparan cuentas existentes; la lectura agregada no encontró perfiles/ajustes/vínculos ausentes.
 - Decisiones vigentes: costo adicional $0, sin cambios de claves/planes/emisor, retención desactivada y backups INF-08 al final.
 
 ## Próximos bloques — 28/10/2026
@@ -47,7 +49,8 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 | Cerrado en su alcance | FE-19 | CSP publicada y compatibilidad revalidada. | Limitaciones físicas/HTTP registradas en INF-13. |
 | Cerrado en su alcance | **BE-09** | 036/PR #48/v60, saldos SQL exactos y consulta real verificada. | FE-18/BE-17 no se cierran por extensión. |
 | Cerrado en su alcance | **BE-12** | PR #49 / 037 / v61; correcciones y aceptación del propietario verificadas. | [Validación y límites](VALIDACION_BE_12.md). |
-| Actual — preparado | **BE-11** | 038 + aviso coherente y recuperación de cola; 996 Vitest/83 Deno locales. | CI final, autorización de publicación y aceptación. [Validación](VALIDACION_BE_11.md). |
+| Cerrado en su alcance | **BE-11** | 038/PR #50/v62, recuperación 20+1 y alias aceptados. | [Validación y límites](VALIDACION_BE_11.md). |
+| En revisión; sin publicar | **BE-13** | Alta atómica 039, reintentos seguros y mensajes veraces; administrador inicial excluido por decisión del propietario. | Pruebas locales aprobadas; completar CI aislado y autorizar SQL/PWA antes de publicar. |
 | Preparado y publicado; sin activar | **INF-14** | Política 30/90 validada y documentada en PR #47. | Retención false hasta una autorización específica; no impide avanzar con mejoras funcionales. |
 | Etapa final de la app | **INF-13 / hosting** | Headers HTTP y protección de framing, postergados por el propietario hasta terminar la funcionalidad. | Retomar entonces la evaluación con costo $0 y vista previa; aprobar el cambio después de probar Auth/PWA/rollback. |
 | Último | **INF-08** | Backups y recuperación aplazados por el propietario. | Nueva evaluación/autorización cuando se priorice; no habilitar almacenamiento ahora. |
@@ -571,7 +574,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 9 | BE-10 | Alta | Errores, transacciones y entrega de respuestas | INF-04 | Terminada |
 | 10 | BE-08 | Alta | Movimientos incompletos y dudas | — | Terminada en su alcance; 034/PR #43/v58 y aceptación WhatsApp verificadas |
 | 11 | BE-09 | Alta | Saldo por moneda y límites mensuales | — | Terminada en su alcance; 036/PR #48/v60 y aceptación verificadas |
-| 12 | BE-11 | Media | Listas antiguas, excedentes y numeración | INF-03 | Preparado en 038; CI/publicación/aceptación pendientes |
+| 12 | BE-11 | Media | Listas antiguas, excedentes y numeración | INF-03 | Terminada en alcance probado; 038/PR #50/v62 y aceptación |
 | 13 | BE-12 | Media | Correcciones y resumen completo | — | Terminada en alcance probado; 037/PR #49/v61 y aceptación |
 | 14 | BE-13 | Media | Consistencia del alta y bootstrap administrativo | INF-10 | Pendiente |
 | 15 | BE-14 | Media | Vinculación atómica y límites de intentos | — | Pendiente |
@@ -697,6 +700,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-11 — Retener mensajes ante listas antiguas o falta de capacidad
 
+- **Cierre del 28/10/2026:** PR #50 / 0cc65d9 / 038 / v62 publicados y aceptados. Siete mensajes reales de prueba: 20 + uno retenido, alias, numeración estable y cancelación; cero IA, fallos técnicos, movimientos guardados, grupos abiertos o trabajos propios pendientes. [Validación](VALIDACION_BE_11.md) y [evidencia](evidencias/BE_11_CIERRE_2026-10-28.json). Los registros de preparación siguientes son históricos.
+
 - **Implementación preparada el 28/10/2026:** 038, comandos de resolución coherentes, mensajes >20 sin espera imposible y contador de capacidad independiente del presupuesto de fallos. 996 Vitest/83 Deno locales aprobados. Se preservan los avances de listas antiguas y numeración; CI completo/publicación/aceptación pendientes. [Validación](VALIDACION_BE_11.md). Las notas de revalidación/propuesta siguientes registran el punto de partida.
 
 - **Revalidación del 28/10/2026, sobre esquema 037:** ya se retiene el mensaje nuevo ante una lista antigua y se recupera al resolverla; CANCELAR en ese caso descarta la lista anterior y permite procesar el audio nuevo. También se cuentan operaciones activas y las eliminaciones permiten posiciones superiores a 20 sin renumerar. Cinco regresiones existentes de SQL real aprobaron en PGlite aislado. No se presentan esos defectos históricos como si siguieran todos vigentes.
@@ -709,7 +714,7 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 - **Incidente 16/10/2026:** CANCELAR ante una lista de más de 24 h se retenía junto con el audio nuevo. Corrección 025 y diagnóstico seguro de preparación implementados; 197 tests + 17 Deno aprobados. 025 aplicada y webhook v42 activo tras cuatro checks aprobados; pendiente prueba de audio con diagnóstico nuevo. El alcance general de BE-11 sigue abierto. [Detalle](VALIDACION_AUDIO_LISTA_ANTIGUA.md).
 
-- [ ] Terminada.
+- [x] Terminada en el alcance publicado y probado el 28/10/2026.
 - **Hallazgo original de la auditoría (ver revalidación vigente arriba):** el gasto nuevo que llega con una lista antigua no queda retenido para retomarlo; los excedentes no tienen transición de recuperación. El límite depende de la posición máxima incluyendo eliminados, no de la cantidad activa.
 - **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:588`, `:863`; `supabase/migrations/014_draft_movement_batches.sql:24`.
 - **Trabajo:** conservar el mensaje hasta RETOMAR/DESCARTAR o liberar capacidad; no truncar un mensaje parcialmente. Mantener números estables sin limitar su identificador histórico a 20; contar operaciones activas bajo bloqueo. Definir qué hacer si un único mensaje supera 20.
@@ -734,11 +739,13 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-13 — Hacer consistente el alta de usuarios
 
+- **Alcance acordado el 28/10/2026:** consistencia del alta, invitación, fallos y reintentos. Administrador inicial excluido expresamente; Thomas sigue siendo el único administrador y no se promueven ni modifican roles existentes. 039 no reescribe migraciones aplicadas ni repara cuentas. [Preparación y límites](VALIDACION_BE_13.md).
+
 - [ ] Terminada.
 - **Problema reproducido:** bootstrap_user captura cualquier excepción y permite persistir el usuario de Auth sin perfil ni configuración. La migración inicial 005 promueve a todos los usuarios existentes a administrador; su adecuación al procedimiento de instalación queda a verificar.
 - **Archivos:** `supabase/migrations/016_add_name_fields_to_profiles.sql:114`; `supabase/migrations/005_admin_and_invitations.sql:194`.
-- **Trabajo:** definir alta atómica o estado recuperable con reparación; no ocultar fallos de inicialización. Auditar posibles usuarios incompletos sin asumir que existen. Revisar el bootstrap administrativo para seleccionar explícitamente la cuenta aprobada y evitar promociones masivas en instalaciones sobre bases existentes. No reescribir migraciones aplicadas sin un procedimiento de actualización definido.
-- **Cierre:** fallos inyectados no producen cuentas silenciosamente incompletas; recuperación documentada; alta legítima e invitación funcionan; instalación con usuarios preexistentes no concede permisos administrativos inesperados.
+- **Trabajo en el alcance vigente:** alta atómica, errores saneados y reintento explícito; diagnóstico de cuentas existentes de solo lectura. Administrador inicial fuera de este bloque por decisión del propietario; la observación histórica de 005 se conserva documentada y no se ejecuta sobre producción.
+- **Cierre del alcance vigente:** fallos inyectados sin cuentas incompletas ni códigos consumidos parcialmente; alta legítima, concurrencia y reintentos correctos; roles actuales intactos. Administrador inicial excluido, no declarado resuelto. Publicación y verificación productiva pendientes.
 - **Relacionado:** INF-10; validar junto con BE-02 y BE-17.
 
 ### BE-14 — Hacer atómica la vinculación y limitar intentos
@@ -919,3 +926,5 @@ Completar una entrada al cerrar cada tarea:
 | 27/10/2026 | Reordenamiento solicitado por el propietario | Hosting/INF-13 postergado hasta finalizar la funcionalidad; backups siguen al final | Cambio documental; sin implementación ni despliegue | PR #47 publicada, retención false; CSP vigente conservada | Revalidar BE-09 como siguiente bloque funcional antes de corregir |
 
 | 27/10/2026 | Preparación BE-09 | 036 y agregación SQL por cuenta/moneda/mes, presupuesto ARS consistente y centavos exactos; legacy ARS con firma conservada | 871 Vitest, 75 Deno, lint/tipos/build, 12 SQL y seis guardas locales | Sin migración, webhook ni datos productivos nuevos | CI/API local y aprobación de publicación; hosting y backups al final, retención apagada |
+
+| 28/10/2026 | Preparación BE-13 | 039, alta PWA, errores seguros y pruebas de fallos/reintentos | 1036 Vitest, lint/tipos/build, 12 SQL y seis guards locales; concurrencia/Auth real preparados para CI | Consulta agregada sin cambios: 4 cuentas completas, un admin Thomas; administrador inicial excluido | Completar CI y pedir autorización específica de SQL/PWA; hosting/backups al final, retención false |

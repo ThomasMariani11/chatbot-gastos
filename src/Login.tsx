@@ -2,6 +2,7 @@ import { Icon } from './Icons';
 import { useUpdateBlocker } from './PwaUpdates';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
+import { registrationErrorMessage } from './registration';
 
 type AuthMode = 'login' | 'register';
 
@@ -33,7 +34,14 @@ export function Login() {
 
   useUpdateBlocker(sending || Boolean(email || password || (mode === 'register' && (firstName || lastName || confirmPassword || inviteCode))), "Completá o limpiá el formulario de acceso antes de actualizar.");
 
+  const registeringRef = useRef(false);
+  const codeRequestRef = useRef(0);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    ++codeRequestRef.current;
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+  }, []);
 
   // 1. Detectar si vino código por parámetro en la URL (?invitacion=PESO-XXXX o ?code=PESO-XXXX)
   useEffect(() => {
@@ -44,7 +52,7 @@ export function Login() {
         const clean = codeFromUrl.trim().toUpperCase();
         setMode('register');
         setInviteCode(clean);
-        void checkCode(clean);
+        void checkCode(clean).catch(() => undefined);
       }
     } catch {
       // ignore
@@ -59,44 +67,30 @@ export function Login() {
       return false;
     }
 
-    setCodeState({ checking: true, valid: null, message: 'Verificando código…' });
-
-    const { data, error } = await supabase.rpc('check_invitation_code', { p_code: clean });
-
-    if (error || !data) {
-      setCodeState({
-        checking: false,
-        valid: false,
-        message: 'No pudimos verificar el código. Comprobá tu conexión.',
-      });
+    const request = ++codeRequestRef.current;
+    const display = (state: CodeCheckState) => { if (request === codeRequestRef.current) setCodeState(state); };
+    display({ checking: true, valid: null, message: 'Verificando código…' });
+    try {
+      const { data, error } = await supabase.rpc('check_invitation_code', { p_code: clean });
+      if (error || !data) throw new Error('CODE_CHECK_UNAVAILABLE');
+      if (data.valid) {
+        const durationText = data.duration_days ? `Licencia de ${data.duration_days} días` : 'Licencia vitalicia (sin vencimiento)';
+        display({ checking: false, valid: true, message: `Código válido: ${durationText}`, durationDays: data.duration_days });
+        return true;
+      }
+      display({ checking: false, valid: false, message: 'Código inválido o ya utilizado.' });
       return false;
-    }
-
-    if (data.valid) {
-      const durationText = data.duration_days
-        ? `Licencia de ${data.duration_days} días`
-        : 'Licencia vitalicia (sin vencimiento)';
-
-      setCodeState({
-        checking: false,
-        valid: true,
-        message: `Código válido: ${durationText}`,
-        durationDays: data.duration_days,
-      });
-      return true;
-    } else {
-      setCodeState({
-        checking: false,
-        valid: false,
-        message: data.error || 'Código inválido o ya utilizado.',
-      });
-      return false;
+    } catch {
+      display({ checking: false, valid: null, message: 'No pudimos verificar el código. Comprobá tu conexión e intentá de nuevo.' });
+      throw new Error('CODE_CHECK_UNAVAILABLE');
     }
   }
 
   // Manejar cambio en el input de código con debounce
   function handleCodeChange(val: string) {
     const clean = val.toUpperCase().replace(/\s+/g, '');
+    ++codeRequestRef.current;
+    setCodeState({ checking: false, valid: null, message: '' });
     setInviteCode(clean);
     setMessage('');
     setIsError(false);
@@ -107,7 +101,7 @@ export function Login() {
 
     if (clean.length >= 4) {
       debounceTimerRef.current = setTimeout(() => {
-        void checkCode(clean);
+        void checkCode(clean).catch(() => undefined);
       }, 400);
     } else {
       setCodeState({ checking: false, valid: null, message: '' });
@@ -185,114 +179,56 @@ export function Login() {
   // 5. Registro con código de invitación (FASE 3)
   async function submitRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (registeringRef.current) return;
+    registeringRef.current = true;
     setSending(true);
     setMessage('');
     setIsError(false);
-
-    const cleanFirstName = firstName.trim();
-    const cleanLastName = lastName.trim();
-    const cleanEmail = email.trim();
-    const cleanCode = inviteCode.trim().toUpperCase();
-
-    if (!cleanFirstName) {
-      setIsError(true);
-      setMessage('Por favor, ingresá tu nombre.');
-      setSending(false);
-      return;
-    }
-
-    if (!cleanLastName) {
-      setIsError(true);
-      setMessage('Por favor, ingresá tu apellido.');
-      setSending(false);
-      return;
-    }
-
-    if (!cleanCode) {
-      setIsError(true);
-      setMessage('Ingresá tu código de invitación para activar tu cuenta.');
-      setSending(false);
-      return;
-    }
-
-    if (password.length < 6) {
-      setIsError(true);
-      setMessage('La contraseña debe tener al menos 6 caracteres.');
-      setSending(false);
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setIsError(true);
-      setMessage('Las contraseñas no coinciden.');
-      setSending(false);
-      return;
-    }
-
-    // Comprobar validez del código antes de crear el usuario
-    const isCodeValid = await checkCode(cleanCode);
-    if (!isCodeValid) {
-      setIsError(true);
-      setMessage('El código de invitación ingresado no es válido o ya fue utilizado.');
-      setSending(false);
-      return;
-    }
-
-    // Crear usuario en Supabase Auth pasando datos personales y código de invitación para canje atómico
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password,
-      options: {
-        data: {
-          first_name: cleanFirstName,
-          last_name: cleanLastName,
-          full_name: `${cleanFirstName} ${cleanLastName}`,
-          invitation_code: cleanCode,
-        },
-      },
-    });
-
-    if (authError || !authData.user) {
-      setIsError(true);
-      setMessage(authError ? getErrorMessage(authError) : 'No se pudo crear la cuenta.');
-      setSending(false);
-      return;
-    }
-
-    // Si Supabase retornó sesión activa, intentar sincronizar nombre en perfil directamente
-    if (authData.session) {
-      try {
-        await supabase
-          .from('profiles')
-          .update({
-            first_name: cleanFirstName,
-            last_name: cleanLastName,
-          })
-          .eq('id', authData.user.id);
-      } catch {
-        // el trigger de base de datos ya lo procesó
+    const cleanFirstName = firstName.trim(), cleanLastName = lastName.trim();
+    const cleanEmail = email.trim(), cleanCode = inviteCode.trim().toUpperCase();
+    let submitted = false;
+    try {
+      const validation = !cleanFirstName ? 'Por favor, ingresá tu nombre.'
+        : !cleanLastName ? 'Por favor, ingresá tu apellido.'
+        : !cleanCode ? 'Ingresá tu código de invitación para activar tu cuenta.'
+        : password.length < 6 ? 'La contraseña debe tener al menos 6 caracteres.'
+        : password !== confirmPassword ? 'Las contraseñas no coinciden.' : '';
+      if (validation) { setIsError(true); setMessage(validation); return; }
+      // Preflight orientativo. La validez se vuelve a comprobar bajo bloqueo en Auth.
+      if (!await checkCode(cleanCode)) {
+        setIsError(true);
+        setMessage('El código no está disponible. Si ya intentaste crear esta cuenta, probá iniciar sesión o confirmar tu correo antes de usar otro código.');
+        return;
       }
+      submitted = true;
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail, password,
+        options: { data: { first_name: cleanFirstName, last_name: cleanLastName,
+          full_name: `${cleanFirstName} ${cleanLastName}`, invitation_code: cleanCode } },
+      });
+      if (error) { setIsError(true); setMessage(registrationErrorMessage(error, true)); return; }
+      if (!data.user) throw new Error('SIGNUP_RESPONSE_MISSING');
+      // Auth puede ocultar cuentas ya existentes con identities vacías. No anunciar un alta.
+      if (!data.session && data.user.identities?.length === 0) {
+        setIsError(true);
+        setMessage('Si ya tenés una cuenta con este correo, iniciá sesión o confirmá el correo que recibiste. No uses otro código para repetir el alta.');
+        return;
+      }
+      if (data.session) {
+        setMessage('¡Cuenta creada! Ingresando…');
+      } else {
+        // Sin sesión no se promete licencia ni entrega del email: Auth puede ocultar duplicados.
+        setMessage('Revisá tu correo para confirmar la cuenta y luego iniciá sesión. Si ya estabas registrado, ingresá con tus datos.');
+        setMode('login');
+        setPassword(''); setConfirmPassword('');
+      }
+    } catch (error) {
+      setIsError(true);
+      setMessage(registrationErrorMessage(error, submitted));
+    } finally {
+      registeringRef.current = false;
+      setSending(false);
     }
-
-    // El trigger 010 canjea el código durante el alta, incluso sin sesión
-    // cuando se exige confirmar email. La RPC de renovación requiere sesión.
-
-    // Éxito: Si Supabase retornó sesión activa, entrará automáticamente
-    if (authData.session) {
-      setIsError(false);
-      setMessage('¡Cuenta creada y código activado con éxito! Ingresando…');
-    } else {
-      // Si requiere confirmación de email
-      setIsError(false);
-      setMessage(
-        '¡Cuenta creada y licencia activada! Te enviamos un correo de confirmación. Confirmalo y luego iniciá sesión.'
-      );
-      setMode('login');
-      setPassword('');
-      setConfirmPassword('');
-    }
-
-    setSending(false);
   }
 
   const whatsappRequestUrl = `https://wa.me/?text=${encodeURIComponent(
@@ -339,7 +275,7 @@ export function Login() {
               setMode('register');
               setMessage('');
               setIsError(false);
-              if (inviteCode) void checkCode(inviteCode);
+              if (inviteCode) void checkCode(inviteCode).catch(() => undefined);
             }}
           >
             Crear cuenta
@@ -438,7 +374,7 @@ export function Login() {
                   value={inviteCode}
                   onChange={(e) => handleCodeChange(e.target.value)}
                   onBlur={() => {
-                    if (inviteCode) void checkCode(inviteCode);
+                    if (inviteCode) void checkCode(inviteCode).catch(() => undefined);
                   }}
                   autoCapitalize="characters"
                   autoCorrect="off"
@@ -459,7 +395,7 @@ export function Login() {
                   <span>{codeState.message}</span>
                 </div>
               )}
-              {!codeState.checking && codeState.valid === false && (
+              {!codeState.checking && codeState.valid !== true && Boolean(codeState.message) && (
                 <div className="code-feedback-badge invalid">
                   <span><Icon name="alert" /></span>
                   <span>{codeState.message}</span>

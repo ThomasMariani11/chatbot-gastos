@@ -272,6 +272,35 @@ try {
     assert.ok([401, 403, 404].includes(denied.status), 'La RPC privada no debe estar habilitada a anon.');
     return user.id;
   });
+  await step('registro_auth_atomico_y_reintento', async () => {
+    // API real del stack local, sin SMTP externo ni credenciales productivas.
+    const email='be13-signup@example.invalid';
+    const authSnapshot=await sql('select count(*) from auth.users;');
+    const invitation=await sql("select json_agg(c order by id) from public.invitation_codes c;");
+    await sql("insert into public.invitation_codes(code,duration_days)values('BE13-AUTH',30);create function public.be13_signup_fault()returns trigger language plpgsql as $$begin raise exception 'PRIVATE_BE13_CANARY';end$$;create trigger be13_signup_fault before insert on public.categories for each row execute function public.be13_signup_fault();");
+    const signup=()=>request(api,'/auth/v1/signup',{key:status.ANON_KEY,body:{email,password:syntheticPassword,data:{invitation_code:'BE13-AUTH',first_name:'Alta',last_name:'Ficticia',role:'admin'}}});
+    try {
+      const failed=await signup();assert.equal(failed.status,500);const failure=JSON.stringify(await failed.json());
+      assert.ok(!failure.includes('PRIVATE_BE13_CANARY'));assert.equal(await sql('select count(*) from auth.users;'),authSnapshot);
+      assert.equal(await sql("select is_used from public.invitation_codes where code='BE13-AUTH';"),'f');
+    } finally { await sql('drop trigger be13_signup_fault on public.categories;drop function public.be13_signup_fault();'); }
+    const created=await signup();assert.equal(created.status,200);const account=await created.json();assert.ok(account.user?.id && account.access_token);
+    const uid=account.user.id;assert.match(uid,/^[a-f0-9-]{36}$/);
+    assert.equal(await sql("select count(*) from public.profiles where id='"+uid+"' and role='client' and subscription_status='active' and first_name='Alta' and last_name='Ficticia';"),'1');
+    assert.equal(await sql("select count(*) from public.app_settings where user_id='"+uid+"';"),'1');
+    assert.equal(await sql("select count(*) from public.whatsapp_links where user_id='"+uid+"';"),'1');
+    assert.equal(await sql("select count(*) from public.categories where user_id='"+uid+"';"),'16');
+    const stale=await request(api,'/auth/v1/signup',{key:status.ANON_KEY,body:{email:'be13-other@example.invalid',password:syntheticPassword,data:{invitation_code:'BE13-AUTH'}}});
+    assert.equal(stale.status,500);await stale.body?.cancel();
+    assert.equal(await sql("select count(*) from auth.users where email='be13-other@example.invalid';"),'0');
+    const duplicate=await signup();assert.ok([200,400,422].includes(duplicate.status));await duplicate.body?.cancel();
+    assert.equal(await sql("select count(*) from auth.users where email='"+email+"';"),'1');
+    assert.equal(await sql("select used_by from public.invitation_codes where code='BE13-AUTH';"),uid);
+    await sql("delete from auth.users where id='"+uid+"';delete from public.invitation_codes where code='BE13-AUTH';");
+    assert.equal(await sql('select count(*) from auth.users;'),authSnapshot);
+    assert.equal(await sql('select json_agg(c order by id) from public.invitation_codes c;'),invitation);
+    evidence.signup={realLocalAuth:true,atomicFailure:true,sanitizedResponse:true,retrySameCode:true,usedCodeRejected:true,oneAccount:true,metadataRoleIgnored:true};
+  });
   await step('resumen_mensual_por_api_sin_truncar', async () => {
     // El límite 1000 es exclusivamente del stack local, fijado en ops/local/config.toml.
     await sql("insert into public.transactions(user_id,kind,description,amount_ars,currency,occurred_on,status,source) select '" + id + "','expense','BE09 local bulk',0.01,'ARS','2024-02-29','confirmed','pwa' from generate_series(1,1501);insert into public.transactions(user_id,kind,description,amount_ars,currency,occurred_on,status,source) values('"+id+"','expense','BE09 local USD',1.01,'USD','2024-02-15','confirmed','pwa'),('"+id+"','income','BE09 local USD',2.02,'USD','2024-02-15','confirmed','pwa');insert into public.budgets(user_id,month,amount_ars)values('"+id+"','2024-02-01',100);");
