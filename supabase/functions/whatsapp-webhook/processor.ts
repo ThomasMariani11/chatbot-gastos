@@ -11,11 +11,9 @@ import { LIMITS, timeoutSignal } from "./limits.ts";
 import type { DatabaseOperation, FailureMetadata } from "./failures.ts";
 import {
   failureMetadata,
-  OperationalFailure,
   providerFailure,
 } from "./failures.ts";
 import { writeOperationalLog } from "./logging.ts";
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.114.0";
 import type { Job } from "./queue.ts";
 import { classifyTextQuery } from "./intent.ts";
 import { looksLikeDraftCorrection } from "./draft-corrections.ts";
@@ -26,15 +24,31 @@ import {
   sha256,
 } from "./helpers.ts";
 import type { DraftListItem, GeminiParsedOutput } from "./helpers.ts";
+import {
+  checkedDbResult,
+  resolveActorAccess,
+  resolveSupportContact,
+  type WebhookDatabaseClient,
+} from "./context-repository.ts";
+
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+};
+
+type ActiveDraftRecord = {
+  group_id?: string;
+  version?: number;
+  items?: DraftListItem[];
+  is_stale?: boolean;
+};
 
 function checked<T>(
   result: { data: T; error: unknown },
   code: DatabaseOperation,
 ): T {
-  if (result.error) {
-    throw new OperationalFailure("database_read", "database", undefined, code);
-  }
-  return result.data;
+  return checkedDbResult(result, code);
 }
 const localDate = () =>
   new Intl.DateTimeFormat("en-CA", {
@@ -45,7 +59,7 @@ const localDate = () =>
   }).format(new Date());
 
 export async function prepareMessage(
-  db: SupabaseClient,
+  db: WebhookDatabaseClient,
   job: Job,
   checkpoint: (result: unknown) => Promise<void>,
   parent?: AbortSignal,
@@ -55,92 +69,11 @@ export async function prepareMessage(
   const text = message.text?.body?.trim() ?? message.image?.caption?.trim() ??
     "";
   const reply = (body: string) => ({ kind: "reply", text: body });
-  const blocked = (body: string | null) => ({
-    kind: "reply",
-    text: body,
-    clear_summary: true,
-  });
   const linkMatch = text.match(/^vincular\s+(\d{6})$/i);
   if (linkMatch) return { kind: "link", hash: await sha256(linkMatch[1]) };
-  const link = checked(
-    await db.from("whatsapp_links").select("user_id").eq("wa_id", message.from)
-      .eq("status", "active").maybeSingle(),
-    "QUEUE_LINK_READ",
-  );
-  if (!link) {
-    return reply(
-      "Tu número no está vinculado a Pesito. Podés vincularlo generando un código desde la app.",
-    );
-  }
-  if (job.user_id && job.user_id !== link.user_id) {
-    return reply(
-      "El vínculo de tu cuenta cambió. No registré este mensaje. Revisá la cuenta vinculada y envialo nuevamente.",
-    );
-  }
-  const profile = checked(
-    await db.from("profiles").select(
-      "role,subscription_status,subscription_until",
-    ).eq("id", link.user_id).maybeSingle(),
-    "QUEUE_PROFILE_READ",
-  );
-  if (!profile) {
-    throw new OperationalFailure(
-      "database_read",
-      "database",
-      undefined,
-      "QUEUE_PROFILE_UNAVAILABLE",
-    );
-  }
-  const support = async () => {
-    const settings = checked(
-      await db.from("system_config").select("key,value").in("key", [
-        "support_phone",
-        "payment_alias",
-      ]),
-      "QUEUE_CONFIG_READ",
-    );
-    const phone = settings?.find((row) => row.key === "support_phone")?.value
-      ?.replace(/\D/g, "");
-    const alias = settings?.find((row) => row.key === "payment_alias")?.value
-      ?.trim();
-    return `${
-      phone ? `\n\n👉 Escribinos a soporte: https://wa.me/${phone}` : ""
-    }${alias ? `\n💸 Alias para transferencias: *${alias}*` : ""}`;
-  };
-  if (profile.role !== "admin") {
-    if (profile.subscription_status === "suspended") {
-      return blocked(
-        `Tu cuenta de Pesito se encuentra en pausa ⏸️.${await support()}`,
-      );
-    }
-    if (
-      profile.role !== "client" || profile.subscription_status !== "active" ||
-      (profile.subscription_until !== null &&
-        !(Date.parse(profile.subscription_until) > Date.now()))
-    ) {
-      return blocked(
-        `Tu suscripción en Pesito ha finalizado ⏳.${await support()}`,
-      );
-    }
-  }
-  const bot = checked(
-    await db.from("system_config").select("value").eq("key", "bot_active")
-      .maybeSingle(),
-    "QUEUE_CONFIG_READ",
-  );
-  if (bot?.value === "false" && profile.role !== "admin") {
-    return blocked(
-      "Pesito: El bot se encuentra temporalmente en pausa por mantenimiento. Intentá nuevamente más tarde.",
-    );
-  }
-  const settings = checked(
-    await db.from("app_settings").select("whatsapp_responses_enabled").eq(
-      "user_id",
-      link.user_id,
-    ).maybeSingle(),
-    "QUEUE_SETTINGS_READ",
-  );
-  if (settings?.whatsapp_responses_enabled === false) return blocked(null);
+
+  const access = await resolveActorAccess(db, job);
+  if (!access.allowed) return access.action;
 
   const correctionIntent = !message.image?.id && !message.audio?.id &&
     looksLikeDraftCorrection(text);
@@ -155,8 +88,9 @@ export async function prepareMessage(
     );
   }
   if (query === "commercial") {
+    const support = await resolveSupportContact(db, access.supportDetails);
     return reply(
-      `¡Hola! 👋 Para renovar tu membresía en Pesito o consultar planes y medios de pago:${await support()}\n\nComunicate con soporte para activar tu cuenta.`,
+      `¡Hola! 👋 Para renovar tu membresía en Pesito o consultar planes y medios de pago:${support}\n\nComunicate con soporte para activar tu cuenta.`,
     );
   }
   const command = !message.image?.id && !message.audio?.id
@@ -171,7 +105,7 @@ export async function prepareMessage(
     const month = localDate().slice(0, 7);
     const snapshot = checked(
       await db.rpc("whatsapp_monthly_summary", {
-        p_user_id: link.user_id,
+        p_user_id: access.userId,
         p_month: month + "-01",
       }),
       "QUEUE_BALANCE_READ",
@@ -179,8 +113,17 @@ export async function prepareMessage(
     return reply(formatMonthlySnapshot(snapshot, month));
   }
 
+  // Verificar compatibilidad de mensaje antes de consultar el borrador en la base de datos.
+  if (!text && !message.image?.id && !message.audio?.id) {
+    return reply(
+      "Este tipo de mensaje no es compatible. Podés enviar texto, audio o una foto.",
+    );
+  }
+
   const draft = checked(
-    await db.rpc("get_active_draft_group", { p_user_id: link.user_id }),
+    await db.rpc<ActiveDraftRecord | null>("get_active_draft_group", {
+      p_user_id: access.userId,
+    }),
     "QUEUE_DRAFT_READ",
   );
   if (draft?.is_stale) return { kind: "summary" }; // SQL retiene el mensaje antes de interpretarlo.
@@ -194,11 +137,6 @@ export async function prepareMessage(
   if (correction) {
     writeOperationalLog("local_rule", { rule: "correction" });
     return correction;
-  }
-  if (!text && !message.image?.id && !message.audio?.id) {
-    return reply(
-      "Este tipo de mensaje no es compatible. Podés enviar texto, audio o una foto.",
-    );
   }
   let result = job.parsed_result as GeminiParsedOutput | null;
   if (!result) {

@@ -3341,3 +3341,115 @@ Deno.test("BE-11: recuperación del checkpoint conserva los tres movimientos sin
     "La recuperación perdió o reinterpretó movimientos",
   );
 });
+
+
+Deno.test("BE-18: consolida system_config en 1 consulta .in(), paraleliza contexto y omite borrador en mensaje incompatible", async () => {
+  const tableCalls: Record<string, number> = {};
+  let draftCalls = 0;
+  let activeInFlight = 0;
+  let maxConcurrentReads = 0;
+
+  const trackAsync = async <T>(table: string, value: T) => {
+    tableCalls[table] = (tableCalls[table] ?? 0) + 1;
+    activeInFlight++;
+    if (activeInFlight > maxConcurrentReads) {
+      maxConcurrentReads = activeInFlight;
+    }
+    await new Promise((r) => setTimeout(r, 5));
+    activeInFlight--;
+    return { data: value, error: null };
+  };
+
+  const db = {
+    from: (table: string) => {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        maybeSingle: () => {
+          if (table === "whatsapp_links") {
+            return trackAsync(table, { user_id: "fixture-user" });
+          }
+          if (table === "profiles") {
+            return trackAsync(table, {
+              role: "client",
+              subscription_status: "active",
+              subscription_until: null,
+            });
+          }
+          if (table === "app_settings") {
+            return trackAsync(table, { whatsapp_responses_enabled: true });
+          }
+          return trackAsync(table, null);
+        },
+        in: (_col: string, keys: string[]) => {
+          if (table === "system_config") {
+            return trackAsync(
+              table,
+              keys.map((key) => ({
+                key,
+                value: key === "bot_active"
+                  ? "true"
+                  : key === "support_phone"
+                  ? "+54 9 11 2233-4455"
+                  : "pesito.alias",
+              })),
+            );
+          }
+          return trackAsync(table, []);
+        },
+      };
+      return chain;
+    },
+    rpc: () => {
+      draftCalls++;
+      return Promise.resolve({
+        data: { group_id: "g1", version: 1, items: [], is_stale: false },
+        error: null,
+      });
+    },
+  } as unknown as Parameters<typeof prepareMessage>[0];
+
+  // 1) Consulta comercial reutiliza support_phone y payment_alias precargados (1 sola lectura a system_config)
+  const commercialRes = await prepareMessage(
+    db,
+    job("¿Cómo renuevo mi membresía?"),
+    () => Promise.resolve(),
+  );
+  assert(
+    commercialRes.kind === "reply" &&
+      String(commercialRes.text).includes("https://wa.me/5491122334455") &&
+      String(commercialRes.text).includes("*pesito.alias*"),
+    "No incluyó datos de soporte precargados",
+  );
+  assert(
+    tableCalls.system_config === 1,
+    "Debería consultar system_config una sola vez",
+  );
+  assert(
+    maxConcurrentReads >= 4,
+    "Las 4 lecturas de contexto deben ejecutarse en paralelo cuando job.user_id está presente",
+  );
+  assert(draftCalls === 0, "No debe leer borrador en consulta comercial");
+
+  // 2) Mensaje incompatible (sin texto ni media) responde sin consultar get_active_draft_group
+  const emptyJob = job("");
+  emptyJob.payload = {
+    id: "msg-sticker",
+    from: "synthetic-route",
+    type: "sticker",
+  };
+  const incompatibleRes = await prepareMessage(
+    db,
+    emptyJob,
+    () => Promise.resolve(),
+  );
+  assert(
+    incompatibleRes.kind === "reply" &&
+      String(incompatibleRes.text).includes("no es compatible"),
+    "Mensaje incompatible no rechazado",
+  );
+  assert(
+    draftCalls === 0,
+    "Mensaje incompatible no debe consultar get_active_draft_group",
+  );
+});
