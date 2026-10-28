@@ -127,7 +127,6 @@
   cursor: pointer;
   white-space: nowrap;
   box-sizing: border-box;
-  outline: none;
   transition: all 0.15s ease;
   min-width: 0;
   touch-action: manipulation;

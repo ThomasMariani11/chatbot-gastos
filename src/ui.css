@@ -57,7 +57,8 @@ body :is(button, [role='button'], select) {
 body :is(input:not([type='checkbox']):not([type='radio']), select) {
   font-size: 16px;
 }
-body :is(button, a, [role='button'], input, select, summary):focus-visible {
+body [role='dialog']:focus { outline: none; }
+body :is(button, a, [role='button'], [role='tab'], [role='menuitem'], input, select, summary):focus-visible {
   outline: 3px solid var(--mint-dark);
   outline-offset: 3px;
 }

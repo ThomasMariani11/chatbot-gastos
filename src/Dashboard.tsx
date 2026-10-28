@@ -1,4 +1,5 @@
 import { Icon } from './Icons';
+import { ModalDialog } from './ModalDialog';
 import { useUpdateBlocker } from './PwaUpdates';
 import { presentInstallmentPlans, type InstallmentPlanView } from './installmentPresentation';
 import {
@@ -278,6 +279,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const [expandedCategoryInModal, setExpandedCategoryInModal] = useState<string | null>(null);
   const [dashboardActiveCategory, setDashboardActiveCategory] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState<string>('');
+  const [budgetError, setBudgetError] = useState<string>('');
   const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [botState, setBotState] = useState<BotState>('loading');
   const [showAdd, setShowAdd] = useState(false);
@@ -523,15 +525,17 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   }
 
   function openBudgetModal() {
+    setBudgetError('');
     setBudgetInput(budget > 0 ? numberToAmountInput(budget) : '');
     setShowBudgetModal(true);
   }
 
   async function saveBudget(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setBudgetError('');
     const next = parseAmountNumber(budgetInput);
     if (!Number.isFinite(next) || next <= 0) {
-      window.alert('Ingresá un monto de presupuesto válido mayor a 0.');
+      setBudgetError('Ingresá un monto de presupuesto válido mayor a 0.');
       return;
     }
     setIsSavingBudget(true);
@@ -543,15 +547,18 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
       );
     setIsSavingBudget(false);
     if (error) {
-      return window.alert('No pudimos guardar el presupuesto. Intentá nuevamente.');
+      setBudgetError('No pudimos guardar el presupuesto. Intentá nuevamente.');
+      return;
     }
     setBudget(next);
+    setBudgetError('');
     refreshDashboard();
     setShowBudgetModal(false);
   }
 
   async function executeDeleteBudget() {
     if (budget <= 0) return;
+    setBudgetError('');
     setIsSavingBudget(true);
     const { error } = await supabase
       .from('budgets')
@@ -561,10 +568,12 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
 
     setIsSavingBudget(false);
     if (error) {
-      return window.alert('No pudimos eliminar el presupuesto. Intentá nuevamente.');
+      setBudgetError('No pudimos eliminar el presupuesto. Intentá nuevamente.');
+      return;
     }
     setBudget(0);
     setBudgetInput('');
+    setBudgetError('');
     refreshDashboard();
     setShowDeleteBudgetConfirm(false);
     setShowBudgetModal(false);
@@ -1512,774 +1521,836 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     </nav>
     <button className="desktop-add" onClick={openAddForm}><Icon name="plus" /> Agregar movimiento</button>
     {showAdd && (
-
-      <div className="modal-backdrop" role="presentation" onClick={closeAddForm}>
-        <form className="movement-form" noValidate onSubmit={addMovement} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-            <div>
-              <p className="eyebrow">{pendingEntry ? 'ENVÍO PENDIENTE' : 'NUEVO MOVIMIENTO'}</p>
-              <h2>{pendingEntry ? 'Comprobemos tu envío' : 'Registrá una operación'}</h2>
-            </div>
-            <button
-              type="button"
-              className="modal-close-x"
-              aria-label="Cerrar modal"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={closeAddForm}
-            >
-              <Icon name="close" />
-            </button>
+      <ModalDialog
+        as="form"
+        open={showAdd}
+        busy={isAdding || entrySender.busy}
+        onClose={closeAddForm}
+        titleId="add-movement-dialog-title"
+        className="movement-form"
+        noValidate
+        onSubmit={addMovement}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+          <div>
+            <p className="eyebrow">{pendingEntry ? 'ENVÍO PENDIENTE' : 'NUEVO MOVIMIENTO'}</p>
+            <h2 id="add-movement-dialog-title">{pendingEntry ? 'Comprobemos tu envío' : 'Registrá una operación'}</h2>
           </div>
-          {entryStorageIssue && <p role="alert" className="movement-form-alert">{entryStorageIssue}</p>}
-          {categoryStatus !== 'ready' && <p role="status">{categoryStatus === 'loading' ? 'Cargando categorías…' : 'No pudimos cargar las categorías.'}{categoryStatus === 'error' && <button type="button" className="text-button" onClick={refreshDashboard}>Reintentar</button>}</p>}
-          {pendingEntry && <div className="dashboard-notice"><p>Conservamos los datos del envío. Comprobarlo no lo duplica. Si ya se guardó, cancelar solo comprobará su estado.</p><div className="modal-actions-grid-2"><button type="button" className="button-secondary" disabled={isAdding} onClick={() => void submitEntry(undefined,true)}>Cancelar envío</button><button type="button" className="modal-btn-save" disabled={isAdding} onClick={() => void submitEntry()}>{isAdding ? 'Comprobando…' : 'Comprobar envío'}</button></div></div>}
-          <fieldset disabled={isAdding || Boolean(pendingEntry) || Boolean(entryStorageIssue)} className="movement-fields">
-          <label>
-            Descripción
-            <input name="description" required maxLength={160} value={formDescription} onChange={event => setFormDescription(event.target.value)} placeholder="Ej. Verdulería o Compra en cuotas" />
+          <button
+            type="button"
+            className="modal-close-x"
+            aria-label="Cerrar modal"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={closeAddForm}
+          >
+            <Icon name="close" />
+          </button>
+        </div>
+        {entryStorageIssue && <p role="alert" className="movement-form-alert">{entryStorageIssue}</p>}
+        {categoryStatus !== 'ready' && <p role="status">{categoryStatus === 'loading' ? 'Cargando categorías…' : 'No pudimos cargar las categorías.'}{categoryStatus === 'error' && <button type="button" className="text-button" onClick={refreshDashboard}>Reintentar</button>}</p>}
+        {pendingEntry && <div className="dashboard-notice"><p>Conservamos los datos del envío. Comprobarlo no lo duplica. Si ya se guardó, cancelar solo comprobará su estado.</p><div className="modal-actions-grid-2"><button type="button" className="button-secondary" disabled={isAdding} onClick={() => void submitEntry(undefined,true)}>Cancelar envío</button><button type="button" className="modal-btn-save" disabled={isAdding} onClick={() => void submitEntry()}>{isAdding ? 'Comprobando…' : 'Comprobar envío'}</button></div></div>}
+        <fieldset disabled={isAdding || Boolean(pendingEntry) || Boolean(entryStorageIssue)} className="movement-fields">
+        <label htmlFor="add-movement-description">
+          Descripción
+          <input id="add-movement-description" name="description" required maxLength={160} value={formDescription} onChange={event => setFormDescription(event.target.value)} placeholder="Ej. Verdulería o Compra en cuotas" />
+        </label>
+        <div className="form-grid">
+          <label htmlFor="add-movement-currency">
+            Moneda
+            <select
+              id="add-movement-currency"
+              name="currency"
+              value={manualCurrency}
+              onChange={(e) => setManualCurrency(e.target.value as 'ARS' | 'USD')}
+            >
+              <option value="ARS">Pesos (ARS)</option>
+              <option value="USD">Dólares (USD)</option>
+            </select>
           </label>
-          <div className="form-grid">
-            <label>
-              Moneda
-              <select
-                name="currency"
-                value={manualCurrency}
-                onChange={(e) => setManualCurrency(e.target.value as 'ARS' | 'USD')}
-              >
-                <option value="ARS">Pesos (ARS)</option>
-                <option value="USD">Dólares (USD)</option>
-              </select>
+          <label htmlFor="add-movement-kind">
+            Tipo
+            <select
+              id="add-movement-kind"
+              name="kind"
+              value={manualKind}
+              onChange={(event) => {
+                const k = event.target.value as 'expense' | 'income';
+                setManualKind(k);
+                if (k === 'income') setIsInstallments(false);
+              }}
+            >
+              <option value="expense">Gasto</option>
+              <option value="income">Ingreso</option>
+            </select>
+          </label>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+            <label htmlFor="add-movement-amount" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>
+              {isInstallments && manualKind === 'expense'
+                ? (installmentAmountMode === 'quota' ? `Monto por cuota (${manualCurrency})` : `Monto total de la compra (${manualCurrency})`)
+                : `Monto (${manualCurrency})`}
             </label>
-            <label>
-              Tipo
-              <select
-                name="kind"
-                value={manualKind}
-                onChange={(event) => {
-                  const k = event.target.value as 'expense' | 'income';
-                  setManualKind(k);
-                  if (k === 'income') setIsInstallments(false);
-                }}
-              >
-                <option value="expense">Gasto</option>
-                <option value="income">Ingreso</option>
-              </select>
-            </label>
+            {isInstallments && manualKind === 'expense' && (
+              <div className="installment-mode-pills" role="group" aria-label="Modo de monto en cuotas">
+                <button
+                  type="button"
+                  aria-pressed={installmentAmountMode === 'total'}
+                  className={`mode-pill ${installmentAmountMode === 'total' ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setInstallmentAmountMode('total')}
+                >
+                  Monto total
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={installmentAmountMode === 'quota'}
+                  className={`mode-pill ${installmentAmountMode === 'quota' ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setInstallmentAmountMode('quota')}
+                >
+                  Monto por cuota
+                </button>
+              </div>
+            )}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>
-                {isInstallments && manualKind === 'expense'
-                  ? (installmentAmountMode === 'quota' ? `Monto por cuota (${manualCurrency})` : `Monto total de la compra (${manualCurrency})`)
-                  : `Monto (${manualCurrency})`}
-              </span>
-              {isInstallments && manualKind === 'expense' && (
-                <div className="installment-mode-pills">
-                  <button
-                    type="button"
-                    className={`mode-pill ${installmentAmountMode === 'total' ? 'active' : ''}`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setInstallmentAmountMode('total')}
-                  >
-                    Monto total
-                  </button>
-                  <button
-                    type="button"
-                    className={`mode-pill ${installmentAmountMode === 'quota' ? 'active' : ''}`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setInstallmentAmountMode('quota')}
-                  >
-                    Monto por cuota
-                  </button>
-                </div>
+          <input
+            id="add-movement-amount"
+            name="amount"
+            required
+            type="text"
+            inputMode="decimal"
+            placeholder="0"
+            value={formAmount}
+            onChange={(e) => setFormAmount(formatAmountInput(e.target.value))}
+          />
+        </div>
+        {manualKind === 'expense' && (
+          <label htmlFor="add-movement-is-installments" className="switch-row" style={{ marginTop: '2px', padding: '6px 0' }}>
+            <span>
+              <strong style={{ fontSize: '13px' }}>¿Es una compra en cuotas?</strong>
+              <small style={{ fontSize: '13px', color: 'var(--muted)' }}>Se crearán las cuotas para los próximos meses.</small>
+            </span>
+            <input
+              id="add-movement-is-installments"
+              type="checkbox"
+              checked={isInstallments}
+              onChange={(e) => setIsInstallments(e.target.checked)}
+            />
+          </label>
+        )}
+        {manualKind === 'expense' && isInstallments && (
+          <>
+            <div className="form-grid">
+              <label htmlFor="add-movement-installment-count">
+                Cantidad de cuotas
+                <select
+                  id="add-movement-installment-count"
+                  name="installmentCountSelect"
+                  value={isCustomInstallmentCount ? 'custom' : installmentCount}
+                  onChange={(e) => {
+                    if (e.target.value === 'custom') {
+                      setIsCustomInstallmentCount(true);
+                      setCustomCountInput(String(installmentCount));
+                    } else {
+                      setIsCustomInstallmentCount(false);
+                      const count = Number(e.target.value);
+                      setInstallmentCount(count);
+                      if (currentInstallmentNumber > count) setCurrentInstallmentNumber(1);
+                    }
+                  }}
+                >
+                  {PRESET_INSTALLMENT_COUNTS.map((count) => (
+                    <option key={count} value={count}>{count} cuotas</option>
+                  ))}
+                  <option value="custom">Personalizada (otra cantidad)…</option>
+                </select>
+              </label>
+              <label htmlFor="add-movement-current-installment">
+                ¿Por qué cuota vas?
+                <select
+                  id="add-movement-current-installment"
+                  name="currentInstallmentNumber"
+                  value={currentInstallmentNumber}
+                  onChange={(e) => setCurrentInstallmentNumber(Number(e.target.value))}
+                >
+                  {Array.from({ length: installmentCount }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n === 1 ? '1° cuota (arranca este mes)' : `Cuota ${n} de ${installmentCount}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {isCustomInstallmentCount && (
+              <label htmlFor="add-movement-custom-installment-count" style={{ marginTop: '-4px' }}>
+                <span>Ingresá el número de cuotas ({MIN_INSTALLMENT_COUNT} a {MAX_INSTALLMENT_COUNT}):</span>
+                <input
+                  id="add-movement-custom-installment-count"
+                  name="customInstallmentCount"
+                  type="number"
+                  min={MIN_INSTALLMENT_COUNT}
+                  max={MAX_INSTALLMENT_COUNT}
+                  step="1"
+                  inputMode="numeric"
+                  aria-invalid={parseInstallmentCountInput(customCountInput) === null}
+                  aria-describedby={parseInstallmentCountInput(customCountInput) === null ? 'add-movement-custom-installment-error' : undefined}
+                  className={parseInstallmentCountInput(customCountInput) === null ? 'input-invalid' : undefined}
+                  value={customCountInput}
+                  onChange={(e) => {
+                    const valStr = e.target.value;
+                    setCustomCountInput(valStr);
+                    const parsed = parseInstallmentCountInput(valStr);
+                    if (parsed !== null) {
+                      setInstallmentCount(parsed);
+                      if (currentInstallmentNumber > parsed) setCurrentInstallmentNumber(parsed);
+                      if (entryMessage === INSTALLMENT_BOUNDS_ERROR) setEntryMessage('');
+                    }
+                  }}
+                  onBlur={() => {
+                    const parsed = parseInstallmentCountInput(customCountInput);
+                    if (parsed !== null) {
+                      setCustomCountInput(String(parsed));
+                      setInstallmentCount(parsed);
+                      if (currentInstallmentNumber > parsed) setCurrentInstallmentNumber(parsed);
+                    }
+                  }}
+                  placeholder="Ej. 7, 8, 14..."
+                  autoFocus
+                />
+                {parseInstallmentCountInput(customCountInput) === null && (
+                  <small id="add-movement-custom-installment-error" className="movement-field-error" role="status">
+                    {INSTALLMENT_BOUNDS_ERROR}
+                  </small>
+                )}
+              </label>
+            )}
+            <div className="installment-calc-preview">
+              {installmentAmountMode === 'total' ? (
+                <>
+                  <small>Valor por cuota ({installmentCount} cuotas):</small>
+                  <strong>
+                    {parseAmountNumber(formAmount) > 0
+                      ? `${formatMoney(Math.round((parseAmountNumber(formAmount) / installmentCount) * 100) / 100, manualCurrency)} / mes`
+                      : 'Ingresá el monto total'}
+                  </strong>
+                </>
+              ) : (
+                <>
+                  <small>Total de la compra ({installmentCount} cuotas):</small>
+                  <strong>
+                    {parseAmountNumber(formAmount) > 0
+                      ? `${formatMoney(Math.round(parseAmountNumber(formAmount) * installmentCount * 100) / 100, manualCurrency)} en total`
+                      : 'Ingresá el monto por cuota'}
+                  </strong>
+                </>
               )}
             </div>
-            <input
-              name="amount"
+            {currentInstallmentNumber > 1 && (
+              <div className="installment-cuota-preview-hint">
+                Tarjeta en curso: En la fecha elegida se registrará la <strong>cuota {currentInstallmentNumber}</strong>. Las cuotas 1 a {currentInstallmentNumber - 1} se registrarán en los meses anteriores y las {installmentCount - currentInstallmentNumber} restantes en los próximos.
+              </div>
+            )}
+          </>
+        )}
+        <div className="form-grid">
+          <label htmlFor="add-movement-category">
+            Categoría
+            <select
+              id="add-movement-category"
+              name="categoryId"
               required
-              type="text"
-              inputMode="decimal"
-              placeholder="0"
-              value={formAmount}
-              onChange={(e) => setFormAmount(formatAmountInput(e.target.value))}
-            />
-          </div>
-          {manualKind === 'expense' && (
-            <label className="switch-row" style={{ marginTop: '2px', padding: '6px 0' }}>
-              <span>
-                <strong style={{ fontSize: '13px' }}>¿Es una compra en cuotas?</strong>
-                <small style={{ fontSize: '13px', color: 'var(--muted)' }}>Se crearán las cuotas para los próximos meses.</small>
-              </span>
-              <input
-                type="checkbox"
-                checked={isInstallments}
-                onChange={(e) => setIsInstallments(e.target.checked)}
-              />
-            </label>
-          )}
-          {manualKind === 'expense' && isInstallments && (
-            <>
-              <div className="form-grid">
-                <label>
-                  Cantidad de cuotas
-                  <select
-                    name="installmentCountSelect"
-                    value={isCustomInstallmentCount ? 'custom' : installmentCount}
-                    onChange={(e) => {
-                      if (e.target.value === 'custom') {
-                        setIsCustomInstallmentCount(true);
-                        setCustomCountInput(String(installmentCount));
-                      } else {
-                        setIsCustomInstallmentCount(false);
-                        const count = Number(e.target.value);
-                        setInstallmentCount(count);
-                        if (currentInstallmentNumber > count) setCurrentInstallmentNumber(1);
-                      }
-                    }}
-                  >
-                    {PRESET_INSTALLMENT_COUNTS.map((count) => (
-                      <option key={count} value={count}>{count} cuotas</option>
-                    ))}
-                    <option value="custom">Personalizada (otra cantidad)…</option>
-                  </select>
-                </label>
-                <label>
-                  ¿Por qué cuota vas?
-                  <select
-                    name="currentInstallmentNumber"
-                    value={currentInstallmentNumber}
-                    onChange={(e) => setCurrentInstallmentNumber(Number(e.target.value))}
-                  >
-                    {Array.from({ length: installmentCount }, (_, i) => i + 1).map((n) => (
-                      <option key={n} value={n}>
-                        {n === 1 ? '1° cuota (arranca este mes)' : `Cuota ${n} de ${installmentCount}`}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              {isCustomInstallmentCount && (
-                <label style={{ marginTop: '-4px' }}>
-                  <span>Ingresá el número de cuotas ({MIN_INSTALLMENT_COUNT} a {MAX_INSTALLMENT_COUNT}):</span>
-                  <input
-                    name="customInstallmentCount"
-                    type="number"
-                    min={MIN_INSTALLMENT_COUNT}
-                    max={MAX_INSTALLMENT_COUNT}
-                    step="1"
-                    inputMode="numeric"
-                    aria-invalid={parseInstallmentCountInput(customCountInput) === null}
-                    className={parseInstallmentCountInput(customCountInput) === null ? 'input-invalid' : undefined}
-                    value={customCountInput}
-                    onChange={(e) => {
-                      const valStr = e.target.value;
-                      setCustomCountInput(valStr);
-                      const parsed = parseInstallmentCountInput(valStr);
-                      if (parsed !== null) {
-                        setInstallmentCount(parsed);
-                        if (currentInstallmentNumber > parsed) setCurrentInstallmentNumber(parsed);
-                        if (entryMessage === INSTALLMENT_BOUNDS_ERROR) setEntryMessage('');
-                      }
-                    }}
-                    onBlur={() => {
-                      const parsed = parseInstallmentCountInput(customCountInput);
-                      if (parsed !== null) {
-                        setCustomCountInput(String(parsed));
-                        setInstallmentCount(parsed);
-                        if (currentInstallmentNumber > parsed) setCurrentInstallmentNumber(parsed);
-                      }
-                    }}
-                    placeholder="Ej. 7, 8, 14..."
-                    autoFocus
-                  />
-                  {parseInstallmentCountInput(customCountInput) === null && (
-                    <small className="movement-field-error" role="status">
-                      {INSTALLMENT_BOUNDS_ERROR}
-                    </small>
-                  )}
-                </label>
-              )}
-              <div className="installment-calc-preview">
-                {installmentAmountMode === 'total' ? (
-                  <>
-                    <small>Valor por cuota ({installmentCount} cuotas):</small>
-                    <strong>
-                      {parseAmountNumber(formAmount) > 0
-                        ? `${formatMoney(Math.round((parseAmountNumber(formAmount) / installmentCount) * 100) / 100, manualCurrency)} / mes`
-                        : 'Ingresá el monto total'}
-                    </strong>
-                  </>
-                ) : (
-                  <>
-                    <small>Total de la compra ({installmentCount} cuotas):</small>
-                    <strong>
-                      {parseAmountNumber(formAmount) > 0
-                        ? `${formatMoney(Math.round(parseAmountNumber(formAmount) * installmentCount * 100) / 100, manualCurrency)} en total`
-                        : 'Ingresá el monto por cuota'}
-                    </strong>
-                  </>
-                )}
-              </div>
-              {currentInstallmentNumber > 1 && (
-                <div className="installment-cuota-preview-hint">
-                  Tarjeta en curso: En la fecha elegida se registrará la <strong>cuota {currentInstallmentNumber}</strong>. Las cuotas 1 a {currentInstallmentNumber - 1} se registrarán en los meses anteriores y las {installmentCount - currentInstallmentNumber} restantes en los próximos.
-                </div>
-              )}
-            </>
-          )}
-          <div className="form-grid">
-            <label>
-              Categoría
-              <select
-                name="categoryId"
-                required
-                value={categoryId}
-                onChange={(event) => setCategoryId(event.target.value)}
-              >
-                <option value="" disabled>Seleccioná una categoría</option>
-                {pendingEntry && !availableCategories.some(category => category.id === categoryId) && <option value={categoryId}>Categoría original del envío</option>}
-                {availableCategories.map((category) => (
-                  <option key={category.id} value={category.id}>{category.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              {isInstallments && manualKind === 'expense' ? (currentInstallmentNumber > 1 ? `Fecha cuota ${currentInstallmentNumber}` : 'Fecha 1° cuota') : 'Fecha'}
-              <input name="date" required type="date" value={formDate} onChange={event => setFormDate(event.target.value)} />
-            </label>
-          </div>
-          </fieldset>
-          {entryMessage && <p role="alert" className="movement-form-alert">{entryMessage}</p>}
-          <div className="modal-actions-grid-2">
-            <button
-              type="button"
-              className="modal-btn-cancel"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={closeAddForm}
+              value={categoryId}
+              onChange={(event) => setCategoryId(event.target.value)}
             >
-              Cerrar
-            </button>
-            {!pendingEntry && <button
-              className="modal-btn-save"
-              type="submit"
-              disabled={isAdding || Boolean(pendingEntry) || Boolean(entryStorageIssue) || categoryStatus !== 'ready' || !categoryId}
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              {isAdding ? 'Guardando…' : 'Guardar'}
-            </button>}
-          </div>
-        </form>
-      </div>
+              <option value="" disabled>Seleccioná una categoría</option>
+              {pendingEntry && !availableCategories.some(category => category.id === categoryId) && <option value={categoryId}>Categoría original del envío</option>}
+              {availableCategories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </select>
+          </label>
+          <label htmlFor="add-movement-date">
+            {isInstallments && manualKind === 'expense' ? (currentInstallmentNumber > 1 ? `Fecha cuota ${currentInstallmentNumber}` : 'Fecha 1° cuota') : 'Fecha'}
+            <input id="add-movement-date" name="date" required type="date" value={formDate} onChange={event => setFormDate(event.target.value)} />
+          </label>
+        </div>
+        </fieldset>
+        {entryMessage && <p role="alert" className="movement-form-alert">{entryMessage}</p>}
+        <div className="modal-actions-grid-2">
+          <button
+            type="button"
+            className="modal-btn-cancel"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={closeAddForm}
+          >
+            Cerrar
+          </button>
+          {!pendingEntry && <button
+            className="modal-btn-save"
+            type="submit"
+            disabled={isAdding || Boolean(pendingEntry) || Boolean(entryStorageIssue) || categoryStatus !== 'ready' || !categoryId}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {isAdding ? 'Guardando…' : 'Guardar'}
+          </button>}
+        </div>
+      </ModalDialog>
     )}
 
     {editingMovement && (
-      <div className="modal-backdrop" role="presentation" onClick={() => { if (!editBusy.current) setEditingMovement(null); }}>
-        <form className="movement-form" noValidate onSubmit={saveMovementEdit} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-            <div>
-              <p className="eyebrow">MODIFICAR MOVIMIENTO</p>
-              <h2>{editingMovement.installmentCount && editingMovement.installmentCount > 1 ? 'Editar compra en cuotas' : 'Editar operación'}</h2>
+      <ModalDialog
+        as="form"
+        open={Boolean(editingMovement)}
+        busy={isSavingEdit || editBusy.current}
+        ready={Boolean(!editingPlanId || editPlan || editPlanError)}
+        onClose={() => { if (!editBusy.current) { setEditingMovement(null); setEditPlanError(''); } }}
+        titleId="edit-movement-dialog-title"
+        className="movement-form"
+        noValidate
+        onSubmit={saveMovementEdit}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+          <div>
+            <p className="eyebrow">MODIFICAR MOVIMIENTO</p>
+            <h2 id="edit-movement-dialog-title">{editingMovement.installmentCount && editingMovement.installmentCount > 1 ? 'Editar compra en cuotas' : 'Editar operación'}</h2>
+          </div>
+          <button
+            type="button"
+            className="modal-close-x"
+            aria-label="Cerrar modal"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { if (!editBusy.current) { setEditingMovement(null); setEditPlanError(''); } }}
+          >
+            <Icon name="close" />
+          </button>
+        </div>
+        {editingPlanId && !editPlan && !editPlanError && <p role="status">Cargando cuotas…</p>}
+        <fieldset disabled={isSavingEdit || Boolean(editingPlanId && !editPlan)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: '14px' }}>
+        {editingMovement.installmentCount && editingMovement.installmentCount > 1 && (
+          <div className="installment-edit-box">
+            <div className="form-grid">
+              <label htmlFor="edit-movement-installment-number">
+                ¿Por qué cuota vas este mes?
+                <select
+                  id="edit-movement-installment-number"
+                  value={editInstallmentNumber}
+                  onChange={(e) => {
+                    const num = Number(e.target.value);
+                    setEditInstallmentNumber(num);
+                  }}
+                >
+                  {Array.from({ length: editInstallmentCount }, (_, i) => i + 1).map((num) => (
+                    <option key={num} value={num}>
+                      Cuota {num} de {editInstallmentCount}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label htmlFor="edit-movement-installment-count">
+                Total de cuotas
+                <select
+                  id="edit-movement-installment-count"
+                  value={isCustomEditInstallmentCount ? 'custom' : editInstallmentCount}
+                  onChange={(e) => {
+                    if (e.target.value === 'custom') {
+                      setIsCustomEditInstallmentCount(true);
+                      setCustomEditCountInput(String(editInstallmentCount));
+                    } else {
+                      setIsCustomEditInstallmentCount(false);
+                      const count = Number(e.target.value);
+                      setEditInstallmentCount(count);
+                      if (editInstallmentNumber > count) setEditInstallmentNumber(count);
+                    }
+                  }}
+                >
+                  {PRESET_INSTALLMENT_COUNTS.map((count) => (
+                    <option key={count} value={count}>
+                      {count} cuotas
+                    </option>
+                  ))}
+                  <option value="custom">Personalizada (otra cantidad)…</option>
+                </select>
+              </label>
             </div>
+            {isCustomEditInstallmentCount && (
+              <label htmlFor="edit-movement-custom-installment-count" style={{ marginTop: '8px' }}>
+                <span>Cantidad total de cuotas ({MIN_INSTALLMENT_COUNT} a {MAX_INSTALLMENT_COUNT}):</span>
+                <input
+                  id="edit-movement-custom-installment-count"
+                  name="customEditInstallmentCount"
+                  type="number"
+                  min={MIN_INSTALLMENT_COUNT}
+                  max={MAX_INSTALLMENT_COUNT}
+                  step="1"
+                  inputMode="numeric"
+                  aria-invalid={parseInstallmentCountInput(customEditCountInput) === null}
+                  aria-describedby={parseInstallmentCountInput(customEditCountInput) === null ? 'edit-movement-custom-installment-error' : undefined}
+                  className={parseInstallmentCountInput(customEditCountInput) === null ? 'input-invalid' : undefined}
+                  value={customEditCountInput}
+                  onChange={(e) => {
+                    const valStr = e.target.value;
+                    setCustomEditCountInput(valStr);
+                    const parsed = parseInstallmentCountInput(valStr);
+                    if (parsed !== null) {
+                      setEditInstallmentCount(parsed);
+                      if (editInstallmentNumber > parsed) setEditInstallmentNumber(parsed);
+                      if (editPlanError === INSTALLMENT_BOUNDS_ERROR) setEditPlanError('');
+                    }
+                  }}
+                  onBlur={() => {
+                    const parsed = parseInstallmentCountInput(customEditCountInput);
+                    if (parsed !== null) {
+                      setCustomEditCountInput(String(parsed));
+                      setEditInstallmentCount(parsed);
+                      if (editInstallmentNumber > parsed) setEditInstallmentNumber(parsed);
+                    }
+                  }}
+                  placeholder="Ej. 7, 8, 14..."
+                  autoFocus
+                />
+                {parseInstallmentCountInput(customEditCountInput) === null && (
+                  <small id="edit-movement-custom-installment-error" className="movement-field-error" role="status">
+                    {INSTALLMENT_BOUNDS_ERROR}
+                  </small>
+                )}
+              </label>
+            )}
+            <div className="installment-cuota-preview-hint">
+              Las fechas solo se reprograman si cambiás la fecha o la cuota de referencia. Se conservan los números de las cuotas existentes.
+            </div>
+          </div>
+        )}
+        <label htmlFor="edit-movement-description">
+          Descripción
+          <input
+            id="edit-movement-description"
+            name="description"
+            required
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+            placeholder="Ej. Verdulería o Compra"
+          />
+        </label>
+        <div className="form-grid">
+          <label htmlFor="edit-movement-currency">
+            Moneda
+            <select
+              id="edit-movement-currency"
+              name="currency"
+              value={editCurrency}
+              onChange={(e) => setEditCurrency(e.target.value as 'ARS' | 'USD')}
+            >
+              <option value="ARS">Pesos (ARS)</option>
+              <option value="USD">Dólares (USD)</option>
+            </select>
+          </label>
+          <label htmlFor="edit-movement-kind">
+            Tipo
+            <select
+              id="edit-movement-kind"
+              name="kind"
+              value={editKind}
+              disabled={Boolean(editingMovement.installmentCount && editingMovement.installmentCount > 1)}
+              onChange={(event) => {
+                const k = event.target.value as 'expense' | 'income';
+                setEditKind(k);
+                const firstCat = categories.find((c) => c.kind === k);
+                if (firstCat) setEditCategoryId(firstCat.id);
+              }}
+            >
+              <option value="expense">Gasto</option>
+              <option value="income">Ingreso</option>
+            </select>
+          </label>
+        </div>
+        <label htmlFor="edit-movement-amount">
+          {editingMovement.installmentCount && editingMovement.installmentCount > 1
+            ? `Monto por cuota (${editCurrency})`
+            : `Monto (${editCurrency})`}
+          <input
+            id="edit-movement-amount"
+            name="amount"
+            required
+            type="text"
+            inputMode="decimal"
+            placeholder="0"
+            value={editAmount}
+            onChange={(e) => setEditAmount(formatAmountInput(e.target.value))}
+          />
+        </label>
+        {editingMovement.installmentCount && editingMovement.installmentCount > 1 && parseAmountNumber(editAmount) > 0 && (
+          <div className="installment-calc-preview" style={{ marginTop: '-4px', marginBottom: '8px' }}>
+            <small>El monto solo se modifica si lo editás. Al aplicarlo a todo el plan, reemplaza el importe de cada cuota activa.</small>
+          </div>
+        )}
+        <div className="form-grid">
+          <label htmlFor="edit-movement-category">
+            Categoría
+            <select
+              id="edit-movement-category"
+              name="categoryId"
+              required
+              value={editCategoryId}
+              onChange={(event) => setEditCategoryId(event.target.value)}
+            >
+              <option value="" disabled>Seleccioná una categoría</option>
+              {availableEditCategories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </select>
+          </label>
+          <label htmlFor="edit-movement-date">
+            Fecha
+            <input
+              id="edit-movement-date"
+              name="date"
+              required
+              type="date"
+              value={editDate}
+              onChange={(e) => setEditDate(e.target.value)}
+            />
+          </label>
+        </div>
+
+        {editingMovement.installmentCount && editingMovement.installmentCount > 1 && editingMovement.installmentGroupId && (
+          <label htmlFor="edit-movement-apply-all" className="switch-row" style={{ marginTop: '2px', padding: '6px 0' }}>
+            <span>
+              <strong style={{ fontSize: '13px' }}>¿Aplicar cambios a todo el plan?</strong>
+              <small style={{ fontSize: '13px', color: 'var(--muted)' }}>Solo cambia los campos que edites. Las cuotas eliminadas no se recuperan.</small>
+            </span>
+            <input
+              id="edit-movement-apply-all"
+              type="checkbox"
+              checked={editApplyToAll}
+              onChange={(e) => setEditApplyToAll(e.target.checked)}
+            />
+          </label>
+        )}
+
+        </fieldset>
+        {editPlanError && <p role="alert" className="movement-form-alert">{editPlanError}</p>}
+        <div className="modal-actions-grid-3">
+          <button
+            type="button"
+            className="modal-btn-delete"
+            disabled={isSavingEdit}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const target = editingMovement;
+              setEditingMovement(null);
+              deleteMovement(target);
+            }}
+            aria-label="Eliminar movimiento"
+          >
+            Eliminar
+          </button>
+          <button
+            type="button"
+            className="modal-btn-cancel"
+            disabled={isSavingEdit}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { if (!editBusy.current) { setEditingMovement(null); setEditPlanError(''); } }}
+          >
+            Cancelar
+          </button>
+          <button
+            className="modal-btn-save"
+            type="submit"
+            disabled={isSavingEdit || !editCategoryId || Boolean(editingPlanId && !editPlan)}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {isSavingEdit ? 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
+      </ModalDialog>
+    )}
+
+    {installmentDeletePrompt && (
+      <ModalDialog
+        open={Boolean(installmentDeletePrompt)}
+        busy={isDeletingPlan || deleteBusy.current}
+        ready={Boolean(deletePlan || deletePlanError)}
+        onClose={() => { if (!deleteBusy.current) setInstallmentDeletePrompt(null); }}
+        titleId="delete-installments-title"
+        descriptionId="delete-installments-desc"
+        className="movement-form delete-plan-modal"
+      >
+        <div>
+          <p className="eyebrow" style={{ color: '#ea7172' }}>ELIMINAR CUOTAS</p>
+          <h2 id="delete-installments-title">{installmentDeletePrompt.movement ? '¿Cómo querés eliminar este movimiento?' : '¿Eliminar compra en cuotas?'}</h2>
+          <p id="delete-installments-desc" style={{ fontSize: '13px', color: 'var(--muted)', margin: '8px 0 0' }}>
+            <strong>{deletingRow?.description ?? deletePlan?.rows[0]?.description ?? installmentDeletePrompt.movement?.title ?? installmentDeletePrompt.plan?.description}</strong>
+            {installmentDeletePrompt.movement && installmentDeletePrompt.movement.installmentCount ? (
+              <span> · Cuota {installmentDeletePrompt.movement.installmentNumber ?? 1} de {installmentDeletePrompt.movement.installmentCount}</span>
+            ) : (
+              <span> · Plan de {installmentDeletePrompt.plan?.installmentCount} cuotas</span>
+            )}
+          </p>
+        </div>
+
+        {!deletePlan && !deletePlanError && <p role="status">Cargando cuotas…</p>}
+        {deletePlan && <p>{deletePlan.rows.length} cuotas activas · {formatMoney(deletePlan.rows.reduce((sum, row) => sum + row.amount_ars, 0), deletePlan.rows[0]?.currency ?? activeCurrency)}</p>}
+        {deletePlanError && <p role="alert">{deletePlanError}</p>}
+        <div className="delete-options-list">
+          {installmentDeletePrompt.movement && (
             <button
               type="button"
-              className="modal-close-x"
-              aria-label="Cerrar modal"
+              className="delete-option-btn"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { if (!editBusy.current) setEditingMovement(null); }}
+              disabled={isDeletingPlan || !deletingRow}
+              onClick={() => void deleteInstallments(false, installmentDeletePrompt.movement!.id)}
             >
-              <Icon name="close" />
+              <div>
+                <strong>Eliminar solo esta cuota</strong>
+                <small>Borra únicamente el pago de este mes ({formatMoney(deletingRow?.amount_ars ?? installmentDeletePrompt.movement.amount, deletingRow?.currency ?? installmentDeletePrompt.movement.currency ?? activeCurrency)})</small>
+              </div>
+              <span>›</span>
             </button>
-          </div>
-          {editingPlanId && !editPlan && !editPlanError && <p role="status">Cargando cuotas…</p>}
-          <fieldset disabled={isSavingEdit || Boolean(editingPlanId && !editPlan)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: '14px' }}>
-          {editingMovement.installmentCount && editingMovement.installmentCount > 1 && (
-            <div className="installment-edit-box">
-              <div className="form-grid">
-                <label>
-                  ¿Por qué cuota vas este mes?
-                  <select
-                    value={editInstallmentNumber}
-                    onChange={(e) => {
-                      const num = Number(e.target.value);
-                      setEditInstallmentNumber(num);
-                    }}
-                  >
-                    {Array.from({ length: editInstallmentCount }, (_, i) => i + 1).map((num) => (
-                      <option key={num} value={num}>
-                        Cuota {num} de {editInstallmentCount}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Total de cuotas
-                  <select
-                    value={isCustomEditInstallmentCount ? 'custom' : editInstallmentCount}
-                    onChange={(e) => {
-                      if (e.target.value === 'custom') {
-                        setIsCustomEditInstallmentCount(true);
-                        setCustomEditCountInput(String(editInstallmentCount));
-                      } else {
-                        setIsCustomEditInstallmentCount(false);
-                        const count = Number(e.target.value);
-                        setEditInstallmentCount(count);
-                        if (editInstallmentNumber > count) setEditInstallmentNumber(count);
-                      }
-                    }}
-                  >
-                    {PRESET_INSTALLMENT_COUNTS.map((count) => (
-                      <option key={count} value={count}>
-                        {count} cuotas
-                      </option>
-                    ))}
-                    <option value="custom">Personalizada (otra cantidad)…</option>
-                  </select>
-                </label>
-              </div>
-              {isCustomEditInstallmentCount && (
-                <label style={{ marginTop: '8px' }}>
-                  <span>Cantidad total de cuotas ({MIN_INSTALLMENT_COUNT} a {MAX_INSTALLMENT_COUNT}):</span>
-                  <input
-                    name="customEditInstallmentCount"
-                    type="number"
-                    min={MIN_INSTALLMENT_COUNT}
-                    max={MAX_INSTALLMENT_COUNT}
-                    step="1"
-                    inputMode="numeric"
-                    aria-invalid={parseInstallmentCountInput(customEditCountInput) === null}
-                    className={parseInstallmentCountInput(customEditCountInput) === null ? 'input-invalid' : undefined}
-                    value={customEditCountInput}
-                    onChange={(e) => {
-                      const valStr = e.target.value;
-                      setCustomEditCountInput(valStr);
-                      const parsed = parseInstallmentCountInput(valStr);
-                      if (parsed !== null) {
-                        setEditInstallmentCount(parsed);
-                        if (editInstallmentNumber > parsed) setEditInstallmentNumber(parsed);
-                        if (editPlanError === INSTALLMENT_BOUNDS_ERROR) setEditPlanError('');
-                      }
-                    }}
-                    onBlur={() => {
-                      const parsed = parseInstallmentCountInput(customEditCountInput);
-                      if (parsed !== null) {
-                        setCustomEditCountInput(String(parsed));
-                        setEditInstallmentCount(parsed);
-                        if (editInstallmentNumber > parsed) setEditInstallmentNumber(parsed);
-                      }
-                    }}
-                    placeholder="Ej. 7, 8, 14..."
-                    autoFocus
-                  />
-                  {parseInstallmentCountInput(customEditCountInput) === null && (
-                    <small className="movement-field-error" role="status">
-                      {INSTALLMENT_BOUNDS_ERROR}
-                    </small>
-                  )}
-                </label>
-              )}
-              <div className="installment-cuota-preview-hint">
-                Las fechas solo se reprograman si cambiás la fecha o la cuota de referencia. Se conservan los números de las cuotas existentes.
-              </div>
-            </div>
-          )}
-          <label>
-            Descripción
-            <input
-              name="description"
-              required
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              placeholder="Ej. Verdulería o Compra"
-            />
-          </label>
-          <div className="form-grid">
-            <label>
-              Moneda
-              <select
-                name="currency"
-                value={editCurrency}
-                onChange={(e) => setEditCurrency(e.target.value as 'ARS' | 'USD')}
-              >
-                <option value="ARS">Pesos (ARS)</option>
-                <option value="USD">Dólares (USD)</option>
-              </select>
-            </label>
-            <label>
-              Tipo
-              <select
-                name="kind"
-                value={editKind}
-                disabled={Boolean(editingMovement.installmentCount && editingMovement.installmentCount > 1)}
-                onChange={(event) => {
-                  const k = event.target.value as 'expense' | 'income';
-                  setEditKind(k);
-                  const firstCat = categories.find((c) => c.kind === k);
-                  if (firstCat) setEditCategoryId(firstCat.id);
-                }}
-              >
-                <option value="expense">Gasto</option>
-                <option value="income">Ingreso</option>
-              </select>
-            </label>
-          </div>
-          <label>
-            {editingMovement.installmentCount && editingMovement.installmentCount > 1
-              ? `Monto por cuota (${editCurrency})`
-              : `Monto (${editCurrency})`}
-            <input
-              name="amount"
-              required
-              type="text"
-              inputMode="decimal"
-              placeholder="0"
-              value={editAmount}
-              onChange={(e) => setEditAmount(formatAmountInput(e.target.value))}
-            />
-          </label>
-          {editingMovement.installmentCount && editingMovement.installmentCount > 1 && parseAmountNumber(editAmount) > 0 && (
-            <div className="installment-calc-preview" style={{ marginTop: '-4px', marginBottom: '8px' }}>
-              <small>El monto solo se modifica si lo editás. Al aplicarlo a todo el plan, reemplaza el importe de cada cuota activa.</small>
-            </div>
-          )}
-          <div className="form-grid">
-            <label>
-              Categoría
-              <select
-                name="categoryId"
-                required
-                value={editCategoryId}
-                onChange={(event) => setEditCategoryId(event.target.value)}
-              >
-                <option value="" disabled>Seleccioná una categoría</option>
-                {availableEditCategories.map((category) => (
-                  <option key={category.id} value={category.id}>{category.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Fecha
-              <input
-                name="date"
-                required
-                type="date"
-                value={editDate}
-                onChange={(e) => setEditDate(e.target.value)}
-              />
-            </label>
-          </div>
-
-          {editingMovement.installmentCount && editingMovement.installmentCount > 1 && editingMovement.installmentGroupId && (
-            <label className="switch-row" style={{ marginTop: '2px', padding: '6px 0' }}>
-              <span>
-                <strong style={{ fontSize: '13px' }}>¿Aplicar cambios a todo el plan?</strong>
-                <small style={{ fontSize: '13px', color: 'var(--muted)' }}>Solo cambia los campos que edites. Las cuotas eliminadas no se recuperan.</small>
-              </span>
-              <input
-                type="checkbox"
-                checked={editApplyToAll}
-                onChange={(e) => setEditApplyToAll(e.target.checked)}
-              />
-            </label>
           )}
 
-          </fieldset>
-          {editPlanError && <p role="alert" className="movement-form-alert">{editPlanError}</p>}
+          <button
+            type="button"
+            className="delete-option-btn danger"
+            onMouseDown={(e) => e.preventDefault()}
+            disabled={isDeletingPlan || !deletePlan?.rows.length}
+            onClick={() => void deleteInstallments(true)}
+          >
+            <div>
+              <strong>Eliminar todo el plan de cuotas</strong>
+              <small>Elimina las cuotas activas de esta compra</small>
+            </div>
+            <span>›</span>
+          </button>
+        </div>
+
+        <div style={{ marginTop: '10px' }}>
+          <button
+            type="button"
+            className="modal-btn-cancel"
+            style={{ width: '100%' }}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { if (!deleteBusy.current) setInstallmentDeletePrompt(null); }}
+          >
+            Cancelar
+          </button>
+        </div>
+      </ModalDialog>
+    )}
+
+    {showBudgetModal && (
+      <ModalDialog
+        as="form"
+        open={showBudgetModal}
+        busy={isSavingBudget}
+        onClose={() => { if (!isSavingBudget) { setShowBudgetModal(false); setBudgetError(''); } }}
+        titleId="budget-dialog-title"
+        descriptionId="budget-dialog-desc"
+        className="movement-form"
+        onSubmit={saveBudget}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+          <div>
+            <p className="eyebrow">PRESUPUESTO MENSUAL</p>
+            <h2 id="budget-dialog-title">{budget > 0 ? 'Modificar presupuesto' : 'Definir presupuesto'} de {labelForMonth(month)}</h2>
+            <p id="budget-dialog-desc" style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
+              {budget > 0 ? 'Actualizá o eliminá tu límite de gastos para este mes.' : 'Definí tu límite de gastos para este mes.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="modal-close-x"
+            aria-label="Cerrar modal"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { if (!isSavingBudget) { setShowBudgetModal(false); setBudgetError(''); } }}
+          >
+            <Icon name="close" />
+          </button>
+        </div>
+
+        <label htmlFor="budget-amount-input">
+          Monto límite mensual (ARS)
+          <input
+            id="budget-amount-input"
+            name="budgetAmount"
+            type="text"
+            inputMode="decimal"
+            required
+            autoFocus
+            placeholder="Ej. 150.000"
+            value={budgetInput}
+            onChange={(e) => {
+              setBudgetInput(formatAmountInput(e.target.value));
+              if (budgetError) setBudgetError('');
+            }}
+          />
+        </label>
+
+        {parseAmountNumber(budgetInput) > 0 && (
+          <div className="installment-calc-preview" style={{ height: 'auto', padding: '10px 14px', gap: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--muted)' }}>
+              <span>Gastado en {labelForMonth(month)}:</span>
+              <strong style={{ color: 'var(--ink)' }}>{formatMoney(expenses, 'ARS')}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 700, marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #dce8e1' }}>
+              <span>Disponible con este límite:</span>
+              <strong style={{ color: parseAmountNumber(budgetInput) - expenses >= 0 ? 'var(--mint-dark)' : '#d32f2f' }}>
+                {formatMoney(parseAmountNumber(budgetInput) - expenses, 'ARS')}
+              </strong>
+            </div>
+          </div>
+        )}
+
+        {budgetError && <p role="alert" className="movement-form-alert">{budgetError}</p>}
+
+        {budget > 0 ? (
           <div className="modal-actions-grid-3">
             <button
               type="button"
               className="modal-btn-delete"
-              disabled={isSavingEdit}
+              disabled={isSavingBudget}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
-                const target = editingMovement;
-                setEditingMovement(null);
-                deleteMovement(target);
+                setBudgetError('');
+                setShowBudgetModal(false);
+                setShowDeleteBudgetConfirm(true);
               }}
-              aria-label="Eliminar movimiento"
+              aria-label="Eliminar presupuesto"
             >
               Eliminar
             </button>
             <button
               type="button"
               className="modal-btn-cancel"
-              disabled={isSavingEdit}
+              disabled={isSavingBudget}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { if (!editBusy.current) setEditingMovement(null); }}
+              onClick={() => { if (!isSavingBudget) { setShowBudgetModal(false); setBudgetError(''); } }}
             >
               Cancelar
             </button>
             <button
               className="modal-btn-save"
               type="submit"
-              disabled={isSavingEdit || !editCategoryId || Boolean(editingPlanId && !editPlan)}
+              disabled={isSavingBudget || parseAmountNumber(budgetInput) <= 0}
               onMouseDown={(e) => e.preventDefault()}
             >
-              {isSavingEdit ? 'Guardando…' : 'Guardar'}
+              {isSavingBudget ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
-        </form>
-      </div>
-    )}
-
-    {installmentDeletePrompt && (
-      <div className="modal-backdrop" role="presentation" onClick={() => { if (!deleteBusy.current) setInstallmentDeletePrompt(null); }}>
-        <div className="movement-form delete-plan-modal" role="dialog" aria-modal="true" aria-labelledby="delete-installments-title" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-          <div>
-            <p className="eyebrow" style={{ color: '#ea7172' }}>ELIMINAR CUOTAS</p>
-            <h2 id="delete-installments-title">{installmentDeletePrompt.movement ? '¿Cómo querés eliminar este movimiento?' : '¿Eliminar compra en cuotas?'}</h2>
-            <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '8px 0 0' }}>
-              <strong>{deletingRow?.description ?? deletePlan?.rows[0]?.description ?? installmentDeletePrompt.movement?.title ?? installmentDeletePrompt.plan?.description}</strong>
-              {installmentDeletePrompt.movement && installmentDeletePrompt.movement.installmentCount ? (
-                <span> · Cuota {installmentDeletePrompt.movement.installmentNumber ?? 1} de {installmentDeletePrompt.movement.installmentCount}</span>
-              ) : (
-                <span> · Plan de {installmentDeletePrompt.plan?.installmentCount} cuotas</span>
-              )}
-            </p>
-          </div>
-
-          {!deletePlan && !deletePlanError && <p role="status">Cargando cuotas…</p>}
-          {deletePlan && <p>{deletePlan.rows.length} cuotas activas · {formatMoney(deletePlan.rows.reduce((sum, row) => sum + row.amount_ars, 0), deletePlan.rows[0]?.currency ?? activeCurrency)}</p>}
-          {deletePlanError && <p role="alert">{deletePlanError}</p>}
-          <div className="delete-options-list">
-            {installmentDeletePrompt.movement && (
-              <button
-                type="button"
-                className="delete-option-btn"
-                onMouseDown={(e) => e.preventDefault()}
-                disabled={isDeletingPlan || !deletingRow}
-                onClick={() => void deleteInstallments(false, installmentDeletePrompt.movement!.id)}
-              >
-                <div>
-                  <strong>Eliminar solo esta cuota</strong>
-                  <small>Borra únicamente el pago de este mes ({formatMoney(deletingRow?.amount_ars ?? installmentDeletePrompt.movement.amount, deletingRow?.currency ?? installmentDeletePrompt.movement.currency ?? activeCurrency)})</small>
-                </div>
-                <span>›</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              className="delete-option-btn danger"
-              onMouseDown={(e) => e.preventDefault()}
-              disabled={isDeletingPlan || !deletePlan?.rows.length}
-              onClick={() => void deleteInstallments(true)}
-            >
-              <div>
-                <strong>Eliminar todo el plan de cuotas</strong>
-                <small>Elimina las cuotas activas de esta compra</small>
-              </div>
-              <span>›</span>
-            </button>
-          </div>
-
-          <div style={{ marginTop: '10px' }}>
+        ) : (
+          <div className="modal-actions-grid-2">
             <button
               type="button"
               className="modal-btn-cancel"
-              style={{ width: '100%' }}
+              disabled={isSavingBudget}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { if (!deleteBusy.current) setInstallmentDeletePrompt(null); }}
+              onClick={() => { if (!isSavingBudget) { setShowBudgetModal(false); setBudgetError(''); } }}
             >
               Cancelar
             </button>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {showBudgetModal && (
-      <div className="modal-backdrop" role="presentation" onClick={() => setShowBudgetModal(false)}>
-        <form className="movement-form" onSubmit={saveBudget} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-            <div>
-              <p className="eyebrow">PRESUPUESTO MENSUAL</p>
-              <h2>{budget > 0 ? 'Modificar presupuesto' : 'Definir presupuesto'} de {labelForMonth(month)}</h2>
-              <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
-                {budget > 0 ? 'Actualizá o eliminá tu límite de gastos para este mes.' : 'Definí tu límite de gastos para este mes.'}
-              </p>
-            </div>
             <button
-              type="button"
-              className="modal-close-x"
-              aria-label="Cerrar modal"
+              className="modal-btn-save"
+              type="submit"
+              disabled={isSavingBudget || parseAmountNumber(budgetInput) <= 0}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setShowBudgetModal(false)}
             >
-              <Icon name="close" />
+              {isSavingBudget ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
-
-          <label>
-            Monto límite mensual (ARS)
-            <input
-              name="budgetAmount"
-              type="text"
-              inputMode="decimal"
-              required
-              autoFocus
-              placeholder="Ej. 150.000"
-              value={budgetInput}
-              onChange={(e) => setBudgetInput(formatAmountInput(e.target.value))}
-            />
-          </label>
-
-          {parseAmountNumber(budgetInput) > 0 && (
-            <div className="installment-calc-preview" style={{ height: 'auto', padding: '10px 14px', gap: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--muted)' }}>
-                <span>Gastado en {labelForMonth(month)}:</span>
-                <strong style={{ color: 'var(--ink)' }}>{formatMoney(expenses, 'ARS')}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 700, marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #dce8e1' }}>
-                <span>Disponible con este límite:</span>
-                <strong style={{ color: parseAmountNumber(budgetInput) - expenses >= 0 ? 'var(--mint-dark)' : '#d32f2f' }}>
-                  {formatMoney(parseAmountNumber(budgetInput) - expenses, 'ARS')}
-                </strong>
-              </div>
-            </div>
-          )}
-
-          {budget > 0 ? (
-            <div className="modal-actions-grid-3">
-              <button
-                type="button"
-                className="modal-btn-delete"
-                disabled={isSavingBudget}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  setShowBudgetModal(false);
-                  setShowDeleteBudgetConfirm(true);
-                }}
-                aria-label="Eliminar presupuesto"
-              >
-                Eliminar
-              </button>
-              <button
-                type="button"
-                className="modal-btn-cancel"
-                disabled={isSavingBudget}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setShowBudgetModal(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                className="modal-btn-save"
-                type="submit"
-                disabled={isSavingBudget || parseAmountNumber(budgetInput) <= 0}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                {isSavingBudget ? 'Guardando…' : 'Guardar'}
-              </button>
-            </div>
-          ) : (
-            <div className="modal-actions-grid-2">
-              <button
-                type="button"
-                className="modal-btn-cancel"
-                disabled={isSavingBudget}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setShowBudgetModal(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                className="modal-btn-save"
-                type="submit"
-                disabled={isSavingBudget || parseAmountNumber(budgetInput) <= 0}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                {isSavingBudget ? 'Guardando…' : 'Guardar'}
-              </button>
-            </div>
-          )}
-        </form>
-      </div>
+        )}
+      </ModalDialog>
     )}
 
     {showDeleteBudgetConfirm && (
-      <div
-        className="modal-backdrop"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="delete-budget-title"
-        onClick={() => {
-          setShowDeleteBudgetConfirm(false);
-          setShowBudgetModal(true);
+      <ModalDialog
+        open={showDeleteBudgetConfirm}
+        busy={isSavingBudget}
+        onClose={() => {
+          if (!isSavingBudget) {
+            setBudgetError('');
+            setShowDeleteBudgetConfirm(false);
+            setShowBudgetModal(true);
+          }
         }}
+        titleId="delete-budget-title"
+        descriptionId="delete-budget-desc"
+        className="movement-form"
+        style={{ maxWidth: '380px', textAlign: 'center', padding: '26px 20px', gap: '16px' }}
+        initialFocusSelector=".modal-btn-cancel"
       >
-        <div
-          className="movement-form"
-          style={{ maxWidth: '380px', textAlign: 'center', padding: '26px 20px', gap: '16px' }}
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <div className="dialog-symbol"><Icon name="trash" size={32} /></div>
-          <div>
-            <p className="eyebrow" style={{ color: '#ea7172', marginBottom: '4px' }}>ELIMINAR PRESUPUESTO</p>
-            <h2 id="delete-budget-title" style={{ margin: 0, fontSize: '19px', fontWeight: 800 }}>
-              ¿Eliminar presupuesto de {labelForMonth(month)}?
-            </h2>
-            <p style={{ margin: '8px 0 0', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.45 }}>
-              Se borrará el límite de <strong>{formatMoney(budget, 'ARS')}</strong> fijado para este mes. El seguimiento de gastos continuará disponible sin límite.
-            </p>
-          </div>
-          <div className="modal-actions-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
-            <button
-              type="button"
-              className="modal-btn-cancel"
-              disabled={isSavingBudget}
-              style={{
-    cursor: 'pointer'
-}}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setShowDeleteBudgetConfirm(false);
-                setShowBudgetModal(true);
-              }}
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              className="modal-btn-delete"
-              disabled={isSavingBudget}
-              style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer'
-}}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => void executeDeleteBudget()}
-            >
-              {isSavingBudget ? 'Eliminando…' : 'Eliminar'}
-            </button>
-          </div>
+        <div className="dialog-symbol"><Icon name="trash" size={32} /></div>
+        <div>
+          <p className="eyebrow" style={{ color: '#ea7172', marginBottom: '4px' }}>ELIMINAR PRESUPUESTO</p>
+          <h2 id="delete-budget-title" style={{ margin: 0, fontSize: '19px', fontWeight: 800 }}>
+            ¿Eliminar presupuesto de {labelForMonth(month)}?
+          </h2>
+          <p id="delete-budget-desc" style={{ margin: '8px 0 0', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.45 }}>
+            Se borrará el límite de <strong>{formatMoney(budget, 'ARS')}</strong> fijado para este mes. El seguimiento de gastos continuará disponible sin límite.
+          </p>
         </div>
-      </div>
+        {budgetError && <p role="alert" className="movement-form-alert">{budgetError}</p>}
+        <div className="modal-actions-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+          <button
+            type="button"
+            className="modal-btn-cancel"
+            disabled={isSavingBudget}
+            style={{
+  cursor: 'pointer'
+}}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setBudgetError('');
+              setShowDeleteBudgetConfirm(false);
+              setShowBudgetModal(true);
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="modal-btn-delete"
+            disabled={isSavingBudget}
+            style={{
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer'
+}}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => void executeDeleteBudget()}
+          >
+            {isSavingBudget ? 'Eliminando…' : 'Eliminar'}
+          </button>
+        </div>
+      </ModalDialog>
     )}
 
     {showCategoryModal && financialReady && (
-      <div className="modal-backdrop" role="presentation" onClick={() => setShowCategoryModal(false)}>
-        <div className="movement-form category-modal-container" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
-          <div className="category-modal-header">
-            <div>
-              <p className="eyebrow">DISTRIBUCIÓN DE GASTOS</p>
-              <h2>Gastos por categoría</h2>
-              <p className="category-modal-subtitle">
-                {labelForMonth(month)} · Total: <strong>{formatMoney(expenses, activeCurrency)}</strong>
-              </p>
-            </div>
-            <button
-              type="button"
-              className="modal-close-x"
-              aria-label="Cerrar modal"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setShowCategoryModal(false)}
-            >
-              <Icon name="close" />
-            </button>
+      <ModalDialog
+        open={Boolean(showCategoryModal && financialReady)}
+        onClose={() => setShowCategoryModal(false)}
+        titleId="category-dialog-title"
+        descriptionId="category-dialog-desc"
+        className="movement-form category-modal-container"
+      >
+        <div className="category-modal-header">
+          <div>
+            <p className="eyebrow">DISTRIBUCIÓN DE GASTOS</p>
+            <h2 id="category-dialog-title">Gastos por categoría</h2>
+            <p id="category-dialog-desc" className="category-modal-subtitle">
+              {labelForMonth(month)} · Total: <strong>{formatMoney(expenses, activeCurrency)}</strong>
+            </p>
           </div>
+          <button
+            type="button"
+            className="modal-close-x"
+            aria-label="Cerrar modal"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowCategoryModal(false)}
+          >
+            <Icon name="close" />
+          </button>
+        </div>
 
           <div className="category-modal-chart-box">
             <div className="donut-chart category-modal-donut" aria-hidden="true">
@@ -2411,8 +2482,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               Cerrar
             </button>
           </div>
-        </div>
-      </div>
+      </ModalDialog>
     )}
 
     <InstallAppModal

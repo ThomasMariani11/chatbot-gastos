@@ -588,7 +588,7 @@
   font-family: inherit !important;
   color: #1f2e29 !important;
   background: #f8fafc !important;
-  outline: none !important;
+  outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
 }
 
@@ -596,6 +596,11 @@
   border-color: var(--mint) !important;
   box-shadow: 0 0 0 3px rgba(32, 185, 132, 0.15) !important;
   background: #fff !important;
+}
+
+.settings-input:focus-visible {
+  outline: 3px solid var(--mint-dark) !important;
+  outline-offset: 2px !important;
 }
 
 .settings-label {

@@ -1,4 +1,6 @@
 import { Icon } from './Icons';
+import { ModalDialog } from './ModalDialog';
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -9,106 +11,108 @@ export function InstallAppModal({ isOpen, onClose, isIos }: Props) {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 9999 }}>
-      <div
-        className="modal-content"
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-        style={{
-          maxWidth: '440px',
-          width: '90%',
-          padding: '24px',
-          borderRadius: '16px',
-          background: '#ffffff',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
-          textAlign: 'center',
-          cursor: 'default',
-        }}
-      >
-        <div className="dialog-symbol"><Icon name="smartphone" size={32} /></div>
-        <h2 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 8px', color: '#0f172a' }}>
-          Instalar Pesito en tu celular
-        </h2>
-        <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 20px', lineHeight: 1.5 }}>
-          Tené la app en tu pantalla de inicio para entrar más rápido y sin abrir el navegador.
-        </p>
+    <ModalDialog
+      open={isOpen}
+      onClose={onClose}
+      titleId="install-app-dialog-title"
+      descriptionId="install-app-dialog-desc"
+      backdropClassName="modal-backdrop"
+      backdropStyle={{ zIndex: 9999 }}
+      className="modal-content"
+      style={{
+        maxWidth: '440px',
+        width: '90%',
+        padding: '24px',
+        borderRadius: '16px',
+        background: '#ffffff',
+        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+        textAlign: 'center',
+        cursor: 'default',
+      }}
+    >
+      <div className="dialog-symbol"><Icon name="smartphone" size={32} /></div>
+      <h2 id="install-app-dialog-title" style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 8px', color: '#0f172a' }}>
+        Instalar Pesito en tu celular
+      </h2>
+      <p id="install-app-dialog-desc" style={{ fontSize: '14px', color: '#64748b', margin: '0 0 20px', lineHeight: 1.5 }}>
+        Tené la app en tu pantalla de inicio para entrar más rápido y sin abrir el navegador.
+      </p>
 
-        {isIos ? (
-          <div
-            style={{
-              textAlign: 'left',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              padding: '16px',
-              fontSize: '14px',
-              color: '#334155',
-              lineHeight: 1.6,
-            }}
-          >
-            <p style={{ margin: '0 0 12px', fontWeight: 700, color: '#0f172a' }}>
-              En iPhone / iPad (Safari):
-            </p>
-            <ol style={{ margin: 0, paddingLeft: '20px' }}>
-              <li style={{ marginBottom: '8px' }}>
-                Tocá el botón <strong>Compartir</strong> en la barra inferior de Safari{' '}
-                <span style={{ fontSize: '16px', display: 'inline-block', verticalAlign: 'middle' }}>
-                  <Icon name="share" size={18} />
-                </span>.
-              </li>
-              <li style={{ marginBottom: '8px' }}>
-                Deslizá hacia abajo y seleccioná{' '}
-                <strong>"Agregar a pantalla de inicio"</strong>{' '}
-                <Icon name="plus" size={18} />.
-              </li>
-              <li>
-                Tocá <strong>"Agregar"</strong> arriba a la derecha. ¡Listo!
-              </li>
-            </ol>
-          </div>
-        ) : (
-          <div
-            style={{
-              textAlign: 'left',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              padding: '16px',
-              fontSize: '14px',
-              color: '#334155',
-              lineHeight: 1.6,
-            }}
-          >
-            <p style={{ margin: '0 0 12px', fontWeight: 700, color: '#0f172a' }}>
-              En Android o Chrome:
-            </p>
-            <ol style={{ margin: 0, paddingLeft: '20px' }}>
-              <li style={{ marginBottom: '8px' }}>
-                Tocá los <strong>tres puntos ⋮</strong> arriba a la derecha en el navegador.
-              </li>
-              <li style={{ marginBottom: '8px' }}>
-                Seleccioná <strong>"Instalar aplicación"</strong> o{' '}
-                <strong>"Agregar a la pantalla principal"</strong>.
-              </li>
-              <li>Confirmá tocando <strong>"Instalar"</strong>.</li>
-            </ol>
-          </div>
-        )}
-
-        <div style={{ marginTop: '20px' }}>
-          <button
-            type="button"
-            className="primary-button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={onClose}
-            style={{
-    width: '100%'
-}}
-          >
-            Entendido
-          </button>
+      {isIos ? (
+        <div
+          style={{
+            textAlign: 'left',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '16px',
+            fontSize: '14px',
+            color: '#334155',
+            lineHeight: 1.6,
+          }}
+        >
+          <p style={{ margin: '0 0 12px', fontWeight: 700, color: '#0f172a' }}>
+            En iPhone / iPad (Safari):
+          </p>
+          <ol style={{ margin: 0, paddingLeft: '20px' }}>
+            <li style={{ marginBottom: '8px' }}>
+              Tocá el botón <strong>Compartir</strong> en la barra inferior de Safari{' '}
+              <span style={{ fontSize: '16px', display: 'inline-block', verticalAlign: 'middle' }}>
+                <Icon name="share" size={18} />
+              </span>.
+            </li>
+            <li style={{ marginBottom: '8px' }}>
+              Deslizá hacia abajo y seleccioná{' '}
+              <strong>"Agregar a pantalla de inicio"</strong>{' '}
+              <Icon name="plus" size={18} />.
+            </li>
+            <li>
+              Tocá <strong>"Agregar"</strong> arriba a la derecha. ¡Listo!
+            </li>
+          </ol>
         </div>
+      ) : (
+        <div
+          style={{
+            textAlign: 'left',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '16px',
+            fontSize: '14px',
+            color: '#334155',
+            lineHeight: 1.6,
+          }}
+        >
+          <p style={{ margin: '0 0 12px', fontWeight: 700, color: '#0f172a' }}>
+            En Android o Chrome:
+          </p>
+          <ol style={{ margin: 0, paddingLeft: '20px' }}>
+            <li style={{ marginBottom: '8px' }}>
+              Tocá los <strong>tres puntos ⋮</strong> arriba a la derecha en el navegador.
+            </li>
+            <li style={{ marginBottom: '8px' }}>
+              Seleccioná <strong>"Instalar aplicación"</strong> o{' '}
+              <strong>"Agregar a la pantalla principal"</strong>.
+            </li>
+            <li>Confirmá tocando <strong>"Instalar"</strong>.</li>
+          </ol>
+        </div>
+      )}
+
+      <div style={{ marginTop: '20px' }}>
+        <button
+          type="button"
+          className="primary-button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onClose}
+          style={{
+            width: '100%',
+          }}
+        >
+          Entendido
+        </button>
       </div>
-    </div>
+    </ModalDialog>
   );
 }

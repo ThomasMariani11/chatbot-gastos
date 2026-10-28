@@ -1,4 +1,5 @@
 import { Icon } from './Icons';
+import { ModalDialog } from './ModalDialog';
 import { useUpdateBlocker } from './PwaUpdates';
 import { BotOperations } from './BotOperations';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
@@ -176,52 +177,10 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     trackDrag: false,
   });
 
-  const modalRef = useRef<HTMLDivElement>(null);
   const modalOpen = Boolean(extendingClient || suspendingClient || confirmingBotPause);
   const modalBusy = isSubmittingExtend || isSubmittingSuspend || togglingBot;
 
   useUpdateBlocker(modalOpen || modalBusy || showCodeForm || isGenerating || savingBotPhone || savingSupportConfig || activeTab === 'settings', "Terminá o cerrá el formulario de administración para actualizar.");
-
-  useEffect(() => {
-    if (!modalOpen) return;
-    const modal = modalRef.current;
-    const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    modal?.focus();
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !modalBusy) {
-        setExtendingClient(null);
-        setSuspendingClient(null);
-        setConfirmingBotPause(false);
-      }
-      if (event.key !== 'Tab' || !modal) return;
-      const controls = Array.from(
-        modal.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]',
-        ),
-      ).filter((el) => el.getClientRects().length > 0);
-      const first = controls[0];
-      const last = controls[controls.length - 1];
-      if (!first) {
-        event.preventDefault();
-        return;
-      }
-      if (event.shiftKey && (document.activeElement === first || document.activeElement === modal)) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === modal)) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', handleKey);
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
-    };
-  }, [modalOpen, modalBusy]);
 
   async function loadData() {
     setLoading(true);
@@ -668,11 +627,12 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
           </section>
           <section className="admin-workspace-card" aria-label="Listado de clientes">
             <div className="admin-search-row">
-              <label className="admin-search-label">
+              <label htmlFor="admin-client-search" className="admin-search-label">
                 <span className="admin-visually-hidden">Buscar cliente</span>
                 <span className="admin-search-box">
                   <Icon name="search" size={18} className="admin-search-icon" />
                   <input
+                    id="admin-client-search"
                     type="search"
                     className="search-input"
                     placeholder="Buscar nombre, email o WhatsApp"
@@ -835,9 +795,10 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
             <div id="admin-new-invitation" className="admin-invite-form">
               <form onSubmit={handleCreateCode}>
                 <div className="form-grid">
-                  <label>
+                  <label htmlFor="admin-invite-duration">
                     Duración
                     <select
+                      id="admin-invite-duration"
                       value={durationDays}
                       onChange={(e) =>
                         setDurationDays(e.target.value === 'lifetime' ? 'lifetime' : Number(e.target.value))
@@ -850,11 +811,12 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                       <option value="lifetime">Sin vencimiento</option>
                     </select>
                   </label>
-                  <label>
+                  <label htmlFor="admin-invite-note">
                     <span>
                       Nota interna <span className="admin-muted">(opcional)</span>
                     </span>
                     <input
+                      id="admin-invite-note"
                       type="text"
                       placeholder="Nombre o referencia del pago"
                       value={clientNote}
@@ -1066,17 +1028,19 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               </span>
             </summary>
             <form onSubmit={handleSaveBotPhone} className="generator-form">
-              <label>
+              <label htmlFor="admin-bot-phone">
                 Número del bot
                 <input
+                  id="admin-bot-phone"
                   type="tel"
                   inputMode="tel"
+                  aria-describedby="admin-bot-phone-hint"
                   placeholder="Ej. 15551234567"
                   value={botPhone}
                   onChange={(e) => setBotPhone(e.target.value)}
                 />
               </label>
-              <p className="admin-field-hint">Incluí el código de país.</p>
+              <p id="admin-bot-phone-hint" className="admin-field-hint">Incluí el código de país.</p>
               <div className="admin-form-actions">
                 <button
                   className="primary-button admin-compact-primary"
@@ -1113,9 +1077,10 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
             </summary>
             <form onSubmit={handleSaveSupportConfig} className="generator-form">
               <div className="form-grid">
-                <label>
+                <label htmlFor="admin-support-phone">
                   WhatsApp de soporte
                   <input
+                    id="admin-support-phone"
                     type="tel"
                     inputMode="tel"
                     placeholder="Con código de país"
@@ -1123,11 +1088,12 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                     onChange={(e) => setSupportPhone(e.target.value)}
                   />
                 </label>
-                <label>
+                <label htmlFor="admin-payment-alias">
                   <span>
                     Alias o CBU <span className="admin-muted">(opcional)</span>
                   </span>
                   <input
+                    id="admin-payment-alias"
                     type="text"
                     placeholder="Alias para transferencias"
                     value={paymentAlias}
@@ -1166,284 +1132,273 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
 
       {/* MODAL: CONFIRMAR PAUSAR BOT */}
       {confirmingBotPause && (
-        <div
-          className="admin-modal-backdrop"
-          onClick={() => !togglingBot && setConfirmingBotPause(false)}
+        <ModalDialog
+          open={confirmingBotPause}
+          busy={togglingBot}
+          onClose={() => setConfirmingBotPause(false)}
+          titleId="admin-pause-bot-title"
+          descriptionId="admin-pause-bot-desc"
+          backdropClassName="admin-modal-backdrop"
+          className="admin-modal-card"
+          initialFocusSelector=".admin-btn-cancel"
         >
-          <div
-            className="admin-modal-card"
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="admin-pause-bot-title"
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="admin-modal-header">
-              <div>
-                <h3 id="admin-pause-bot-title">Pausar respuestas del bot</h3>
-                <p>Corte general para todos los clientes</p>
-              </div>
-              <button
-                type="button"
-                className="admin-modal-close"
-                aria-label="Cerrar"
-                disabled={togglingBot}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setConfirmingBotPause(false)}
-              >
-                <Icon name="close" />
-              </button>
+          <div className="admin-modal-header">
+            <div>
+              <h3 id="admin-pause-bot-title">Pausar respuestas del bot</h3>
+              <p>Corte general para todos los clientes</p>
             </div>
-
-            <div className="admin-date-preview-card danger">
-              <span className="preview-label">Efecto de la pausa</span>
-              <p style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.5, color: '#334155' }}>
-                Mientras el bot esté en pausa, ningún cliente recibirá respuestas automáticas por WhatsApp. Podés reanudarlo en cualquier momento.
-              </p>
-            </div>
-
-            <div className="admin-modal-actions">
-              <button
-                type="button"
-                className="admin-btn-cancel"
-                disabled={togglingBot}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setConfirmingBotPause(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="danger-button"
-                disabled={togglingBot}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => void handleToggleBotActive()}
-              >
-                {togglingBot ? 'Guardando…' : 'Pausar bot'}
-              </button>
-            </div>
+            <button
+              type="button"
+              className="admin-modal-close"
+              aria-label="Cerrar"
+              disabled={togglingBot}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setConfirmingBotPause(false)}
+            >
+              <Icon name="close" />
+            </button>
           </div>
-        </div>
+
+          <div className="admin-date-preview-card danger">
+            <span className="preview-label">Efecto de la pausa</span>
+            <p id="admin-pause-bot-desc" style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.5, color: '#334155' }}>
+              Mientras el bot esté en pausa, ningún cliente recibirá respuestas automáticas por WhatsApp. Podés reanudarlo en cualquier momento.
+            </p>
+          </div>
+
+          <div className="admin-modal-actions">
+            <button
+              type="button"
+              className="admin-btn-cancel"
+              disabled={togglingBot}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setConfirmingBotPause(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="danger-button"
+              disabled={togglingBot}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void handleToggleBotActive()}
+            >
+              {togglingBot ? 'Guardando…' : 'Pausar bot'}
+            </button>
+          </div>
+        </ModalDialog>
       )}
 
       {/* MODAL: EXTENDER DÍAS DE SUSCRIPCIÓN */}
       {extendingClient && (
-        <div className="admin-modal-backdrop" onClick={() => !isSubmittingExtend && setExtendingClient(null)}>
-          <div
-            className="admin-modal-card"
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="admin-membership-title"
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="admin-modal-header">
-              <div>
-                <h3 id="admin-membership-title">Extender membresía</h3>
-                <p>
-                  <strong>
-                    {[extendingClient.first_name, extendingClient.last_name].filter(Boolean).join(' ')
-                      ? [extendingClient.first_name, extendingClient.last_name].filter(Boolean).join(' ')
-                      : extendingClient.email}
-                  </strong>
-                </p>
-              </div>
-              <button
-                type="button"
-                className="admin-modal-close"
-                aria-label="Cerrar"
-                disabled={isSubmittingExtend}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setExtendingClient(null)}
-              >
-                <Icon name="close" />
-              </button>
-            </div>
-
+        <ModalDialog
+          open={Boolean(extendingClient)}
+          busy={isSubmittingExtend}
+          onClose={() => setExtendingClient(null)}
+          titleId="admin-membership-title"
+          backdropClassName="admin-modal-backdrop"
+          className="admin-modal-card"
+        >
+          <div className="admin-modal-header">
             <div>
-              <span
-                style={{
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: '#475569',
-                  display: 'block',
-                  marginBottom: '8px',
-                }}
-              >
-                Elegí cuánto tiempo querés sumar:
-              </span>
-              <div className="admin-days-grid">
-                {[
-                  { value: 15, label: '+15 días', desc: 'Quincena' },
-                  { value: 30, label: '+30 días', desc: '1 Mes' },
-                  { value: 60, label: '+60 días', desc: '2 Meses' },
-                  { value: 90, label: '+90 días', desc: '3 Meses (Trimestre)' },
-                  { value: 180, label: '+180 días', desc: '6 Meses (Semestre)' },
-                  { value: 365, label: '+365 días', desc: '1 Año' },
-                  { value: 'lifetime', label: 'Sin vencimiento', desc: 'Acceso permanente' },
-                  { value: 'custom', label: 'Otra duración', desc: 'Elegir días' },
-                ].map((opt) => (
-                  <button
-                    key={String(opt.value)}
-                    type="button"
-                    className={`admin-day-chip ${selectedDaysOption === opt.value ? 'active' : ''}`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    disabled={isSubmittingExtend || Boolean(pendingRenewal) || Boolean(renewalStorageIssue)}
-                    onClick={() => setSelectedDaysOption(opt.value as number | 'lifetime' | 'custom')}
-                  >
-                    <span>{opt.label}</span>
-                    <small>{opt.desc}</small>
-                  </button>
-                ))}
-              </div>
+              <h3 id="admin-membership-title">Extender membresía</h3>
+              <p>
+                <strong>
+                  {[extendingClient.first_name, extendingClient.last_name].filter(Boolean).join(' ')
+                    ? [extendingClient.first_name, extendingClient.last_name].filter(Boolean).join(' ')
+                    : extendingClient.email}
+                </strong>
+              </p>
+            </div>
+            <button
+              type="button"
+              className="admin-modal-close"
+              aria-label="Cerrar"
+              disabled={isSubmittingExtend}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setExtendingClient(null)}
+            >
+              <Icon name="close" />
+            </button>
+          </div>
 
-              {selectedDaysOption === 'custom' && (
-                <div className="admin-custom-days-row">
-                  <label>
-                    Cantidad exacta de días:
-                    <input
-                      type="number"
-                      min={1}
-                      max={3650}
-                      disabled={isSubmittingExtend || Boolean(pendingRenewal) || Boolean(renewalStorageIssue)}
-                      className="admin-custom-days-input"
-                      value={customDays}
-                      onChange={(e) => setCustomDays(Number(e.target.value))}
-                    />
-                    <span>días</span>
-                  </label>
-                </div>
-              )}
+          <div>
+            <span
+              id="admin-extend-days-group-label"
+              style={{
+                fontSize: '13px',
+                fontWeight: 700,
+                color: '#475569',
+                display: 'block',
+                marginBottom: '8px',
+              }}
+            >
+              Elegí cuánto tiempo querés sumar:
+            </span>
+            <div className="admin-days-grid" role="group" aria-labelledby="admin-extend-days-group-label">
+              {[
+                { value: 15, label: '+15 días', desc: 'Quincena' },
+                { value: 30, label: '+30 días', desc: '1 Mes' },
+                { value: 60, label: '+60 días', desc: '2 Meses' },
+                { value: 90, label: '+90 días', desc: '3 Meses (Trimestre)' },
+                { value: 180, label: '+180 días', desc: '6 Meses (Semestre)' },
+                { value: 365, label: '+365 días', desc: '1 Año' },
+                { value: 'lifetime', label: 'Sin vencimiento', desc: 'Acceso permanente' },
+                { value: 'custom', label: 'Otra duración', desc: 'Elegir días' },
+              ].map((opt) => (
+                <button
+                  key={String(opt.value)}
+                  type="button"
+                  aria-pressed={selectedDaysOption === opt.value}
+                  className={`admin-day-chip ${selectedDaysOption === opt.value ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  disabled={isSubmittingExtend || Boolean(pendingRenewal) || Boolean(renewalStorageIssue)}
+                  onClick={() => setSelectedDaysOption(opt.value as number | 'lifetime' | 'custom')}
+                >
+                  <span>{opt.label}</span>
+                  <small>{opt.desc}</small>
+                </button>
+              ))}
             </div>
 
-            {actionToast?.type==='error'&&<p role="alert">{actionToast.message}</p>}
-            {pendingRenewal&&<p role="status">Solicitud original: {pendingRenewal.action==='lifetime'?'sin vencimiento':pendingRenewal.days+' días'}. Comprobarla no vuelve a sumar días.</p>}
-            {renewalStorageIssue&&<p role="alert">{renewalStorageIssue}</p>}
-            {extendPreview && !pendingRenewal && (
-              <div className="admin-date-preview-card">
-                <span className="preview-label">Vencimiento estimado</span>
-                <strong className="preview-value">{extendPreview.text}</strong>
-                <small style={{ color: '#047857', fontSize: '13px', marginTop: '2px' }}>
-                  Vencimiento actual: {formatDate(extendingClient.subscription_until)}. El servidor confirma la fecha.
-                </small>
+            {selectedDaysOption === 'custom' && (
+              <div className="admin-custom-days-row">
+                <label htmlFor="admin-custom-days-input">
+                  Cantidad exacta de días:
+                  <input
+                    id="admin-custom-days-input"
+                    type="number"
+                    min={1}
+                    max={3650}
+                    disabled={isSubmittingExtend || Boolean(pendingRenewal) || Boolean(renewalStorageIssue)}
+                    className="admin-custom-days-input"
+                    value={customDays}
+                    onChange={(e) => setCustomDays(Number(e.target.value))}
+                  />
+                  <span>días</span>
+                </label>
               </div>
             )}
-
-            <div className="admin-modal-actions">
-              <button
-                type="button"
-                className="admin-btn-cancel"
-                disabled={isSubmittingExtend}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setExtendingClient(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="primary-button"
-                disabled={isSubmittingExtend || Boolean(renewalStorageIssue) || (!pendingRenewal && selectedDaysOption!=='lifetime' && (!Number.isInteger(selectedDaysOption==='custom'?customDays:selectedDaysOption) || (selectedDaysOption==='custom'?customDays:selectedDaysOption)<1 || (selectedDaysOption==='custom'?customDays:selectedDaysOption)>3650))}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => void handleConfirmExtendDays()}
-              >
-                {isSubmittingExtend ? 'Comprobando…' : pendingRenewal ? 'Comprobar renovación' : selectedDaysOption==='lifetime'?'Confirmar sin vencimiento':'Confirmar y sumar días'}
-              </button>
-            </div>
           </div>
-        </div>
+
+          {actionToast?.type==='error'&&<p role="alert">{actionToast.message}</p>}
+          {pendingRenewal&&<p role="status">Solicitud original: {pendingRenewal.action==='lifetime'?'sin vencimiento':pendingRenewal.days+' días'}. Comprobarla no vuelve a sumar días.</p>}
+          {renewalStorageIssue&&<p role="alert">{renewalStorageIssue}</p>}
+          {extendPreview && !pendingRenewal && (
+            <div className="admin-date-preview-card">
+              <span className="preview-label">Vencimiento estimado</span>
+              <strong className="preview-value">{extendPreview.text}</strong>
+              <small style={{ color: '#047857', fontSize: '13px', marginTop: '2px' }}>
+                Vencimiento actual: {formatDate(extendingClient.subscription_until)}. El servidor confirma la fecha.
+              </small>
+            </div>
+          )}
+
+          <div className="admin-modal-actions">
+            <button
+              type="button"
+              className="admin-btn-cancel"
+              disabled={isSubmittingExtend}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setExtendingClient(null)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              disabled={isSubmittingExtend || Boolean(renewalStorageIssue) || (!pendingRenewal && selectedDaysOption!=='lifetime' && (!Number.isInteger(selectedDaysOption==='custom'?customDays:selectedDaysOption) || (selectedDaysOption==='custom'?customDays:selectedDaysOption)<1 || (selectedDaysOption==='custom'?customDays:selectedDaysOption)>3650))}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void handleConfirmExtendDays()}
+            >
+              {isSubmittingExtend ? 'Comprobando…' : pendingRenewal ? 'Comprobar renovación' : selectedDaysOption==='lifetime'?'Confirmar sin vencimiento':'Confirmar y sumar días'}
+            </button>
+          </div>
+        </ModalDialog>
       )}
 
       {/* MODAL: PAUSAR / REACTIVAR CUENTA */}
       {suspendingClient && (
-        <div
-          className="admin-modal-backdrop"
-          onClick={() => !isSubmittingSuspend && setSuspendingClient(null)}
+        <ModalDialog
+          open={Boolean(suspendingClient)}
+          busy={isSubmittingSuspend}
+          onClose={() => setSuspendingClient(null)}
+          titleId="admin-access-title"
+          descriptionId="admin-access-effect-desc"
+          backdropClassName="admin-modal-backdrop"
+          className="admin-modal-card"
+          initialFocusSelector=".admin-btn-cancel"
         >
-          <div
-            className="admin-modal-card"
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="admin-access-title"
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="admin-modal-header">
-              <div>
-                <h3 id="admin-access-title">
-                  {suspendingClient.subscription_status === 'suspended'
-                    ? 'Reactivar cuenta'
-                    : 'Pausar cuenta'}
-                </h3>
-                <p>
-                  Cliente:{' '}
-                  <strong>
-                    {[suspendingClient.first_name, suspendingClient.last_name].filter(Boolean).join(' ')
-                      ? [suspendingClient.first_name, suspendingClient.last_name].filter(Boolean).join(' ')
-                      : suspendingClient.email}
-                  </strong>
-                </p>
-              </div>
-              <button
-                type="button"
-                className="admin-modal-close"
-                aria-label="Cerrar"
-                disabled={isSubmittingSuspend}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setSuspendingClient(null)}
-              >
-                <Icon name="close" />
-              </button>
-            </div>
-
-            <div
-              className={`admin-date-preview-card ${suspendingClient.subscription_status === 'suspended' ? '' : 'danger'}`}
-            >
-              <span className="preview-label">
+          <div className="admin-modal-header">
+            <div>
+              <h3 id="admin-access-title">
                 {suspendingClient.subscription_status === 'suspended'
-                  ? 'Efecto de la reactivación'
-                  : 'Efecto de la pausa'}
-              </span>
-              <p style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.5, color: '#334155' }}>
-                {suspendingClient.subscription_status === 'suspended'
-                  ? 'Se levantará la pausa. El acceso dependerá de la vigencia de su membresía.'
-                  : 'El cliente no podrá registrar movimientos mientras su cuenta esté pausada. Podés reactivarlo después.'}
+                  ? 'Reactivar cuenta'
+                  : 'Pausar cuenta'}
+              </h3>
+              <p>
+                Cliente:{' '}
+                <strong>
+                  {[suspendingClient.first_name, suspendingClient.last_name].filter(Boolean).join(' ')
+                    ? [suspendingClient.first_name, suspendingClient.last_name].filter(Boolean).join(' ')
+                    : suspendingClient.email}
+                </strong>
               </p>
             </div>
-
-            <div className="admin-modal-actions">
-              <button
-                type="button"
-                className="admin-btn-cancel"
-                disabled={isSubmittingSuspend}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setSuspendingClient(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className={
-                  suspendingClient.subscription_status === 'suspended' ? 'primary-button' : 'danger-button'
-                }
-                disabled={isSubmittingSuspend}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => void handleConfirmToggleSuspend()}
-              >
-                {isSubmittingSuspend
-                  ? 'Guardando…'
-                  : suspendingClient.subscription_status === 'suspended'
-                    ? 'Reactivar cuenta'
-                    : 'Pausar cuenta'}
-              </button>
-            </div>
+            <button
+              type="button"
+              className="admin-modal-close"
+              aria-label="Cerrar"
+              disabled={isSubmittingSuspend}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setSuspendingClient(null)}
+            >
+              <Icon name="close" />
+            </button>
           </div>
-        </div>
+
+          <div
+            className={`admin-date-preview-card ${suspendingClient.subscription_status === 'suspended' ? '' : 'danger'}`}
+          >
+            <span className="preview-label">
+              {suspendingClient.subscription_status === 'suspended'
+                ? 'Efecto de la reactivación'
+                : 'Efecto de la pausa'}
+            </span>
+            <p id="admin-access-effect-desc" style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.5, color: '#334155' }}>
+              {suspendingClient.subscription_status === 'suspended'
+                ? 'Se levantará la pausa. El acceso dependerá de la vigencia de su membresía.'
+                : 'El cliente no podrá registrar movimientos mientras su cuenta esté pausada. Podés reactivarlo después.'}
+            </p>
+          </div>
+
+          <div className="admin-modal-actions">
+            <button
+              type="button"
+              className="admin-btn-cancel"
+              disabled={isSubmittingSuspend}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setSuspendingClient(null)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className={
+                suspendingClient.subscription_status === 'suspended' ? 'primary-button' : 'danger-button'
+              }
+              disabled={isSubmittingSuspend}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void handleConfirmToggleSuspend()}
+            >
+              {isSubmittingSuspend
+                ? 'Guardando…'
+                : suspendingClient.subscription_status === 'suspended'
+                  ? 'Reactivar cuenta'
+                  : 'Pausar cuenta'}
+            </button>
+          </div>
+        </ModalDialog>
       )}
     </main>
   );
