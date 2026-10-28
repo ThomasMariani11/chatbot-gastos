@@ -29,7 +29,7 @@ Consulta agregada ejecutada el 28/10/2026, antes de publicar: 4 cuentas Auth; 0 
 - Componente real: éxito con/sin sesión, respuesta ofuscada de duplicado, error SQL/red, datos conservados, doble submit, preflight fallido y respuesta antigua; no imprime detalles internos ni anuncia activación sin evidencia.
 - PostgreSQL nativo preparado: dos sesiones compiten por una invitación; solo una cuenta completa gana. Fallo posterior al trigger revierte también el código; reintento posterior válido. Verificación de perfiles/roles existentes.
 - Supabase local preparado: /auth/v1/signup real con fallo de categorías y reintento del mismo código, rechazo de código consumido, duplicado y metadata de rol ignorada. Fixtures locales .invalid y claves del stack aislado, sin emails ni IA/WhatsApp reales. Conserva prueba financiera de release y rollback de runtime.
-- Docker no está disponible en esta PC. Concurrencia y Auth completo requieren los controles PostgreSQL/Ensayo de release de CI Linux; no se declaran aprobados antes de observarlos. Webhook no cambia; su suite completa sigue siendo obligatoria en CI.
+- Docker no está disponible en esta PC. Concurrencia y Auth completo se ejecutan en CI Linux. El ensayo Auth/instalación/rollback, Frontend y Webhook aprobaron en el candidato funcional 2e06952 ([run 40719759092](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40719759092)). El primer PostgreSQL pasó la carrera y el fallo/reintento, pero falló la expectativa final del fixture: había dos administradores ficticios previos y se esperaba uno. Se corrigió para comparar la lista exacta de administradores antes/después. El estado de los cuatro controles del último commit se registra en [PR #51](https://github.com/ThomasMariani11/chatbot-gastos/pull/51); no publicar sin todos aprobados.
 - Build: 873,01 kB / 250,40 kB gzip; advertencia de tamaño preexistente, fuera de este bloque.
 
 ## Recuperación y aceptación
@@ -42,4 +42,4 @@ Consulta agregada ejecutada el 28/10/2026, antes de publicar: 4 cuentas Auth; 0 
 
 ## Estado de publicación
 
-Pendientes: controles CI completos, revisión/autorización de publicación, aplicación 039 y verificación productiva. El alcance de administrador inicial queda expresamente excluido, no resuelto por extensión.
+[PR #51](https://github.com/ThomasMariani11/chatbot-gastos/pull/51) abierta y rama subida; revisar allí los controles del SHA vigente. Pendientes: revisión/autorización de publicación, aplicación 039 y verificación productiva; los cuatro controles completos son requisito de integración. El alcance de administrador inicial queda expresamente excluido, no resuelto por extensión.
