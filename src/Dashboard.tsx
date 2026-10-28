@@ -1530,8 +1530,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
               <Icon name="close" />
             </button>
           </div>
-          {entryMessage && <p role="alert">{entryMessage}</p>}
-          {entryStorageIssue && <p role="alert">{entryStorageIssue}</p>}
+          {entryStorageIssue && <p role="alert" className="movement-form-alert">{entryStorageIssue}</p>}
           {categoryStatus !== 'ready' && <p role="status">{categoryStatus === 'loading' ? 'Cargando categorías…' : 'No pudimos cargar las categorías.'}{categoryStatus === 'error' && <button type="button" className="text-button" onClick={refreshDashboard}>Reintentar</button>}</p>}
           {pendingEntry && <div className="dashboard-notice"><p>Conservamos los datos del envío. Comprobarlo no lo duplica. Si ya se guardó, cancelar solo comprobará su estado.</p><div className="modal-actions-grid-2"><button type="button" className="button-secondary" disabled={isAdding} onClick={() => void submitEntry(undefined,true)}>Cancelar envío</button><button type="button" className="modal-btn-save" disabled={isAdding} onClick={() => void submitEntry()}>{isAdding ? 'Comprobando…' : 'Comprobar envío'}</button></div></div>}
           <fieldset disabled={isAdding || Boolean(pendingEntry) || Boolean(entryStorageIssue)} className="movement-fields">
@@ -1669,6 +1668,8 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                     max={MAX_INSTALLMENT_COUNT}
                     step="1"
                     inputMode="numeric"
+                    aria-invalid={parseInstallmentCountInput(customCountInput) === null}
+                    className={parseInstallmentCountInput(customCountInput) === null ? 'input-invalid' : undefined}
                     value={customCountInput}
                     onChange={(e) => {
                       const valStr = e.target.value;
@@ -1677,6 +1678,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                       if (parsed !== null) {
                         setInstallmentCount(parsed);
                         if (currentInstallmentNumber > parsed) setCurrentInstallmentNumber(parsed);
+                        if (entryMessage === INSTALLMENT_BOUNDS_ERROR) setEntryMessage('');
                       }
                     }}
                     onBlur={() => {
@@ -1690,6 +1692,11 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                     placeholder="Ej. 7, 8, 14..."
                     autoFocus
                   />
+                  {parseInstallmentCountInput(customCountInput) === null && (
+                    <small className="movement-field-error" role="status">
+                      {INSTALLMENT_BOUNDS_ERROR}
+                    </small>
+                  )}
                 </label>
               )}
               <div className="installment-calc-preview">
@@ -1742,6 +1749,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             </label>
           </div>
           </fieldset>
+          {entryMessage && <p role="alert" className="movement-form-alert">{entryMessage}</p>}
           <div className="modal-actions-grid-2">
             <button
               type="button"
@@ -1783,7 +1791,6 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             </button>
           </div>
           {editingPlanId && !editPlan && !editPlanError && <p role="status">Cargando cuotas…</p>}
-          {editPlanError && <p role="alert">{editPlanError}</p>}
           <fieldset disabled={isSavingEdit || Boolean(editingPlanId && !editPlan)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: '14px' }}>
           {editingMovement.installmentCount && editingMovement.installmentCount > 1 && (
             <div className="installment-edit-box">
@@ -1839,13 +1846,17 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                     max={MAX_INSTALLMENT_COUNT}
                     step="1"
                     inputMode="numeric"
+                    aria-invalid={parseInstallmentCountInput(customEditCountInput) === null}
+                    className={parseInstallmentCountInput(customEditCountInput) === null ? 'input-invalid' : undefined}
                     value={customEditCountInput}
                     onChange={(e) => {
                       const valStr = e.target.value;
                       setCustomEditCountInput(valStr);
                       const parsed = parseInstallmentCountInput(valStr);
                       if (parsed !== null) {
-                        setEditInstallmentCount(parsed);                        if (editInstallmentNumber > parsed) setEditInstallmentNumber(parsed);
+                        setEditInstallmentCount(parsed);
+                        if (editInstallmentNumber > parsed) setEditInstallmentNumber(parsed);
+                        if (editPlanError === INSTALLMENT_BOUNDS_ERROR) setEditPlanError('');
                       }
                     }}
                     onBlur={() => {
@@ -1859,6 +1870,11 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
                     placeholder="Ej. 7, 8, 14..."
                     autoFocus
                   />
+                  {parseInstallmentCountInput(customEditCountInput) === null && (
+                    <small className="movement-field-error" role="status">
+                      {INSTALLMENT_BOUNDS_ERROR}
+                    </small>
+                  )}
                 </label>
               )}
               <div className="installment-cuota-preview-hint">
@@ -1967,6 +1983,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           )}
 
           </fieldset>
+          {editPlanError && <p role="alert" className="movement-form-alert">{editPlanError}</p>}
           <div className="modal-actions-grid-3">
             <button
               type="button"

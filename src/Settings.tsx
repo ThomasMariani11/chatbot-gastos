@@ -77,8 +77,12 @@ export function Settings({
   const { draft, state: profileDraft } = nameDraft;
   useUpdateBlocker(showRedeemForm || isRedeeming || showIosModal || showDesktopModal);
 
-  // Gesto táctil swipe back para volver deslizando la pantalla
-  const { dragOffset, isSwiping } = useSwipeBack({ onBack });
+  // Gesto táctil swipe back para volver sin desplazar el contenido
+  useSwipeBack({
+    onBack,
+    enabled: !showIosModal && !showDesktopModal,
+    trackDrag: false,
+  });
 
   function navigateToDashboardSection(sectionHash: '#resumen' | '#movimientos' | '#cuotas') {
     window.history.pushState({ view: 'dashboard' }, '', sectionHash);
@@ -232,18 +236,7 @@ export function Settings({
     : `https://wa.me/?text=${renewalText}`;
 
   return (
-    <main
-      className="settings-page"
-      style={
-        dragOffset > 0
-          ? {
-              transform: `translateX(${dragOffset}px)`,
-              transition: isSwiping ? 'none' : 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-              willChange: 'transform',
-            }
-          : undefined
-      }
-    >
+    <main className="settings-page">
       <button className="back-link button-link" type="button" onClick={onBack}>← Volver al resumen</button>
       <header>
         <p className="eyebrow">CONFIGURACIÓN</p>

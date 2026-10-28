@@ -169,10 +169,11 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
 
   const [actionToast, setActionToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Gesto táctil swipe back para volver deslizando la pantalla
-  const { dragOffset, isSwiping } = useSwipeBack({
+  // Gesto táctil swipe back para volver sin desplazar el contenido
+  useSwipeBack({
     onBack,
     enabled: !extendingClient && !suspendingClient && !confirmingBotPause,
+    trackDrag: false,
   });
 
   const modalRef = useRef<HTMLDivElement>(null);
@@ -572,18 +573,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
   }, [codes, codeFilter]);
 
   return (
-    <main
-      className="admin-page admin-workspace"
-      style={
-        dragOffset > 0
-          ? {
-              transform: `translateX(${dragOffset}px)`,
-              transition: isSwiping ? 'none' : 'transform 0.18s ease',
-              willChange: 'transform',
-            }
-          : undefined
-      }
-    >
+    <main className="admin-page admin-workspace">
       {(pendingRenewal||renewalStorageIssue)&&<div className="dashboard-notice" role="status"><p>{renewalStorageIssue||'Tenés una renovación pendiente de comprobar. Conservamos la solicitud para completarla una sola vez.'}</p>{pendingRenewal&&<button type="button" className="button-secondary" disabled={isSubmittingExtend||Boolean(renewalStorageIssue)} onClick={()=>void handleConfirmExtendDays(true)}>{isSubmittingExtend?'Comprobando…':'Comprobar renovación pendiente'}</button>}</div>}
       <header className="admin-header">
         <div className="admin-header-left">
