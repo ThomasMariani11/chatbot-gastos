@@ -301,3 +301,25 @@ body :is(input:not([type="checkbox"]):not([type="radio"]),summary) { min-height:
 /* Mantener la visibilidad original: el botón flotante de escritorio no se duplica en móvil. */
 @media (max-width: 900px) { body .desktop-add { display: none; } }
 @media (max-width: 560px) { body .icon-button { display: none; } }
+
+
+/* FE-18: Controles de paginación accesible en listados de movimientos y administración */
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 4px 4px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+.admin-pagination-info {
+  font-size: 13px;
+  color: var(--muted, #475569);
+}
+.admin-pagination-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

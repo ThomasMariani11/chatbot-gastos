@@ -117,6 +117,83 @@ function formatPhone(phone: string | null): string {
   return `+${phone}`;
 }
 
+export const ADMIN_PAGE_SIZE = 20;
+const ADMIN_FETCH_BATCH_SIZE = 500;
+
+async function fetchAllOrderedRows<T extends { id?: string }>(
+  table: 'profiles' | 'invitation_codes',
+): Promise<{ data: T[]; error: { message: string } | null }> {
+  const firstBuilder = supabase
+    .from(table)
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false });
+
+  if (typeof (firstBuilder as { range?: unknown }).range !== 'function') {
+    const res = await firstBuilder;
+    return {
+      data: (res.data ?? []) as T[],
+      error: res.error ? { message: String(res.error.message ?? res.error) } : null,
+    };
+  }
+
+  const collected: T[] = [];
+  let offset = 0;
+  for (let page = 0; page < 40; page++) {
+    const builder =
+      page === 0
+        ? firstBuilder
+        : supabase
+            .from(table)
+            .select('*', { count: 'exact' })
+            .order('created_at', { ascending: false });
+    const res = await builder.range(offset, offset + ADMIN_FETCH_BATCH_SIZE - 1);
+    if (res.error) {
+      return { data: [], error: { message: String(res.error.message ?? res.error) } };
+    }
+    const batch = (res.data ?? []) as T[];
+    collected.push(...batch);
+    const totalCount = typeof res.count === 'number' ? res.count : null;
+    if (
+      batch.length === 0 ||
+      (totalCount !== null && collected.length >= totalCount) ||
+      (totalCount === null && batch.length < ADMIN_FETCH_BATCH_SIZE)
+    ) {
+      break;
+    }
+    offset += batch.length;
+  }
+  return { data: collected, error: null };
+}
+
+async function readAdminSystemConfig(): Promise<Record<string, string>> {
+  const keys = ['whatsapp_bot_phone', 'bot_active', 'support_phone', 'payment_alias'] as const;
+  const selectBuilder = supabase.from('system_config').select('key, value');
+  if (typeof (selectBuilder as { in?: unknown }).in === 'function') {
+    const res = await selectBuilder.in('key', [...keys]);
+    const map: Record<string, string> = {};
+    if (!res.error && Array.isArray(res.data)) {
+      for (const row of res.data as Array<{ key?: string; value?: string }>) {
+        if (typeof row?.key === 'string' && typeof row?.value === 'string') {
+          map[row.key] = row.value;
+        }
+      }
+    }
+    return map;
+  }
+
+  const results = await Promise.all(
+    keys.map(async (key) => {
+      const res = await supabase.from('system_config').select('value').eq('key', key).maybeSingle();
+      return [key, typeof res.data?.value === 'string' ? res.data.value : undefined] as const;
+    }),
+  );
+  const map: Record<string, string> = {};
+  for (const [k, v] of results) {
+    if (v !== undefined) map[k] = v;
+  }
+  return map;
+}
+
 export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [profiles, setProfiles] = useState<ClientProfile[]>([]);
   const [codes, setCodes] = useState<InvitationCode[]>([]);
@@ -127,8 +204,10 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   // Tabs y Filtros
   const [activeTab, setActiveTab] = useState<'clients' | 'codes' | 'bot' | 'settings'>('clients');
   const [clientSearch, setClientSearch] = useState('');
+  const [clientPage, setClientPage] = useState(1);
   const [showCodeForm, setShowCodeForm] = useState(false);
   const [codeFilter, setCodeFilter] = useState<'all' | 'available' | 'used'>('all');
+  const [codePage, setCodePage] = useState(1);
 
   // Formulario Generador
   const [durationDays, setDurationDays] = useState<number | 'lifetime'>(30);
@@ -186,44 +265,40 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     setLoading(true);
     setErrorMsg(null);
 
-    const [profilesRes, codesRes, botPhoneRes, botActiveRes, supportPhoneRes, paymentAliasRes] =
-      await Promise.all([
-        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-        supabase.from('invitation_codes').select('*').order('created_at', { ascending: false }),
-        supabase.from('system_config').select('value').eq('key', 'whatsapp_bot_phone').maybeSingle(),
-        supabase.from('system_config').select('value').eq('key', 'bot_active').maybeSingle(),
-        supabase.from('system_config').select('value').eq('key', 'support_phone').maybeSingle(),
-        supabase.from('system_config').select('value').eq('key', 'payment_alias').maybeSingle(),
-      ]);
+    const [profilesRes, codesRes, configMap] = await Promise.all([
+      fetchAllOrderedRows<ClientProfile>('profiles'),
+      fetchAllOrderedRows<InvitationCode>('invitation_codes'),
+      readAdminSystemConfig(),
+    ]);
 
     if (profilesRes.error) {
       setErrorMsg('No se pudieron cargar los perfiles: ' + profilesRes.error.message);
     } else {
-      setProfiles((profilesRes.data ?? []) as ClientProfile[]);
+      setProfiles(profilesRes.data);
     }
 
     if (codesRes.error) {
       setErrorMsg(
-        (prev) => (prev ? prev + ' | ' : '') + 'No se pudieron cargar los códigos: ' + codesRes.error.message,
+        (prev) => (prev ? prev + ' | ' : '') + 'No se pudieron cargar los códigos: ' + (codesRes.error?.message ?? ''),
       );
     } else {
-      setCodes((codesRes.data ?? []) as InvitationCode[]);
+      setCodes(codesRes.data);
     }
 
-    if (botPhoneRes.data?.value) {
-      setBotPhone(botPhoneRes.data.value);
+    if (configMap.whatsapp_bot_phone) {
+      setBotPhone(configMap.whatsapp_bot_phone);
     }
 
-    if (supportPhoneRes.data?.value) {
-      setSupportPhone(supportPhoneRes.data.value);
+    if (configMap.support_phone) {
+      setSupportPhone(configMap.support_phone);
     }
 
-    if (paymentAliasRes.data?.value) {
-      setPaymentAlias(paymentAliasRes.data.value);
+    if (configMap.payment_alias) {
+      setPaymentAlias(configMap.payment_alias);
     }
 
-    if (botActiveRes.data?.value !== undefined) {
-      setBotActive(botActiveRes.data.value !== 'false');
+    if (configMap.bot_active !== undefined) {
+      setBotActive(configMap.bot_active !== 'false');
     }
 
     setLoading(false);
@@ -531,6 +606,28 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
     });
   }, [codes, codeFilter]);
 
+  useEffect(() => {
+    setClientPage(1);
+  }, [clientSearch]);
+
+  useEffect(() => {
+    setCodePage(1);
+  }, [codeFilter]);
+
+  const totalClientPages = Math.max(1, Math.ceil(filteredClients.length / ADMIN_PAGE_SIZE));
+  const safeClientPage = Math.min(clientPage, totalClientPages);
+  const paginatedClients = useMemo(() => {
+    const start = (safeClientPage - 1) * ADMIN_PAGE_SIZE;
+    return filteredClients.slice(start, start + ADMIN_PAGE_SIZE);
+  }, [filteredClients, safeClientPage]);
+
+  const totalCodePages = Math.max(1, Math.ceil(filteredCodes.length / ADMIN_PAGE_SIZE));
+  const safeCodePage = Math.min(codePage, totalCodePages);
+  const paginatedCodes = useMemo(() => {
+    const start = (safeCodePage - 1) * ADMIN_PAGE_SIZE;
+    return filteredCodes.slice(start, start + ADMIN_PAGE_SIZE);
+  }, [filteredCodes, safeCodePage]);
+
   return (
     <main className="admin-page admin-workspace">
       {(pendingRenewal||renewalStorageIssue)&&<div className="dashboard-notice" role="status"><p>{renewalStorageIssue||'Tenés una renovación pendiente de comprobar. Conservamos la solicitud para completarla una sola vez.'}</p>{pendingRenewal&&<button type="button" className="button-secondary" disabled={isSubmittingExtend||Boolean(renewalStorageIssue)} onClick={()=>void handleConfirmExtendDays(true)}>{isSubmittingExtend?'Comprobando…':'Comprobar renovación pendiente'}</button>}</div>}
@@ -682,7 +779,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredClients.map((client) => {
+                    {paginatedClients.map((client) => {
                       const isExpired =
                         client.subscription_status === 'expired' ||
                         !!(client.subscription_until && new Date(client.subscription_until) < now);
@@ -769,6 +866,37 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                     })}
                   </tbody>
                 </table>
+                {filteredClients.length > ADMIN_PAGE_SIZE && (
+                  <nav className="admin-pagination" aria-label="Paginación de clientes">
+                    <span className="admin-pagination-info">
+                      Mostrando{' '}
+                      <strong>
+                        {(safeClientPage - 1) * ADMIN_PAGE_SIZE + 1}–
+                        {Math.min(safeClientPage * ADMIN_PAGE_SIZE, filteredClients.length)}
+                      </strong>{' '}
+                      de <strong>{filteredClients.length}</strong> · Página <strong>{safeClientPage}</strong> de{' '}
+                      <strong>{totalClientPages}</strong>
+                    </span>
+                    <div className="admin-pagination-controls">
+                      <button
+                        type="button"
+                        className="action-btn small secondary"
+                        disabled={safeClientPage <= 1}
+                        onClick={() => setClientPage((p) => Math.max(1, p - 1))}
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        type="button"
+                        className="action-btn small secondary"
+                        disabled={safeClientPage >= totalClientPages}
+                        onClick={() => setClientPage((p) => Math.min(totalClientPages, p + 1))}
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </nav>
+                )}
               </div>
             )}
           </section>
@@ -908,7 +1036,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCodes.map((item) => (
+                  {paginatedCodes.map((item) => (
                     <tr key={item.id} className={item.is_used ? 'is-used-code' : ''}>
                       <td data-label="Código" className="admin-client-cell">
                         <strong className="code-token-sm">{item.code}</strong>
@@ -968,6 +1096,37 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                   ))}
                 </tbody>
               </table>
+              {filteredCodes.length > ADMIN_PAGE_SIZE && (
+                <nav className="admin-pagination" aria-label="Paginación de invitaciones">
+                  <span className="admin-pagination-info">
+                    Mostrando{' '}
+                    <strong>
+                      {(safeCodePage - 1) * ADMIN_PAGE_SIZE + 1}–
+                      {Math.min(safeCodePage * ADMIN_PAGE_SIZE, filteredCodes.length)}
+                    </strong>{' '}
+                    de <strong>{filteredCodes.length}</strong> · Página <strong>{safeCodePage}</strong> de{' '}
+                    <strong>{totalCodePages}</strong>
+                  </span>
+                  <div className="admin-pagination-controls">
+                    <button
+                      type="button"
+                      className="action-btn small secondary"
+                      disabled={safeCodePage <= 1}
+                      onClick={() => setCodePage((p) => Math.max(1, p - 1))}
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      type="button"
+                      className="action-btn small secondary"
+                      disabled={safeCodePage >= totalCodePages}
+                      onClick={() => setCodePage((p) => Math.min(totalCodePages, p + 1))}
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                </nav>
+              )}
             </div>
           )}
         </section>
