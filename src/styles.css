@@ -2969,3 +2969,32 @@ button:active:not(:disabled),
 .dashboard-notice p { margin: 0 0 10px; }
 .dashboard-notice p:last-child { margin-bottom: 0; }
 .dashboard-refresh-status { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+
+/* Validación visible de cuotas y alertas en modales (FE-10) */
+.movement-form-alert {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.movement-field-error {
+  display: block;
+  margin-top: 2px;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.movement-form input.input-invalid {
+  border-color: #dc2626 !important;
+  background: #fffafa;
+}
+.movement-form input.input-invalid:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.16) !important;
+}
