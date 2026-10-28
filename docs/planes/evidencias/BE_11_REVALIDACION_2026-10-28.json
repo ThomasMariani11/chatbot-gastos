@@ -1,0 +1,43 @@
+{
+  "schema": "through_037",
+  "isolated": true,
+  "productionTouched": false,
+  "cases": [
+    {
+      "command": "RESUMEN",
+      "parserKind": "summary",
+      "eligibleBehindWaiting": true
+    },
+    {
+      "command": "ver lista",
+      "parserKind": "summary",
+      "eligibleBehindWaiting": false
+    },
+    {
+      "command": "Quitá el 2",
+      "parserKind": "remove",
+      "eligibleBehindWaiting": true
+    },
+    {
+      "command": "sacame el 2",
+      "parserKind": "remove",
+      "eligibleBehindWaiting": false
+    },
+    {
+      "command": "CANCELAR",
+      "parserKind": "cancel",
+      "eligibleBehindWaiting": true
+    },
+    {
+      "command": "borralo",
+      "parserKind": "cancel",
+      "eligibleBehindWaiting": false
+    },
+    {
+      "command": "¡sí!",
+      "parserKind": "confirm",
+      "eligibleBehindWaiting": false
+    }
+  ],
+  "conclusion": "Some valid local command aliases cannot pass the queue waiting filter. Requires BE-11 correction; no change implemented."
+}

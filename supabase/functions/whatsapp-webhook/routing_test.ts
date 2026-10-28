@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-console -- Captura de logs para verificar ausencia de datos privados.
+import { normalizeDraftMovements } from "./draft-normalization.ts";
 import {
   downloadWhatsAppMedia,
   formatDraftList,
@@ -3266,5 +3267,77 @@ Deno.test("BE-12: un checkpoint de edición antiguo pide repetir sin adivinar de
     result.kind === "reply" &&
       String(result.text).includes("repetí la corrección"),
     "Checkpoint sin versión modificó la lista",
+  );
+});
+
+for (const count of [21, 101]) {
+  Deno.test(
+    "BE-11: mensaje de " + count +
+      " movimientos responde límite sin IA ni alta parcial",
+    async () => {
+      const previous = globalThis.fetch;
+      let calls = 0, checkpoints = 0;
+      try {
+        globalThis.fetch = (() => {
+          calls++;
+          throw new Error("NO_AI_EXPECTED");
+        }) as typeof fetch;
+        const text = Array.from(
+          { length: count },
+          (_, n) => "Gasté " + (n + 1) + " en super",
+        ).join("; ");
+        const action = await prepareMessage(
+          database().db,
+          job(text),
+          () => {
+            checkpoints++;
+            return Promise.resolve();
+          },
+          undefined,
+          () => {
+            throw new Error("NO_QUOTA");
+          },
+        );
+        assert(
+          action.kind === "reply" &&
+            String(action.text).includes("Recibí " + count + " movimientos") &&
+            String(action.text).includes("No agregué ninguno"),
+          "Excedente truncado o retenido sin salida",
+        );
+        assert(
+          calls === 0 && checkpoints === 1,
+          "Reinterpretó el excedente o perdió checkpoint",
+        );
+      } finally {
+        globalThis.fetch = previous;
+      }
+    },
+  );
+}
+Deno.test("BE-11: recuperación del checkpoint conserva los tres movimientos sin IA", async () => {
+  const items = normalizeDraftMovements(
+    parseDeterministicMovements(
+      "Gasté 101 en super; gasté 202 en nafta; cobré 303 USD por diseño",
+      "2026-10-28",
+    )!,
+    "2026-10-28",
+  );
+  const input = job("Lote conservado");
+  input.parsed_result = { intent: "add_movements", movements: items };
+  const result = await prepareMessage(
+    database().db,
+    input,
+    () => {
+      throw new Error("NO_RECHECKPOINT");
+    },
+    undefined,
+    () => {
+      throw new Error("NO_QUOTA");
+    },
+  );
+  assert(
+    result.kind === "add" && Array.isArray(result.items) &&
+      semanticJson(result.items) === semanticJson(items),
+    "La recuperación perdió o reinterpretó movimientos",
   );
 });

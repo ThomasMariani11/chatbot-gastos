@@ -1,0 +1,25 @@
+{
+  "verifiedAt": "2026-10-28T14:24:41.331Z",
+  "dateArgentina": "2026-10-28",
+  "windowArgentina": {
+    "from": "2026-10-28T11:19:48.069873",
+    "to": "2026-10-28T11:21:45.249498"
+  },
+  "stepsProcessed": 11,
+  "attemptsPerMessage": 1,
+  "editsApplied": 5,
+  "fieldsMatch": true,
+  "versionAfterEdits": 7,
+  "unsupportedCurrencyRejected": true,
+  "nonexistentTargetRejected": true,
+  "testGroupDiscarded": true,
+  "activeOwnerJobs": 0,
+  "openOwnerGroups": 0,
+  "testFinancialRows": 0,
+  "finalEmptySummaryRecorded": true,
+  "correctionAiReservations": 0,
+  "initialAddQwenReservations": 1,
+  "whisperReservations": 0,
+  "retentionEnabled": false,
+  "scope": "Owner text corrections, rejection and cancellation. Sending accepted by Meta; no device-read receipt asserted. Audio/provider/failure/concurrency/confirm tests remain isolated CI evidence."
+}

@@ -314,6 +314,25 @@ assert.equal(be12After.version,be12Group.version+1);assert.equal(be12After.items
 const be12Stale=await be07Next();assert.match(JSON.parse((await be07Apply(be12Stale,{...be12Action,patch:{amount:999}})).output).reply_text,/La lista cambió/);await be07Finish(be12Stale);
 assert.deepEqual(JSON.parse((await execute(`select public.get_active_draft_group('${a}');`)).output),be12After);
 assert.deepEqual((await retentionSnapshot()).finance,be12FinanceBefore.finance,'Una edición de borrador escribió finanzas');
-const evidence={draft_edit_concurrent_idempotent:true,draft_edit_stale_version_rejected:true,draft_edit_preserves_finance:true,monthly_summary_concurrent_readonly:true,retention_skip_locked:true,retention_repeat_idempotent:true,retention_preserves_finance_drafts_ai:true,retention_reenqueue_deduplicated:true,ai_quota_shared_concurrent:true,ai_quota_duplicate_denied:true,postgres:(await execute('show server_version;')).output,isolated_database:true,incomplete_batch_confirmation_blocked:true,completion_concurrent_idempotent:true,completion_stale_version_rejected:true,concurrent_sessions:2,retained_confirmation_requires_fresh_review:true,confirmation_apply_concurrent_idempotent:true,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
+// BE-11: una liberación de capacidad concurrente se aplica una sola vez.
+await execute((await readFile(new URL('038_waiting_queue_recovery.sql',migrations),'utf8')).replace(/\r\n/g,'\n'));
+const be11FinanceBefore=(await retentionSnapshot()).finance;
+await execute(`select public.claim_whatsapp_actor('synthetic-native','${tokens[2]}');`);
+const be11Move=n=>({kind:'expense',description:'BE11 fixture '+n,totalAmountArs:n+1,currency:'ARS',occurredOn:'2026-10-28',installments:1,confidence:1,missingFields:[]});
+await be07Enqueue('be11-native-fill','Lote ficticio');let be11Job=await be07Next();await be07Apply(be11Job,{kind:'add',items:Array.from({length:19},(_,i)=>be11Move(i))});await be07Finish(be11Job);
+await be07Enqueue('be11-native-held','Dos movimientos ficticios');const be11Held=await be07Next();const be11Items=[be11Move(101),be11Move(202)];
+await be07Apply(be11Held,{kind:'add',items:be11Items});await be07Finish(be11Held);
+for(const position of [2,3]){
+ await be07Enqueue('be11-native-remove-'+position,'sacame el '+position);const control=await be07Next();assert.equal(control.payload.text.body,'sacame el '+position);
+ await Promise.all([0,1].map(()=>be07Apply(control,{kind:'remove',position})));await be07Finish(control);
+ const waiting=await be07Next();assert.equal(waiting.id,be11Held.id);await Promise.all([0,1].map(()=>be07Apply(waiting,{kind:'add',items:be11Items})));await be07Finish(waiting);
+}
+const be11After=JSON.parse((await execute(`select public.get_active_draft_group('${a}');`)).output);
+assert.equal(be11After.items.length,20);assert.deepEqual(be11After.items.slice(-2).map(i=>i.position),[21,22]);
+assert.equal((await execute(`select capacity_resumes from public.whatsapp_message_queue where id='${be11Held.id}';`)).output,'2','Duplicó el conteo de capacidad');
+assert.equal((await execute(`select count(*) from public.draft_items where wa_message_id='be11-native-held';`)).output,'2','Duplicó movimientos al recuperar');
+assert.deepEqual((await retentionSnapshot()).finance,be11FinanceBefore,'La recuperación guardó movimientos sin confirmar');
+
+const evidence={capacity_resume_concurrent_idempotent:true,capacity_recovery_preserves_finance:true,draft_edit_concurrent_idempotent:true,draft_edit_stale_version_rejected:true,draft_edit_preserves_finance:true,monthly_summary_concurrent_readonly:true,retention_skip_locked:true,retention_repeat_idempotent:true,retention_preserves_finance_drafts_ai:true,retention_reenqueue_deduplicated:true,ai_quota_shared_concurrent:true,ai_quota_duplicate_denied:true,postgres:(await execute('show server_version;')).output,isolated_database:true,incomplete_batch_confirmation_blocked:true,completion_concurrent_idempotent:true,completion_stale_version_rejected:true,concurrent_sessions:2,retained_confirmation_requires_fresh_review:true,confirmation_apply_concurrent_idempotent:true,exclusive_lease:true,subscription_concurrent_admins_and_redemption:true,subscription_retry_idempotent:true,pwa_create_idempotent:true,pwa_cancel_save_race_consistent:true,pwa_deleted_not_recreated:true,installment_create_idempotent:true,installment_stale_version_rejected:true,installment_failure_atomic:true,ops_exclusive_notice_claim:true,ops_uncertain_not_retried:true,expired_worker_fenced:true,concurrent_apply_idempotent:true,concurrent_enqueue_deduplicated:true,late_delivery_retry_idempotent:true,duration_ms:Date.now()-started};
 if(process.env.PESITO_TEST_EVIDENCE) await writeFile(process.env.PESITO_TEST_EVIDENCE,JSON.stringify(evidence,null,2));
 console.log(JSON.stringify(evidence));

@@ -1,3 +1,4 @@
+import { formatOverLimitReply } from "./draft-summary.ts";
 import { buildPendingEdit, parsePendingEdit } from "./draft-edit.ts";
 import { formatMonthlySnapshot } from "./monthly-summary.ts";
 import { AiQuotaExceeded } from "./ai-quota.ts";
@@ -294,7 +295,7 @@ export async function prepareMessage(
     }
     // Conservar la solicitud en la cola, sin bloquear el próximo texto ni
     // reintentar la IA si falla el guardado de la respuesta o su envío.
-    if (result.intent === "add_movements") {
+    if (result.intent === "add_movements" && result.movements?.length <= 20) {
       try {
         result.movements = normalizeDraftMovements(
           result.movements,
@@ -383,9 +384,7 @@ export async function prepareMessage(
       );
     case "add_movements":
       if (result.movements?.length > 20) {
-        return reply(
-          "Podés tener hasta 20 movimientos por lista. No agregué ninguno de este mensaje. Dividilo en grupos más chicos; tus pendientes anteriores siguen intactos.",
-        );
+        return reply(formatOverLimitReply(result.movements.length));
       }
       if (correctionIntent) {
         return reply(
