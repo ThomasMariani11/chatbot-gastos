@@ -52,6 +52,13 @@ const monthValues = (value: unknown): string[] | null => {
   return result.every(item => typeof item === 'string' && monthPattern.test(item)) ? (result as string[]) : null;
 };
 
+function sortMonthlyRows(items: Row[]): Row[] {
+  return [...items].sort((a, b) => {
+    const cmp = String(b.occurred_on ?? '').localeCompare(String(a.occurred_on ?? ''));
+    return cmp !== 0 ? cmp : String(a.id ?? '').localeCompare(String(b.id ?? ''));
+  });
+}
+
 // Cursor por ID y count exacto: una respuesta limitada nunca representa todas las transacciones del mes.
 async function readMonthlyTransactions(
   userId: string,
@@ -74,7 +81,6 @@ async function readMonthlyTransactions(
         .eq('status', 'confirmed')
         .gte('occurred_on', `${month}-01`)
         .lt('occurred_on', end)
-        .order('occurred_on', { ascending: false })
         .order('id', { ascending: true })
         .limit(250)
         .abortSignal(signal);
@@ -84,7 +90,7 @@ async function readMonthlyTransactions(
       if (result.error || !Array.isArray(result.data)) throw new Error('Transacciones mensuales incompletas');
       const batch = rows(result.data);
       if (result.count === undefined || result.count === null) {
-        return { data: batch, error: null };
+        return { data: sortMonthlyRows(batch), error: null };
       }
       if (!Number.isSafeInteger(result.count) || Number(result.count) < 0) {
         throw new Error('Conteo mensual inválido');
@@ -99,11 +105,7 @@ async function readMonthlyTransactions(
         found.push(row);
       }
       if (batch.length === result.count) {
-        found.sort((a, b) => {
-          const cmp = String(b.occurred_on ?? '').localeCompare(String(a.occurred_on ?? ''));
-          return cmp !== 0 ? cmp : String(a.id ?? '').localeCompare(String(b.id ?? ''));
-        });
-        return { data: found, error: null };
+        return { data: sortMonthlyRows(found), error: null };
       }
       if (!batch.length) throw new Error('Página mensual vacía incompleta');
     }
