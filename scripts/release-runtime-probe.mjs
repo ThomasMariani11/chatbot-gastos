@@ -29,6 +29,11 @@ async function main() {
   const { runActor } = await import(pathToFileURL(join(directory, 'supabase/functions/whatsapp-webhook/queue.ts')));
   const { prepareMessage } = await import(pathToFileURL(join(directory, 'supabase/functions/whatsapp-webhook/processor.ts')));
   const { formatDraftList } = await import(pathToFileURL(join(directory, 'supabase/functions/whatsapp-webhook/helpers.ts')));
+  const { parseDraftMovements } = await import(pathToFileURL(join(directory, 'supabase/functions/whatsapp-webhook/local-movements.ts')));
+  const fixtureTexts = ['Gasté 123 en prueba contrato', 'Gasté 456 en prueba temporal',
+    'Gasté 101 en contrato alfa', 'Gasté 202 en contrato beta', 'Gasté 303 en contrato gamma'];
+  // No usar comandos o números escritos dentro del concepto: deben ser casos locales inequívocos.
+  assert.ok(fixtureTexts.every(text => parseDraftMovements(text, '2026-10-29')?.length === 1));
   const waId = 'synthetic-runtime-' + randomUUID();
   const prefix = 'release-runtime-' + randomUUID();
   const messageIds = [], groupIds = [], transactionIds = [], stages = [];
@@ -70,7 +75,7 @@ async function main() {
     failureCode = 21;
     await checked(client.from('whatsapp_queue_control').update({ enabled: true }).eq('singleton', true));
     await checked(client.from('whatsapp_links').update({ wa_id: waId, status: 'active' }).eq('user_id', userId));
-    await enqueue('Gasté 123 en prueba contrato');
+    await enqueue(fixtureTexts[0]);
     await runActor(waId, deps);
     assert.equal(Number((await active()).items[0].amount), 123);
     failureCode = 22;
@@ -109,7 +114,7 @@ async function main() {
     assert.equal((await transactions()).filter(row => row.wa_message_id?.startsWith(prefix)).length, 1);
 
     failureCode = 26;
-    await enqueue('Gasté 456 en contrato descartar');
+    await enqueue(fixtureTexts[1]);
     await runActor(waId, deps);
     const discarded = await active();
     await enqueue('CANCELAR');
@@ -118,9 +123,7 @@ async function main() {
 
     if (multiple) {
       failureCode = 27;
-      await enqueue('Gasté 101 en contrato uno');
-      await enqueue('Gasté 202 en contrato dos');
-      await enqueue('Gasté 303 en contrato tres');
+      for (const text of fixtureTexts.slice(2)) await enqueue(text);
       await runActor(waId, deps);
       const group = await active();
       assert.equal(group.items.length, 3);
