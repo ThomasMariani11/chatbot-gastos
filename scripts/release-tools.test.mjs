@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { localUrl, localDockerEndpoint, localEnvironment, stampDistribution, run } from './release-tools.mjs';
+import { localUrl, localDockerEndpoint, localEnvironment, stampDistribution, run, migrationVersions, validateReleaseContract, assertSharedMigrationHashes, assertSchemaCoverage, assertReleaseMatrix, digestFiles } from './release-tools.mjs';
 import { prepareLocal } from './prepare-local.mjs';
 
 test('el ensayo rechaza todo destino remoto y URLs con credenciales', () => {
@@ -45,4 +45,82 @@ test('el motor Docker debe ser local; rechaza contextos TCP o SSH remotos', () =
   assert.equal(localDockerEndpoint('unix:///var/run/docker.sock'), 'unix:///var/run/docker.sock');
   assert.ok(localDockerEndpoint('npipe:////./pipe/dockerDesktopLinuxEngine'));
   for (const endpoint of ['ssh://server', 'tcp://server:2376', 'tcp://127.0.0.1:2375']) assert.throws(() => localDockerEndpoint(endpoint));
+});
+
+const migrationRange = count => Array.from({ length: count }, (_, i) => String(i + 1).padStart(3, '0'));
+const contract = { minimumMigration: '042', rollbackCommit: 'ecba42024d413ef05a2a4d1abeb04bdbb97e869e', rollbackMinimumMigration: '041' };
+
+test('el contrato exige los mínimos exactos de candidato y rollback', () => {
+  assert.deepEqual(validateReleaseContract(contract, migrationRange(42), migrationRange(41)), { candidate: migrationRange(42), rollback: migrationRange(41) });
+  for (const minimumMigration of ['039', '041', '043', 42, null]) {
+    assert.throws(() => validateReleaseContract({ ...contract, minimumMigration }, migrationRange(42), migrationRange(41)));
+  }
+  for (const rollbackMinimumMigration of ['038', '040', '042', null]) {
+    assert.throws(() => validateReleaseContract({ ...contract, rollbackMinimumMigration }, migrationRange(42), migrationRange(41)));
+  }
+});
+
+test('rechaza rollback no fijado y mínimos con inventario posterior al candidato', () => {
+  for (const rollbackCommit of ['main', 'a'.repeat(39), 'a'.repeat(40) + '\n', null, {}, 'A'.repeat(40)]) {
+    assert.throws(() => validateReleaseContract({ ...contract, rollbackCommit }, migrationRange(42), migrationRange(41)));
+  }
+  assert.throws(() => validateReleaseContract({ ...contract, rollbackMinimumMigration: '043' }, migrationRange(42), migrationRange(43)));
+});
+
+test('rechaza huecos, duplicados y versiones inválidas sin modificar el inventario', () => {
+  for (const versions of [[], null, ['000'], ['001', '001'], ['1'], ['001', '003'], ['001', 2], ['001', '002\n']]) {
+    assert.throws(() => migrationVersions(versions));
+  }
+  const input = ['002', '001'];
+  assert.deepEqual(migrationVersions(input), ['001', '002']);
+  assert.deepEqual(input, ['002', '001']);
+});
+
+test('041 no habilita el candidato 042 y una fila final no sustituye el historial completo', () => {
+  assert.throws(() => assertSchemaCoverage(migrationRange(41), migrationRange(42)));
+  assert.throws(() => assertSchemaCoverage(['042'], migrationRange(42)));
+  assert.throws(() => assertSchemaCoverage(migrationRange(42).filter(v => v !== '040'), migrationRange(42)));
+  assert.throws(() => assertSchemaCoverage([...migrationRange(42), '041'], migrationRange(41)));
+  assert.doesNotThrow(() => assertSchemaCoverage(migrationRange(41), migrationRange(41)));
+  assert.doesNotThrow(() => assertSchemaCoverage([...migrationRange(42), '99999999999999'], migrationRange(41)));
+});
+
+test('no se acepta SQL compartido alterado ni renombrado para el rollback', () => {
+  const a = { file: '001_fixture.sql', sha256: 'a'.repeat(64) };
+  const b = { file: '002_fixture.sql', sha256: 'b'.repeat(64) };
+  assert.doesNotThrow(() => assertSharedMigrationHashes([a, b], [a]));
+  assert.throws(() => assertSharedMigrationHashes([a, b], [{ ...a, sha256: 'c'.repeat(64) }]));
+  assert.throws(() => assertSharedMigrationHashes([a, b], [{ ...a, file: '001_renamed.sql' }]));
+  assert.throws(() => assertSharedMigrationHashes([a, a], [a]));
+  assert.throws(() => assertSharedMigrationHashes([a], [{ ...a, sha256: null }]));
+});
+
+test('la configuración real cubre las migraciones distribuidas y fija el rollback revisado', async () => {
+  const root = resolve(import.meta.dirname, '..');
+  const configured = JSON.parse(await readFile(join(root, 'config/environments.json'), 'utf8')).release;
+  const files = await digestFiles(join(root, 'supabase/migrations'), n => n.endsWith('.sql'));
+  assert.equal(configured.rollbackCommit, contract.rollbackCommit);
+  assert.equal(configured.rollbackMinimumMigration, contract.rollbackMinimumMigration);
+  assert.doesNotThrow(() => validateReleaseContract(configured, files.map(row => row.file.split('_')[0]), migrationRange(41)));
+});
+
+test('no se declara compatibilidad si falta una fila o el runtime/esquema no coincide', () => {
+  const source = 'a'.repeat(40);
+  const rows = [
+    { schemaHead: '041', runtimeCommit: contract.rollbackCommit, passed: true },
+    { schemaHead: '042', runtimeCommit: source, passed: true },
+    { schemaHead: '042', runtimeCommit: contract.rollbackCommit, passed: true },
+  ];
+  assert.doesNotThrow(() => assertReleaseMatrix(rows, source, contract));
+  assert.throws(() => assertReleaseMatrix(rows.slice(1), source, contract));
+  assert.throws(() => assertReleaseMatrix(rows.map((r, i) => i === 0 ? { ...r, schemaHead: '042' } : r), source, contract));
+  assert.throws(() => assertReleaseMatrix(rows.map((r, i) => i === 2 ? { ...r, passed: false } : r), source, contract));
+  assert.throws(() => assertReleaseMatrix(rows.map((r, i) => i === 2 ? { ...r, runtimeCommit: source } : r), source, contract));
+});
+
+test('el probe de runtime rechaza una API remota antes de usar credenciales', async () => {
+  const root = resolve(import.meta.dirname, '..');
+  await assert.rejects(run(process.execPath, [join(root, 'scripts/release-runtime-probe.mjs'), root], {
+    env: localEnvironment(), input: JSON.stringify({ api: 'https://remote.invalid', key: 'PRIVATE_CANARY', userId: '50000000-0000-4000-8000-000000000001' }),
+  }), error => !error.message.includes('PRIVATE_CANARY'));
 });

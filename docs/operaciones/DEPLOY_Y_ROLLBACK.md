@@ -1,6 +1,30 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
-## Contrato vigente — 27/10/2026
+## Contrato de release — 29/10/2026
+
+El paquete actual requiere **042**: BE-22 envía listas de ediciones/bajas que 041 no aplica completas. El rollback fijado es **ecba42024d413ef05a2a4d1abeb04bdbb97e869e** (PR #67), con mínimo **041**. Se leen de `config/environments.json`; no son una lectura del entorno productivo ni aplican SQL.
+
+- `minimumMigration`: mínimo conservador del paquete candidato; debe coincidir con la última migración distribuida por su snapshot. Una migración nueva exige revisión del contrato.
+- `rollbackCommit`: fuentes exactas de PWA y webhook del runtime anterior; no es una versión Edge ni una restauración de base.
+- `rollbackMinimumMigration`: mínimo exigido por ese snapshot. No ordena retirar migraciones posteriores: al volver desde 042 se conserva 042 y todos los datos.
+
+El mínimo del corte anterior a BE-22 es 041; **no alcanza para el runtime actual**. Si una lectura de producción muestra solo 041, no considerar habilitado el candidato actual. La configuración no demuestra que 042 esté aplicada. Esta corrección de herramientas no publica PWA/Edge ni toca producción.
+
+Aceptar el rollback únicamente con evidencia del ensayo específico de estas tres combinaciones:
+
+| Esquema exacto | Runtime | Prueba |
+| --- | --- | --- |
+| 001–041 | ecba420 | Mínimo real de rollback, en un stack independiente. |
+| 001–042 | Candidato | Mínimo del candidato y operaciones múltiples. |
+| La misma base 001–042 | ecba420 | Volver al código anterior conservando datos. |
+
+`test:release:guards` comprueba formatos, inventarios completos, mínimos, hashes compartidos y matriz de evidencia. `test:release` verifica además esos contratos contra los snapshots fijados, RPC/SQL reales del stack local y ambos runtimes. Su probe ejecuta alta/edición/confirmación/cancelación y un fallo de envío: el reintento debe tener etapa `send`, código `QUEUE_SEND_RETRY` y no reinterpretar ni duplicar movimientos. Meta/IA no reciben peticiones del probe. También verifica expiración, límites/ACL y fallos de persistencia sin guardado parcial.
+
+Una compilación o una fila 041/042 en el historial no acredita todo lo anterior. `release:manifest` registra valores/hashes; `observedDeployment` sigue empezando en null/false y no prueba publicación. Las migraciones compartidas no pueden alterarse para hacer pasar el ensayo.
+
+El ensayo conserva las guardas anteriores de loopback, Docker local, variables y logs seguros, exige Node fijado y checkout limpio, y solo produce evidencia de éxito después de las tres filas y su limpieza. Con Docker inaccesible o alguna fila fallida, el rollback queda **sin verificar**, aunque pasen las guardas y los tests unitarios. Ver [validación y límites](../planes/VALIDACION_CONTRATO_RELEASE_041_042.md).
+
+### Registro histórico — contrato del 27/10/2026
 
 Producción: **035, webhook v59 y PR #46/ebdd6ee**, publicados y aceptados. El mínimo y rollback se leen de config/environments.json: **d62f42af4a15c25ba941e48b8da579fc0f0f2071**, manteniendo 035 y el corte diario. Las referencias de 027/BE-08 a commits anteriores son históricas y no sirven como rollback del cupo actual. Retención desactivada; prepararla/probarla no autoriza activarla. [INF-15](../planes/VALIDACION_INF_15.md), [retención INF-14](../planes/VALIDACION_INF_14_RETENCION.md).
 
@@ -22,7 +46,7 @@ La publicación de Pages no despliega Edge Functions ni aplica SQL. Los tres com
 2. Usar Node de .node-version, Deno 2.9.6 y CLI de .supabase-version. Ejecutar los checks de README y exigir el ensayo de release del PR. El manifiesto de solo lectura se genera con `npm run release:manifest -- production`; guarda SHA del código, herramientas y hashes de cada SQL/archivo runtime en .temp/release-production.json.
 3. Leer estado real: historial supabase_migrations.schema_migrations; versión/estado de whatsapp-webhook y verify_jwt; cola habilitada; trabajos en procesamiento/fallidos y cron. Solo conteos, sin payloads ni secretos.
 4. Registrar fuera del bundle: SHA candidato/anterior, enlace a CI, migrations antes/después, versión Edge anterior/nueva, hora, smoke y estado previo de cola. observedDeployment del manifiesto empieza con null/false: **no es evidencia de haber desplegado**; completarlo solo con lecturas verificadas.
-5. El mínimo se consulta en config/environments.json: BE-08 requiere 034, aplicada/verificada el 26/10/2026 junto con PR #43/bd896f0 y webhook v58. El historial observado llega a 034; el contrato de cola v2 comienza en 020, con idempotencia 023. El rollback compatible fijado es 80e920dcad9581bbff2d54b2c48ae2e255fe6882 (puente v57), con lector nullable. No volver directamente a v56/v52 después de 034. Revisar ese contrato ante cada cambio de esquema. No retroceder a workers anteriores a 020, ni restaurar permisos inseguros de 017 o advertencias privadas anteriores a 024.
+5. Leer el contrato vigente de esta cabecera y config/environments.json. Contrastar inventarios completos, funciones/ACL y SHA del runtime; no deducir compatibilidad de una sola fila del historial. Las referencias a 034/v58 y puentes antiguos que aparecen más abajo son históricas.
 
 Consulta de solo lectura para el estado:
 
@@ -81,7 +105,9 @@ La cola actual ya está activa: **no apagarla en una publicación documental o c
 6. Repetir smoke 401/200 autorizado en aislado, revisar permisos/historial, verificar que un registro existente permanece y que las respuestas no se duplican. En producción validar únicamente con lecturas agregadas y cuenta autorizada.
 7. Registrar resultado o parar si la versión anterior no pasa contra el esquema vigente; corregir hacia adelante. La restauración y recuperación de desastres siguen pendientes en INF-08, al final del plan.
 
-El ensayo automatizado usa el mismo esquema durante candidato y rollback. Sirve realmente ambos webhooks con el runtime local y compila/sirve ambas PWA; comprueba identidad de SW/version y persistencia del movimiento sintético. No se presenta como un ensayo de restauración, de cron productivo o de entrega real por Meta.
+El ensayo automatizado prueba primero el rollback sobre su mínimo exacto en un stack descartable independiente; después conserva el mismo esquema expandido durante candidato y rollback. Sirve ambos webhooks con el runtime local y compila/sirve ambas PWA; además ejecuta sus módulos reales de procesamiento/cola contra RPC locales, con envío simulado y bloqueo de tráfico externo en ese probe. Comprueba identidad de SW/version y persistencia del movimiento sintético. No es un ensayo de restauración, cron productivo o entrega real por Meta.
+
+Antes del cambio de runtime se exige cola sin trabajos pendientes/fallidos/retenidos ni leases activos. No se acredita compatibilidad de checkpoints BE-22 en vuelo con un runtime anterior: drenar/verificar la cola o detener la operación sin borrar mensajes. La matriz ensaya contratos unitarios del rollback sobre 042; no promete que ecba420 interprete ediciones múltiples pendientes.
 
 ## Fuentes y alcance
 
@@ -152,6 +178,6 @@ Mínimo del candidato 038, rollback de runtime 1e45c94 (mínimo 037) conservando
 
 Cierre BE-11 del 28/10/2026: PR #50 en 0cc65d9, esquema 038 y webhook v62 verificados con cinco controles aprobados. Aceptación 20+1, alias, numeración y cancelación completa sin movimientos de prueba guardados, IA o fallos técnicos. Las instrucciones anteriores conservan el procedimiento de instalación/rollback; la publicación está completada. Ver VALIDACION_BE_11.md.
 
-## Candidato BE-13 (sin publicar)
+## Histórico — candidato BE-13 y contrato 039/038
 
 Aplicar únicamente 039 después de CI aprobado y autorización de publicación; registrar su historial en la misma transacción. Publicar luego la PWA del candidato. No desplegar webhook: v62 permanece compatible. El contrato del candidato exige 039; rollback de runtime fijado en 0cc65d9/038, conservando 039 y su atomicidad. No restaurar el catch histórico ni volver a ejecutar 005. Ver [validación BE-13](../planes/VALIDACION_BE_13.md) para diagnóstico de solo lectura, recuperación y aceptación.

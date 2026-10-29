@@ -4,6 +4,7 @@ import { beforeAll, beforeEach, afterEach, afterAll, describe, it, expect, vi } 
 import { runActor, type QueueDependencies, type Job } from '../supabase/functions/whatsapp-webhook/queue';
 import { extractFromGemini } from '../supabase/functions/whatsapp-webhook/helpers';
 import { OperationalFailure } from '../supabase/functions/whatsapp-webhook/failures';
+import { smokeBusinessContract } from '../scripts/release-sql-contract.mjs';
 
 const readFile = async (path: URL | string, encoding: 'utf8') =>
   (await readSqlFile(path, encoding)).replace(/\r\n/g, '\n');
@@ -124,6 +125,9 @@ afterAll(async () => {
 });
 
 describe('BE-16: Errores seguros, persistencia y envío', () => {
+  it('el smoke de release verifica 040/041, expiración, permisos y ausencia de guardado parcial', async () => {
+    await smokeBusinessContract((query: string) => db.exec(query), userA, { transaction: false });
+  });
   describe('confirm_draft_group y discard_draft_group seguros', () => {
     it('informa listas ya confirmadas o descartadas sin mezclar enums en inglés ni sqlerrm', async () => {
       const groupRes = await db.query<{ id: string }>(

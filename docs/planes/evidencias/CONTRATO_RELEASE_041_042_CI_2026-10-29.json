@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-29",
+  "scope": "isolated_ci_only",
+  "pullRequest": 71,
+  "codeCommit": "3690a925658c443661d374df36b66c8f94ea07f0",
+  "testedMergeCommit": "b2e6230d239283f7e9611ec1c4b18510b41700b2",
+  "ci": {
+    "runId": 40944302580,
+    "url": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40944302580",
+    "checks": {
+      "Frontend": "success",
+      "Webhook": "success",
+      "PostgreSQL": "success",
+      "Ensayo de release": "success",
+      "Publicar": "skipped"
+    }
+  },
+  "contract": {
+    "minimumMigration": "042",
+    "rollbackCommit": "ecba42024d413ef05a2a4d1abeb04bdbb97e869e",
+    "rollbackMinimumMigration": "041"
+  },
+  "matrix": [
+    {
+      "schemaHead": "041",
+      "runtime": "ecba420",
+      "passed": true
+    },
+    {
+      "schemaHead": "042",
+      "runtime": "candidate",
+      "passed": true
+    },
+    {
+      "schemaHead": "042",
+      "runtime": "ecba420",
+      "passed": true
+    }
+  ],
+  "phases": [
+    {
+      "phase": "docker",
+      "passed": true
+    },
+    {
+      "phase": "checkout_limpio",
+      "passed": true
+    },
+    {
+      "phase": "lectores_de_borradores_incompletos",
+      "passed": true
+    },
+    {
+      "phase": "corte_ia_en_candidato_y_rollback",
+      "passed": true
+    },
+    {
+      "phase": "rollback_sobre_minimo_exacto",
+      "passed": true
+    },
+    {
+      "phase": "instalacion_completa",
+      "passed": true
+    },
+    {
+      "phase": "auth_sql_y_datos_sinteticos",
+      "passed": true
+    },
+    {
+      "phase": "registro_auth_atomico_y_reintento",
+      "passed": true
+    },
+    {
+      "phase": "resumen_mensual_por_api_sin_truncar",
+      "passed": true
+    },
+    {
+      "phase": "retencion_aislada_con_finanzas_preservadas",
+      "passed": true
+    },
+    {
+      "phase": "candidato_webhook_y_pwa",
+      "passed": true
+    },
+    {
+      "phase": "rollback_compatible_sin_restaurar_datos",
+      "passed": true
+    }
+  ],
+  "artifact": {
+    "id": 12927968449,
+    "name": "ensayo-release",
+    "digest": "sha256:94384d307350b8a4df47ccdf7e02af5538decaeec20bb2ca2aa048e9e30db42f"
+  },
+  "evidenceMethod": "Workflow conclusions and structured phase logs; matrix assertions execute before successful completion. Artifact metadata recorded; ZIP contents not used as evidence.",
+  "productionChanges": false
+}
