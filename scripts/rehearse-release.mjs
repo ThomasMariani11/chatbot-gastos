@@ -6,8 +6,9 @@ import { mkdtemp, mkdir, cp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join, sep, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { run, stop, localUrl, localDockerEndpoint, localEnvironment, stampDistribution, digestFiles } from './release-tools.mjs';
+import { run, stop, localUrl, localDockerEndpoint, localEnvironment, stampDistribution, digestFiles, validateReleaseContract, assertSharedMigrationHashes, assertSchemaCoverage, assertReleaseMatrix } from './release-tools.mjs';
 import { prepareLocal } from './prepare-local.mjs';
+import { smokeBusinessContract } from './release-sql-contract.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const env = localEnvironment();
@@ -23,8 +24,8 @@ const current = await run('git', ['rev-parse', 'HEAD'], { cwd: root });
 const temp = await mkdtemp(join(tmpdir(), 'pesito-release-'));
 const work = join(temp, 'stack');
 const project = 'pesito-rehearsal';
-const evidence = { sourceCommit: current, rollbackCommit: tools.release.rollbackCommit, isolated: true, phases: [] };
-let serving, stackAttempted = false, phase = 'docker';
+const evidence = { sourceCommit: current, rollbackCommit: tools.release.rollbackCommit, contract: tools.release, isolated: true, phases: [], matrix: [] };
+let serving, stackAttempted = false, phase = 'docker', activeWork = work, inventories;
 async function step(name, action) {
   phase = name;
   const started = Date.now();
@@ -33,7 +34,7 @@ async function step(name, action) {
   console.log(JSON.stringify({ phase: name, passed: true }));
   return value;
 }
-const cli = (args, timeout = 480000) => run(process.execPath, [npmCli, 'exec', '--yes', '--package=supabase@' + cliVersion, '--', 'supabase', '--workdir', work, ...args], { cwd: root, env, timeout });
+const cli = (args, timeout = 480000) => run(process.execPath, [npmCli, 'exec', '--yes', '--package=supabase@' + cliVersion, '--', 'supabase', '--workdir', activeWork, ...args], { cwd: root, env, timeout });
 async function archive(commit, directory) {
   // Un squash puede dejar el puente de rollback solo en la historia de la PR.
   // Resolver únicamente el SHA fijado, sin cambiar el checkout ni traer ramas.
@@ -57,7 +58,7 @@ async function request(api, path, { key, body, headers = {}, method = body === u
 }
 const metaSecret = randomBytes(32).toString('hex'), workerSecret = randomBytes(32).toString('hex'), syntheticPassword = randomBytes(32).toString('hex');
 async function startWorker(api) {
-  serving = run(process.execPath, [npmCli, 'exec', '--yes', '--package=supabase@' + cliVersion, '--', 'supabase', '--workdir', work, 'functions', 'serve', 'whatsapp-webhook', '--no-verify-jwt', '--env-file', join(temp, 'synthetic.env')], { cwd: root, env, timeout: 600000, background: true });
+  serving = run(process.execPath, [npmCli, 'exec', '--yes', '--package=supabase@' + cliVersion, '--', 'supabase', '--workdir', activeWork, 'functions', 'serve', 'whatsapp-webhook', '--no-verify-jwt', '--env-file', join(temp, 'synthetic.env')], { cwd: root, env, timeout: 600000, background: true });
   const deadline = Date.now() + 120000;
   while (Date.now() < deadline) {
     if (serving.exitCode !== null) throw new Error('No se pudo servir el webhook local.');
@@ -214,47 +215,7 @@ async function buildAndSmoke(directory, commit, api, anon) {
     assert.ok((await (await fetch(base + '/chatbot-gastos/sw.js')).text()).includes(commit));
   } finally { await new Promise(resolve => server.close(resolve)); }
 }
-try {
-  await step('docker', async () => {
-    if (env.DOCKER_HOST) localDockerEndpoint(env.DOCKER_HOST);
-    localDockerEndpoint(await run('docker', ['context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'], { env, timeout: 15000 }));
-    evidence.tools = { node: process.versions.node, docker: await run('docker', ['info', '--format', '{{.ServerVersion}}'], { env, timeout: 20000 }), supabase: cliVersion };
-    const containers = await run('docker', ['ps', '-a', '--format', '{{.Names}}'], { env, timeout: 15000 });
-    assert.ok(!containers.split('\n').some(name => name.endsWith('_' + project)), 'No se reutiliza ni detiene un stack local existente.');
-  });
-  const candidate = join(temp, 'candidate'), previous = join(temp, 'previous');
-  await step('checkout_limpio', async () => {
-    await archive(current, candidate);
-    await archive(tools.release.rollbackCommit, previous);
-    await prepareLocal(candidate, work);
-    await writeFile(join(temp, 'synthetic.env'), 'META_APP_SECRET=' + metaSecret + '\nWHATSAPP_WORKER_SECRET=' + workerSecret + '\nWHATSAPP_VERIFY_TOKEN=synthetic-verify\n', { mode: 0o600 });
-  });
-  await step('lectores_de_borradores_incompletos', async () => {
-    // Ambos lectores se ejecutan sin transporte ni credenciales, no solo se compilan.
-    const probe = "import assert from 'node:assert/strict';import {pathToFileURL} from 'node:url';const {formatDraftList}=await import(pathToFileURL(process.argv[1]).href);const rows=Array.from({length:20},(_,i)=>({position:i+1,kind:'expense',description:'Concepto ficticio '.repeat(9),amount:i===0?null:999999999999.99,currency:i%2?'USD':'ARS',occurred_on:i===0?null:'2026-10-26',installments:60,first_installment_month:'2026-11',status:'pending',missing_fields:i===0?['amount','date']:['review']}));const body=formatDraftList(rows);assert.ok(body.length<=4096);assert.ok(body.includes('importe pendiente'));assert.ok(body.includes('20.'));assert.ok(!body.includes('$ 0'));assert.equal(rows[0].amount,null);";
-    for (const directory of [candidate, previous]) await run(process.execPath, ['--input-type=module', '-e', probe, join(directory, 'supabase/functions/whatsapp-webhook/draft-summary.ts')], { cwd: directory, env });
-  });
-  await step('corte_ia_en_candidato_y_rollback', async () => {
-    // Ejecutar el gate real de ambos commits; no bastan compilar ni comprobar Auth.
-    const probe = "import assert from 'node:assert/strict';import {pathToFileURL} from 'node:url';const {createAiQuotaGate,AiQuotaExceeded}=await import(pathToFileURL(process.argv[1]).href);let reservations=0;const gate=createAiQuotaGate({token:'lease',rpc:async(name,args)=>{assert.equal(name,'reserve_whatsapp_ai_quota');assert.equal(args.p_id,'fixture');assert.equal(args.p_attempt,1);reservations++;return{allowed:false,reason:'exhausted'};}},{id:'fixture',attempts:1});await assert.rejects(gate('qwen'),AiQuotaExceeded);assert.equal(reservations,1);";
-    for (const directory of [candidate, previous]) await run(process.execPath, ['--input-type=module', '-e', probe, join(directory, 'supabase/functions/whatsapp-webhook/ai-quota.ts')], { cwd: directory, env });
-  });
-  await step('instalacion_completa', async () => {
-    assert.equal(await cli(['--version']), cliVersion);
-    stackAttempted = true;
-    await cli(['start', '--exclude', 'studio,imgproxy,storage-api,logflare,vector,supavisor']);
-    const versions = JSON.parse(await sql('select json_agg(version order by version) from supabase_migrations.schema_migrations;'));
-    const expected = (await digestFiles(join(candidate, 'supabase/migrations'), n => n.endsWith('.sql'))).map(f => f.file.split('_')[0]);
-    assert.deepEqual(versions, [...expected, '99999999999999']);
-    evidence.migrationCount = expected.length;
-    evidence.tools.postgres = await sql('show server_version;');
-    assert.equal(await sql('select not enabled from public.whatsapp_queue_control;'), 't');
-    assert.equal(await sql("select count(*) from cron.job where jobname in ('pesito-whatsapp-queue-recovery','pesito-whatsapp-observability','pesito-whatsapp-retention');"), '0');
-  });
-  const status = JSON.parse(await cli(['status', '-o', 'json']));
-  const api = localUrl(status.API_URL);
-  assert.ok(status.ANON_KEY && status.SERVICE_ROLE_KEY, 'Faltan credenciales exclusivamente locales.');
-  const id = await step('auth_sql_y_datos_sinteticos', async () => {
+async function seedRuntimeUser(api, status) {
     await sql("insert into public.invitation_codes(code,duration_days) values('INF10-LOCAL',30);");
     const created = await request(api, '/auth/v1/admin/users', { key: status.SERVICE_ROLE_KEY, body: {
       email: 'inf10@example.invalid', password: syntheticPassword, email_confirm: true,
@@ -271,7 +232,100 @@ try {
     const denied = await request(api, '/rest/v1/rpc/get_active_draft_group', { key: status.ANON_KEY, body: { p_user_id: user.id } });
     assert.ok([401, 403, 404].includes(denied.status), 'La RPC privada no debe estar habilitada a anon.');
     return user.id;
+}
+
+async function installedSchema(required) {
+  const versions = JSON.parse(await sql('select json_agg(version order by version) from supabase_migrations.schema_migrations;'));
+  assert.deepEqual(versions, [...required, '99999999999999'], 'El esquema ensayado debe ser exactamente el anunciado.');
+  assertSchemaCoverage(versions, required);
+  assert.equal(await sql('select not enabled from public.whatsapp_queue_control;'), 't');
+  assert.equal(await sql("select count(*) from cron.job where jobname in ('pesito-whatsapp-queue-recovery','pesito-whatsapp-observability','pesito-whatsapp-retention');"), '0');
+}
+async function quietQueue() {
+  assert.equal(await sql("select count(*) from public.whatsapp_message_queue where status<>'processed';"), '0', 'No cambiar runtime con mensajes o checkpoints en vuelo.');
+  assert.equal(await sql('select count(*) from public.whatsapp_user_leases where lease_until>clock_timestamp();'), '0');
+  assert.equal(await sql('select count(*) from public.whatsapp_worker_state where lease_until>clock_timestamp();'), '0');
+}
+async function runtimeProbe(directory, api, status, id, multiple) {
+  const result = await run(process.execPath, ['--experimental-strip-types', join(root, 'scripts/release-runtime-probe.mjs'), directory], {
+    cwd: directory, env, timeout: 180000,
+    input: JSON.stringify({ api, key: status.SERVICE_ROLE_KEY, userId: id, multiple }),
   });
+  const proof = JSON.parse(result.split('\n').at(-1));
+  assert.equal(proof.passed, true);assert.equal(proof.multiple, multiple);
+  return proof;
+}
+
+try {
+  await step('docker', async () => {
+    if (env.DOCKER_HOST) localDockerEndpoint(env.DOCKER_HOST);
+    localDockerEndpoint(await run('docker', ['context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'], { env, timeout: 15000 }));
+    evidence.tools = { node: process.versions.node, docker: await run('docker', ['info', '--format', '{{.ServerVersion}}'], { env, timeout: 20000 }), supabase: cliVersion };
+    const containers = await run('docker', ['ps', '-a', '--format', '{{.Names}}'], { env, timeout: 15000 });
+    assert.ok(!containers.split('\n').some(name => name.endsWith('_' + project)), 'No se reutiliza ni detiene un stack local existente.');
+  });
+  const candidate = join(temp, 'candidate'), previous = join(temp, 'previous');
+  await step('checkout_limpio', async () => {
+    await archive(current, candidate);
+    await archive(tools.release.rollbackCommit, previous);
+    const candidateMigrations = await digestFiles(join(candidate, 'supabase/migrations'), n => n.endsWith('.sql'));
+    const rollbackMigrations = await digestFiles(join(previous, 'supabase/migrations'), n => n.endsWith('.sql'));
+    inventories = validateReleaseContract(tools.release, candidateMigrations.map(row => row.file.split('_')[0]), rollbackMigrations.map(row => row.file.split('_')[0]));
+    assertSharedMigrationHashes(candidateMigrations, rollbackMigrations);
+    await prepareLocal(candidate, work);
+    await writeFile(join(temp, 'synthetic.env'), 'META_APP_SECRET=' + metaSecret + '\nWHATSAPP_WORKER_SECRET=' + workerSecret + '\nWHATSAPP_VERIFY_TOKEN=synthetic-verify\n', { mode: 0o600 });
+  });
+  await step('lectores_de_borradores_incompletos', async () => {
+    // Ambos lectores se ejecutan sin transporte ni credenciales, no solo se compilan.
+    const probe = "import assert from 'node:assert/strict';import {pathToFileURL} from 'node:url';const {formatDraftList}=await import(pathToFileURL(process.argv[1]).href);const rows=Array.from({length:20},(_,i)=>({position:i+1,kind:'expense',description:'Concepto ficticio '.repeat(9),amount:i===0?null:999999999999.99,currency:i%2?'USD':'ARS',occurred_on:i===0?null:'2026-10-26',installments:60,first_installment_month:'2026-11',status:'pending',missing_fields:i===0?['amount','date']:['review']}));const body=formatDraftList(rows);assert.ok(body.length<=4096);assert.ok(body.includes('importe pendiente'));assert.ok(body.includes('20.'));assert.ok(!body.includes('$ 0'));assert.equal(rows[0].amount,null);";
+    for (const directory of [candidate, previous]) await run(process.execPath, ['--input-type=module', '-e', probe, join(directory, 'supabase/functions/whatsapp-webhook/draft-summary.ts')], { cwd: directory, env });
+  });
+  await step('corte_ia_en_candidato_y_rollback', async () => {
+    // Ejecutar el gate real de ambos commits; no bastan compilar ni comprobar Auth.
+    const probe = "import assert from 'node:assert/strict';import {pathToFileURL} from 'node:url';const {createAiQuotaGate,AiQuotaExceeded}=await import(pathToFileURL(process.argv[1]).href);let reservations=0;const gate=createAiQuotaGate({token:'lease',rpc:async(name,args)=>{assert.equal(name,'reserve_whatsapp_ai_quota');assert.equal(args.p_id,'fixture');assert.equal(args.p_attempt,1);reservations++;return{allowed:false,reason:'exhausted'};}},{id:'fixture',attempts:1});await assert.rejects(gate('qwen'),AiQuotaExceeded);assert.equal(reservations,1);";
+    for (const directory of [candidate, previous]) await run(process.execPath, ['--input-type=module', '-e', probe, join(directory, 'supabase/functions/whatsapp-webhook/ai-quota.ts')], { cwd: directory, env });
+  });
+  await step('rollback_sobre_minimo_exacto', async () => {
+    // Primer stack independiente: solo el esquema distribuido por el rollback.
+    activeWork = join(temp, 'rollback-floor');
+    await prepareLocal(previous, activeWork);
+    stackAttempted = true;
+    await cli(['start', '--exclude', 'studio,imgproxy,storage-api,logflare,vector,supavisor']);
+    await installedSchema(inventories.rollback);
+    const status = JSON.parse(await cli(['status', '-o', 'json']));
+    const api = localUrl(status.API_URL);
+    assert.ok(status.ANON_KEY && status.SERVICE_ROLE_KEY);
+    const id = await seedRuntimeUser(api, status);
+    await smokeBusinessContract(sql, id);
+    await startWorker(api);await smokeWorker(api);
+    await smokeQuotaSql(id);await smokeDraftEditSql(id);await smokeWaitingRecoverySql(id);
+    await buildAndSmoke(previous, tools.release.rollbackCommit, api, status.ANON_KEY);
+    const runtime = await runtimeProbe(previous, api, status, id, false);
+    await quietQueue();
+    await stopWorker();
+    await cli(['stop', '--no-backup'], 60000);
+    stackAttempted = false;
+    evidence.matrix.push({ schemaHead: tools.release.rollbackMinimumMigration, runtimeCommit: tools.release.rollbackCommit, passed: true, runtime });
+    activeWork = work;
+  });
+  await step('instalacion_completa', async () => {
+    assert.equal(await cli(['--version']), cliVersion);
+    stackAttempted = true;
+    await cli(['start', '--exclude', 'studio,imgproxy,storage-api,logflare,vector,supavisor']);
+    const versions = JSON.parse(await sql('select json_agg(version order by version) from supabase_migrations.schema_migrations;'));
+    const expected = (await digestFiles(join(candidate, 'supabase/migrations'), n => n.endsWith('.sql'))).map(f => f.file.split('_')[0]);
+    assert.deepEqual(versions, [...expected, '99999999999999']);
+    assertSchemaCoverage(versions, inventories.candidate);
+    assertSchemaCoverage(versions, inventories.rollback);
+    evidence.migrationCount = expected.length;
+    evidence.tools.postgres = await sql('show server_version;');
+    assert.equal(await sql('select not enabled from public.whatsapp_queue_control;'), 't');
+    assert.equal(await sql("select count(*) from cron.job where jobname in ('pesito-whatsapp-queue-recovery','pesito-whatsapp-observability','pesito-whatsapp-retention');"), '0');
+  });
+  const status = JSON.parse(await cli(['status', '-o', 'json']));
+  const api = localUrl(status.API_URL);
+  assert.ok(status.ANON_KEY && status.SERVICE_ROLE_KEY, 'Faltan credenciales exclusivamente locales.');
+  const id = await step('auth_sql_y_datos_sinteticos', () => seedRuntimeUser(api, status));
   await step('registro_auth_atomico_y_reintento', async () => {
     // API real del stack local, sin SMTP externo ni credenciales productivas.
     const email='be13-signup@example.invalid';
@@ -326,9 +380,14 @@ try {
     await smokeQuotaSql(id);
     await smokeDraftEditSql(id);
     await smokeWaitingRecoverySql(id);
+    await smokeBusinessContract(sql, id);
     await buildAndSmoke(candidate, current, api, status.ANON_KEY);
+    const runtime = await runtimeProbe(candidate, api, status, id, true);
+    await quietQueue();
+    evidence.matrix.push({ schemaHead: tools.release.minimumMigration, runtimeCommit: current, passed: true, runtime });
   });
   await step('rollback_compatible_sin_restaurar_datos', async () => {
+    await quietQueue();
     await stopWorker();
     // Borrar solo la función generada en nuestro directorio temporal, nunca el checkout.
     const target = resolve(work, 'supabase/functions/whatsapp-webhook');
@@ -340,11 +399,18 @@ try {
     await smokeQuotaSql(id);
     await smokeDraftEditSql(id);
     await smokeWaitingRecoverySql(id);
+    await smokeBusinessContract(sql, id);
     await buildAndSmoke(previous, tools.release.rollbackCommit, api, status.ANON_KEY);
+    const runtime = await runtimeProbe(previous, api, status, id, false);
+    await quietQueue();
+    evidence.matrix.push({ schemaHead: tools.release.minimumMigration, runtimeCommit: tools.release.rollbackCommit, passed: true, runtime });
     assert.equal(await sql("select count(*) from public.transactions where user_id='" + id + "' and amount_ars=100 and status='confirmed';"), '1');
     assert.equal(await sql('select count(*) from public.whatsapp_message_queue;'), '0');
-    assert.equal(await sql("select count(*) from supabase_migrations.schema_migrations where version='" + tools.release.minimumMigration + "';"), '1');
+    const versions = JSON.parse(await sql('select json_agg(version order by version) from supabase_migrations.schema_migrations;'));
+    assertSchemaCoverage(versions, inventories.candidate);
+    assertSchemaCoverage(versions, inventories.rollback);
   });
+  assertReleaseMatrix(evidence.matrix, current, tools.release);
   evidence.completedAt = new Date().toISOString();
   evidence.externalMessages = 0;
   evidence.databaseRestore = false;

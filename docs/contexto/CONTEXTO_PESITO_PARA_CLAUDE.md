@@ -835,7 +835,7 @@ No es cobertura 100%, auditoría universal ni todos los teléfonos. FE-21/BE-17 
 7. Verificar fuentes/ACL, historial, versión pública/SW/bundle y salud.
 8. Conservar un runtime de rollback compatible con el esquema expandido y las guardas vigentes.
 
-**Precaución de configuración:** el archivo actual conserva `minimumMigration = 039` y un rollback anterior, mientras la base observada alcanza 041 y 040/041 redefinen funciones. No concluir que solo 039 basta para todas las funciones actuales ni que todo runtime viejo es seguro para el último webhook. Revisar el contrato real antes de publicar nuevamente.
+**Contrato de release revisado (rama, 29/10/2026):** candidato mínimo 042 por las operaciones múltiples de BE-22; rollback fijado en ecba42024d413ef05a2a4d1abeb04bdbb97e869e, mínimo 041. Ambos mínimos se contrastan con inventarios completos y SQL compartido sin modificar. El arnés exige tres filas: rollback sobre 041, candidato sobre 042 y rollback conservando la base 042. Incluye RPC reales, reintentos de envío sin reinterpretar/duplicar y controles de errores seguros/expiración. Un manifiesto o un mínimo numérico no certifica publicación ni compatibilidad funcional: consultar la evidencia de ejecución en `docs/planes/VALIDACION_CONTRATO_RELEASE_041_042.md`. Antes de volver a un runtime anterior se exige quietud; no se promete compatibilidad de checkpoints múltiples BE-22 en vuelo. No se modifica producción ni ninguna migración aplicada.
 
 ## 15. Funcionalidades que no deben darse por existentes
 
@@ -951,7 +951,8 @@ Otras rutas:
 | --- | --- |
 | `supabase/migrations/` | Tablas, constraints, RLS, funciones, triggers y cron; leer redefiniciones. |
 | `tests/` y tests Deno del webhook | Regresiones UI/dominio/SQL/canal. |
-| `scripts/rehearse-release.mjs`, `scripts/release-tools.mjs`, `scripts/prepare-local.mjs` | Ensayos locales y publicación con guardas. |
+| `scripts/rehearse-release.mjs`, `scripts/release-tools.mjs`, `scripts/prepare-local.mjs` | Matriz local de esquemas/runtimes, contratos y publicación con guardas. |
+| `scripts/release-runtime-probe.mjs`, `scripts/release-sql-contract.mjs` | Probes locales de procesamiento/cola/RPC y protecciones 039–041; transporte externo denegado en el probe de runtime. |
 | `.github/workflows/deploy-pages.yml` | Cuatro gates y Pages. |
 | `config/environments.json`, `.node-version`, `.supabase-version` | Destinos, contrato y herramientas. |
 | `docs/planes/PLAN_MEJORAS_PROYECTO.md` | Auditorías y backlog, incluidos registros históricos. |
