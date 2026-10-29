@@ -415,8 +415,9 @@ try {
   evidence.externalMessages = 0;
   evidence.databaseRestore = false;
 
-} catch {
-  console.error(JSON.stringify({ phase, passed: false, reason: 'Consultar requisitos/herramientas del runbook; se omiten credenciales y logs crudos.' }));
+} catch (error) {
+  const toolExitCode = /^Herramienta falló \(código (\d+)\)/.exec(error?.message ?? '')?.[1] ?? null;
+  console.error(JSON.stringify({ phase, passed: false, toolExitCode, reason: 'Consultar requisitos/herramientas del runbook; se omiten credenciales y logs crudos.' }));
   process.exitCode = 1;
 } finally {
   try { await stopWorker(); } catch { process.exitCode = 1; console.error('No se pudo detener el worker local propio.'); }

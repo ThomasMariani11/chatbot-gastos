@@ -7,6 +7,9 @@ import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { localUrl } from './release-tools.mjs';
 
+// Códigos internos de diagnóstico: nunca imprimen respuestas, mensajes o claves.
+let failureCode = 20;
+
 async function main() {
   let input = '';
   for await (const chunk of process.stdin) input += chunk;
@@ -64,15 +67,18 @@ async function main() {
   const originalTransactions = await transactions();
   const originalLink = await checked(client.from('whatsapp_links').select('wa_id,status,linked_at').eq('user_id', userId).single());
   try {
+    failureCode = 21;
     await checked(client.from('whatsapp_queue_control').update({ enabled: true }).eq('singleton', true));
     await checked(client.from('whatsapp_links').update({ wa_id: waId, status: 'active' }).eq('user_id', userId));
     await enqueue('Gasté 123 en prueba contrato');
     await runActor(waId, deps);
     assert.equal(Number((await active()).items[0].amount), 123);
+    failureCode = 22;
     await enqueue('El 1 fue de 250');
     await runActor(waId, deps);
     assert.equal(Number((await active()).items[0].amount), 250);
 
+    failureCode = 23;
     failSend = true;
     const confirmationId = await enqueue('CONFIRMAR');
     await runActor(waId, deps);
@@ -85,6 +91,7 @@ async function main() {
     transactionIds.push(...saved.map(row => row.id));
     assert.equal(saved.length, 1);
     assert.equal(Number(saved[0].amount_ars), 250);
+    failureCode = 24;
     const beforeRetry = prepareCount, beforeDelivery = deliveries;
     await checked(client.from('whatsapp_message_queue').update({ scheduled_for: '2000-01-01T00:00:00Z' }).eq('wa_message_id', confirmationId));
     await runActor(waId, deps);
@@ -94,12 +101,14 @@ async function main() {
     const delivered = await checked(client.from('whatsapp_message_queue').select('status,reply_sent_at').eq('wa_message_id', confirmationId).single());
     assert.equal(delivered.status, 'processed');
     assert.ok(delivered.reply_sent_at);
+    failureCode = 25;
     // Reenvío de Meta: mismo identificador, sin una segunda operación financiera.
     await rpc('enqueue_whatsapp_messages', { p_messages: [{ id: confirmationId, from: waId, type: 'text', text: { body: 'CONFIRMAR' } }] });
     await runActor(waId, deps);
     assert.equal(prepareCount, beforeRetry);
     assert.equal((await transactions()).filter(row => row.wa_message_id?.startsWith(prefix)).length, 1);
 
+    failureCode = 26;
     await enqueue('Gasté 456 en contrato descartar');
     await runActor(waId, deps);
     const discarded = await active();
@@ -108,12 +117,14 @@ async function main() {
     assert.equal((await checked(client.from('draft_groups').select('status').eq('id', discarded.group_id).single())).status, 'discarded');
 
     if (multiple) {
+      failureCode = 27;
       await enqueue('Gasté 101 en contrato uno');
       await enqueue('Gasté 202 en contrato dos');
       await enqueue('Gasté 303 en contrato tres');
       await runActor(waId, deps);
       const group = await active();
       assert.equal(group.items.length, 3);
+      failureCode = 28;
       const edits = [{ position: 1, patch: { amount: 111 } }, { position: 2, patch: { amount: 222 } }];
       // Checkpoint sintético de interpretación; processor/queue/RPC reales lo consumen.
       await enqueue('correcciones del ensayo', { intent: 'edit_pending', movements: [], pendingEdit: {
@@ -121,6 +132,7 @@ async function main() {
       } });
       await runActor(waId, deps);
       assert.deepEqual((await active()).items.map(item => Number(item.amount)), [111, 222, 303]);
+      failureCode = 29;
       await enqueue('Quitá el 1 y el 2');
       await runActor(waId, deps);
       const remaining = (await active()).items.filter(item => item.status === 'pending');
@@ -129,6 +141,7 @@ async function main() {
       await enqueue('CANCELAR');
       await runActor(waId, deps);
     }
+    failureCode = 30;
     assert.equal((await transactions()).length, originalTransactions.length + 1);
   } finally {
     // Solo fixtures identificados de este probe, sobre una URL loopback validada.
@@ -140,9 +153,10 @@ async function main() {
     await checked(client.from('whatsapp_links').update(originalLink).eq('user_id', userId));
     await checked(client.from('whatsapp_queue_control').update({ enabled: false }).eq('singleton', true));
   }
+  failureCode = 31;
   assert.deepEqual(await transactions(), originalTransactions);
   console.log(JSON.stringify({ passed: true, realRuntimeAndRpc: true, retryWithoutReinterpretation: true, idempotentConfirmation: true, multiple }));
 }
 
 try { await main(); }
-catch { console.error('Fallo del probe local de runtime; se omiten credenciales y respuestas.'); process.exitCode = 1; }
+catch { console.error('Fallo del probe local de runtime; se omiten credenciales y respuestas.'); process.exitCode = failureCode; }
