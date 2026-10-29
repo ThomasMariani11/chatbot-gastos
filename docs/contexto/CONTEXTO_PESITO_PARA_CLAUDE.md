@@ -36,6 +36,19 @@ FE-14 queda pendiente según la instrucción actual; el descarte previo se conse
 18. Cómo usar este contexto con Claude.
 19. Inventario de migraciones y tablas.
 
+## Mantenimiento obligatorio de este contexto
+
+**Regla permanente del propietario — 29/10/2026:** cada mejora, corrección, cambio o eliminación debe actualizar este mismo documento como parte de la tarea. La instrucción operativa está en `AGENTS.md` y se referencia desde `README.md`.
+
+- Actualizar el cuerpo de las secciones afectadas; no dejar una función antigua como vigente y agregar solo una nota al final.
+- Incorporar capacidades nuevas y retirar las eliminadas; ajustar reglas, límites, contratos, arquitectura, inventarios y pendientes relacionados.
+- Distinguir propuesta, código implementado, integración, PWA publicada, SQL aplicado y webhook desplegado. No inferir producción por el solo merge.
+- Mantener fecha/referencia funcional y verificaciones que realmente se hayan realizado; conservar la última observación fechada cuando no se volvió a comprobar un entorno.
+- Llevar el contexto con el cambio correspondiente y registrar el cierre después de verificar la publicación, cuando corresponda.
+- Preservar ediciones concurrentes y no incluir secretos ni datos reales de clientes.
+
+El documento no se autogenera ante cualquier edición: su mantenimiento es obligatorio para quien realice el cambio. Esta actualización documental fija esa regla sin cambiar funcionalidades ni certificar nuevos despliegues.
+
 ---
 
 ## 1. Producto y objetivos
@@ -895,7 +908,7 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 | INF-08 | Backups/restore. | Aplazado al final; solución, costo y ensayo por acordar. |
 | INF-14 activación | Retención 30/90. | Preparada pero false; decisión específica antes de retirar contenido. |
 
-Hay seguimiento histórico de un código consumido sin usuario asociado, registrado en renovaciones. No reasignarlo ni corregir vencimientos automáticamente.
+**Seguimiento BE-02 cerrado — 29/10/2026:** el propietario identificó como prueba el único código consumido sin usuario y aprobó explícitamente su borrado por UUID. Se eliminó exactamente ese registro en producción mediante una transacción con controles de referencias y filas afectadas. Un SELECT independiente confirmó ausencia y cero códigos consumidos sin usuario; perfiles, vencimientos, movimientos y recibos conservaron sus huellas. No hubo reasignación, corrección de vencimientos, migración ni despliegue. Ver `docs/planes/VALIDACION_FE_06_BE_02.md` y `docs/planes/evidencias/INVITACION_PRUEBA_ELIMINADA_2026-10-29.json`. Los estados abiertos en antecedentes fechados son históricos.
 
 Leer cada bloque completo y evidencia reciente; no tomar el encabezado histórico del plan como única fuente de estado.
 
