@@ -1059,7 +1059,7 @@ Deno.test("reglas locales reales: cero llamadas a proveedores para comandos, cor
         ["hola", "reply"],
         ["ayuda", "reply"],
         ["sacame el movimiento 2", "remove"],
-        ["Quitá el 2 y el 3", "reply"],
+        ["Quitá el 2 y el 3", "remove"],
         ["Cambiá la descripción del 2", "reply"],
         ["El 2 fue de 250", "edit"],
         ["Gasté 250,50 en pan y leche y 4000 de nafta", "add"],

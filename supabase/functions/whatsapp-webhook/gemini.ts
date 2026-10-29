@@ -50,7 +50,14 @@ export type GeminiParsedOutput = {
     description?: string | null;
     category?: string | null;
   } | null;
+  edits?: Array<{
+    targetPosition: number;
+    amount?: number | null;
+    description?: string | null;
+    category?: string | null;
+  }> | null;
   removePosition?: number | null;
+  removePositions?: number[] | null;
   clarification?: string | null;
 };
 
@@ -123,7 +130,24 @@ export const multiResponseJsonSchema = {
         category: { type: ["string", "null"] },
       },
     },
+    edits: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          targetPosition: { type: "integer" },
+          amount: { type: ["number", "null"] },
+          description: { type: ["string", "null"] },
+          category: { type: ["string", "null"] },
+        },
+        required: ["targetPosition"],
+      },
+    },
     removePosition: { type: ["integer", "null"] },
+    removePositions: {
+      type: "array",
+      items: { type: "integer" },
+    },
     clarification: { type: ["string", "null"] },
   },
   required: ["intent", "movements"],
@@ -160,8 +184,8 @@ ${input.activeDraftContext || "Sin movimientos pendientes actualmente."}
 
 INTENCIONES POSIBLES ("intent"):
 1. "add_movements": El usuario menciona uno o más gastos o ingresos nuevos (ej: "gasté 15000 en el súper y 4000 de nafta", "me entraron 80k de diseño"). Extraé cada uno como un elemento del array "movements".
-2. "edit_item": El usuario pide corregir o cambiar un movimiento existente del borrador (ej: "el 2 fue de 5000", "el 1 no es súper es farmacia", "cambiá el 3 a 12000"). Indicá en "edit" el targetPosition y los campos modificados.
-3. "remove_item": El usuario pide quitar o borrar un movimiento específico del borrador (ej: "quitá el 2", "sacá la nafta", "borrá el 1"). Indicá en "removePosition" el número de la posición.
+2. "edit_item": El usuario pide corregir o cambiar uno o varios movimientos existentes del borrador (ej: "el 2 fue de 5000", "el 1 no es súper es farmacia", "cambiá el 3 a 12000", o en varias líneas como: "El 1: es comida\nEl 2: gaseosa"). Indicá en "edits" la lista de modificaciones con su targetPosition y campos cambiados, o en "edit" si es una sola.
+3. "remove_item": El usuario pide quitar o borrar uno o más movimientos específicos del borrador (ej: "quitá el 2", "sacá la nafta", "cancela el 5 y el 6"). Indicá en "removePositions" las posiciones a eliminar, o en "removePosition" si es una sola.
 4. "confirm": El usuario pide confirmar o guardar (ej: "confirmar", "dale guardá", "listo", "de una").
 5. "cancel": El usuario pide cancelar o descartar todo el borrador (ej: "cancelar", "borrá todo", "descartar").
 6. "summary": El usuario pide ver la lista o el resumen (ej: "resumen", "qué tengo pendiente", "mostrame la lista").
@@ -175,7 +199,7 @@ REGLAS PARA OPERACIONES ("movements"):
   * Gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros.
   * Ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros.
 - CUOTAS: Si es en cuotas, indicá installments y firstInstallmentMonth. De lo contrario installments = 1.
-- FALTANTES: conservá TODAS las operaciones, incluidas las incompletas. Importe desconocido: totalAmountArs=null y missingFields=["amount"]. Fecha explícita ambigua: occurredOn=null y missingFields incluye "date"; sin fecha, usá la fecha local. Concepto desconocido: description="" y missingFields incluye "description". Sin categoría: Otros, sin preguntar. Conservá confidence=0. Registrá dudas en clarification; no inventes valores ni omitas una parte. Para correcciones/completado usá el número estable; si no es inequívoco, unknown.
+- FALTANTES Y DUDAS: Si una operación tiene importe, concepto/comercio y fecha, está COMPLETA: asignale la categoría más adecuada (o "Otros"), confidence=0.95, missingFields=[] y dejá clarification en null. NO agregues "review" en missingFields ni generes dudas innecesarias en comprobantes o facturas válidas. Solo usá missingFields=["amount"] si falta el importe, missingFields=["description"] si no hay concepto, o missingFields=["review"] si el mensaje/comprobante es completamente incomprensible.
 - COMPROBANTES: Si el usuario envía una imagen de un comprobante o ticket, interpretalo como UNA sola operación por el total del ticket; no dividas sus productos individuales. Si la imagen muestra varios comprobantes separados, extraé cada uno como una operación independiente.
 
 Mensaje del usuario: ${input.text ?? ""}`;
@@ -295,6 +319,17 @@ Mensaje del usuario: ${input.text ?? ""}`;
       if (!raw) throw new OperationalFailure("invalid_response", "gemini");
       const parsed = JSON.parse(raw) as GeminiParsedOutput;
       if (parsed?.intent === "add_movements") {
+        if (parsed.movements?.every((m) => m.totalAmountArs != null && m.occurredOn != null && m.description)) {
+          delete parsed.clarification;
+          for (const m of parsed.movements) {
+            if (m.totalAmountArs != null && m.occurredOn != null && m.description) {
+              m.clarification = null;
+              if (Array.isArray(m.missingFields)) {
+                m.missingFields = m.missingFields.filter((f) => f !== "review");
+              }
+            }
+          }
+        }
         parsed.movements = normalizeDraftMovements(
           parsed.movements,
           today,

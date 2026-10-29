@@ -25,6 +25,7 @@ export type PendingEdit = {
   group_id: string;
   version: number;
   patch: DraftPatch;
+  edits?: Array<{ position: number; patch: DraftPatch }>;
 };
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -151,7 +152,8 @@ export function parsePendingEdit(
   context: EditContext,
 ): ReturnType<typeof buildPendingEdit> | null {
   if (!looksLikeDraftCorrection(raw)) return null;
-  if (/[\r\n]/.test(raw) || /\b(?:y|,)\s*(?:el|la)\s+\d+\b/i.test(raw)) {
+  if (/[\r\n]/.test(raw)) return null;
+  if (/\b(?:y|,)\s*(?:el|la)\s+\d+\b/i.test(raw)) {
     return clarify();
   }
   const amount = parseDraftCorrection(raw);

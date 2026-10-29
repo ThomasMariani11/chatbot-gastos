@@ -1,6 +1,6 @@
 type LocalCommand =
   | { kind: "confirm" | "cancel" | "summary" | "resume" | "discard" }
-  | { kind: "remove"; position: number }
+  | { kind: "remove"; position: number; positions?: number[] }
   | { kind: "reply"; text: string };
 
 export function parseLocalCommand(raw: string): LocalCommand | null {
@@ -41,19 +41,31 @@ export function parseLocalCommand(raw: string): LocalCommand | null {
     };
   }
   if (
-    /^(quita|quitame|borra|borrame|saca|sacame|elimina|eliminame)\b/.test(text)
+    /^(quita|quitame|borra|borrame|saca|sacame|elimina|eliminame|cancela|cancelame|anula|anulame)\b/.test(text)
   ) {
-    const match = text.match(
-      /^(?:quita|quitame|borra|borrame|saca|sacame|elimina|eliminame)\s+(?:el\s+|la\s+)?(?:(?:movimiento|gasto|ingreso|operacion)\s+)?(\d+)$/,
+    const singleMatch = text.match(
+      /^(?:quita|quitame|borra|borrame|saca|sacame|elimina|eliminame|cancela|cancelame|anula|anulame)\s+(?:el\s+|la\s+)?(?:(?:movimiento|gasto|ingreso|operacion)\s+)?(\d+)$/,
     );
-    const position = Number(match?.[1]);
-    if (
-      Number.isSafeInteger(position) && position > 0 && position <= 2147483647
-    ) return { kind: "remove", position };
+    if (singleMatch) {
+      const position = Number(singleMatch[1]);
+      if (Number.isSafeInteger(position) && position > 0 && position <= 2147483647) {
+        return { kind: "remove", position };
+      }
+    }
+    const numbers = [...text.matchAll(/\b\d+\b/g)]
+      .map((m) => Number(m[0]))
+      .filter((n) => Number.isSafeInteger(n) && n > 0 && n <= 2147483647);
+    if (numbers.length === 1) {
+      return { kind: "remove", position: numbers[0] };
+    }
+    if (numbers.length > 1) {
+      const unique = [...new Set(numbers)];
+      return { kind: "remove", position: unique[0], positions: unique };
+    }
     return {
       kind: "reply",
       text:
-        'Indicá un solo movimiento para quitar, por ejemplo: "Quitá el 2". No modifiqué la lista.',
+        'Indicá el número del movimiento para quitar, por ejemplo: "Quitá el 2". No modifiqué la lista.',
     };
   }
   return null;

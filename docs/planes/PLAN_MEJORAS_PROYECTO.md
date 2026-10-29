@@ -52,6 +52,7 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 | Cerrado en su alcance | **BE-11** | 038/PR #50/v62, recuperación 20+1 y alias aceptados. | [Validación y límites](VALIDACION_BE_11.md). |
 | En revisión; sin publicar | **BE-13** | Alta atómica 039, reintentos seguros y mensajes veraces; administrador inicial excluido por decisión del propietario. | Pruebas locales aprobadas; completar CI aislado y autorizar SQL/PWA antes de publicar. |
 | Cerrado | **FE-23** | Símbolo de WhatsApp para soporte en el Dashboard (excluido de Ajustes por decisión del propietario). | Publicado y verificado con enlace a support_phone y fallback a whatsapp_bot_phone. |
+| Cerrado | **BE-22** | Lenguaje natural y simplificación en chatbot WhatsApp (eliminaciones y ediciones múltiples, protección contra falsos gastos por comandos y confirmación sin bloqueos de aclaración). | Migración 042, regex local ampliado, prompt/schema Gemini multi-edit y validación Vitest/PGlite aprobados. |
 | Nuevo | **BE-19** | Notificación por WhatsApp al renovar suscripción (+X días y fecha nueva). | Aviso automático si el usuario tiene WhatsApp vinculado y activo, con idempotencia. |
 | Nuevo | **FE-24 / BE-20** | Extender categorías (catálogo base y personalizadas en PWA/bot). | Integridad (id, user_id), límites por usuario y coherencia en bot de WhatsApp. |
 | Nuevo | **NOTIF-01 (FE-25 / BE-21)** | Notificaciones para los clientes (vencimientos, recordatorios, resúmenes). | Tareas programadas seguras, opt-out de usuario en Ajustes y respeto de límites. |
