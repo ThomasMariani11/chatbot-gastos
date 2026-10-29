@@ -323,3 +323,48 @@ body :is(input:not([type="checkbox"]):not([type="radio"]),summary) { min-height:
   align-items: center;
   gap: 8px;
 }
+
+/* FE-23: Símbolo de WhatsApp para soporte en el Dashboard */
+.top-actions {
+  align-items: center;
+}
+.support-whatsapp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  border-radius: 12px;
+  background: #eaf8f2;
+  border: 1px solid #bfe8d6;
+  color: var(--mint-dark, #047857);
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(36, 59, 50, 0.05);
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease, color 0.16s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .support-whatsapp-btn:hover {
+    background: #d5f2e6;
+    border-color: #93dac0;
+    color: #065f46;
+    transform: translateY(-1px);
+  }
+}
+.support-whatsapp-btn:focus-visible {
+  outline: 3px solid var(--mint-dark, #047857);
+  outline-offset: 2px;
+}
+@media (max-width: 560px) {
+  .app-shell .top-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+  }
+  .app-shell .top-actions > .support-whatsapp-btn {
+    flex: 0 0 40px !important;
+  }
+}

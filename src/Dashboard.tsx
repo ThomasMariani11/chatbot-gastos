@@ -131,6 +131,7 @@ function getDashboardQueryCache(userId: string): DashboardQueryCache {
     invalidateBotState() { delete fallback.botState; },
     invalidateAll() {
       delete fallback.botPhone;
+      delete fallback.supportPhone;
       delete fallback.botState;
       delete fallback.months;
       delete fallback.installments;
@@ -214,8 +215,27 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const [isConnectingWa, setIsConnectingWa] = useState(false);
   const [onboardingWaMsg, setOnboardingWaMsg] = useState<string | null>(null);
   const [waBotNumber, setWaBotNumber] = useState<string>('');
+  const [supportPhone, setSupportPhone] = useState<string>('');
   const [waLinkReady, setWaLinkReady] = useState<{ url: string; code: string } | null>(null);
   const queryCache = useMemo(() => getDashboardQueryCache(userId), [userId]);
+
+  const supportWhatsAppUrl = useMemo(() => {
+    const rawPhone =
+      supportPhone ||
+      waBotNumber ||
+      queryCache.supportPhone?.value ||
+      queryCache.botPhone?.value ||
+      '';
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+    const supportText = encodeURIComponent(
+      userEmail
+        ? `¡Hola! Necesito ayuda con mi cuenta de Pesito (${userEmail}).`
+        : '¡Hola! Necesito ayuda con mi cuenta de Pesito.',
+    );
+    return cleanPhone
+      ? `https://wa.me/${cleanPhone}?text=${supportText}`
+      : `https://wa.me/?text=${supportText}`;
+  }, [supportPhone, waBotNumber, queryCache.supportPhone?.value, queryCache.botPhone?.value, userEmail]);
 
   async function handleConnectWhatsApp() {
     setIsConnectingWa(true);
@@ -568,6 +588,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         setMonthsWarning(snapshot.monthsWarning);
         setBotState(snapshot.botState);
         setWaBotNumber(snapshot.botPhone);
+        setSupportPhone(snapshot.supportPhone ?? snapshot.botPhone);
         setInstallmentPlans(computedPlans);
         setDataContext(loadContext);
         setReadView({ context: loadContext, status: 'ready', refreshing: false });
@@ -930,6 +951,16 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           )}
         </div>
         <div className="top-actions">
+          <a
+            href={supportWhatsAppUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="support-whatsapp-btn"
+            aria-label="Contactar a soporte por WhatsApp"
+            title="Contactar a soporte por WhatsApp"
+          >
+            <Icon name="whatsapp" size={20} />
+          </a>
           <select aria-label="Mes" value={month} onChange={(event) => setMonth(event.target.value)}>
             {availableMonths.map((m) => (
               <option key={m} value={m}>

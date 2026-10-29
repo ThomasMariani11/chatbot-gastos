@@ -51,7 +51,7 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 | Cerrado en su alcance | **BE-12** | PR #49 / 037 / v61; correcciones y aceptación del propietario verificadas. | [Validación y límites](VALIDACION_BE_12.md). |
 | Cerrado en su alcance | **BE-11** | 038/PR #50/v62, recuperación 20+1 y alias aceptados. | [Validación y límites](VALIDACION_BE_11.md). |
 | En revisión; sin publicar | **BE-13** | Alta atómica 039, reintentos seguros y mensajes veraces; administrador inicial excluido por decisión del propietario. | Pruebas locales aprobadas; completar CI aislado y autorizar SQL/PWA antes de publicar. |
-| Nuevo | **FE-23** | Símbolo de WhatsApp para soporte en vista cliente (Dashboard / Ajustes). | Acceso directo a support_phone con icono visible, accesible y no invasivo. |
+| Cerrado | **FE-23** | Símbolo de WhatsApp para soporte en el Dashboard (excluido de Ajustes por decisión del propietario). | Publicado y verificado con enlace a support_phone y fallback a whatsapp_bot_phone. |
 | Nuevo | **BE-19** | Notificación por WhatsApp al renovar suscripción (+X días y fecha nueva). | Aviso automático si el usuario tiene WhatsApp vinculado y activo, con idempotencia. |
 | Nuevo | **FE-24 / BE-20** | Extender categorías (catálogo base y personalizadas en PWA/bot). | Integridad (id, user_id), límites por usuario y coherencia en bot de WhatsApp. |
 | Nuevo | **NOTIF-01 (FE-25 / BE-21)** | Notificaciones para los clientes (vencimientos, recordatorios, resúmenes). | Tareas programadas seguras, opt-out de usuario en Ajustes y respeto de límites. |
@@ -341,7 +341,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 20 | FE-19 | Media | CSP compatible con el cliente | INF-13 | Terminada en alcance verificado; headers HTTP siguen en INF-13 |
 | 21 | FE-20 | Baja | Cancelar navegación pendiente al desmontar | — | Terminada |
 | 22 | FE-22 | Baja | Cascada CSS de pestañas de acceso | FE-16 | Terminada |
-| 23 | FE-23 | Baja | Símbolo de WhatsApp para soporte en vista cliente | — | Pendiente |
+| 23 | FE-23 | Baja | Símbolo de WhatsApp para soporte en el Dashboard | — | Terminada |
 | 24 | FE-24 | Media | Extender categorías en PWA y selector de movimientos | BE-20 | Pendiente |
 | 25 | FE-25 | Media | Centro de avisos y preferencias de notificaciones cliente | BE-21, NOTIF-01 | Pendiente |
 
@@ -547,12 +547,12 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Trabajo:** acotar estilos de botones y dar especificidad coherente a las pestañas, por ejemplo auth-tabs .auth-tab y su variante active; evitar !important como parche general. Revisar representación visual, estado seleccionado y foco.
 - **Cierre:** selección y apariencia coinciden en ingreso/registro, móvil/escritorio y navegación por teclado; sin alterar botones de envío; contraste conforme a FE-16.
 
-### FE-23 — Símbolo de WhatsApp para soporte en vista cliente
+### FE-23 — Símbolo de WhatsApp para soporte en el Dashboard
 
-- [ ] Pendiente.
+- [x] Terminada. Implementada exclusivamente en `src/Dashboard.tsx` (excluida de Ajustes por decisión del propietario) con lectura unificada de `support_phone` y `whatsapp_bot_phone` en `src/dashboardData.ts` y pruebas en `tests/support-whatsapp-button.test.ts`.
 - **Categoría:** Usabilidad y Soporte.
-- **Alcance:** en la vista cliente de la PWA (Dashboard y Ajustes), agregar un acceso directo visible y accesible con el icono de WhatsApp para contactar a soporte.
-- **Archivos:** `src/Dashboard.tsx`, `src/Settings.tsx`, `src/ui.css`.
+- **Alcance:** en el encabezado del Dashboard de la PWA (`.top-actions`), agregar un acceso directo visible y accesible con el símbolo de WhatsApp para contactar a soporte (sin agregarlo en Ajustes).
+- **Archivos:** `src/Dashboard.tsx`, `src/dashboardData.ts`, `src/Icons.tsx`, `src/ui.css`, `tests/support-whatsapp-button.test.ts`.
 - **Trabajo:**
   1. Utilizar el número de soporte configurado en el sistema (`support_phone` de `system_config`, con fallback a `whatsapp_bot_phone` si está ausente).
   2. Implementar enlace directo seguro `https://wa.me/<phone>?text=...` con texto inicial contextualizado (ej. "Hola, necesito soporte con mi cuenta de Pesito").
