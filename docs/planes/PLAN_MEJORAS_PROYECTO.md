@@ -1,6 +1,106 @@
 # Plan de mejoras del proyecto
 
-## Estado vigente — 28/10/2026
+## Estado vigente — 29/10/2026
+
+- **Commit base funcional:** `ecba42024d413ef05a2a4d1abeb04bdbb97e869e` (PR #67). **Corte SQL contrastado: 001–041**, archivos del repositorio; no es una nueva comprobación o aplicación sobre Supabase.
+- **Base Git al iniciar: 15b3f94.** Incluye BE-22/042 (PR #68) y contexto PR #69, posteriores al corte solicitado. Se conservan como avances posteriores; su publicación SQL/Edge está **sin verificar en esta revisión**. No se retrocede el checkout.
+- **Incorporado** acredita código integrado y evidencia de pruebas/cierre dentro de su alcance. No equivale por sí solo a migración aplicada o webhook desplegado. Estado productivo/configuración remota actuales y aceptaciones no acreditadas: **sin verificar** en esta tarea documental.
+- Thomas es el único administrador; administrador inicial excluido de BE-13. Hosting y backups (INF-13/INF-08) se aplazan al final. INF-14 conserva observabilidad incorporada y retención 30/90 **preparada, desactivada y pendiente de activación autorizada**.
+- BE-19, FE-24/BE-20, FE-25/BE-21/NOTIF-01, FE-14 y FE-21/BE-17 siguen pendientes. Para FE-14 prevalece la instrucción actual sobre el descarte anterior, que queda histórico.
+
+Las secciones históricas se conservan como registro. “Siguiente paso”, “pendiente”, “sin publicar”, cifras y versiones antiguas no reemplazan esta ficha. No ejecutar recetas históricas sin contrastar el contrato vigente.
+
+### INF: inventario de estados
+
+| Bloque | Declarado antes de revisar | Estado vigente | Evidencia |
+| --- | --- | --- | --- |
+| INF-01 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_01_BE_01.md) |
+| INF-02 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_02_BE_03.md) |
+| INF-03 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_03_BE_06.md) |
+| INF-04 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_04_BE_10.md) |
+| INF-05 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_05.md) |
+| INF-06 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_06.md) |
+| INF-07 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_07.md) |
+| INF-08 | Casilla sin marcar | **Pendiente; backups al final** | Alcance/decisión pendiente; no se supone implementación. |
+| INF-09 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_09.md) |
+| INF-10 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_10.md) |
+| INF-11 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_11.md) |
+| INF-12 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_12.md) |
+| INF-13 | Sin marcar; parcial | **Pendiente parcial; CSP incorporada, headers/hosting al final** | [Validación](VALIDACION_INF_13.md) |
+| INF-14 | En curso; integración/activación pendientes en texto histórico | **Pendiente de activación; preparada y desactivada** | [Validación](VALIDACION_INF_14_RETENCION.md) |
+| INF-15 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_15.md) |
+
+### FE: inventario de estados
+
+| Bloque | Declarado antes de revisar | Estado vigente | Evidencia |
+| --- | --- | --- | --- |
+| FE-01 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_01_02_03.md) |
+| FE-02 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_01_02_03.md) |
+| FE-03 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_01_02_03.md) |
+| FE-04 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_04_05.md) |
+| FE-05 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_04_05.md) |
+| FE-06 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_06_BE_02.md) |
+| FE-07 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_07_12.md) |
+| FE-08 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_08.md) · `package-lock.json` · PR #61 / 62021f1 |
+| FE-09 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_09_11.md) |
+| FE-10 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_10.md) · `src/installmentPlans.ts` · PR #57 / 41e9436; #59 / 0790e9a |
+| FE-11 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_09_11.md) |
+| FE-12 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_07_12.md) |
+| FE-13 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_13.md) · `src/Login.tsx` · PR #55 / 74a3710 |
+| FE-14 | Descartada | **Pendiente por instrucción del 29/10; bloqueo de zoom aún presente** | Alcance/decisión pendiente; no se supone implementación. · `src/disableZoom.ts` |
+| FE-15 | Casilla sin marcar | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_15.md) · `src/ModalDialog.tsx` · PR #62 / 95a08e6 |
+| FE-16 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_16_22.md) · `tests/button-contrast-and-auth-tabs.test.ts` · PR #60 / b9c9df4 |
+| FE-17 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_17.md) · `src/lazyWithRetry.tsx` · PR #56 / d873484 |
+| FE-18 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_18.md) · `src/dashboardData.ts` · PR #63 / b58d4f2 |
+| FE-19 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_13.md) |
+| FE-20 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_20.md) · `src/useSwipeBack.ts` · PR #58 / ff532b5; #59 / 0790e9a |
+| FE-21 | Casilla sin marcar | **Pendiente transversal** | Alcance/decisión pendiente; no se supone implementación. |
+| FE-22 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_16_22.md) · `tests/button-contrast-and-auth-tabs.test.ts` · PR #60 / b9c9df4 |
+| FE-23 | Terminada | **Incorporado en alcance documentado** | [Regresiones soporte](../../tests/support-whatsapp-button.test.ts) · `tests/support-whatsapp-button.test.ts` · PR #67 / ecba420 |
+| FE-24 | Pendiente | **Pendiente; con BE-20** | Alcance/decisión pendiente; no se supone implementación. |
+| FE-25 | Pendiente | **Pendiente; con BE-21 / NOTIF-01** | Alcance/decisión pendiente; no se supone implementación. |
+
+### BE: inventario de estados
+
+| Bloque | Declarado antes de revisar | Estado vigente | Evidencia |
+| --- | --- | --- | --- |
+| BE-01 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_01_BE_01.md) |
+| BE-02 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_06_BE_02.md) |
+| BE-03 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_02_BE_03.md) |
+| BE-04 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_04.md) |
+| BE-05 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_05.md) |
+| BE-06 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_03_BE_06.md) |
+| BE-07 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_07.md) |
+| BE-08 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_08.md) |
+| BE-09 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_09.md) |
+| BE-10 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_04_BE_10.md) |
+| BE-11 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_11.md) |
+| BE-12 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_12.md) |
+| BE-13 | Terminada; cabecera en revisión | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_13.md) · `supabase/migrations/039_atomic_user_signup.sql` · PR #51 / 2c298f7 |
+| BE-14 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_14.md) · `supabase/migrations/040_atomic_whatsapp_linking.sql` · PR #52 / 6e127cd; #54 / b46e02d |
+| BE-15 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_12.md) |
+| BE-16 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_16.md) · `supabase/migrations/041_safe_business_errors.sql` · PR #53 / 641a573 |
+| BE-17 | Casilla sin marcar | **Pendiente transversal** | Alcance/decisión pendiente; no se supone implementación. |
+| BE-18 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_18.md) · `supabase/functions/whatsapp-webhook/context-repository.ts` · PR #64 / 8366517 |
+| BE-19 | Pendiente | **Pendiente; aviso de renovación** | Alcance/decisión pendiente; no se supone implementación. |
+| BE-20 | Pendiente | **Pendiente; con FE-24** | Alcance/decisión pendiente; no se supone implementación. |
+| BE-21 | Pendiente | **Pendiente; con FE-25 / NOTIF-01** | Alcance/decisión pendiente; no se supone implementación. |
+
+### Contraste y límites
+
+- BE-13: 039/040 y `tests/signup-sql.test.ts`; PR #51 incorporada a la base. `VALIDACION_BE_13.md` conserva un estado previo a publicación: se cita como evidencia técnica, no como confirmación vigente de PR abierta.
+- BE-14: 040 y `tests/whatsapp-linking-sql.test.ts`. BE-16: 041, `queue.ts` y `tests/safe-errors.test.ts`. BE-18: módulos separados, contexto paralelo y `tests/be18-webhook-architecture-and-calls.test.ts`.
+- FE-08/10/13/15/16/17/18/20/22: fuentes/tests coinciden con las validaciones citadas y commits de la base. No certifican accesibilidad/dispositivos/rendimiento universales.
+- **FE-23 / PR #67:** soporte en `src/Dashboard.tsx`, lectura en `src/dashboardData.ts`, icono/estilos y `tests/support-whatsapp-button.test.ts`. Solo Dashboard, Ajustes excluido. No se encontró VALIDACION_FE_23 separada; la evidencia es código, tests y commit.
+- **PR #66 / 66b7d43 incorporada:** `src/dashboardData.ts` ordena por ID ascendente para el cursor y luego por fecha. Evidencia: diff del commit y suite `tests/fe18-queries-and-pagination.test.ts`. No se atribuye una nueva prueba específica o aceptación productiva no registrada.
+- Evidencias JSON contrastadas: INF_01_BE_01, INF_02_BE_03, aceptación INF_03_BE_06, aceptación INF_04_BE_10, cierre INF_05, INF_06/07/09/10/11, INF_13_FE_19, INF_14_RETENCION, cierre INF_15 y cierres BE_11/12 bajo `docs/planes/evidencias/`. Son observaciones fechadas, no revalidación remota actual.
+- Seguimiento histórico BE-02: un código usado sin usuario sigue separado; no se reasigna ni reabre toda la corrección de renovaciones.
+
+## Registro histórico conservado
+
+> Los diagnósticos, estados y checkboxes antiguos se conservan por trazabilidad; prevalecen la ficha vigente y la matriz anterior.
+
+## Histórico — Estado vigente — 28/10/2026
 
 **BE-13 en revisión, sin publicar.** Migración 039 y registro PWA preparados: Auth/perfil/ajustes/vínculo/categorías/invitación se completan o revierten juntos. 1036 Vitest, lint/tipos/build, 12 SQL y seis guards locales aprobados; Auth real/rollback ya aprobados en el candidato funcional; seguimiento de los cuatro controles y ajuste del fixture nativo en [PR #51](https://github.com/ThomasMariani11/chatbot-gastos/pull/51). Lectura agregada productiva: cuatro cuentas, cero perfiles/ajustes/vínculos ausentes, un único administrador (Thomas). Por decisión expresa del propietario, el administrador inicial queda excluido: no se modifican 005 ni los roles actuales. [Validación y procedimiento](VALIDACION_BE_13.md).
 
@@ -24,15 +124,15 @@
 
 Groq fue renovado sin vencimiento y se conserva el plan Free observado; INF-15 quedó cerrado en el alcance de beta probado el 27/10. Backups siguen al final y la retención no se habilita. Las secciones de revisión y preparación siguientes son registros históricos; no reabren FE-01/02/03/04/05/06 ni BE-02. Los estados y la secuencia vigentes se resumen a continuación.
 
-## FE-07 + FE-12 — publicación y verificación técnica
+## Histórico — FE-07 + FE-12 — publicación y verificación técnica
 
 Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani11/chatbot-gastos/pull/37), versión 15269ba. 592 pruebas y los cuatro controles más Publicar aprobados. SHA, SW, bundle y CSP comprobados; acceso autenticado, borrador sin guardar, navegación, espera de más de 30 segundos, bloqueo de actualización, descarte y actualización explícita verificados en la PWA publicada. No se envió el formulario ni se cambiaron datos productivos. [Evidencia y límites](VALIDACION_FE_07_12.md). FE-12 terminado en su alcance. El propietario completó además el flujo en Pesito instalado desde el ícono del iPhone: aviso bloqueado con borrador, conservación al navegar, descarte y actualización con sesión conservada. FE-07 cerrado en ese alcance; no se presume compatibilidad física universal.
 
-## FE-09 + seguimiento FE-11 — publicados y verificados
+## Histórico — FE-09 + seguimiento FE-11 — publicados y verificados
 
 [PR #39](https://github.com/ThomasMariani11/chatbot-gastos/pull/39) integrada y publicada por autorización explícita del propietario, versión **54dce9e**. 628 pruebas y cuatro controles más Publicar aprobados. Totales por registros existentes, centavos y moneda; corte explícito desde hoy o desde el mes futuro elegido. Paginación de cuotas sin entregar subtotales. Identidad, fallo SQL/rollback y reintento verificados con planes homónimos ficticios en Dashboard y RPC reales sobre base descartable. SHA, SW, bundle y CSP publicados comprobados. Sin migración, webhook ni compras productivas de prueba. **FE-09 y seguimiento FE-11 cerrados en su alcance.** [Evidencia y límites](VALIDACION_FE_09_11.md).
 
-## Punto de reanudación — 28/10/2026
+## Histórico — Punto de reanudación — 28/10/2026
 
 - Producción: **0cc65d9 / PR #50, 001–038 y whatsapp-webhook v62 ACTIVE**. Fuentes, ACL, helpers privados vía API, PWA/SW/CSP y cinco controles verificados; BE-11 aceptado por el propietario. Rollback compatible de runtime: 1e45c94, conservando 038, counters y recibos IA; ver su validación. No volver a runtimes que omitan las guardas de confirmación o cupos.
 - INF-15 y FE-19 cerrados en sus alcances verificados. INF-13 parcial por cabeceras HTTP y framing: no cambiar hosting/URL sin preparar una vista previa y obtener aprobación.
@@ -41,7 +141,7 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 - Bloque actual: **BE-13 — consistencia del alta**. Implementado en rama para revisión, sin SQL ni PWA productivos nuevos; 039 requiere publicación posterior. Administrador inicial excluido por el propietario, Thomas conserva su rol. No se reparan cuentas existentes; la lectura agregada no encontró perfiles/ajustes/vínculos ausentes.
 - Decisiones vigentes: costo adicional $0, sin cambios de claves/planes/emisor, retención desactivada y backups INF-08 al final.
 
-## Próximos bloques — 28/10/2026
+## Histórico — Próximos bloques — 28/10/2026
 
 | Orden | Bloque | Qué falta | Criterio para avanzar |
 | --- | --- | --- | --- |
@@ -98,14 +198,14 @@ Después siguen FE-04/FE-05 (duplicados y carga por mes) y FE-06/BE-02 (renovaci
 La aceptación física del rediseño, las cabeceras que GitHub Pages no permite configurar y la reducción del bundle también siguen abiertas. La CSP ya se publicó en PR #23; las referencias históricas a publicación pendiente no representan ese avance.
 
 
-## Ejecución del 23/10/2026 — Groq y cuotas
+## Histórico — Ejecución del 23/10/2026 — Groq y cuotas
 
 - **Groq: renovación completada.** Clave sin vencimiento creada con autorización, prueba ficticia HTTP 200 y secreto Supabase actualizado/verificado. Plan Free mantenido, claves anteriores conservadas. [Evidencia y límites](VALIDACION_GROQ_ROTACION_2026-10-23.md). Este avance reemplaza la revisión de vigencia pendiente que figura en la sección histórica anterior; INF-15 sigue abierto.
 - **FE-01 / FE-02 / FE-03: publicados y aceptados en [PR #30](https://github.com/ThomasMariani11/chatbot-gastos/pull/30).** RPC atómica 029, contratos PWA/WhatsApp, control de versión e idempotencia; patch de campos editados y cuotas con identidad estable. 490 tests locales, lint/tipos/build, 12 SQL y seis controles de release aprobados. Navegador probado con PGlite ficticio. [Validación y orden de publicación](VALIDACION_FE_01_02_03.md).
 - **FE-11:** eliminación por identificador publicada en este bloque; sigue pendiente su aceptación específica con planes homónimos. FE-04 recibió guardia inmediata de envío y recibos para planes, pero las altas normales y la persistencia del intento tras recargar siguen abiertas.
 - 029/PWA publicadas y aceptación completada operando solamente la compra ficticia autorizada. No se operó sobre compras preexistentes. La retención permanece sin habilitar y los backups al final por decisión del propietario.
 
-## Objetivo
+## Histórico — Objetivo
 
 Reunir los pendientes de infraestructura, frontend y backend para resolverlos de a uno, con alcance y criterios de validación claros.
 
@@ -153,6 +253,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-01 — Restringir funciones SQL privilegiadas
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_01_BE_01.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada.
 - **Cierre al 14/10/2026:** Terminada. Migración 017 aplicada; ACL, HTTP y SQL con ROLLBACK verificados. Prueba WhatsApp del usuario corroborada en la base: un movimiento de prueba de 100 ARS confirmado, ninguno del concepto descartado y cero ítems de prueba pendientes. Webhook v36 sin redespliegue. La publicación Git se consulta en el historial del repositorio. [Procedimiento](VALIDACION_INF_01_BE_01.md) y [evidencia](evidencias/INF_01_BE_01_2026-10-14.json).
 - **Problema confirmado:** `confirm_draft_group`, `discard_draft_group` y `get_active_draft_group` tienen `SECURITY DEFINER`, permiten ejecución a `anon` y no validan la identidad recibida.
@@ -162,6 +265,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-02 — Restringir escrituras e integridad de borradores y cola
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_02_BE_03.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada.
 - **Estado al 14/10/2026:** Terminada. Migraciones 018 y 019 aplicadas; PWA con RPC publicada antes de cerrar escrituras. 106 tests, lint, tipos, build, permisos, cuatro FK, diez llamadas HTTP y SQL con 24 rechazos y ROLLBACK aprobados. Prueba real del usuario y consulta agregada de solo lectura: vínculo activo y código consumido; gasto de 100 ARS guardado una sola vez; gasto temporal descartado sin guardarse; cero ítems pendientes de prueba. Webhook v36 sin redespliegue. El modo instalado standalone no se comprobó. [Procedimiento](VALIDACION_INF_02_BE_03.md) y [evidencia](evidencias/INF_02_BE_03_2026-10-14.json).
 - **Problema confirmado:** cuentas cliente pueden insertar y modificar tablas operativas. Las claves foráneas de grupo y usuario no garantizan que ambos pertenezcan al mismo propietario.
@@ -170,6 +276,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Cierre:** escrituras directas desde clientes rechazadas; relaciones cruzadas rechazadas por la base; lecturas legítimas y procesamiento del bot verificados.
 
 ### INF-03 — Hacer fiable el procesamiento de la cola
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_03_BE_06.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Seguimiento 22/10/2026:** corregir bloqueo por revisión manual y aclarar aviso al cliente, con migración 026 y pruebas de regresión; publicación pendiente de CI. [Alcance y validación](CORRECCION_COLA_REVISION_MANUAL_2026-10-22.md).
 
@@ -184,6 +293,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-04 — Separar recepción, guardado y entrega de respuestas
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_04_BE_10.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada.
 - **Cierre al 15/10/2026:** migración 023 aplicada; 173 tests, diez escenarios de fallo aislados, build, lint y PostgreSQL nativo concurrente aprobados. El propietario confirmó el guardado y la segunda confirmación sin duplicados. Lectura agregada: un único gasto de prueba de 1 ARS, cero pendientes de esa prueba y cero trabajos v2 fallidos o en procesamiento. Se mantiene documentada la posible repetición del texto si Meta lo acepta y falla su registro local. [Aceptación](evidencias/INF_04_BE_10_aceptacion_2026-10-15.json) y [procedimiento](VALIDACION_INF_04_BE_10.md).
 
@@ -195,6 +307,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-05 — Exigir TLS y limitar acceso SQL por red
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_05.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - **Cierre al 16/10/2026:** terminada para la arquitectura vigente. TLS obligatorio, rechazo sin cifrar y de origen no autorizado, acceso por ambos poolers con CA/hostname válidos y administración HTTPS comprobados. Refrescada únicamente la /32 SQL actual; tres /32 propias observadas, sin rangos mundiales ni costo. El propietario confirma datos visibles y respuesta del bot. El endpoint directo resuelve solo a IPv6 y la PC carece de ruta IPv6 (ENETUNREACH): no se usa en esta arquitectura; para SQL nativo se admite el pooler IPv4. No se afirma autenticación nativa ni TLS directo IPv6 probados. [Runbook y límites](VALIDACION_INF_05.md), [evidencia inicial](evidencias/INF_05_2026-10-15.json) y [cierre](evidencias/INF_05_cierre_2026-10-16.json).
 
 - [x] Terminada.
@@ -205,6 +320,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-06 — Proteger main y agregar validaciones de CI
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_06.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada.
 - **Problema confirmado:** `main` figura sin protección. El workflow publica sin ejecutar pruebas o lint; el webhook queda fuera del chequeo TypeScript y del lint actuales.
 - **Archivos:** `.github/workflows/deploy-pages.yml:4`, `:27`; `tsconfig.json:16`; `eslint.config.mjs:6`; `tests/renewals.integration.mjs:4`.
@@ -212,6 +330,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Cierre:** un cambio con pruebas fallidas no se publica; las validaciones se reproducen desde un checkout limpio; las reglas de main están comprobadas.
 
 ### INF-07 — Actualizar dependencias vulnerables de desarrollo
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_07.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Cierre al 16/10/2026:** Vite 8.0.13 → 8.0.16, brace-expansion 1.1.18 → 1.1.21 / 5.0.9 → 5.0.12 y source-map-js 1.2.1 → 1.2.2, sin --force ni overrides. Audit completo y de producción: cero alertas conocidas; versiones e integridad productivas sin cambios. Copia limpia: 173 tests, 12 SQL, tipos/lint/build aprobados; Windows: arranque, transformación TSX y rechazo 403 de .env sintético y variante NTFS ADS. Actionlint y tres checks de GitHub aprobados, incluido audit nuevo en Frontend; toda revisión final debe aprobar antes de integrar. Sin cambios de negocio, base ni webhook. Se conserva el aviso de soporte de ESLint como deuda de mantenimiento y los límites de audit/Windows. [Procedimiento](VALIDACION_INF_07.md) y [evidencia](evidencias/INF_07_2026-10-16.json).
 
@@ -223,6 +344,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-08 — Verificar backups y probar recuperación
 
+> **Estado vigente 29/10/2026:** Pendiente; backups al final. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - **Decisión del propietario, 15/10/2026:** tarea postergada hasta terminar las demás mejoras de infraestructura, backend y frontend. Se retira la preparación de backups de esta etapa: workflow, scripts, guías y evidencias específicas; el historial Git conserva el trabajo para retomarlo. No se habilitaron backups productivos ni se restauró producción. La app y el bot mantienen las mejoras ya publicadas. Google aceptó la revocación del acceso OAuth de prueba y se retiraron las credenciales temporales locales. El 15/10/2026 se cerró el proyecto Google Cloud pesito-backups por pedido del propietario; la consola confirmó que está apagado y programado para borrarse después del 14/11/2026. Los archivos sintéticos privados de ensayo en Drive permanecen sin automatización; no se activó facturación.
 
 - [ ] Terminada.
@@ -232,6 +356,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Cierre:** evidencia de una restauración exitosa, integridad de datos y tiempos medidos; objetivos de recuperación acordados y runbook disponible. No restaurar sobre producción durante la prueba.
 
 ### INF-09 — Evitar datos personales y financieros en logs
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_09.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Cierre al 16/10/2026:** migración 024 aplicada y registrada atómicamente; webhook v41 activo. Logger con campos permitidos y no-console en CI; advertencia de alta con evento/SQLSTATE, sin UUID ni SQLERRM. 185 tests, 13 Deno, 12 SQL, tipos/lint/build y concurrencia nativa aprobados. Probes sin credenciales: 401 sin encolar; dos eventos HTTP observados sin campos prohibidos; cola/cron sanos. Revisados un Owner, retención Supabase de un día y drains deshabilitados. Historial CI revisado de forma acotada; retención exacta de GitHub y logging administrado por plataforma quedan fuera de la garantía del código propio. Sin borrar históricos ni datos. [Procedimiento y límites](VALIDACION_INF_09.md) y [evidencia](evidencias/INF_09_2026-10-16.json).
 
@@ -243,6 +370,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-10 — Documentar y reproducir entornos, deploy y rollback
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_10.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - **Cierre al 16/10/2026:** destinos separados, CLI fijada, instalación 001–024 y runbook compatible; 190 tests + seis controles de ensayo, 12 SQL, lint/tipos/build aprobados. Ensayo completo en CI Linux 38932608913 aprobado con instalación 001–024 y rollback sin restauración; integración condicionada a los cuatro checks del PR y publicación de Pages verificada antes de informar el cierre. [Validación](VALIDACION_INF_10.md) y [runbook](../operaciones/DEPLOY_Y_ROLLBACK.md).
 
 - [x] Terminada.
@@ -252,6 +382,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Cierre:** despliegue reproducido en un entorno aislado desde un checkout limpio; smoke test y rollback ensayados; documentación suficiente para otro operador.
 
 ### INF-11 — Fijar Actions y aplicar permisos mínimos
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_11.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Cierre al 18/10/2026:** SHA contrastados con tags oficiales; Pages fuera del build y subida sin dependencia interna móvil; Dependabot semanal por PR y runbook. actionlint y YAML aprobados; cuatro checks del PR y publicación main aprobados. Web/version.json/sw.js HTTP 200 con c227cf3. Dependabot inició sus comprobaciones correctamente y abrió el PR 9 de versiones, que queda para revisión. [Detalle](VALIDACION_INF_11.md). Sigue INF-12; backups al final.
 
@@ -263,6 +396,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-12 — Limitar tiempos y tamaño de multimedia
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_12.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - **Cierre al 20/10/2026:** lectura de streams acotada (imagen 5 MiB, audio 10 MiB), MIME, presupuestos compartidos de descarga/interpretación/envío y 60 s por intento del trabajador. Ante la indisponibilidad observada en Gemini (ocho fallos 503/timeout documentados en [VALIDACION_GEMINI_2026-10-20.md](VALIDACION_GEMINI_2026-10-20.md)), se evaluó e integró Groq Free (`whisper-large-v3-turbo` + normalización de montos hablados preservando `<dígitos> mil` + reglas locales previas para movimientos/comandos/correcciones + `qwen/qwen3.8-27b` con esquema estricto, validador runtime y control compartido de cupo/429). 306 Vitest, 38 Deno sin red, 12 SQL y seis controles Node aprobados. Webhook ACTIVE publicado desde checkout limpio tras CI y smoke 401 verificado. Aceptación real en WhatsApp completada: comprobante en imagen interpretado en **3,11 s** (`qwen`) y audio corto en **2,32 s** (`whisper` + `local_rule` con cero llamadas a `qwen`), seguidos de `CANCELAR` con cero transacciones creadas. La credencial de la beta de 4 usuarios vence el 27/10/2026; la rotación y revisión de retención/costos quedan asociadas a INF-14 e INF-15. [Detalle](VALIDACION_INF_12.md), [evaluación Groq](VALIDACION_GROQ_2026-10-20.md) y [capacidad 4 usuarios](CAPACIDAD_GROQ_4_USUARIOS.md).
 
 - [x] Terminada.
@@ -272,6 +408,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Cierre:** proveedores lentos y archivos grandes no agotan invocaciones ni memoria; mensajes admitidos siguen funcionando y los fallos se recuperan conforme a INF-04.
 
 ### INF-13 — Incorporar CSP y cabeceras de seguridad
+
+> **Estado vigente 29/10/2026:** Pendiente parcial; CSP incorporada, headers/hosting al final. [Evidencia](VALIDACION_INF_13.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Decisión vigente del propietario — 27/10/2026:** postergar el cambio de hosting y los headers que dependen de él hasta terminar la funcionalidad de la app. Mantener CSP/hosting actuales y retomar la evaluación en la etapa final; no marcar esta deuda como resuelta.
 
@@ -287,6 +426,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 
 ### INF-14 — Agregar observabilidad, alertas y retención
 
+> **Estado vigente 29/10/2026:** Pendiente de activación; preparada y desactivada. [Evidencia](VALIDACION_INF_14_RETENCION.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [ ] Terminada. **Retención preparada al 27/10/2026:** panel/avisos publicados y aceptados; 19 pruebas nuevas de limpieza 30/90, estimación productiva de solo lectura y ensayos ampliados. Retención desactivada, cero elegibles en la estimación; 819 pruebas y cuatro checks aprobados en 5a007c4. Integración y activación pendientes de autorización. [Validación](VALIDACION_INF_14_RETENCION.md).
 - **Problema confirmado en el repositorio:** no hay configuración de alertas, métricas de cola/entrega ni política de retención declarada. Servicios externos existentes quedan a verificar.
 - **Archivos:** `supabase/migrations/014_draft_movement_batches.sql:47`; `supabase/functions/whatsapp-webhook/index.ts:926`.
@@ -299,6 +441,9 @@ Las tareas de cola, entrega y límites del webhook también requieren cambios de
 - **Aceptación 22/10/2026:** migración 027 y webhook v52 publicados (PR #20). Prueba ficticia con el propietario: alerta visible, reconocimiento desde el panel y un aviso recibido por WhatsApp; simulación cerrada sin alterar movimientos ni borradores. 028 y webhook v53 ya publicados (PR #21) para mostrar cliente, fecha/hora de Argentina y diagnóstico seguro en panel/avisos. PR #22 publicada el 23/10/2026 (1eb546b): administración por Clientes, Invitaciones, Bot y Ajustes; vista móvil y modales con foco/teclado revisados. Esto no cierra todas las tareas de accesibilidad o membresías concurrentes del frontend. Retención desactivada.
 
 ### INF-15 — Corregir documentación y controles de costos
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_15.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - [x] Terminada en el alcance probado el 27/10/2026. PR #46/ebdd6ee, 035 y webhook v59 publicados; 800 pruebas y cinco controles aprobados. Texto local, audio Whisper y foto Qwen aceptados; contadores 1/100 y 1/200, tres grupos descartados y cero transacciones nuevas/duplicados/pendientes. [Validación](VALIDACION_INF_15.md).
 - **Revalidación:** la guía ya no promete el corte antiguo, pero debe describir la selección Groq/Gemini, enfriamiento por instancia y ausencia de límite monetario global. Los dos campos históricos siguen sin consultarse; se documentan como heredados, sin alterar datos. No se comprobaron cargos indebidos.
@@ -348,6 +493,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-01 — Unificar el contrato de cuotas de WhatsApp y PWA
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_01_02_03.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada. Publicada y aceptada el 23/10/2026; ver [validación](VALIDACION_FE_01_02_03.md).
 - **Categoría:** Bug. **Problema reproducido:** la PWA supone un padre separado, pero WhatsApp usa la primera cuota confirmada como identificador del grupo. Al editar todo el plan se escribe sobre esa cuota tanto su importe individual como el total, en paralelo. Una fixture de tres cuotas de 100 terminó en 300, 100 y 100; el resultado depende del orden de escritura.
 - **Archivos:** src/Dashboard.tsx:817, :824; supabase/migrations/015_allow_multiple_transactions_per_wa_message.sql:184, :186.
@@ -355,6 +503,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Cierre:** edición de planes originados en PWA y WhatsApp conserva la suma, actualiza cada cuota una sola vez y no altera datos de otro cliente; regresión del caso reproducido aprobada.
 
 ### FE-02 — Guardar creación y edición de planes de forma atómica
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_01_02_03.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - [x] Terminada. Publicada y aceptada el 23/10/2026; ver [validación](VALIDACION_FE_01_02_03.md).
 - **Categoría:** Bug. **Problema reproducido:** las actualizaciones de cuotas y padre son peticiones independientes; Promise.all no es una transacción. Al fallar la segunda cuota de un cambio de 100 a 200, quedaron 200, 100 y 200. En el alta, un fallo del lote deja el padre cancelado sin hijos; la inserción del array de cuotas por sí misma sí es una única operación.
@@ -365,6 +516,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-03 — Preservar campos no modificados y números de cuota
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_01_02_03.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada. Publicada y aceptada el 23/10/2026; ver [validación](VALIDACION_FE_01_02_03.md).
 - **Categoría:** Bug. **Problema reproducido:** aplicar a todas está activado por defecto y copia el importe de la cuota seleccionada a todas. Cambiar solo la descripción de un total de 100 dividido en 33,33 / 33,33 / 33,34 dejó 99,99. Si se eliminó la cuota 2, editar el plan renumera la 3 como 2 y crea otra 3.
 - **Archivos:** src/Dashboard.tsx:705, :718, :767, :777, :785.
@@ -372,6 +526,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Cierre:** editar solo nombre o categoría conserva fechas, cuotas e importes; centavos exactos; una cuota eliminada no reaparece y los números originales no cambian sin solicitud explícita.
 
 ### FE-04 — Evitar dobles envíos de movimientos
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_04_05.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - [x] Terminada. Publicada en PR #32 y aceptada el 24/10/2026. [Validación](VALIDACION_FE_04_05.md).
 - **Categoría:** Bug. **Problema reproducido:** addMovement no tiene exclusión durante el guardado ni clave de idempotencia. Dos envíos antes de terminar la primera petición crearon dos movimientos iguales. El botón solo se deshabilita por falta de categoría.
@@ -381,6 +538,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-05 — Representar carga, error y contexto mensual correctamente
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_04_05.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada. Publicada en PR #32 y aceptada el 24/10/2026. [Validación](VALIDACION_FE_04_05.md).
 - **Categoría:** Bug. **Problema confirmado:** errores de movimientos/presupuesto se omiten y se mantiene el estado anterior. Al cambiar de mes y fallar solo una consulta pueden aparecer movimientos del mes anterior bajo el nuevo encabezado. La primera carga fallida puede verse como cero o vacío. El fallback de meses contiene un segundo await sin revalidar el efecto activo.
 - **Archivos:** src/Dashboard.tsx:385, :402, :405, :422, :444, :456.
@@ -389,6 +549,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-06 — Extender suscripciones desde el valor actual del servidor
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_06_BE_02.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Corrección terminada. Publicada en PR #34 con 031/032 y verificación técnica el 25/10/2026; alcance y seguimiento histórico separados. [Validación](VALIDACION_FE_06_BE_02.md).
 - **Categoría:** Bug. **Problema confirmado en código:** el administrador calcula una fecha absoluta desde el perfil cargado y la escribe sin comprobar modificaciones concurrentes. Dos administradores que agregan 30 días desde la misma fecha producen el mismo vencimiento, perdiendo una extensión; un canje entre apertura y guardado también puede sobrescribirse. No se ejecutaron extensiones reales.
 - **Archivos:** src/AdminPanel.tsx:365, :371, :376, :378, :381.
@@ -396,6 +559,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Cierre:** extensiones simultáneas y canjes concurrentes conservan todos los días válidos; usuarios no administradores rechazados; resultado mostrado coincide con la base; casos vencidos y vitalicios verificados.
 
 ### FE-07 — Actualizar la PWA sin recargar formularios activos
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_07_12.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Estado al 25/10/2026:** corrección publicada en PR #37, CI y comprobación técnica productiva aprobados. Aviso y bloqueo con borrador sin guardar, navegación, descarte y actualización explícita verificados sin enviar cambios. [Validación y límites](VALIDACION_FE_07_12.md).
 
@@ -407,6 +573,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-08 — Actualizar dependencias vulnerables del frontend
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_08.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada. Validación y detalle en [VALIDACION_FE_08.md](VALIDACION_FE_08.md).
 - **Categoría:** Seguridad. **Problema confirmado por npm audit:** tres paquetes de desarrollo con severidad alta: Vite 8.0.13, brace-expansion y source-map-js 1.2.1. Audit de producción reportó cero. El bypass de archivos de Vite en Windows afecta al servidor de desarrollo, no demuestra exposición desde GitHub Pages.
 - **Archivos:** package.json:30; package-lock.json:1069, :1385, :2580, :2822.
@@ -415,6 +584,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Trabajo compartido:** INF-07; una sola actualización y validación para ambas tareas.
 
 ### FE-09 — Sumar las cuotas futuras reales
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_09_11.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Cierre al 25/10/2026:** PR #39 publicada; [pruebas, criterio de corte, aceptación y límites](VALIDACION_FE_09_11.md). Los archivos/líneas y el problema de la auditoría que siguen son referencias históricas, no una nueva reproducción sobre la versión publicada.
 
@@ -426,6 +598,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-10 — Alinear el límite de cuotas con el esquema
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_10.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada.
 - **Cierre al 28/10/2026:** Terminada. Contrato compartido de 2 a 60 cuotas (`MIN_INSTALLMENT_COUNT = 2`, `MAX_INSTALLMENT_COUNT = 60`, `parseInstallmentCountInput`, `isValidInstallmentSchedule`) entre `src/installmentPlans.ts`, `src/pwaEntries.ts` y `src/Dashboard.tsx`; rechazo explícito de valores fuera de rango, decimales o vacíos en alta y edición antes de llamar a la API con mensaje claro en `role="alert"`; pruebas de límites y decimales en `tests/installment-plan-editor.test.ts` y `tests/installments-dashboard-ui.test.ts`. [Validación](VALIDACION_FE_10.md).
 - **Avance al 25/10/2026:** 029 y la PR #30 ya incorporaron contrato de 2–60 cuotas; alta y edición muestran ese límite. La incompatibilidad original de 120 es histórica. [Validación relacionada](VALIDACION_FE_01_02_03.md).
@@ -435,6 +610,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Cierre:** límites, decimales y entradas inválidas probados en alta y edición; mensaje de validación claro; ningún valor aceptado por el cliente es rechazado por una restricción incompatible.
 
 ### FE-11 — Eliminar visualmente un plan por identidad, no por descripción
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_09_11.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Cierre al 25/10/2026:** PR #39 publicada; [pruebas, criterio de corte, aceptación y límites](VALIDACION_FE_09_11.md). Los archivos/líneas y el problema de la auditoría que siguen son referencias históricas, no una nueva reproducción sobre la versión publicada.
 
@@ -446,6 +624,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-12 — Conservar cambios sin guardar en Ajustes
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_07_12.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - **Cierre al 25/10/2026:** PR #37 publicada, 592 pruebas/CI y comprobación productiva sin escrituras aprobados. Cambios remotos, error de guardado y aislamiento entre usuarios cubiertos con datos ficticios; navegación, espera, descarte y bloqueo comprobados también en la PWA publicada. [Alcance y límites](VALIDACION_FE_07_12.md).
 
 - [x] Terminada en su alcance.
@@ -456,6 +637,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-13 — Descartar respuestas antiguas de validación de invitación
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_13.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada.
 - **Cierre al 28/10/2026:** Terminada. AbortController para cancelar peticiones HTTP en vuelo, codeState vinculado al código activo, descarte estricto por generación de solicitud y código visible; limpieza al desmontar y al cambiar de pestaña; 18 pruebas en tests/signup-ui.test.ts (1.061 tests pasando en total). [Validación](VALIDACION_FE_13.md).
 - **Categoría:** Bug. **Problema reproducido:** cancelar el debounce no cancela consultas iniciadas. La respuesta vieja de un código inválido, llegando después de una válida, dejó inválido el código actual y bloqueó el envío.
@@ -464,6 +648,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Cierre:** respuestas en cualquier orden corresponden siempre al código visible; borrar código y desmontar no actualizan el estado anterior; reintento tras fallo funciona.
 
 ### FE-14 — Permitir el zoom del navegador
+
+> **Estado vigente 29/10/2026:** Pendiente por instrucción del 29/10; bloqueo de zoom aún presente. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - [x] Descartada por decisión del propietario (se conserva el bloqueo de zoom para evitar ampliaciones accidentales en móvil).
 - **Categoría:** Accesibilidad. **Problema confirmado:** viewport con user-scalable=no y escala máxima/mínima 1; initZoomLock intercepta gestos, rueda y atajos de ampliación. Restringe el uso con baja visión.
@@ -474,6 +661,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-15 — Centralizar diálogos accesibles y etiquetas de formularios
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_15.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [ ] Terminada.
 - [x] Terminada. Validación y detalle en [VALIDACION_FE_15.md](VALIDACION_FE_15.md). — **Categoría:** Accesibilidad. **Problema observado en código:** modales principales sin gestión completa de foco, confinamiento, Escape y retorno al botón de apertura. El importe del alta tiene un texto visual en span sin label asociado. No se realizó una prueba con lector de pantalla real.
 - **Archivos:** src/Dashboard.tsx:1374, :1431, :1457, :1637; src/AdminPanel.tsx:1065, :1172.
@@ -482,6 +672,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Referencia:** https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/.
 
 ### FE-16 — Corregir el contraste de botones
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_16_22.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - [x] Terminada. Validación y detalle en [VALIDACION_FE_16_22.md](VALIDACION_FE_16_22.md).
 - **Categoría:** Accesibilidad. **Problema medido:** blanco sobre #20b984 tiene contraste 2,52:1. El navegador confirmó esa combinación en el botón de registro con texto de 16 px; no alcanza 4,5:1 para texto normal ni 3:1 para texto grande.
@@ -492,6 +685,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-17 — Separar la descarga inicial por pantallas
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_17.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada.
 - **Cierre al 28/10/2026:** Terminada. Separación de pantallas mediante React.lazy (Dashboard, Settings, AdminPanel, Paywall, Login) con cargador resiliente lazyWithRetry, recuperación protegida ante despliegues nuevos en GitHub Pages y límite de recarga en sessionStorage para prevenir bucles; límites de error accesibles (ScreenErrorBoundary) y avisos de carga (ScreenFallback). JS principal reducido de 873,75 kB a 424,47 kB (-51,4%), gzip de 250,61 kB a 122,46 kB (-51,1%); advertencia de chunks mayores a 500 kB de Vite eliminada; 12 pruebas en tests/lazy-loading.test.ts (1.073 pruebas pasando en total). [Validación](VALIDACION_FE_17.md).
 - **Categoría:** Rendimiento. **Problema medido:** imports anticipados de Dashboard, Ajustes y Administración producían un JS principal de 873,75 kB, 250,61 kB gzip. El código de gráficos se incorporaba antes de necesitarlo; Vite advertía un chunk mayor de 500 kB.
@@ -501,6 +697,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-18 — Reducir consultas y paginar resultados
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_18.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada. Validación y detalle en [VALIDACION_FE_18.md](VALIDACION_FE_18.md).
 - **Categoría:** Rendimiento. **Problema confirmado:** siete consultas cada cinco segundos además de Realtime, aproximadamente 84 por minuto por pestaña activa sin contar carga inicial y otros refrescos. Se vuelven a traer cuotas históricas; perfiles y códigos administrativos no se paginan.
 - **Archivos:** src/Dashboard.tsx:393, :396, :528, :533; src/AdminPanel.tsx:118, :119.
@@ -509,6 +708,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **A verificar:** límite productivo de PostgREST; no hubo acceso a esa configuración en la auditoría frontend. Coordinar agregaciones con BE-09 sin mezclar monedas.
 
 ### FE-19 — Publicar una CSP compatible con el cliente
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_13.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Estado vigente al 26/10/2026:** FE-19 cerrado en el alcance de compatibilidad probado. Cabeceras HTTP/protección de framing siguen abiertas en INF-13; Safari/CSP/offline no se presentan como cobertura universal. El avance del 23/10 que sigue es histórico.
 
@@ -523,6 +725,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-20 — Cancelar temporizadores de navegación al desmontar
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_20.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada. Validación y detalle en [VALIDACION_FE_20.md](VALIDACION_FE_20.md).
 - **Categoría:** Bug. **Problema reproducido:** el gesto swipe back programa onBack con setTimeout sin cancelarlo al limpiar el efecto; una fixture invocó la navegación después del desmontaje.
 - **Archivos:** src/useSwipeBack.ts:118, :148.
@@ -530,6 +735,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Cierre:** desmontaje o cancelación durante la animación no llama onBack; gesto legítimo funciona y no acumula callbacks. Compatibilidad con Safari real requiere prueba adicional.
 
 ### FE-21 — Probar flujos del cliente y reutilizar el dominio financiero
+
+> **Estado vigente 29/10/2026:** Pendiente transversal. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Avance al 25/10/2026:** regresiones y pruebas de navegador incorporadas junto con cuotas, altas/carga mensual y renovaciones (PR #30/#32/#34). El conteo de 26 pruebas de la auditoría inicial es histórico; la última publicación pasó 561. Sigue abierto el alcance transversal, incluidas actualizaciones PWA; el número de pruebas no prueba cobertura completa.
 
@@ -542,6 +750,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-22 — Corregir especificidad de pestañas de acceso
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_16_22.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada. Validación y detalle en [VALIDACION_FE_16_22.md](VALIDACION_FE_16_22.md).
 - **Categoría:** Bug. **Problema confirmado en navegador:** auth-card button tiene mayor especificidad que auth-tab y sobrescribe su fondo transparente/color. Al seleccionar Crear cuenta, Iniciar sesión inactivo permanece verde con blanco y el activo queda blanco.
 - **Archivos:** app/forms.css:2; src/styles.css:2147, :2164.
@@ -549,6 +760,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Cierre:** selección y apariencia coinciden en ingreso/registro, móvil/escritorio y navegación por teclado; sin alterar botones de envío; contraste conforme a FE-16.
 
 ### FE-23 — Símbolo de WhatsApp para soporte en el Dashboard
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - [x] Terminada. Implementada exclusivamente en `src/Dashboard.tsx` (excluida de Ajustes por decisión del propietario) con lectura unificada de `support_phone` y `whatsapp_bot_phone` en `src/dashboardData.ts` y pruebas en `tests/support-whatsapp-button.test.ts`.
 - **Categoría:** Usabilidad y Soporte.
@@ -563,6 +777,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-24 — Extender categorías en PWA y selector de movimientos
 
+> **Estado vigente 29/10/2026:** Pendiente; con BE-20. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [ ] Pendiente.
 - **Categoría:** Mejora y UX.
 - **Alcance:** ampliar el catálogo predeterminado de categorías y permitir al usuario gestionar categorías personalizadas en la PWA.
@@ -575,6 +792,9 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 - **Cierre:** nuevas categorías utilizables en alta y edición; validaciones de unicidad y límite en UI; pruebas unitarias y DOM aprobadas.
 
 ### FE-25 — Centro de avisos y preferencias de notificaciones cliente
+
+> **Estado vigente 29/10/2026:** Pendiente; con BE-21 / NOTIF-01. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - [ ] Pendiente.
 - **Categoría:** Feature / Retención.
@@ -637,6 +857,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-01 — Autorizar las RPC privilegiadas
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_01_BE_01.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada.
 - **Cierre al 14/10/2026:** Terminada. Migración 017 aplicada; ACL, HTTP y SQL con ROLLBACK verificados. Prueba WhatsApp del usuario corroborada en la base: un movimiento de prueba de 100 ARS confirmado, ninguno del concepto descartado y cero ítems de prueba pendientes. Webhook v36 sin redespliegue. La publicación Git se consulta en el historial del repositorio. [Procedimiento](VALIDACION_INF_01_BE_01.md) y [evidencia](evidencias/INF_01_BE_01_2026-10-14.json).
 - **Problema confirmado:** `get_active_draft_group`, `confirm_draft_group` y `discard_draft_group` permiten ejecución anónima, aceptan el usuario por parámetro y no comprueban su identidad. Sus propietarios productivos tienen BYPASSRLS. La fixture permitió lectura y confirmación de un grupo ajeno como anon.
@@ -647,6 +870,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-02 — Corregir renovaciones y activaciones bloqueadas por el trigger
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_FE_06_BE_02.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Corrección terminada. Publicada en PR #34 con 031/032 y verificación técnica el 25/10/2026; alcance y seguimiento histórico separados. [Validación](VALIDACION_FE_06_BE_02.md).
 - **Problema reproducido:** el trigger de perfiles conserva estado y vencimiento del cliente incluso durante un canje autorizado. La RPC devuelve éxito y consume el código, pero no renueva. También ocurre con un usuario pending_code.
 - **Archivos:** `supabase/migrations/016_add_name_fields_to_profiles.sql:23`; `supabase/migrations/013_secure_subscription_renewals.sql:47`.
@@ -655,6 +881,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Seguimiento de datos:** verificar si hubo códigos reales consumidos sin renovación; no asumir que existen ni reasignarlos sin reconciliar evidencia.
 
 ### BE-03 — Proteger escrituras y relaciones de propietario
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_02_BE_03.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - [x] Terminada.
 - **Estado al 14/10/2026:** Terminada. Migraciones 018 y 019 aplicadas; PWA con RPC publicada antes de cerrar escrituras. 106 tests, lint, tipos, build, permisos, cuatro FK, diez llamadas HTTP y SQL con 24 rechazos y ROLLBACK aprobados. Prueba real del usuario y consulta agregada de solo lectura: vínculo activo y código consumido; gasto de 100 ARS guardado una sola vez; gasto temporal descartado sin guardarse; cero ítems pendientes de prueba. Webhook v36 sin redespliegue. El modo instalado standalone no se comprobó. [Procedimiento](VALIDACION_INF_02_BE_03.md) y [evidencia](evidencias/INF_02_BE_03_2026-10-14.json).
@@ -665,6 +894,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Trabajo compartido:** INF-02; coordinar vinculación con BE-14.
 
 ### BE-04 — Corregir el parser determinista
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_BE_04.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Publicación al 25/10/2026:** PR #40/e311db4 y webhook v55 ACTIVE; cuatro controles y Publicar aprobados, esquema 032 y cola conservados, fuente descargada coincidente y protecciones 401 verificadas. [Detalle del despliegue](VALIDACION_BE_04.md). El propietario aceptó $123 / «Colectivo 60» y descarte con CANCELAR. Cerrado en el alcance probado; la preparación siguiente es registro histórico.
 
@@ -682,6 +914,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-05 — Evitar que consultas intercepten operaciones válidas
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_BE_05.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - **Cierre al 25/10/2026:** PR #41/cb2cef5 y v56 publicadas; 723 pruebas y CI, carga consistente, aclaración mixta, resumen/cancelación y consultas individuales de soporte/saldo verificadas. Un intento por consulta, sin ítems ni transacciones nuevas y cero grupos abiertos en la cuenta. [Evidencia, tiempos y límites](VALIDACION_BE_05.md). Los estados pendientes siguientes son históricos.
 
 - **Publicación al 25/10/2026:** PR #41/cb2cef5 y webhook v56 ACTIVE; CI completo/Pages, equivalencia de 17 módulos, protecciones 401 y esquema/cola/cron verificados. Sin SQL, secretos o modelos nuevos. Aceptación WhatsApp pendiente; la preparación siguiente es histórica. [Evidencia](VALIDACION_BE_05.md).
@@ -698,6 +933,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-06 — Serializar mensajes y mutaciones de borradores
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_03_BE_06.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada.
 - **Cierre al 15/10/2026:** trabajo compartido con INF-03 cerrado con las pruebas automáticas y concurrentes y la aceptación manual del propietario; lectura agregada sin pendientes ni confirmados de prueba. Persisten las limitaciones y tareas relacionadas indicadas en la [evidencia](evidencias/INF_03_BE_06_aceptacion_2026-10-15.json). INF-04/BE-10 y demás entradas conservan su propio alcance.
 
@@ -708,6 +946,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Trabajo compartido:** INF-03; coordinar BE-07, BE-10 e INF-14.
 
 ### BE-07 — Confirmar únicamente la versión revisada por el cliente
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_BE_07.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Cierre al 26/10/2026:** 033 aplicada y registrada antes de publicar PR #42/1688c7b. 735 pruebas, controles/Pages y PostgreSQL concurrente aprobados; definición completa/atributos productivos coincidentes, esquema 033, cola/cron saludables, PWA SHA/SW/CSP y Edge v56 conservados. Caso de 25 horas probado en base descartable; sin nuevos ensayos financieros en cuentas reales. [Evidencia y límites](VALIDACION_BE_07.md). Los estados pendientes siguientes son históricos.
 
@@ -722,6 +963,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-08 — Conservar operaciones incompletas y dudas
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_BE_08.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada en el alcance probado.
 - **Revalidación al 26/10/2026:** 020/023 ya conservan missing_fields y confianza cero. El fallo vigente era rechazar toda extracción parcial válida y exigir amount/occurred_on no nulos; la fecha desconocida también se sustituía por hoy. No se presume que sigan abiertos todos los defectos históricos.
 - **Publicado al 26/10/2026:** PR #43/bd896f0, puente v57, 034 y webhook v58 ACTIVE. 781 pruebas, CI/Pages completo, definiciones/permisos, historial, código Edge y salud verificados. Aceptación del propietario verificada: completo/incompleto, completar el 2, resumen nuevo y descarte; cero transacciones nuevas y cero pendientes. Cerrada en su alcance. [Detalle y límites](VALIDACION_BE_08.md).
@@ -731,6 +975,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-09 — Calcular saldos por moneda y con fechas válidas
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_BE_09.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada en el alcance probado. **Publicada y aceptada el 27/10/2026:** 036/PR #48/v60; 871 Vitest, 75 rutas Deno y cinco controles de main aprobados. Consulta del propietario enviada en 5,122 s; contenido coincide con SQL, cero IA, movimientos nuevos o trabajos propios pendientes. [Validación](VALIDACION_BE_09.md).
 - **Revalidación vigente:** el bot ya separa monedas, usa límite mensual exclusivo y detecta errores; seguían vigentes descarga sin paginar/sumas Number y mezcla de monedas en monthly_summary. Se reprodujo la mezcla en la función real antes de 036; el límite de filas se prueba en API local, sin presumir el max_rows alojado.
 - **Archivos:** `supabase/functions/whatsapp-webhook/index.ts:614`, `:618`, `:633`; `supabase/migrations/001_initial.sql:114`.
@@ -738,6 +985,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Cierre:** ARS/USD separados; febrero, años bisiestos y meses de 30 días correctos; resultados completos para volúmenes superiores al límite de filas; errores no se informan como saldo cero.
 
 ### BE-10 — Garantizar escrituras atómicas y respuestas recuperables
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_04_BE_10.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - [x] Terminada.
 - **Cierre al 15/10/2026:** migración 023 aplicada; 173 tests, diez escenarios de fallo aislados, build, lint y PostgreSQL nativo concurrente aprobados. El propietario confirmó el guardado y la segunda confirmación sin duplicados. Lectura agregada: un único gasto de prueba de 1 ARS, cero pendientes de esa prueba y cero trabajos v2 fallidos o en procesamiento. Se mantiene documentada la posible repetición del texto si Meta lo acepta y falla su registro local. [Aceptación](evidencias/INF_04_BE_10_aceptacion_2026-10-15.json) y [procedimiento](VALIDACION_INF_04_BE_10.md).
@@ -750,6 +1000,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Trabajo compartido:** INF-04; coordinar BE-06 y BE-07.
 
 ### BE-11 — Retener mensajes ante listas antiguas o falta de capacidad
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_BE_11.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Cierre del 28/10/2026:** PR #50 / 0cc65d9 / 038 / v62 publicados y aceptados. Siete mensajes reales de prueba: 20 + uno retenido, alias, numeración estable y cancelación; cero IA, fallos técnicos, movimientos guardados, grupos abiertos o trabajos propios pendientes. [Validación](VALIDACION_BE_11.md) y [evidencia](evidencias/BE_11_CIERRE_2026-10-28.json). Los registros de preparación siguientes son históricos.
 
@@ -774,6 +1027,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-12 — Completar correcciones y datos del resumen
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_BE_12.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - **Cierre 28/10/2026:** PR #49 / 1e45c94 / 037 / v61 publicados y aceptados por el propietario. Cinco ediciones, rechazos y cancelación verificados, sin movimientos de prueba guardados ni IA en correcciones. [Validación](VALIDACION_BE_12.md) y [evidencia](evidencias/BE_12_CIERRE_2026-10-28.json). Los avances siguientes son históricos.
 
 - **Revalidación 27/10/2026:** BE-08 ya muestra moneda, fecha y mes inicial de cuotas. Se trabaja en ediciones locales versionadas de todos los campos, validación de categoría y cambios atómicos; BE-11 no se da por cerrado. 037 y cambios de webhook preparados; 939 Vitest y 80 rutas Deno aprobados localmente. CI completo/publicación/aceptación pendientes. [Contrato, pruebas y límites](VALIDACION_BE_12.md).
@@ -790,6 +1046,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-13 — Hacer consistente el alta de usuarios
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_BE_13.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - **Alcance acordado el 28/10/2026:** consistencia del alta, invitación, fallos y reintentos. Administrador inicial excluido expresamente; Thomas sigue siendo el único administrador y no se promueven ni modifican roles existentes. 039 no reescribe migraciones aplicadas ni repara cuentas. [Preparación y límites](VALIDACION_BE_13.md).
 
 - [x] Terminada. Migración 039 aplicada y publicada en PR #51; ver [VALIDACION_BE_13.md](VALIDACION_BE_13.md).
@@ -801,6 +1060,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-14 — Hacer atómica la vinculación y limitar intentos
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_BE_14.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada.
 - **Cierre al 28/10/2026:** Terminada. Migración 040 aplicada; vinculación atómica con protección contra fuerza bruta por teléfono (bloqueo tras 5 intentos fallidos), actualización inmediata de worker state y perfiles, check_invitation_code con rate limiting (15 intentos/minuto) y mensajes uniformes sin enumeración; verificación de expiración estricta en servidor (clock_timestamp()) en altas, renovaciones y consultas. 1,051 tests aprobados en 46 suites, 12 pruebas SQL y guardas de release. [Procedimiento](VALIDACION_BE_14.md).
 - **Problema confirmado en código:** búsqueda y consumo del código separados de las escrituras de vinculación; sin bloqueo de fila ni límites propios de intentos. No se ejecutó fuerza bruta real; los límites externos quedan a verificar.
@@ -810,6 +1072,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Dependencias:** BE-03; coordinar generación segura del código.
 
 ### BE-15 — Acotar llamadas externas y procesamiento multimedia
+
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_INF_12.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Cierre al 20/10/2026:** cerrado junto con INF-12 (validación runtime de esquema, presupuestos compartidos de red/trabajo, normalización de montos hablados y aceptación de multimedia en WhatsApp con Groq `whisper-large-v3-turbo` + `qwen/qwen3.8-27b`). [Detalle](VALIDACION_INF_12.md).
 
@@ -822,6 +1087,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-16 — Separar errores de negocio, persistencia y envío
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_BE_16.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada.
 - **Cierre al 28/10/2026:** Terminada. Migración 041 con mensajes de negocio limpios y sanitización de excepciones en confirm_draft_group y discard_draft_group; fail_whatsapp_job registra QUEUE_SEND_RETRY en whatsapp_message_queue e inbound_events si effect_applied es true; queue.ts asigna stage "send" sin reinterpretar ante fallos de entrega; helpers.ts traslada API key de Gemini a header x-goog-api-key; 7 pruebas en tests/safe-errors.test.ts (1,058 tests pasando en total). [Validación](VALIDACION_BE_16.md).
 - **Problema confirmado:** logs con mensajes financieros, teléfonos y respuestas crudas; errores SQL enviados al usuario y avisos que pueden confundir fallo de interpretación con fallo de entrega.
@@ -831,6 +1099,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Trabajo compartido:** INF-09 e INF-14; coordinar BE-10.
 
 ### BE-17 — Probar el código real y las migraciones combinadas
+
+> **Estado vigente 29/10/2026:** Pendiente transversal. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - **Avance al 25/10/2026:** PGlite declarado en dependencias, regresiones SQL con migraciones relevantes/roles y carreras PostgreSQL en CI para los bloques publicados. FE-06/BE-02 cubre expresamente el trigger 016 y 031/032. La descripción inicial no implica ausencia actual de esas pruebas; revisar lo que falta por dominio y handler antes de cerrar BE-17. [Último bloque verificado](VALIDACION_FE_06_BE_02.md).
 
@@ -843,6 +1114,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-18 — Separar responsabilidades y reducir llamadas remotas
 
+> **Estado vigente 29/10/2026:** Incorporado en alcance documentado. [Evidencia](VALIDACION_BE_18.md). Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [x] Terminada. Validación y detalle en [VALIDACION_BE_18.md](VALIDACION_BE_18.md).
 - **Mejora observada:** handler de unas 945 líneas, confirmación/cancelación duplicadas y una escritura remota por movimiento. No se midió un cuello de botella productivo.
 - **Archivo:** `supabase/functions/whatsapp-webhook/index.ts:413`, `:654`, `:788`, `:877`.
@@ -851,6 +1125,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Dependencias:** diseño fiable de BE-06, BE-07 y BE-10; pruebas de BE-17.
 
 ### BE-19 — Notificación por WhatsApp al renovar suscripción
+
+> **Estado vigente 29/10/2026:** Pendiente; aviso de renovación. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - [ ] Pendiente.
 - **Categoría:** Feature / Automatización y Notificación transaccional.
@@ -865,6 +1142,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-20 — Extensión y gestión segura de categorías en base y bot
 
+> **Estado vigente 29/10/2026:** Pendiente; con FE-24. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
+
 - [ ] Pendiente.
 - **Categoría:** Modelo de Datos e Integridad.
 - **Alcance:** soporte en base de datos para categorías extendidas y personalizadas por usuario, alineado con el clasificador del bot de WhatsApp.
@@ -876,6 +1156,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Cierre:** migración expansiva compatible; pruebas de integridad relacional; bot reconoce categorías nuevas; cero regresiones en transacciones existentes.
 
 ### BE-21 — Tareas programadas de notificaciones para clientes (NOTIF-01)
+
+> **Estado vigente 29/10/2026:** Pendiente; con FE-25 / NOTIF-01. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+
 
 - [ ] Pendiente.
 - **Categoría:** Feature / Automatización y Notificaciones.

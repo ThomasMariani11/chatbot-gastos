@@ -4,9 +4,15 @@
 >
 > **Fecha:** 29/10/2026, Argentina. **Código revisado:** `main`, commit `ebbefceb75a3f73670e95ee7b51d76aaf9f072f3`, PR #68.
 >
-> **Última comprobación operativa:** web y service worker publicados en ese commit; migraciones productivas 001–042; `whatsapp-webhook` con soporte de bajas/ediciones múltiples y lenguaje natural (BE-22). Son observaciones fechadas, no una garantía de que el entorno no cambie después.
+> **Observaciones operativas:** la revisión de planes utiliza ecba420/001–041. Las observaciones previas son fechadas y no se revalidaron aquí. La aplicación productiva de 042/BE-22 está **sin verificar en esta tarea documental**; no inferir despliegue por merge.
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
+
+## Revisión documental de planes — 29/10/2026
+
+Se reconciliaron ambos planes con base funcional ecba420 (PR #67) y migraciones 001–041, separando incorporaciones, pendientes y registros históricos. No se agregan funcionalidades ni se certifica un despliegue. BE-22/042 se conserva como avance posterior del checkout, con publicación productiva **sin verificar en esta tarea**.
+
+FE-14 queda pendiente según la instrucción actual; el descarte previo se conserva como historia. INF-13/INF-08 se aplazan y la retención INF-14 sigue preparada/desactivada. Thomas continúa como único administrador. Se preservan las ediciones locales previas del contexto.
 
 ## Índice
 
