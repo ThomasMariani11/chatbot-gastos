@@ -172,6 +172,7 @@ type CacheSlot<T> = {
 export interface DashboardQueryCache {
   userId: string;
   botPhone?: CacheSlot<string>;
+  supportPhone?: CacheSlot<string>;
   botState?: CacheSlot<'active' | 'paused' | 'unlinked'>;
   months?: CacheSlot<{ months: string[]; monthsWarning: boolean }>;
   installments?: CacheSlot<Row[]>;
@@ -195,6 +196,7 @@ export function createDashboardQueryCache(userId: string): DashboardQueryCache {
     },
     invalidateAll() {
       delete cache.botPhone;
+      delete cache.supportPhone;
       delete cache.botState;
       delete cache.months;
       delete cache.installments;
@@ -220,6 +222,7 @@ export type DashboardSnapshot = {
   monthsWarning: boolean;
   botState: 'active' | 'paused' | 'unlinked' | 'unknown';
   botPhone: string;
+  supportPhone?: string;
 };
 
 export type CurrencyTotals = {
@@ -281,6 +284,29 @@ export async function readDashboardSnapshot(
   const cachedBotPhone = isFresh(activeCache?.botPhone, BOT_PHONE_TTL_MS, now)
     ? activeCache!.botPhone.value
     : null;
+  const cachedSupportPhone = isFresh(activeCache?.supportPhone, BOT_PHONE_TTL_MS, now)
+    ? activeCache!.supportPhone.value
+    : null;
+
+  const readSystemPhones = () => {
+    const selectBuilder = client.from('system_config').select('key, value');
+    if (typeof (selectBuilder as { in?: unknown }).in === 'function') {
+      const inBuilder = (
+        selectBuilder as unknown as {
+          in(col: string, vals: string[]): { abortSignal(sig: AbortSignal): PromiseLike<unknown> };
+        }
+      ).in('key', ['whatsapp_bot_phone', 'support_phone']);
+      return safe(inBuilder.abortSignal(signal));
+    }
+    return safe(
+      client
+        .from('system_config')
+        .select('value')
+        .eq('key', 'whatsapp_bot_phone')
+        .abortSignal(signal)
+        .maybeSingle(),
+    );
+  };
 
   const [transactions, budgets, installments, link, settings, distinctMonths, phone] = await Promise.all([
     readMonthlyTransactions(userId, month, end, columns, signal, client),
@@ -313,15 +339,14 @@ export async function readDashboardSnapshot(
       ? Promise.resolve<Result>({ data: cachedMonths.months, error: null })
       : safe(client.rpc('get_distinct_transaction_months').abortSignal(signal)),
     cachedBotPhone !== null
-      ? Promise.resolve<Result>({ data: { value: cachedBotPhone }, error: null })
-      : safe(
-          client
-            .from('system_config')
-            .select('value')
-            .eq('key', 'whatsapp_bot_phone')
-            .abortSignal(signal)
-            .maybeSingle(),
-        ),
+      ? Promise.resolve<Result>({
+          data: [
+            { key: 'whatsapp_bot_phone', value: cachedBotPhone },
+            { key: 'support_phone', value: cachedSupportPhone ?? cachedBotPhone },
+          ],
+          error: null,
+        })
+      : readSystemPhones(),
   ]);
 
   checkActive(signal);
@@ -392,14 +417,32 @@ export async function readDashboardSnapshot(
     }
   }
 
-  const resolvedBotPhone =
-    cachedBotPhone !== null
-      ? cachedBotPhone
-      : !phone.error && typeof record(phone.data)?.value === 'string'
-        ? String(record(phone.data)?.value)
-        : '';
-  if (activeCache && cachedBotPhone === null && !phone.error && resolvedBotPhone) {
-    activeCache.botPhone = { value: resolvedBotPhone, fetchedAt: now };
+  let resolvedBotPhone = cachedBotPhone ?? '';
+  let resolvedSupportPhone = cachedSupportPhone ?? '';
+  if (cachedBotPhone === null && !phone.error) {
+    if (Array.isArray(phone.data)) {
+      for (const item of phone.data) {
+        const row = record(item);
+        if (row?.key === 'whatsapp_bot_phone' && typeof row?.value === 'string') {
+          resolvedBotPhone = row.value;
+        } else if (row?.key === 'support_phone' && typeof row?.value === 'string') {
+          resolvedSupportPhone = row.value;
+        }
+      }
+    } else if (typeof record(phone.data)?.value === 'string') {
+      resolvedBotPhone = String(record(phone.data)?.value);
+    }
+    if (activeCache) {
+      if (resolvedBotPhone) {
+        activeCache.botPhone = { value: resolvedBotPhone, fetchedAt: now };
+      }
+      if (resolvedSupportPhone || resolvedBotPhone) {
+        activeCache.supportPhone = {
+          value: resolvedSupportPhone || resolvedBotPhone,
+          fetchedAt: now,
+        };
+      }
+    }
   }
 
   return {
@@ -416,5 +459,6 @@ export async function readDashboardSnapshot(
     monthsWarning,
     botState,
     botPhone: resolvedBotPhone,
+    supportPhone: resolvedSupportPhone || resolvedBotPhone,
   };
 }
