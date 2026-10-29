@@ -71,6 +71,18 @@ vi.mock('../src/supabase', () => ({
       let rangeEnd: number | null = null;
       let inKeys: string[] | null = null;
       let eqKey: string | null = null;
+      const orders: Array<{ col: string; ascending: boolean }> = [];
+
+      const applyOrders = (items: Record<string, unknown>[]) => {
+        if (!orders.length) return [...items];
+        return [...items].sort((a, b) => {
+          for (const spec of orders) {
+            const cmp = String(a[spec.col] ?? '').localeCompare(String(b[spec.col] ?? ''));
+            if (cmp !== 0) return spec.ascending ? cmp : -cmp;
+          }
+          return 0;
+        });
+      };
 
       const execute = () => {
         if (table === 'categories') {
@@ -80,9 +92,10 @@ vi.mock('../src/supabase', () => ({
         if (table === 'transactions') {
           if (isInstallmentQuery) {
             mockState.queryCounts.installments++;
-            const after = cursor
+            const filtered = cursor
               ? mockState.installmentTransactions.filter((r) => String(r.id) > cursor)
               : mockState.installmentTransactions;
+            const after = applyOrders(filtered);
             return {
               data: after.slice(0, 250),
               count: after.length,
@@ -90,9 +103,10 @@ vi.mock('../src/supabase', () => ({
             };
           }
           mockState.queryCounts.monthly++;
-          const after = cursor
+          const filtered = cursor
             ? mockState.monthlyTransactions.filter((r) => String(r.id) > cursor)
             : mockState.monthlyTransactions;
+          const after = applyOrders(filtered);
           return {
             data: after.slice(0, 250),
             count: after.length,
@@ -165,7 +179,10 @@ vi.mock('../src/supabase', () => ({
           if (col === 'id') cursor = String(val);
           return q;
         },
-        order: () => q,
+        order: (col: string, opts?: { ascending?: boolean }) => {
+          orders.push({ col, ascending: opts?.ascending ?? true });
+          return q;
+        },
         limit: () => q,
         range: (from: number, to: number) => {
           rangeStart = from;
@@ -629,5 +646,61 @@ describe('FE-18: Reducir consultas y paginar resultados', () => {
     });
     expect(codesNav?.textContent).toContain('Página 2 de 2');
     expect(container.querySelectorAll('.admin-codes-table tbody tr')).toHaveLength(5);
+  });
+
+  it('no falla cuando los UUID de transacciones tienen orden distinto a occurred_on DESC', async () => {
+    mockState.monthlyTransactions = [
+      {
+        id: 'f9000000-0000-4000-8000-000000000001',
+        description: 'Gasto más reciente con UUID alto',
+        amount_ars: 1500,
+        currency: 'ARS',
+        occurred_on: '2026-10-28',
+        kind: 'expense',
+        category_id: catId,
+        categories: { name: 'Compras' },
+        installment_number: null,
+        installment_count: null,
+        installment_group_id: null,
+      },
+      {
+        id: '12000000-0000-4000-8000-000000000002',
+        description: 'Gasto intermedio con UUID bajo',
+        amount_ars: 2500,
+        currency: 'ARS',
+        occurred_on: '2026-10-15',
+        kind: 'expense',
+        category_id: catId,
+        categories: { name: 'Compras' },
+        installment_number: null,
+        installment_count: null,
+        installment_group_id: null,
+      },
+      {
+        id: 'a5000000-0000-4000-8000-000000000003',
+        description: 'Gasto antiguo con UUID medio',
+        amount_ars: 3500,
+        currency: 'ARS',
+        occurred_on: '2026-10-02',
+        kind: 'expense',
+        category_id: catId,
+        categories: { name: 'Compras' },
+        installment_number: null,
+        installment_count: null,
+        installment_group_id: null,
+      },
+    ];
+
+    const snapshot = await readDashboardSnapshot(
+      'user-uuid-order',
+      '2026-10',
+      new AbortController().signal,
+      undefined,
+    );
+    expect(snapshot.transactions.map((r) => r.occurred_on)).toEqual([
+      '2026-10-28',
+      '2026-10-15',
+      '2026-10-02',
+    ]);
   });
 });
