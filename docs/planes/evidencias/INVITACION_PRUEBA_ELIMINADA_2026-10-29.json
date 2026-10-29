@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-29",
+  "scope": "one_authorized_production_data_deletion",
+  "ownerConfirmedTestRecord": true,
+  "ownerConfirmedExactSql": true,
+  "record": {
+    "id": "b772fcd7-e275-4893-978e-4592249bfb6e",
+    "maskedCode": "PE…26",
+    "priorState": {
+      "isUsed": true,
+      "usedBy": null
+    }
+  },
+  "preflight": {
+    "candidateCount": 1,
+    "publicTablesChecked": 25,
+    "publicReferences": 0,
+    "authMetadataReferences": 0,
+    "otherInvitationReferences": 0,
+    "incomingForeignKeys": 0,
+    "userTriggers": 0,
+    "creatorReference": "outgoing_only_admin"
+  },
+  "transaction": {
+    "committed": true,
+    "deletedRows": 1,
+    "exactIdPredicate": true,
+    "repeatedReferenceChecks": true,
+    "rollbackOnUnexpectedRowCount": true,
+    "protectedTablesAndOtherInvitationsUnchanged": true,
+    "approvedSqlSha256": "f69b9a57cc0c6ecededffbe56e52c3d47ed4fbfa35d7e18fd8e63f711c5e4835"
+  },
+  "postDelete": {
+    "verifiedAt": "2026-10-29T20:23:55.722332+00:00",
+    "targetAbsent": true,
+    "remainingConsumedWithoutUser": 0,
+    "profilesUnchanged": true,
+    "subscriptionsUnchanged": true,
+    "transactionsUnchanged": true,
+    "adminSubscriptionRequestsUnchanged": true
+  },
+  "migrationCreated": false,
+  "applicationDeployed": false,
+  "invitationReassigned": false,
+  "subscriptionDatesCorrected": false
+}

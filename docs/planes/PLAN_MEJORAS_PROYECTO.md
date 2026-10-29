@@ -94,7 +94,7 @@ Las secciones históricas se conservan como registro. “Siguiente paso”, “p
 - **FE-23 / PR #67:** soporte en `src/Dashboard.tsx`, lectura en `src/dashboardData.ts`, icono/estilos y `tests/support-whatsapp-button.test.ts`. Solo Dashboard, Ajustes excluido. No se encontró VALIDACION_FE_23 separada; la evidencia es código, tests y commit.
 - **PR #66 / 66b7d43 incorporada:** `src/dashboardData.ts` ordena por ID ascendente para el cursor y luego por fecha. Evidencia: diff del commit y suite `tests/fe18-queries-and-pagination.test.ts`. No se atribuye una nueva prueba específica o aceptación productiva no registrada.
 - Evidencias JSON contrastadas: INF_01_BE_01, INF_02_BE_03, aceptación INF_03_BE_06, aceptación INF_04_BE_10, cierre INF_05, INF_06/07/09/10/11, INF_13_FE_19, INF_14_RETENCION, cierre INF_15 y cierres BE_11/12 bajo `docs/planes/evidencias/`. Son observaciones fechadas, no revalidación remota actual.
-- Seguimiento histórico BE-02: un código usado sin usuario sigue separado; no se reasigna ni reabre toda la corrección de renovaciones.
+- **Seguimiento BE-02 cerrado el 29/10/2026:** Thomas identificó y autorizó borrar un único código de prueba consumido sin usuario. Se eliminó por UUID exacto en una transacción con controles de referencias/filas; un SELECT posterior confirmó ausencia y huellas sin cambios de perfiles, vencimientos, movimientos y recibos. Operación puntual de datos, sin migración ni reasignación. [Cierre y evidencia](VALIDACION_FE_06_BE_02.md#cierre-del-registro-de-prueba--29102026). Los estados abiertos de abajo son históricos.
 
 ## Registro histórico conservado
 

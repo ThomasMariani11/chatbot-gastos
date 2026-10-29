@@ -10,6 +10,10 @@ PWA de finanzas personales con React, TypeScript, Vite, Recharts y Supabase. La 
 - Reglas locales: comandos, consultas y operaciones claras sin IA.
 - Groq: Whisper para audio y Qwen para extracción compleja/fotos. Gemini conserva una ruta de configuración si falta Groq; no es respaldo automático ante sus fallos.
 
+## Contexto vivo del proyecto
+
+El documento [Contexto completo de Pesito para Claude](docs/contexto/CONTEXTO_PESITO_PARA_CLAUDE.md) debe mantenerse actualizado con **cada mejora, corrección, modificación o eliminación**. Es parte del trabajo, no una tarea opcional posterior: revisar las secciones afectadas, quitar descripciones obsoletas y distinguir implementación, integración y despliegue verificado. La regla permanente para asistentes y colaboradores está en [AGENTS.md](AGENTS.md). No incluir secretos ni datos reales de clientes.
+
 ## Desarrollo
 
 ```bash

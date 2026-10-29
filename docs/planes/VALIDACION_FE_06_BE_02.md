@@ -3,6 +3,8 @@
 Fecha: 24/10/2026. Base: main 3d5b395. Rama: codex/atomic-subscription-renewals.
 Estado al 25/10/2026: corrección publicada en PR #34, migraciones 031/032 aplicadas y verificación técnica completada. Seguimiento del código usado sin usuario asociado abierto; sin correcciones automáticas de datos.
 
+> **Estado vigente — 29/10/2026:** seguimiento del código de prueba cerrado mediante eliminación puntual autorizada y verificada. La lectura del 25/10 se conserva abajo como historia; no se atribuye retrospectivamente una causa ni se corrigieron vencimientos. Ver el cierre al final.
+
 ## Resultado preparado
 
 - Migración 031: admin_renew_subscription recibe UUID de intento, cliente, acción extend/lifetime y días (1–3650). Verifica administrador, bloquea su perfil durante la autorización y el perfil del cliente durante el cálculo. Usa el reloj del servidor y suma desde el mayor entre hoy y el vencimiento existente. Devuelve estado/vencimiento persistidos; la interfaz no envía una fecha absoluta.
@@ -70,3 +72,15 @@ La corrección hacia adelante 032 agrega subscription_actor_id, SECURITY DEFINER
 - Evidencia saneada en carpeta temporal: pesito-renewal-031-preflight.json, pesito-renewal-031-historical-review.json, pesito-renewal-031-auth-diagnosis.json, pesito-renewal-032-verification.json, pesito-renewal-032-production-smoke.json, pesito-renewal-032-http-security.json, pesito-fe06-published.json y pesito-fe06-production-ui-readonly.json. No se versionan claves, nombres ni contenidos de clientes.
 
 La corrección de FE-06/BE-02 queda terminada dentro del alcance técnico y los límites documentados. El seguimiento histórico sin identidad y la aceptación física en otros dispositivos no se declaran resueltos. No se redesplegó el webhook, no se enviaron mensajes y no se activaron retención, backups ni facturación.
+
+## Cierre del registro de prueba — 29/10/2026
+
+Thomas confirmó expresamente que el registro era de prueba y luego aprobó el SQL exacto antes de ejecutarlo. La revisión de solo lectura encontró un único código consumido sin usuario (`used_by = NULL`), UUID `b772fcd7-e275-4893-978e-4592249bfb6e`, enmascarado `PE…26`. Fue creado y consumido el 06/10/2026; sus notas contenían una marca de prueba. No se exportó el código completo ni contenido de clientes.
+
+Se comprobaron cero referencias por UUID/código en 25 tablas públicas, otros códigos y metadatos de usuarios/identidades de Auth; cero FKs entrantes y cero triggers de usuario sobre invitation_codes. La autoría `created_by` era una referencia saliente hacia un administrador, sin dependencia financiera del creador. El panel bloquea borrar códigos consumidos, por lo que no aplicaba su flujo de Invitaciones.
+
+Se ejecutó un único DELETE por ese UUID, dentro de REPEATABLE READ, con revalidación del estado y referencias, bloqueo de la fila, exigencia de exactamente una fila y comparación de huellas antes/después. Cualquier incumplimiento abortaba antes de COMMIT. Se protegieron perfiles completos (incluidos estado y vencimiento), movimientos, recibos y los demás códigos.
+
+Un SELECT independiente posterior confirmó que el registro ya no existe, quedan cero consumidos sin usuario y las huellas de perfiles, vencimientos, movimientos y admin_subscription_requests coinciden con las de la lectura previa. Verificado el 29/10/2026 a las 17:23:55 de Argentina. [Evidencia saneada](evidencias/INVITACION_PRUEBA_ELIMINADA_2026-10-29.json).
+
+**Seguimiento puntual cerrado.** No se reasignó la invitación, no se corrigieron vencimientos, no se tocó ningún movimiento confirmado ni se borró otro registro. Es una operación de datos productiva, no una migración: no se agregó nada a supabase/migrations ni se desplegó PWA/webhook. Los antecedentes anteriores permanecen como registro de lo observado en sus fechas.
