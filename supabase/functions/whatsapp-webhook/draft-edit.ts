@@ -25,6 +25,7 @@ export type PendingEdit = {
   group_id: string;
   version: number;
   patch: DraftPatch;
+  edits?: Array<{ position: number; patch: DraftPatch }>;
 };
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();

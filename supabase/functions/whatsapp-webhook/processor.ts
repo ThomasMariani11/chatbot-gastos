@@ -134,7 +134,7 @@ export async function prepareMessage(
   const correction = correctionIntent
     ? parsePendingEdit(text, draft ?? {})
     : null;
-  if (correction) {
+  if (correction?.kind === "edit") {
     writeOperationalLog("local_rule", { rule: "correction" });
     return correction;
   }
@@ -235,6 +235,17 @@ export async function prepareMessage(
     // reintentar la IA si falla el guardado de la respuesta o su envío.
     if (result.intent === "add_movements" && result.movements?.length <= 20) {
       try {
+        if (result.movements?.every((m) => m.totalAmountArs != null && m.occurredOn != null && m.description)) {
+          delete result.clarification;
+          for (const m of result.movements) {
+            if (m.totalAmountArs != null && m.occurredOn != null && m.description) {
+              m.clarification = null;
+              if (Array.isArray(m.missingFields)) {
+                m.missingFields = m.missingFields.filter((f) => f !== "review");
+              }
+            }
+          }
+        }
         result.movements = normalizeDraftMovements(
           result.movements,
           localDate(),
@@ -253,24 +264,50 @@ export async function prepareMessage(
         { reason: "invalid_response" };
     }
     if (result.intent === "edit_item") {
-      const edit = result.edit;
-      const patch = {
-        ...(edit?.amount != null ? { amount: edit.amount } : {}),
-        ...(edit?.description != null ? { description: edit.description } : {}),
-        ...(edit?.category != null ? { category: edit.category } : {}),
-      };
-      const action = buildPendingEdit(
-        edit?.targetPosition ?? 0,
-        patch,
-        draft ?? {},
-      );
-      result = action.kind === "edit"
-        ? { intent: "edit_pending", movements: [], pendingEdit: action }
-        : {
-          intent: "clarify_completion",
-          movements: [],
-          completionReply: action.text,
-        };
+      const editList = Array.isArray(result.edits) && result.edits.length > 0
+        ? result.edits
+        : result.edit?.targetPosition != null
+        ? [result.edit]
+        : [];
+      if (editList.length > 0) {
+        const validatedEdits = [];
+        for (const e of editList) {
+          const patch = {
+            ...(e?.amount != null ? { amount: e.amount } : {}),
+            ...(e?.description != null ? { description: e.description } : {}),
+            ...(e?.category != null ? { category: e.category } : {}),
+          };
+          const action = buildPendingEdit(
+            e.targetPosition ?? 0,
+            patch,
+            draft ?? {},
+          );
+          if (action.kind === "edit") {
+            validatedEdits.push({ position: action.position, patch: action.patch });
+          }
+        }
+        if (validatedEdits.length > 0 && draft?.group_id && draft?.version) {
+          result = {
+            intent: "edit_pending",
+            movements: [],
+            pendingEdit: {
+              kind: "edit",
+              position: validatedEdits[0].position,
+              group_id: draft.group_id,
+              version: draft.version,
+              patch: validatedEdits[0].patch,
+              edits: validatedEdits,
+            },
+          };
+        } else {
+          result = {
+            intent: "clarify_completion",
+            movements: [],
+            completionReply:
+              "No pude aplicar las modificaciones a la lista. Revisala con RESUMEN.",
+          };
+        }
+      }
     }
     parent?.throwIfAborted();
     await checkpoint(result);
@@ -311,10 +348,21 @@ export async function prepareMessage(
       return { kind: "cancel" };
     case "summary":
       return { kind: "summary" };
-    case "remove_item":
-      return result.removePosition
-        ? { kind: "remove", position: result.removePosition }
-        : reply("Indicame el número del movimiento que querés quitar.");
+    case "remove_item": {
+      const positions = Array.isArray(result.removePositions) && result.removePositions.length > 0
+        ? result.removePositions
+        : result.removePosition
+        ? [result.removePosition]
+        : [];
+      if (positions.length > 0) {
+        return {
+          kind: "remove",
+          position: positions[0],
+          positions,
+        };
+      }
+      return reply("Indicame el número del movimiento que querés quitar.");
+    }
     case "edit_item":
       // Checkpoint anterior al contrato versionado: no reinterpretar su destino.
       return reply(
@@ -330,6 +378,17 @@ export async function prepareMessage(
         );
       }
       try {
+        if (result.movements?.every((m) => m.totalAmountArs != null && m.occurredOn != null && m.description)) {
+          delete result.clarification;
+          for (const m of result.movements) {
+            if (m.totalAmountArs != null && m.occurredOn != null && m.description) {
+              m.clarification = null;
+              if (Array.isArray(m.missingFields)) {
+                m.missingFields = m.missingFields.filter((f) => f !== "review");
+              }
+            }
+          }
+        }
         result.movements = normalizeDraftMovements(
           result.movements,
           localDate(),

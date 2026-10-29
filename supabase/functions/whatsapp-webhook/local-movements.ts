@@ -127,7 +127,7 @@ export function parseDeterministicMovement(
   if (
     !text || looksLikeDraftCorrection(text) || /[?¿]/.test(text) ||
     unsupportedCurrency.test(normalized) || foreignCurrency.test(normalized) ||
-    /\b(no|nunca|quizas|tal vez|creo|si|cuanto|como|donde|cuando|cual|cuales|mostra|mostrame|decime|dime|pasame|ayuda|explicame|cancelar|confirmar|quitar|borrar|saca|quita|borra|elimina|cambia|corregi|modifica|manana|lunes|martes|miercoles|jueves|viernes|sabado|domingo|semana|mes|eur|euros?|brl|reales|gbp|uruguayos|chilenos|mexicanos|guaranies|yenes)\b/
+    /\b(no|nunca|quizas|tal vez|creo|si|cuanto|como|donde|cuando|cual|cuales|mostra|mostrame|decime|dime|pasame|ayuda|explicame|cancela|cancelar|cancelalo|cancelame|anula|anular|anulalo|anulame|confirmar|quitar|borrar|saca|sacame|quita|quitame|borra|borrame|elimina|eliminame|descartar|descartalo|cambia|corregi|modifica|manana|lunes|martes|miercoles|jueves|viernes|sabado|domingo|semana|mes|eur|euros?|brl|reales|gbp|uruguayos|chilenos|mexicanos|guaranies|yenes)\b/
       .test(normalized) ||
     /\b(voy a|tengo que|debo|quiero|podria|deberia|iba a|me deben|por cobrar|por pagar|cada cuota|por cuota|de las cuales|en total entre)\b/
       .test(normalized)
@@ -211,7 +211,7 @@ export function parseDeterministicMovement(
     (!description || /^(?:me|se|nos|le|les)\b/.test(normalize(description)) ||
       /\b(tuve|tengo|tenia|tendre|gane|facture|encontre|perdi|devolvi|devolvieron|reintegro|sobro|faltan|falta|quedan|deben|debo|deuda|deudas|precio|precios|cuesta|vale|costaria|costara|seria|fue|eran|ejemplo|cotizacion|presupuesto|pendiente|pendientes)\b/
         .test(normalize(description)) ||
-      /\b(gaste|pague|compre|cobre|ingreso|ingresaron|recibi|transferi|deposite|pagar|gastar|cobrar|gastado|pagado|gastamos|pagamos|cobramos|gastos|ingresos)\b/
+      /\b(gaste|pague|compre|cobre|ingreso|ingresaron|recibi|transferi|deposite|pagar|gastar|cobrar|gastado|pagado|gastamos|pagamos|cobramos|gastos|ingresos|cancela|cancelar|cancelame|cancelalo|anula|anular|anulame|anulalo|quita|quitar|quitame|borra|borrar|borrame|elimina|eliminar|eliminame|saca|sacar|sacame|descartar|descartalo)\b/
         .test(normalize(description)))
   ) return null;
   // No absorber magnitudes/fracciones desconocidas dentro del concepto.
