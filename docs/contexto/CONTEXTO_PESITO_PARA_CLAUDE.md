@@ -2,9 +2,9 @@
 
 > **Documento de transferencia de contexto.** Describe el producto, la implementación y las decisiones vigentes. No autoriza cambios, despliegues, gastos ni acceso a cuentas.
 >
-> **Fecha:** 29/10/2026, Argentina. **Código revisado:** `main`, commit `ecba42024d413ef05a2a4d1abeb04bdbb97e869e`, PR #67.
+> **Fecha:** 29/10/2026, Argentina. **Código revisado:** `main`, commit `ebbefceb75a3f73670e95ee7b51d76aaf9f072f3`, PR #68.
 >
-> **Última comprobación operativa:** web y service worker publicados en ese commit; migraciones productivas 001–041; `whatsapp-webhook` v64 ACTIVE, con 26 módulos de producción coincidentes con el repositorio. Son observaciones fechadas, no una garantía de que el entorno no cambie después.
+> **Última comprobación operativa:** web y service worker publicados en ese commit; migraciones productivas 001–042; `whatsapp-webhook` con soporte de bajas/ediciones múltiples y lenguaje natural (BE-22). Son observaciones fechadas, no una garantía de que el entorno no cambie después.
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
@@ -298,6 +298,9 @@ Conceptos breves: “Supermercado”, no toda la frase original con importe y me
 | `El 2 fue de 5000` | Corrige el importe del ítem 2; no crea otro gasto. |
 | `El 1 fue farmacia` | Corrección de concepto; si resulta ambigua pide aclaración. |
 | `Quitá el 2`, `sacame el 2` | Quita ese ítem sin cambiar los otros números. |
+| `Cancela el 5 y el 6`, `Cancela 4.5.6`, `Quitá el 2 y el 3` | Bajas múltiples atómicas sin desfasar números (BE-22, migración 042). |
+| `Cancela el 6` | Reconocido como comando/intención de baja; no se convierte en gasto de $6 (BE-22). |
+| `El 1: es comida \n El 2: gaseosa` | Correcciones múltiples multilínea interpretadas en lote por IA (BE-22). |
 | `RETOMAR` | Resuelve continuar una lista antigua. |
 | `DESCARTAR` | Resuelve descartar la lista antigua y libera el mensaje nuevo según el flujo. |
 | `hola`, `ayuda`, `comandos` | Ayuda de uso. |
@@ -869,6 +872,7 @@ No afirmar que ya hay:
 | BE-18 | Modularización y contexto paralelo del webhook. |
 | PR #66 | Cursor mensual por ID coherente antes del orden por fecha. |
 | FE-23 / PR #67 | Soporte WhatsApp en Dashboard. |
+| BE-22 / PR #68 | Lenguaje natural y simplificación en chatbot (bajas/ediciones múltiples, guarda de cancelación y comprobantes sin bloqueo de aclaración); 042. |
 
 Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garantías y límites; no asumir que un refactor los reemplazó por completo.
 
@@ -1063,6 +1067,7 @@ Lista generada desde el repositorio de referencia. Una migración puede redefini
 | 039 | `supabase/migrations/039_atomic_user_signup.sql` |
 | 040 | `supabase/migrations/040_atomic_whatsapp_linking.sql` |
 | 041 | `supabase/migrations/041_safe_business_errors.sql` |
+| 042 | `supabase/migrations/042_bulk_draft_actions.sql` |
 
 ### 19.1. Tablas públicas declaradas
 
@@ -1099,6 +1104,6 @@ Inventario de creación, no de permisos efectivos actuales; no incluye los esque
 
 ### 19.2. Fuentes y alcance de esta entrega
 
-Preparado a partir de README, package/configuración, pantallas, módulos del bot, reglas/límites, migraciones 001–041, pruebas y documentos de operación/validación. La sincronización anterior verificó web/SW ecba420 y Edge v64 coincidente con 26 módulos actuales.
+Preparado a partir de README, package/configuración, pantallas, módulos del bot, reglas/límites, migraciones 001–042, pruebas y documentos de operación/validación. Sincronizado en commit `ebbefce` (PR #68).
 
 Este trabajo agrega documentación. No cambia código de aplicación ni aplica migraciones/despliegues; no envía datos de clientes a IA, WhatsApp o correo. La evidencia fechada se distingue del contenido histórico o propuesto del plan.
