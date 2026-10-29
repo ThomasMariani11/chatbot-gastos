@@ -152,7 +152,8 @@ export function parsePendingEdit(
   context: EditContext,
 ): ReturnType<typeof buildPendingEdit> | null {
   if (!looksLikeDraftCorrection(raw)) return null;
-  if (/[\r\n]/.test(raw) || /\b(?:y|,)\s*(?:el|la)\s+\d+\b/i.test(raw)) {
+  if (/[\r\n]/.test(raw)) return null;
+  if (/\b(?:y|,)\s*(?:el|la)\s+\d+\b/i.test(raw)) {
     return clarify();
   }
   const amount = parseDraftCorrection(raw);

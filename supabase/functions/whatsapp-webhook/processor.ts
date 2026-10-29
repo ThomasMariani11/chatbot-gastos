@@ -134,7 +134,7 @@ export async function prepareMessage(
   const correction = correctionIntent
     ? parsePendingEdit(text, draft ?? {})
     : null;
-  if (correction?.kind === "edit") {
+  if (correction) {
     writeOperationalLog("local_rule", { rule: "correction" });
     return correction;
   }
@@ -239,7 +239,7 @@ export async function prepareMessage(
           delete result.clarification;
           for (const m of result.movements) {
             if (m.totalAmountArs != null && m.occurredOn != null && m.description) {
-              m.clarification = null;
+              delete m.clarification;
               if (Array.isArray(m.missingFields)) {
                 m.missingFields = m.missingFields.filter((f) => f !== "review");
               }
@@ -382,7 +382,7 @@ export async function prepareMessage(
           delete result.clarification;
           for (const m of result.movements) {
             if (m.totalAmountArs != null && m.occurredOn != null && m.description) {
-              m.clarification = null;
+              delete m.clarification;
               if (Array.isArray(m.missingFields)) {
                 m.missingFields = m.missingFields.filter((f) => f !== "review");
               }
