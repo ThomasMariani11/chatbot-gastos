@@ -1,6 +1,6 @@
 # BE-19 — Pago confirmado con código nominativo
 
-**Fecha:** 30/10/2026. **Estado:** implementación en `codex/be19-renovacion-pago-codigo`, basada en documentación `f44cc44`. Sin integración, migración productiva, PWA ni webhook publicados. Última producción observada: `7dd418e`, SQL 001–042 y Edge v66.
+**Fecha:** 30/10/2026. **Estado:** publicado y verificado en producción técnica tras autorización expresa del propietario. PR #74 en `main` (`800e82101a1d4c5269ae32179e7169ed6bd005c3`), SQL 001–043 aplicado, webhook v67 ACTIVE y PWA publicada en GitHub Pages. Aceptación manual pendiente con cuenta de prueba autorizada.
 
 ## Contrato acordado
 
@@ -32,25 +32,39 @@ La propuesta histórica de notificar tanto el ajuste manual como el canje queda 
 - Despacho limitado a cinco avisos por activación y 20 segundos para iniciar nuevas entregas; timeouts remotos existentes. Recuperación programada existente.
 - Sin IA, plantillas, facturación, emisor nuevo ni validación bancaria. La ventana limita envío, no canje posterior del código.
 
-## Validación automática
-
-Fixtures aisladas: solicitud repetida, doble pago, canje doble, nominativo ajeno/registro, códigos generales, pago sin extensión anticipada, rollback al fallar outbox, ventana expirada/reapertura y durante envío, timestamps inválidos/futuros, vínculo cambiado, cuenta vencida/suspendida, bot/cola/preferencias, estado incierto y ACL. El contrato SQL de instalación/rollback se ejecuta también en PGlite.
-
-Interfaz: doble clic, respuesta perdida, ventana cerrada, estado incierto, cancelación de lecturas y respuestas tardías. Meta simulado: emisor, reautorización, rechazo, timeout, red, 5xx, fallo de finalización y logs sin contenido privado.
+## Validación y despliegue
 
 - Primer control completo: 1.166 pruebas aprobadas, antes de ampliar escenarios SQL.
 - Control SQL BE-19 ampliado: 23 pruebas aprobadas.
 - Lint, SQL histórico (12), guardas de release (14), Deno check/lint aprobados.
-- Deno: 90 pruebas aprobadas sin red, usando DENO_DIR aislado y permiso de lectura de esa caché en Windows. La caché global virtualizada no resolvía tslib; no se cambió código/dependencias para ocultarlo.
-- Control final local: **1.179 pruebas aprobadas en 59 archivos**, build aprobado. Incluye 23 casos SQL nuevos y 27 verificaciones focalizadas de entrega/UI. CI pendiente de registrar.
-- Vista local ficticia revisada: estados, modal de días, confirmación y feedback sin afirmar activación; sin conexión a Supabase ni WhatsApp.
-- PostgreSQL concurrente: escenarios añadidos a `test:concurrency` (pago único, claim exclusivo y canje una vez); **pendiente de ejecución en CI**.
-- Ensayo Supabase completo: 043 incluida en inventario, smoke SQL del pago/código/canje en candidato y sobre esquema expandido con runtime de rollback; **pendiente de ejecución**. Docker Desktop no disponible localmente.
+- Control final local previo al merge: **1.179 pruebas aprobadas en 59 archivos**, build aprobado.
+- CI en GitHub Actions (#41089399656 sobre `800e82101a1d4c5269ae32179e7169ed6bd005c3`):
+  - Frontend: success
+  - PostgreSQL: success
+  - Webhook: success
+  - Ensayo de release: success (verificación completa de contratos, instalación de 043 y rollback en contenedor aislado)
+  - Publicar: success (PWA desplegada a GitHub Pages)
+- **Migración 043 aplicada a producción:**
+  - Historial verificado `001–043` mediante `supabase migration list --linked`.
+  - Tablas `subscription_renewal_requests`, `subscription_renewal_notices` y columna `invitation_codes.renewal_user_id` operativas.
+  - RPCs `admin_confirm_renewal_payment`, `request_subscription_renewal`, `claim_subscription_renewal_notice`, `finish_subscription_renewal_notice` creadas con permisos correctos.
+- **Webhook desplegado:**
+  - Versión 67 ACTIVE (`verify_jwt: false`, HMAC propio y worker secreto conservados).
+  - 28 módulos cargados, incluyendo `renewals.ts`.
+- **Smoke en producción:**
+  - POST sin firma a webhook: HTTP 401.
+  - POST sin clave worker a `?action=worker`: HTTP 401.
+  - `version.json` en GitHub Pages verificado sin caché: `800e82101a1d4c5269ae32179e7169ed6bd005c3`.
 
-## Instalación, rollback y aceptación pendientes
+## Aceptación pendiente
 
-Contrato candidato 043; rollback `7dd418e367a797e8406c6cfe1acedeeba22c5258` / mínimo 042, conservando 043. No se declara compatibilidad completa por un número o tests en memoria. El runtime anterior no entrega esta nueva bandeja; conserva datos, se documenta su límite y se prefiere corrección hacia adelante.
+- Probar con cuenta de prueba autorizada de Thomas:
+  1. Enviar RENOVAR o QUIERO RENOVAR desde WhatsApp y verificar respuesta con instrucciones comerciales sin IA.
+  2. Abrir Clientes → Renovaciones en panel Admin y verificar visualización con contador de ventana 24h.
+  3. Ejecutar "Confirmar pago y enviar código" con 30 días.
+  4. Verificar recepción de WhatsApp con recibo y código, sin activar días anticipadamente.
+  5. Canjear código en Ajustes → Código de renovación y verificar acumulación única de días.
 
-Orden futuro: controles completos → autorización específica → SQL 043 y verificación → webhook → PWA → aceptación con cuenta de prueba autorizada. Ver [procedimiento](../operaciones/DEPLOY_Y_ROLLBACK.md).
+[Evidencia de despliegue](evidencias/BE_19_DESPLIEGUE_2026-10-30.json).
 
-No se usaron clientes reales, no se enviaron recibos reales ni se aplicó nada a producción. Continúan Thomas como único administrador, INF-08/hosting aplazados e INF-14 desactivada.
+No se usaron clientes reales, no se enviaron recibos reales no autorizados ni se modificaron roles ni administradores. Continúan Thomas como único administrador, INF-08/hosting aplazados e INF-14 desactivada.
