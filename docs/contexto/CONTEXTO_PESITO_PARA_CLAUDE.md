@@ -2,17 +2,21 @@
 
 > **Documento de transferencia de contexto.** Describe el producto, la implementación y las decisiones vigentes. No autoriza cambios, despliegues, gastos ni acceso a cuentas.
 >
-> **Fecha:** 30/10/2026, Argentina. **Código publicado y verificado:** `main`, commit `d2d05df8229066f20e4a33f9625b0cdf3a0d04e6`, PR #72 (incluye BE-22/PR #68 y contrato PR #71).
+> **Fecha:** 30/10/2026, Argentina. **Código publicado y verificado:** `main`, commit `7dd418e367a797e8406c6cfe1acedeeba22c5258`, PR #73 (incluye BE-22 y su corrección local de importes múltiples).
 >
-> **Observaciones verificadas 30/10:** historial productivo 001–042, webhook v65 ACTIVE y PWA version.json d2d05df. Cola v2 habilitada, recuperación succeeded y huellas de perfiles/vencimientos/movimientos conservadas. Aceptación manual WhatsApp de BE-22 pendiente. Ver `docs/planes/VALIDACION_RELEASE_042_PRODUCCION.md`; las observaciones anteriores permanecen como historia.
+> **Observaciones verificadas 30/10:** historial productivo 001–042, webhook v66 ACTIVE y PWA version.json 7dd418e. Cola v2 habilitada, recuperación succeeded y huellas de perfiles/vencimientos/movimientos conservadas. Aceptación manual del caso BE-22 cerrada: importes múltiples, bajas con números estables y cancelación sin guardar, corroborados el 30/10. Ver `docs/planes/VALIDACION_RELEASE_042_PRODUCCION.md`; las observaciones anteriores permanecen como historia.
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
-## Incidencia de aceptación y corrección en rama — 30/10/2026
+## BE-19 en rama — pago confirmado y código de renovación
 
-La prueba manual BE-22 sobre v65 falló en la corrección doble de importes: una guarda local devolvía aclaración antes de la RPC 042. En codex/fix-bulk-amount-corrections se reconoce el mensaje completo con dos o más importes explícitos, sin IA y sin aceptar una parte si otro dato/destino es inválido. Comprobación texto→procesador→SQL y reintento agregada; 1.129 pruebas locales aprobadas. Aún no publicada al registrar esta nota; la aceptación debe repetirse después del despliegue. Ver docs/planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md.
+**30/10/2026.** Rama `codex/be19-renovacion-pago-codigo`, basada en el commit documental `f44cc44`. Implementación propuesta con SQL 043; no integrada, migración sin aplicar, PWA/webhook sin publicar. La última producción observada sigue siendo 7dd418e / 001–042 / v66. [Validación BE-19](../planes/VALIDACION_BE_19.md). No prueba cuentas reales ni cambia IA, costos, roles, hosting, backups o retención.
 
-## Publicación comprobada — 30/10/2026
+## Corrección de importes múltiples publicada — 30/10/2026
+
+La prueba manual BE-22 sobre v65 falló en la corrección doble de importes: una guarda local devolvía aclaración antes de la RPC 042. En codex/fix-bulk-amount-corrections se reconoce el mensaje completo con dos o más importes explícitos, sin IA y sin aceptar una parte si otro dato/destino es inválido. Comprobación texto→procesador→SQL y reintento agregada; 1.129 pruebas locales aprobadas. PR #73 integrada en main 7dd418e y cuatro controles CI #290 aprobados, incluido Deno completo en Linux. Tras la aprobación específica del propietario se desplegó Edge v66 ACTIVE desde 7dd418e a las 11:28 Argentina. Los 26 archivos descargados coinciden con el commit; PWA comprobada en 7dd418e. Cola habilitada sin pausa, tres pendientes conservados, perfiles/movimientos y SQL sin cambios; rutas no autorizadas 401. Aceptación cerrada en el alcance probado: el propietario copió ambos importes corregidos (150/250, tercero 303), luego la baja conjunta de 1 y 3 conservando el número 2; confirmó el cierre. Lectura SQL posterior acreditó CANCELAR y RESUMEN procesados, marca de envío del resumen vacío, cero grupos/ítems pendientes del propietario y movimientos definitivos sin cambios. Evidencia: docs/planes/evidencias/BE_22_ACEPTACION_2026-10-30.json. El siguiente bloque BE-19 está implementándose en rama; su publicación sigue pendiente. Evidencia: docs/planes/evidencias/BE_22_IMPORTES_DESPLIEGUE_2026-10-30.json. Ver docs/planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md.
+
+## Registro histórico de la publicación inicial — 30/10/2026
 
 Solo 042 aplicada y whatsapp-webhook v65 desplegado desde d2d05df, tras cinco comprobaciones locales y ensayo completo en CI #289 del mismo commit. Texto SQL registrado igual por SHA-256 al original; 26 archivos descargados de Edge iguales al candidato. PWA ya publicada e identidad pública comprobada. Pausa de cola 10:43:54–10:44:43 Argentina; restaurada. Ocho pendientes v1 históricos conservados y cero trabajos activos v2. Ambas rutas no autorizadas respondieron 401.
 
@@ -471,7 +475,11 @@ El cliente necesita `active` y fecha futura, o `subscription_until = null` en el
 - El cliente no puede editar libremente su rol o vencimiento.
 - Un rol SQL interno sin login permite renovaciones autorizadas; no es otro administrador humano ni una cuenta a compartir.
 
-**Pendiente:** enviar automáticamente al cliente una notificación WhatsApp al renovarlo. El enlace actual “Renovar por WhatsApp” abre una conversación; no es esa automatización ni una pasarela de cobro.
+**BE-19 en rama, todavía no publicado:** el cliente vinculado envía RENOVAR o QUIERO RENOVAR. El panel muestra la solicitud; Thomas verifica el pago y elige días (1–3650 o sin vencimiento) en “Confirmar pago y enviar código”. SQL registra pago/código nominativo/outbox juntos, sin cambiar vencimiento. Tras el commit, la web despierta el trabajador y cron sirve de respaldo. WhatsApp confirma el pago y entrega el código: los días se aplican solamente al canjear en Ajustes, usando la transacción y acumulación existentes. **No hay segundo mensaje al canjear.** “Ajustar días” conserva la operación administrativa existente y no representa un pago.
+
+Una solicitud abierta por cliente; repetir RENOVAR o confirmar dos veces recupera el mismo resultado, sin nuevo código. El código asignado no permite registro ni canje por otra cuenta; los códigos generales siguen funcionando. Tablas y helpers privados, RPC de panel solo para administrador autenticado y despacho solo backend. La solicitud exige vínculo activo; cuentas vencidas pueden solicitar, suspendidas no se reactivan.
+
+El envío revalida vínculo y fecha de vinculación, preferencias, bot/cola, emisor de prueba aprobado y ventana segura de **23h55m desde el RENOVAR válido recibido**. Al vencer, conserva pago/código en espera de otro RENOVAR. Un rechazo explícito 4xx (excepto 408) admite hasta cinco intentos con backoff; timeout/red/5xx o lease vencido quedan inciertos, sin reenvío automático. Estados visibles: solicitado, pago confirmado/pendiente, esperando RENOVAR, enviando, enviado, incierto/bloqueado/fallido y canjeado. Sin plantillas, IA, facturación ni verificación bancaria. La ventana limita envío, no canje de un código ya recibido. El enlace de renovación actual solo abre conversación: este flujo nuevo requiere enviar RENOVAR.
 
 ### 7.4. Avisos técnicos al administrador
 
@@ -528,6 +536,8 @@ Cambiar solo React o solo el parser puede romper una regla coordinada con SQL. H
 - `index.ts`: HTTP, firmas, dependencias, workers y rutas auxiliares.
 - `queue.ts`: leases, checkpoint, aplicación, finalización y recuperación.
 - `processor.ts`: preparación y decisión del mensaje.
+- `renewals.ts` (BE-19 en rama): comando explícito, recibo de pago y envío de outbox; sin IA ni nuevas rutas HTTP. Usa el trabajador y recuperación existentes.
+- `src/SubscriptionPayments.tsx` / `paymentRenewals.ts` (en rama): solicitudes paginadas, confirmación del pago y despertar posterior al commit.
 - `context-repository.ts`: vínculo, identidad, perfil y configuración/contexto.
 - `meta-client.ts`: Meta, firma, envío y descarga de media.
 - `gemini.ts` / `groq.ts`: adaptadores y esquemas de IA.
@@ -550,7 +560,8 @@ Las lecturas de contexto independientes se paralelizan. Las claves comerciales d
 | Borradores | `draft_groups`, `draft_items` | Lista, ítems y versiones. |
 | Cola | `whatsapp_message_queue`, `whatsapp_worker_state`, `whatsapp_user_leases`, `whatsapp_queue_control` | Orden, checkpoint, exclusión y control. |
 | Recibos PWA | `pwa_entry_requests`, `installment_plan_requests` | Altas/planes idempotentes. |
-| Recibos de renovación | `admin_subscription_requests` | Solicitudes administrativas. |
+| Recibos de renovación | `admin_subscription_requests` | Ajustes administrativos existentes. |
+| Pagos con código (043, en rama) | `subscription_renewal_requests`, `subscription_renewal_notices`; `invitation_codes.renewal_user_id` | Solicitud, pago, destinatario, código y entrega duradera. Sin acceso directo de clientes/backend por tablas; RPC autorizadas. |
 | IA | `ai_quota_policy`, `ai_quota_days`, `ai_quota_reservations` | Política, contador y reserva previa a HTTP. |
 | Operación | `whatsapp_ops_config`, `whatsapp_ops_metrics`, `whatsapp_ops_alerts`, `whatsapp_ops_notifications` | Incidentes, métricas y avisos técnicos. |
 
@@ -858,7 +869,9 @@ No es cobertura 100%, auditoría universal ni todos los teléfonos. FE-21/BE-17 
 7. Verificar fuentes/ACL, historial, versión pública/SW/bundle y salud.
 8. Conservar un runtime de rollback compatible con el esquema expandido y las guardas vigentes.
 
-**Contrato de release incorporado (PR #71; publicado 30/10/2026):** candidato mínimo 042 por las operaciones múltiples de BE-22; rollback fijado en ecba42024d413ef05a2a4d1abeb04bdbb97e869e, mínimo 041. Ambos mínimos se contrastan con inventarios completos y SQL compartido sin modificar. El arnés exige tres filas: rollback sobre 041, candidato sobre 042 y rollback conservando la base 042. Incluye RPC reales, reintentos de envío sin reinterpretar/duplicar y controles de errores seguros/expiración. La matriz completa aprobó en CI #285/PR #71 sobre el código 3690a92: rollback sobre 041, candidato sobre 042 y rollback conservando 042. Ver `docs/planes/VALIDACION_CONTRATO_RELEASE_041_042.md` y su evidencia saneada. Un manifiesto o un mínimo numérico no certifica compatibilidad por sí solo; el CI tampoco acredita una publicación o el estado de producción. Antes de volver a un runtime anterior se exige quietud; no se promete compatibilidad de checkpoints múltiples BE-22 en vuelo. La tarea original del contrato no modificó producción. En la operación autorizada del 30/10 se aplicó 042 y se publicó v65 sin cambiar archivos de migraciones previas; PWA verificada en d2d05df. El rollback sigue acreditado por ensayo aislado, no por ejecución productiva.
+**Contrato candidato BE-19 (en rama):** mínimo 043, rollback fijado en 7dd418e367a797e8406c6cfe1acedeeba22c5258 (mínimo 042), conservando 043. El arnés añade pago/código/canje con datos ficticios y concurrencia; compatibilidad del stack completo pendiente de acreditar en CI. El runtime anterior no despacha esta nueva bandeja: preservarla y usar una corrección hacia adelante para recuperar entregas, sin copiar/reinterpretar mensajes ni restaurar SQL. Ver DEPLOY_Y_ROLLBACK.md y VALIDACION_BE_19.md.
+
+**Contrato histórico incorporado (PR #71; publicado 30/10/2026):** candidato mínimo 042 por las operaciones múltiples de BE-22; rollback fijado en ecba42024d413ef05a2a4d1abeb04bdbb97e869e, mínimo 041. Ambos mínimos se contrastan con inventarios completos y SQL compartido sin modificar. El arnés exige tres filas: rollback sobre 041, candidato sobre 042 y rollback conservando la base 042. Incluye RPC reales, reintentos de envío sin reinterpretar/duplicar y controles de errores seguros/expiración. La matriz completa aprobó en CI #285/PR #71 sobre el código 3690a92: rollback sobre 041, candidato sobre 042 y rollback conservando 042. Ver `docs/planes/VALIDACION_CONTRATO_RELEASE_041_042.md` y su evidencia saneada. Un manifiesto o un mínimo numérico no certifica compatibilidad por sí solo; el CI tampoco acredita una publicación o el estado de producción. Antes de volver a un runtime anterior se exige quietud; no se promete compatibilidad de checkpoints múltiples BE-22 en vuelo. La tarea original del contrato no modificó producción. En la operación autorizada del 30/10 se aplicó 042 y se publicó v65 sin cambiar archivos de migraciones previas; PWA verificada en d2d05df. El rollback sigue acreditado por ensayo aislado, no por ejecución productiva.
 
 ## 15. Funcionalidades que no deben darse por existentes
 
@@ -901,7 +914,7 @@ No afirmar que ya hay:
 | BE-18 | Modularización y contexto paralelo del webhook. |
 | PR #66 | Cursor mensual por ID coherente antes del orden por fecha. |
 | FE-23 / PR #67 | Soporte WhatsApp en Dashboard. |
-| BE-22 / PR #68 | Lenguaje natural y simplificación; SQL 042 y webhook v65 publicados/verificados 30/10. Aceptación manual de bajas/ediciones múltiples pendiente. |
+| BE-22 / PR #68 y #73 | SQL 042 y webhook v66 publicados/verificados 30/10. Correcciones múltiples explícitas de importe resueltas localmente sin IA, con validación completa. Aceptación manual cerrada para importes múltiples, bajas estables y cancelación sin guardar; evidencia del 30/10. |
 
 Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garantías y límites; no asumir que un refactor los reemplazó por completo.
 
@@ -909,7 +922,7 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 
 | ID | Propuesta | Falta |
 | --- | --- | --- |
-| BE-19 | Aviso WhatsApp al renovar. | Texto con días/fecha, vínculo vigente, idempotencia y entrega recuperable sin bloquear renovación. |
+| BE-19 | Pago confirmado con código nominativo, implementado en rama. | Validación completa, integración y autorización separada para SQL 043, webhook y PWA; prueba de aceptación tras publicación. Propuesta anterior de aviso al renovar reemplazada. |
 | FE-24 / BE-20 | Categorías ampliadas/personalizadas. | Catálogo, UI, propiedad, límites y reconocimiento dinámico del bot. Un máximo ejemplificado en el plan todavía no es una restricción real. |
 | FE-25 / BE-21 / NOTIF-01 | Notificaciones proactivas. | Opt-out/preferencias, recordatorios, vencimientos, resumen mensual, tareas seguras y costos de canal. |
 | FE-14 | Zoom accesible. | Revisar bloqueo y gestos. |
@@ -1098,6 +1111,7 @@ Lista generada desde el repositorio de referencia. Una migración puede redefini
 | 040 | `supabase/migrations/040_atomic_whatsapp_linking.sql` |
 | 041 | `supabase/migrations/041_safe_business_errors.sql` |
 | 042 | `supabase/migrations/042_bulk_draft_actions.sql` |
+| 043 (en rama; no aplicada) | `supabase/migrations/043_subscription_payment_codes.sql` |
 
 ### 19.1. Tablas públicas declaradas
 
@@ -1106,6 +1120,8 @@ Inventario de creación, no de permisos efectivos actuales; no incluye los esque
 | Tabla | Migración de creación |
 | --- | --- |
 | `public.admin_subscription_requests` | `031_atomic_subscription_renewals.sql` |
+| `public.subscription_renewal_requests` (en rama) | `043_subscription_payment_codes.sql` |
+| `public.subscription_renewal_notices` (en rama) | `043_subscription_payment_codes.sql` |
 | `public.ai_quota_days` | `035_shared_ai_quota.sql` |
 | `public.ai_quota_policy` | `035_shared_ai_quota.sql` |
 | `public.ai_quota_reservations` | `035_shared_ai_quota.sql` |
@@ -1134,6 +1150,6 @@ Inventario de creación, no de permisos efectivos actuales; no incluye los esque
 
 ### 19.2. Fuentes y alcance de esta entrega
 
-Preparado a partir de README, package/configuración, pantallas, módulos del bot, reglas/límites, migraciones 001–042, pruebas y documentos de operación/validación. Código publicado comprobado en commit `d2d05df` (incluye PR #68, #71 y #72), SQL 042 y Edge v65 el 30/10/2026.
+Preparado a partir de README, package/configuración, pantallas, módulos del bot, reglas/límites, migraciones 001–042, pruebas y documentos de operación/validación. Código publicado comprobado en commit `7dd418e` (incluye PR #73), SQL 042 y Edge v66 el 30/10/2026.
 
-La entrega original de este contexto fue documental. La actualización del 30/10 registra la aplicación autorizada de 042 y el despliegue Edge v65, además de la PWA ya publicada. No se enviaron mensajes ni datos de clientes a IA/WhatsApp/correo durante la verificación. La evidencia fechada se distingue del contenido histórico o propuesto del plan.
+La entrega original de este contexto fue documental. La actualización del 30/10 registra la aplicación autorizada de 042, su publicación inicial v65 y la corrección posterior v66 / PR #73, además de la PWA comprobada en 7dd418e. No se enviaron mensajes ni datos de clientes a IA/WhatsApp/correo durante la verificación. La evidencia fechada se distingue del contenido histórico o propuesto del plan.

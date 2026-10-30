@@ -2,9 +2,25 @@
 
 ## Última publicación observada — 30/10/2026
 
-PWA **d2d05df**, SQL **001–042**, webhook **v65 ACTIVE** (verify_jwt=false con verificación propia conservada). CLI 2.120.0; texto original 042 registrado y SHA-256 comprobado. Cola v2 reanudada, sin trabajos activos, cron succeeded y datos financieros conservados. Aceptación manual BE-22 pendiente. [Registro](../planes/VALIDACION_RELEASE_042_PRODUCCION.md).
+PWA **7dd418e**, SQL **001–042**, webhook **v66 ACTIVE** (verify_jwt=false con verificación propia conservada). PR #73 corrige importes múltiples localmente, sin migración nueva ni pausa de cola. Código desplegado comparado con el commit, rutas no autorizadas 401, tres pendientes conservados y perfiles/movimientos/SQL sin cambios. Aceptación manual del caso BE-22 cerrada el 30/10: importes múltiples, bajas con números estables y cancelación sin guardar; no extiende el alcance a otras entradas. [Registro vigente](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md). La instalación inicial de 042/v65 se conserva en [su registro histórico](../planes/VALIDACION_RELEASE_042_PRODUCCION.md).
 
-## Contrato de release — 29/10/2026
+## Candidato BE-19 — 30/10/2026, sin publicar
+
+Contrato de la rama: mínimo **043**, rollback de runtime **7dd418e367a797e8406c6cfe1acedeeba22c5258**, mínimo **042**. Se mantiene SQL 043 y los datos al volver al runtime v66. Migraciones 001–042 intactas; la configuración no acredita aplicación productiva. El ensayo debe cubrir rollback/042, candidato/043 y rollback/043; sobre 043 repite pago, código nominativo, envío simulado y canje con fixtures, conservando ACL y acumulación. Compatibilidad completa todavía pendiente de ensayo CI; pruebas SQL en memoria no la sustituyen.
+
+Publicación futura, con controles y autorización específica:
+
+1. Verificar que el candidato probado coincide con su commit y con la migración 043. Drenar la cola v2 y leases antes del cambio; conservar mensajes históricos sin reproducirlos.
+2. Aplicar solo 043, verificar inventario 001–043, RLS, ACL, funciones, anclas y caché de PostgREST. No modificar migraciones previas ni generar pagos/códigos con clientes reales como prueba.
+3. Desplegar whatsapp-webhook del mismo commit. Mantener HMAC, trabajador privado y emisor de prueba aprobado; sin secretos nuevos, IA, plantillas, facturación o cron nuevo. La recuperación existente incluye la nueva bandeja.
+4. Publicar PWA del mismo candidato y verificar identidad del artefacto. Son operaciones separadas; no inferir una por la otra. La acción web confirma la transacción y después llama wake_subscription_renewals; el cron respalda cierres de pestaña/fallos al despertar.
+5. Aceptación solo con cuenta de prueba autorizada: RENOVAR, solicitud única, confirmar pago, recibir un código, vencimiento intacto hasta canje, canje único y ningún segundo WhatsApp. Probar ventana expirada con fixture aislado, no cambiando fechas de clientes reales.
+
+Rollback: no ejecutar down/reset ni borrar pago, código, bandeja o mensajes. Detener/drenar entregas **sending** antes de cambiar runtime; si hay incertidumbre, revisar sin reenviar. v66 conserva contratos generales y SQL protege códigos asignados, pero **no despacha la bandeja BE-19** y su panel anterior puede listar esos códigos como invitaciones: no copiarlos ni gestionarlos desde ese flujo. Mantener pagos/pendientes y preferir corrección hacia adelante para recuperar la entrega; no prometer que volver al runtime antiguo completa BE-19. No reintentar automáticamente estados uncertain/blocked/failed terminales. La compatibilidad de datos se valida sobre 043, no retirándola.
+
+[Validación y límites de BE-19](../planes/VALIDACION_BE_19.md).
+
+## Contrato histórico de release — 29/10/2026 (reemplazado en el candidato BE-19)
 
 El paquete actual requiere **042**: BE-22 envía listas de ediciones/bajas que 041 no aplica completas. El rollback fijado es **ecba42024d413ef05a2a4d1abeb04bdbb97e869e** (PR #67), con mínimo **041**. Se leen de `config/environments.json`; no son una lectura del entorno productivo ni aplican SQL.
 

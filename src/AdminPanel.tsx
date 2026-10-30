@@ -2,6 +2,8 @@ import { Icon } from './Icons';
 import { ModalDialog } from './ModalDialog';
 import { useUpdateBlocker } from './PwaUpdates';
 import { BotOperations } from './BotOperations';
+import { SubscriptionPayments } from './SubscriptionPayments';
+import './SubscriptionPayments.css';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import { RenewalSender, renewalError, type RenewalAttempt } from './subscriptionRenewals';
@@ -22,6 +24,7 @@ type ClientProfile = {
 };
 
 type InvitationCode = {
+  renewal_user_id?: string | null;
   id: string;
   code: string;
   duration_days: number | null;
@@ -282,7 +285,8 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
         (prev) => (prev ? prev + ' | ' : '') + 'No se pudieron cargar los códigos: ' + (codesRes.error?.message ?? ''),
       );
     } else {
-      setCodes(codesRes.data);
+      // Los códigos de pagos nominativos se gestionan en Renovaciones, no como invitaciones libres.
+      setCodes(codesRes.data.filter(code => !code.renewal_user_id));
     }
 
     if (configMap.whatsapp_bot_phone) {
@@ -722,6 +726,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               <span>Invitaciones libres</span>
             </div>
           </section>
+          <SubscriptionPayments refreshTick={botRefreshTick} />
           <section className="admin-workspace-card" aria-label="Listado de clientes">
             <div className="admin-search-row">
               <label htmlFor="admin-client-search" className="admin-search-label">
@@ -843,7 +848,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                                 aria-label={'Extender membresía de ' + displayName}
                                 onClick={() => handleOpenExtendModal(client)}
                               >
-                                Extender
+                                Ajustar días
                               </button>
                               <button
                                 type="button"

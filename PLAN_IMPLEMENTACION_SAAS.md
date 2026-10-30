@@ -1,5 +1,7 @@
 # 📋 PLAN MAESTRO DE IMPLEMENTACIÓN - TRANSICIÓN A SAAS (PESITO)
 
+> **Avance en rama — 30/10/2026:** BE-19 implementa solicitud RENOVAR, confirmación manual del pago y envío de código nominativo; no renueva hasta canjearlo en Ajustes y no envía otro WhatsApp al canjear. Migración 043 preparada, sin aplicar; PWA/webhook sin publicar. Base documental f44cc44, rama codex/be19-renovacion-pago-codigo. Ver [VALIDACION_BE_19](docs/planes/VALIDACION_BE_19.md). Las listas de pendientes anteriores son históricas respecto de este avance.
+
 ## Estado vigente — 29/10/2026
 
 - **Commit base funcional:** `ecba42024d413ef05a2a4d1abeb04bdbb97e869e` (PR #67). **Corte SQL contrastado: 001–041**, archivos del repositorio; no es una nueva comprobación o aplicación sobre Supabase.

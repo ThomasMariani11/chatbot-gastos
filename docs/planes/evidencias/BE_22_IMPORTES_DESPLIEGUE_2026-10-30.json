@@ -1,0 +1,68 @@
+{
+  "dateArgentina": "2026-10-30",
+  "authorization": "Propietario: Sí, desplegar la corrección de PR #73",
+  "sourceCommit": "7dd418e367a797e8406c6cfe1acedeeba22c5258",
+  "pr": 73,
+  "ci": {
+    "run": 290,
+    "url": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/41069648813",
+    "frontend": "success",
+    "postgresql": "success",
+    "webhook": "success",
+    "rehearsal": "success"
+  },
+  "edge": {
+    "previousVersion": 65,
+    "version": 66,
+    "status": "ACTIVE",
+    "verifyJwt": false,
+    "updatedAt": "2026-10-30T14:28:23.152Z",
+    "bundleSha256": "db5ae9324225dabd056d3761f863995cde1610acfd17e64e1aa958370136b2e8",
+    "downloadedFiles": 26,
+    "downloadedSourceMatchesCommit": true
+  },
+  "smoke": {
+    "checkedAt": "2026-10-30T14:29:09.658Z",
+    "sourceCommit": "7dd418e367a797e8406c6cfe1acedeeba22c5258",
+    "downloadedFiles": 26,
+    "sourceMatches": true,
+    "http": [
+      {
+        "name": "unsigned_webhook",
+        "status": 401
+      },
+      {
+        "name": "worker_without_secret",
+        "status": 401
+      }
+    ],
+    "pwaVersion": "7dd418e367a797e8406c6cfe1acedeeba22c5258"
+  },
+  "database": {
+    "migracion": "042",
+    "verificado": "2026-10-30T14:29:40.154622+00:00",
+    "cola_activa": true,
+    "sql_sin_cambios": true,
+    "retencion_activa": false,
+    "trabajos_en_curso": 0,
+    "perfiles_sin_cambios": true,
+    "pendientes_conservados": 3,
+    "movimientos_sin_cambios": true
+  },
+  "newMigrationsApplied": false,
+  "queuePaused": false,
+  "sentMessages": false,
+  "manualAcceptance": "Pendiente repetir paso 3 de WhatsApp; no acreditada por despliegue",
+  "localChecks": {
+    "lint": 0,
+    "vitest": 1129,
+    "vitestFiles": 56,
+    "sqlScenarios": 12,
+    "releaseGuards": 14,
+    "build": 0,
+    "denoCheck": 0,
+    "denoLint": 0,
+    "denoTests": "CI Linux aprobado; cuatro casos bloqueados por caché de Windows local"
+  },
+  "approvalReview": "El primer despliegue fue rechazado por falta de aprobación específica; se ejecutó después de recibirla explícitamente."
+}

@@ -1,0 +1,8 @@
+.renewal-payments { padding: 1rem; margin-bottom: 1rem; }
+.renewal-payments-heading, .renewal-payments-pages { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+.renewal-payments-heading h2 { margin: 0; font-size: 1.15rem; }
+.renewal-payments-list { display: grid; gap: .75rem; margin-top: .75rem; }
+.renewal-payment-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .75rem; padding: .9rem 0; border-top: 1px solid var(--border-color, #dce6e1); }
+.renewal-payment-row p { margin: .3rem 0; }
+.renewal-payments-pages { margin-top: 1rem; }
+@media (max-width: 600px) { .renewal-payment-row > button { width: 100%; } }

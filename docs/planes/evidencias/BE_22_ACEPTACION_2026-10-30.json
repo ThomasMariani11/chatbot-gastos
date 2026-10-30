@@ -1,0 +1,62 @@
+{
+  "dateArgentina": "2026-10-30",
+  "sourceCommit": "7dd418e367a797e8406c6cfe1acedeeba22c5258",
+  "edgeVersion": 66,
+  "scope": "Aceptación manual de importes múltiples, bajas múltiples con números estables y cancelación sin guardar",
+  "manualEvidence": {
+    "correction": {
+      "source": "Respuesta del bot copiada por el propietario en este chat",
+      "positionsAndAmounts": [
+        [
+          1,
+          150
+        ],
+        [
+          2,
+          250
+        ],
+        [
+          3,
+          303
+        ]
+      ]
+    },
+    "removal": {
+      "source": "Respuesta del bot copiada por el propietario en este chat",
+      "removedPositions": [
+        1,
+        3
+      ],
+      "remainingPosition": 2,
+      "remainingAmount": 250,
+      "stableNumberPreserved": true
+    },
+    "cancellationAndEmptySummary": {
+      "source": "Propietario confirmó listo tras instrucciones CANCELAR y RESUMEN; corroboración SQL de solo lectura",
+      "completed": true
+    }
+  },
+  "databaseVerification": {
+    "cancel_at": "2026-10-30T14:34:05.735551+00:00",
+    "checked_at": "2026-10-30T14:36:41.56636+00:00",
+    "summary_at": "2026-10-30T14:34:11.488514+00:00",
+    "unique_admin": true,
+    "queue_enabled": true,
+    "active_v2_jobs": 0,
+    "cancel_processed": true,
+    "owner_open_groups": 0,
+    "summary_processed": true,
+    "summary_empty_sent": true,
+    "owner_pending_items": 0,
+    "transactions_unchanged": true,
+    "cancel_response_finished": true,
+    "summary_response_finished": true
+  },
+  "summaryDeliveryEvidence": "RESUMEN no almacena el texto en reply_text del trabajo; se comprobó summary_pending=false, shown_group_id/shown_version nulos y shown_at posterior al comando en el worker vigente. La marca de envío no acredita lectura del cliente por sí sola.",
+  "auditActions": "Solo SELECT y actualización de documentación; sin mensajes enviados por el asistente, migraciones, deploys o mutaciones de datos durante este cierre",
+  "limitations": [
+    "No amplía esta aceptación a audios, fotos, cuotas, monedas o correcciones múltiples de campos distintos de importe",
+    "Pruebas de reintento/idempotencia respaldadas por la suite local/CI, sin inyectar fallos productivos"
+  ],
+  "next": "BE-19: aviso de renovación WhatsApp, todavía pendiente"
+}

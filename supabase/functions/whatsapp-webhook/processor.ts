@@ -2,6 +2,7 @@ import { formatOverLimitReply } from "./draft-summary.ts";
 import { buildPendingEdit, parsePendingEdit } from "./draft-edit.ts";
 import { formatMonthlySnapshot } from "./monthly-summary.ts";
 import { AiQuotaExceeded } from "./ai-quota.ts";
+import { isRenewalRequest } from "./renewals.ts";
 import type { BeforeAiRequest } from "./ai-quota.ts";
 import { parseDraftCompletion } from "./draft-completion.ts";
 import { normalizeDraftMovements } from "./draft-normalization.ts";
@@ -71,6 +72,11 @@ export async function prepareMessage(
   const reply = (body: string) => ({ kind: "reply", text: body });
   const linkMatch = text.match(/^vincular\s+(\d{6})$/i);
   if (linkMatch) return { kind: "link", hash: await sha256(linkMatch[1]) };
+  // La SQL de la cola valida identidad, vínculo, preferencias y bloqueos.
+  // Debe admitir al cliente vencido sin habilitarle movimientos ni usar IA.
+  if (!message.image?.id && !message.audio?.id && isRenewalRequest(text)) {
+    return { kind: "renewal_request" };
+  }
 
   const access = await resolveActorAccess(db, job);
   if (!access.allowed) return access.action;
