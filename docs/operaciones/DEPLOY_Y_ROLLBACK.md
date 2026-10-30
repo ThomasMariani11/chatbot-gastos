@@ -1,12 +1,16 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
-## Última publicación observada — 30/10/2026
+## Última publicación observada — 30/10/2026 (BE-19)
 
-PWA **7dd418e**, SQL **001–042**, webhook **v66 ACTIVE** (verify_jwt=false con verificación propia conservada). PR #73 corrige importes múltiples localmente, sin migración nueva ni pausa de cola. Código desplegado comparado con el commit, rutas no autorizadas 401, tres pendientes conservados y perfiles/movimientos/SQL sin cambios. Aceptación manual del caso BE-22 cerrada el 30/10: importes múltiples, bajas con números estables y cancelación sin guardar; no extiende el alcance a otras entradas. [Registro vigente](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md). La instalación inicial de 042/v65 se conserva en [su registro histórico](../planes/VALIDACION_RELEASE_042_PRODUCCION.md).
+PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v67 ACTIVE** (verify_jwt=false con verificación propia conservada). PR #74 integra BE-19: confirmación de pagos y códigos nominativos de renovación enviados por WhatsApp. Migración 043 aplicada a producción, webhook v67 desplegado con los 28 assets (incluyendo renewals.ts). PWA publicada en GitHub Pages con version.json verificado. Rutas no autorizadas 401. Aceptación manual de BE-19 pendiente con cuenta autorizada. [Registro de validación](../planes/VALIDACION_BE_19.md) y [evidencia](../planes/evidencias/BE_19_DESPLIEGUE_2026-10-30.json).
 
-## Candidato BE-19 — 30/10/2026, sin publicar
+## Registro histórico previo: v66 y BE-22 — 30/10/2026
 
-Contrato de la rama: mínimo **043**, rollback de runtime **7dd418e367a797e8406c6cfe1acedeeba22c5258**, mínimo **042**. Se mantiene SQL 043 y los datos al volver al runtime v66. Migraciones 001–042 intactas; la configuración no acredita aplicación productiva. El ensayo debe cubrir rollback/042, candidato/043 y rollback/043; sobre 043 repite pago, código nominativo, envío simulado y canje con fixtures, conservando ACL y acumulación. Compatibilidad completa todavía pendiente de ensayo CI; pruebas SQL en memoria no la sustituyen.
+PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
+
+## Contrato de release BE-19 — 30/10/2026
+
+Contrato vigente: mínimo **043**, rollback de runtime **7dd418e367a797e8406c6cfe1acedeeba22c5258**, mínimo **042**. Se mantiene SQL 043 y los datos al volver al runtime v66. Migraciones 001–042 intactas; la configuración no acredita aplicación productiva. El ensayo debe cubrir rollback/042, candidato/043 y rollback/043; sobre 043 repite pago, código nominativo, envío simulado y canje con fixtures, conservando ACL y acumulación. Compatibilidad completa todavía pendiente de ensayo CI; pruebas SQL en memoria no la sustituyen.
 
 Publicación futura, con controles y autorización específica:
 

@@ -1,0 +1,58 @@
+{
+  "dateArgentina": "2026-10-30",
+  "authorization": "Propietario: esta regla cancelala y hace todo para publicarla",
+  "sourceCommit": "800e82101a1d4c5269ae32179e7169ed6bd005c3",
+  "pr": 74,
+  "ci": {
+    "run": 41089399656,
+    "url": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/41089399656",
+    "frontend": "success",
+    "postgresql": "success",
+    "webhook": "success",
+    "rehearsal": "success",
+    "pages": "success"
+  },
+  "edge": {
+    "previousVersion": 66,
+    "version": 67,
+    "status": "ACTIVE",
+    "verifyJwt": false,
+    "updatedAt": "2026-10-30T16:28:24.923Z",
+    "bundleSha256": "1aa585fa6d63ab6d015aa06c029fb50403c85aef5fd070809b8508360627bc8f",
+    "uploadedAssets": 28
+  },
+  "smoke": {
+    "checkedAt": "2026-10-30T16:28:42.000Z",
+    "sourceCommit": "800e82101a1d4c5269ae32179e7169ed6bd005c3",
+    "http": [
+      {
+        "name": "unsigned_webhook",
+        "status": 401
+      },
+      {
+        "name": "worker_without_secret",
+        "status": 401
+      }
+    ],
+    "pwaVersion": "800e82101a1d4c5269ae32179e7169ed6bd005c3"
+  },
+  "database": {
+    "migracion": "043",
+    "historial": "001-043",
+    "verificado": "2026-10-30T16:28:16.000Z",
+    "cola_activa": true,
+    "retencion_activa": false
+  },
+  "newMigrationsApplied": true,
+  "queuePaused": false,
+  "sentMessages": false,
+  "manualAcceptance": "Pendiente prueba con cuenta de prueba autorizada (RENOVAR en WhatsApp, confirmar pago y canje en Ajustes)",
+  "localChecks": {
+    "lint": 0,
+    "vitest": 1179,
+    "vitestFiles": 59,
+    "sqlScenarios": 12,
+    "releaseGuards": 14,
+    "build": 0
+  }
+}
