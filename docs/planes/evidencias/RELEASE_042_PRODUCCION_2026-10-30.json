@@ -1,0 +1,125 @@
+{
+  "dateArgentina": "2026-10-30",
+  "sourceCommit": "d2d05df8229066f20e4a33f9625b0cdf3a0d04e6",
+  "authorization": "Propietario: migrala y desplegala y vemos que sigue",
+  "ci": {
+    "run": 289,
+    "url": "https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/40952806060",
+    "frontend": "success",
+    "webhook": "success",
+    "postgresql": "success",
+    "rehearsal": "success",
+    "pages": "success",
+    "evidenceSource": "UI de GitHub Actions y version.json público"
+  },
+  "migration": {
+    "before": "041",
+    "after": "042",
+    "count": 42,
+    "appliedAt": "2026-10-30T13:43:54.472921+00:00",
+    "sha256": "071f2cbf436ae02a6888bc414f499c069e8f87e410f751dbeeb36578154a9f5c",
+    "historyMatchesOriginal": true,
+    "newOrModifiedMigrationFiles": false
+  },
+  "edge": {
+    "previousVersion": 64,
+    "version": 65,
+    "status": "ACTIVE",
+    "verifyJwt": false,
+    "updatedAt": "2026-10-30T13:44:14.205Z",
+    "bundleSha256": "783bc971c1de3f2c094af5b26430a79636abd0ed5440d8f5bdc0bc67cd2ad129",
+    "downloadedFiles": 26,
+    "downloadedFilesMatchCandidate": true,
+    "previousRuntimeMatchesRollback": "26/26 archivos descargados iguales a ecba420 (LF normalizado)"
+  },
+  "queue": {
+    "enabled": true,
+    "pausedAt": "2026-10-30T13:43:54.472921+00:00",
+    "resumedAt": "2026-10-30T13:44:43.855649+00:00",
+    "pauseSeconds": 49.383,
+    "activeJobsV2": 0,
+    "activeUserLeases": 0,
+    "activeWorkerLeases": 0,
+    "legacyV1PendingPreserved": 8,
+    "recovery": [
+      {
+        "active": true,
+        "status": "succeeded",
+        "end_time": "2026-10-30T13:45:00.031103+00:00",
+        "start_time": "2026-10-30T13:45:00.024438+00:00"
+      }
+    ]
+  },
+  "invariants": {
+    "profilesUnchanged": true,
+    "transactionsUnchanged": true,
+    "invitationsUnchanged": true,
+    "renewalReceiptsUnchanged": true,
+    "applyAclUnchanged": true,
+    "retentionEnabled": false
+  },
+  "bulkContract": {
+    "positions": true,
+    "edits": true
+  },
+  "smoke": {
+    "checkedAt": "2026-10-30T13:46:33.808Z",
+    "http": [
+      {
+        "name": "unsigned_webhook",
+        "status": 401
+      },
+      {
+        "name": "worker_without_secret",
+        "status": 401
+      }
+    ],
+    "pwa": {
+      "status": 200,
+      "version": "d2d05df8229066f20e4a33f9625b0cdf3a0d04e6"
+    }
+  },
+  "checks": [
+    {
+      "script": "lint",
+      "exitCode": 0
+    },
+    {
+      "script": "test",
+      "exitCode": 0
+    },
+    {
+      "script": "test:sql",
+      "exitCode": 0
+    },
+    {
+      "script": "test:release:guards",
+      "exitCode": 0
+    },
+    {
+      "script": "build",
+      "exitCode": 0
+    }
+  ],
+  "totals": {
+    "vitest": 1111,
+    "vitestFiles": 55,
+    "sqlScenarios": 12,
+    "releaseGuards": 14
+  },
+  "firstAttempt": {
+    "result": "Transacción revertida completamente por RELEASE_DATA_CHANGED_PROFILES",
+    "cause": "Comparación de huellas con separadores representados de forma distinta; unificada a chr(10), sin quitar controles",
+    "rollbackVerified": {
+      "migration": "041",
+      "queueEnabled": true,
+      "applyDefinitionUnchanged": true
+    },
+    "subsequentAttempt": "042 aplicada con invariantes verificadas"
+  },
+  "limits": {
+    "whatsappManualAcceptance": "pendiente; no se enviaron mensajes ni se crearon movimientos de prueba productivos",
+    "productionRollbackExecuted": false,
+    "fullRehearsal": "Aprobado en CI del mismo commit; no repetido localmente por Docker inaccesible"
+  }
+}

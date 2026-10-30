@@ -1,6 +1,14 @@
 # Plan de mejoras del proyecto
 
-## Estado vigente — 29/10/2026
+## Estado vigente — 30/10/2026
+
+**Publicación técnica verificada:** main d2d05df (PR #72), historial productivo **001–042**, webhook **v65 ACTIVE** y PWA version.json d2d05df. BE-22 tiene SQL y código desplegados. Cola v2 activa y sin trabajos en curso; perfiles/vencimientos/movimientos sin cambios. Aceptación manual de acciones múltiples por WhatsApp pendiente; el despliegue no la sustituye. [Validación](VALIDACION_RELEASE_042_PRODUCCION.md).
+
+**Incidencia de aceptación BE-22:** el paso 3 (dos importes en un texto) falló en v65 por una guarda local. Corrección en rama, 1.129 pruebas aprobadas; pendiente CI/publicación y repetir aceptación. [Validación](VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
+
+**Qué sigue:** publicar la corrección, repetir esa prueba corta y luego BE-19 (aviso al renovar). BE-19, FE-24/BE-20, FE-25/BE-21/NOTIF-01, FE-14 y FE-21/BE-17 siguen pendientes; INF-13/INF-08 al final e INF-14 preparada/desactivada. Thomas continúa como único administrador.
+
+## Reconciliación histórica — 29/10/2026
 
 - **Commit base funcional:** `ecba42024d413ef05a2a4d1abeb04bdbb97e869e` (PR #67). **Corte SQL contrastado: 001–041**, archivos del repositorio; no es una nueva comprobación o aplicación sobre Supabase.
 - **Base Git al iniciar: 15b3f94.** Incluye BE-22/042 (PR #68) y contexto PR #69, posteriores al corte solicitado. Se conservan como avances posteriores; su publicación SQL/Edge está **sin verificar en esta revisión**. No se retrocede el checkout.

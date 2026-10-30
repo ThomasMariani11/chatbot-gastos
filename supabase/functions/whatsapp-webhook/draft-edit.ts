@@ -147,11 +147,46 @@ function field(raw: string): DraftPatch | null {
     ...(month ? { first_installment_month: month } : {}),
   };
 }
+function parseMultipleAmountEdits(
+  raw: string,
+  context: EditContext,
+): ReturnType<typeof buildPendingEdit> | null {
+  // Split only before another explicit numbered target; decimal commas stay intact.
+  const parts = raw.trim().split(
+    /\s*(?:\by\b|,|;|[\r\n]+)\s*(?=(?:el|la)\s+(?:(?:movimiento|operaci[oó]n|gasto|ingreso)\s+)?\d+\b)/i,
+  );
+  if (parts.length < 2) return null;
+  if (parts.length > 20) return clarify();
+  const edits: Array<{ position: number; patch: DraftPatch }> = [];
+  const positions = new Set<number>();
+  let first: PendingEdit | undefined;
+  for (const part of parts) {
+    const correction = parseDraftCorrection(part);
+    // Only complete, explicit amount corrections are deterministic here.
+    // Unsupported clauses invalidate the whole message, never a partial edit.
+    if (correction?.kind !== "edit" || positions.has(correction.position)) {
+      return clarify();
+    }
+    const action = buildPendingEdit(
+      correction.position,
+      { amount: correction.amount },
+      context,
+    );
+    if (action.kind !== "edit") return action;
+    first ??= action;
+    positions.add(action.position);
+    edits.push({ position: action.position, patch: action.patch });
+  }
+  return first ? { ...first, edits } : clarify();
+}
+
 export function parsePendingEdit(
   raw: string,
   context: EditContext,
 ): ReturnType<typeof buildPendingEdit> | null {
   if (!looksLikeDraftCorrection(raw)) return null;
+  const multiple = parseMultipleAmountEdits(raw, context);
+  if (multiple) return multiple;
   if (/[\r\n]/.test(raw)) return null;
   if (/\b(?:y|,)\s*(?:el|la)\s+\d+\b/i.test(raw)) {
     return clarify();

@@ -2,11 +2,15 @@
 
 Fecha: 29/10/2026. Base: `768668e`, rama `codex/release-contract-041-042`.
 
-## Alcance
+## Alcance histórico — 29/10/2026
 
 Contrato y herramientas de ensayo; sin migraciones nuevas/modificadas, cambios funcionales del bot/PWA ni operaciones productivas. Los datos y credenciales de los ensayos son ficticios/locales. Preserva las ediciones locales previas del propietario en su checkout original.
 
-## Contrato implementado en rama
+## Actualización de publicación — 30/10/2026
+
+PR #71 integrada en ff72cac; main d2d05df aprobó cuatro controles y Pages en CI #289. En una operación posterior autorizada se verificó 041, se aplicó 042 y se publicó Edge v65; PWA comprobada en d2d05df. Aceptación manual BE-22 pendiente. [Publicación y límites](VALIDACION_RELEASE_042_PRODUCCION.md). Lo siguiente conserva el alcance histórico del trabajo de contrato; la ausencia de operaciones productivas corresponde a esa tarea del 29/10.
+
+## Contrato implementado (registro histórico de la rama)
 
 - Candidato: mínimo 042, requerido por bajas/ediciones múltiples de BE-22.
 - Rollback: `ecba42024d413ef05a2a4d1abeb04bdbb97e869e`, mínimo 041.
