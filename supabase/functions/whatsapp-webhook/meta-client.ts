@@ -69,6 +69,7 @@ export async function sendWhatsAppText(
   to: string,
   body: string,
   parent?: AbortSignal,
+  options: { exactRecipient?: boolean } = {},
 ) {
   const token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
   const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
@@ -78,8 +79,10 @@ export async function sendWhatsAppText(
   // Un solo presupuesto para envío, respuesta y variante argentina, sin reiniciarlo.
   const signal = timeoutSignal(LIMITS.sendMs, parent);
   const recipients = [to];
-  if (to.startsWith("549")) recipients.push(to.replace(/^549/, "54"));
-  else if (to.startsWith("54")) recipients.push(to.replace(/^54/, "549"));
+  if (!options.exactRecipient) {
+    if (to.startsWith("549")) recipients.push(to.replace(/^549/, "54"));
+    else if (to.startsWith("54")) recipients.push(to.replace(/^54/, "549"));
+  }
   let status = 502;
   try {
     for (const recipient of recipients) {

@@ -5,6 +5,7 @@ import {
   deliverOperationalNotice,
 } from "./operations.ts";
 import { handleAdminSend } from "./admin-send.ts";
+import { deliverRenewalNotices } from "./renewals.ts";
 import { LIMITS, processActorsLimited, timeoutSignal } from "./limits.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.114.0";
 import {
@@ -97,6 +98,11 @@ async function routeRequest(request: Request): Promise<Response> {
     } finally {
       await telemetry.flush((name, args) =>
         rpc(name, args, timeoutSignal(2000))
+      );
+      await deliverRenewalNotices(
+        rpc,
+        (to, body) => sendWhatsAppText(to, body, undefined, { exactRecipient: true }),
+        isVerifiedOperationalTestSender,
       );
     }
   };

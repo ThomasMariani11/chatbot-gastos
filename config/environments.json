@@ -6,8 +6,8 @@
     "siteUrl": "https://thomasmariani11.github.io/chatbot-gastos/"
   },
   "release": {
-    "minimumMigration": "042",
-    "rollbackCommit": "ecba42024d413ef05a2a4d1abeb04bdbb97e869e",
-    "rollbackMinimumMigration": "041"
+    "minimumMigration": "043",
+    "rollbackCommit": "7dd418e367a797e8406c6cfe1acedeeba22c5258",
+    "rollbackMinimumMigration": "042"
   }
 }

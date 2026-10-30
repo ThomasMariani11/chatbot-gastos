@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { run, stop, localUrl, localDockerEndpoint, localEnvironment, stampDistribution, digestFiles, validateReleaseContract, assertSharedMigrationHashes, assertSchemaCoverage, assertReleaseMatrix } from './release-tools.mjs';
 import { prepareLocal } from './prepare-local.mjs';
 import { smokeBusinessContract } from './release-sql-contract.mjs';
+import { smokeRenewalContract } from './release-renewal-contract.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const env = localEnvironment();
@@ -374,6 +375,7 @@ try {
     }
   });
   await step('retencion_aislada_con_finanzas_preservadas', async () => { await smokeRetentionSql(id); });
+  await step('pago_codigo_y_canje_043_sin_envio_externo', () => smokeRenewalContract(sql, id));
   await step('candidato_webhook_y_pwa', async () => {
     await startWorker(api);
     await smokeWorker(api);
@@ -400,6 +402,8 @@ try {
     await smokeDraftEditSql(id);
     await smokeWaitingRecoverySql(id);
     await smokeBusinessContract(sql, id);
+    // El esquema expandido sigue protegiendo códigos nominativos con runtime anterior.
+    await smokeRenewalContract(sql, id);
     await buildAndSmoke(previous, tools.release.rollbackCommit, api, status.ANON_KEY);
     const runtime = await runtimeProbe(previous, api, status, id, false);
     await quietQueue();

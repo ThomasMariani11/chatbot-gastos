@@ -6,7 +6,7 @@
 
 **Incidencia de aceptación BE-22:** el paso 3 (dos importes en un texto) falló en v65 por una guarda local. Corrección integrada por PR #73 / 7dd418e, 1.129 pruebas y cuatro controles CI #290 aprobados. Con autorización específica se desplegó v66 ACTIVE; código descargado y salud verificados, tres pendientes conservados. No hubo migración nueva ni cambios en movimientos/perfiles. Aceptación del paso 3 y del cierre aprobada: importes 150/250/303, baja conjunta con número 2 estable, cancelación y resumen vacío; cero movimientos guardados. [Evidencia de aceptación](evidencias/BE_22_ACEPTACION_2026-10-30.json). [Validación](VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
-**Qué sigue:** BE-19 (aviso al renovar), todavía sin implementar. La prueba corta de BE-22 quedó cerrada en el alcance anterior. BE-19, FE-24/BE-20, FE-25/BE-21/NOTIF-01, FE-14 y FE-21/BE-17 siguen pendientes; INF-13/INF-08 al final e INF-14 preparada/desactivada. Thomas continúa como único administrador.
+**En implementación, no publicado:** BE-19 (pago confirmado con código nominativo), rama `codex/be19-renovacion-pago-codigo` basada en la documentación `f44cc44`. Migración 043 preparada; producción conserva 001–042/v66. Ver [validación BE-19](VALIDACION_BE_19.md). La prueba corta de BE-22 quedó cerrada en el alcance anterior. BE-19 sigue pendiente de controles finales, integración, migración y publicación autorizada. FE-24/BE-20, FE-25/BE-21/NOTIF-01, FE-14 y FE-21/BE-17 siguen pendientes; INF-13/INF-08 al final e INF-14 preparada/desactivada. Thomas continúa como único administrador.
 
 ## Reconciliación histórica — 29/10/2026
 
@@ -90,7 +90,7 @@ Las secciones históricas se conservan como registro. “Siguiente paso”, “p
 | BE-16 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_16.md) · `supabase/migrations/041_safe_business_errors.sql` · PR #53 / 641a573 |
 | BE-17 | Casilla sin marcar | **Pendiente transversal** | Alcance/decisión pendiente; no se supone implementación. |
 | BE-18 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_18.md) · `supabase/functions/whatsapp-webhook/context-repository.ts` · PR #64 / 8366517 |
-| BE-19 | Pendiente | **Pendiente; aviso de renovación** | Alcance/decisión pendiente; no se supone implementación. |
+| BE-19 | Pendiente (histórico) | **Implementación en rama; no publicada** | Pago confirmado + código nominativo; ver VALIDACION_BE_19.md. No hay aviso al canjear. |
 | BE-20 | Pendiente | **Pendiente; con FE-24** | Alcance/decisión pendiente; no se supone implementación. |
 | BE-21 | Pendiente | **Pendiente; con FE-25 / NOTIF-01** | Alcance/decisión pendiente; no se supone implementación. |
 
@@ -161,7 +161,7 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 | En revisión; sin publicar | **BE-13** | Alta atómica 039, reintentos seguros y mensajes veraces; administrador inicial excluido por decisión del propietario. | Pruebas locales aprobadas; completar CI aislado y autorizar SQL/PWA antes de publicar. |
 | Cerrado | **FE-23** | Símbolo de WhatsApp para soporte en el Dashboard (excluido de Ajustes por decisión del propietario). | Publicado y verificado con enlace a support_phone y fallback a whatsapp_bot_phone. |
 | Cerrado | **BE-22** | Lenguaje natural y simplificación en chatbot WhatsApp (eliminaciones y ediciones múltiples, protección contra falsos gastos por comandos y confirmación sin bloqueos de aclaración). | Migración 042, regex local ampliado, prompt/schema Gemini multi-edit y validación Vitest/PGlite aprobados. |
-| Nuevo | **BE-19** | Notificación por WhatsApp al renovar suscripción (+X días y fecha nueva). | Aviso automático si el usuario tiene WhatsApp vinculado y activo, con idempotencia. |
+| En rama | **BE-19** | RENOVAR → confirmar pago → enviar código por WhatsApp → canjear en Ajustes. | Sin activar días al emitir, sin segundo aviso al canjear. Migración 043 pendiente de aplicar. |
 | Nuevo | **FE-24 / BE-20** | Extender categorías (catálogo base y personalizadas en PWA/bot). | Integridad (id, user_id), límites por usuario y coherencia en bot de WhatsApp. |
 | Nuevo | **NOTIF-01 (FE-25 / BE-21)** | Notificaciones para los clientes (vencimientos, recordatorios, resúmenes). | Tareas programadas seguras, opt-out de usuario en Ajustes y respeto de límites. |
 | Preparado y publicado; sin activar | **INF-14** | Política 30/90 validada y documentada en PR #47. | Retención false hasta una autorización específica; no impide avanzar con mejoras funcionales. |
@@ -857,7 +857,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 16 | BE-15 | Media | Integraciones y límites de multimedia | INF-12 | Terminada |
 | 17 | BE-16 | Media | Logs y errores seguros | INF-09, INF-14 | Terminada |
 | 18 | BE-18 | Baja | Separación del código y llamadas remotas | — | Terminada |
-| 19 | BE-19 | Media | Notificación por WhatsApp al renovar suscripción | FE-06, BE-02 | Pendiente |
+| 19 | BE-19 | Media | Pago confirmado y código de renovación por WhatsApp | FE-06, BE-02 | En rama; publicación pendiente |
 | 20 | BE-20 | Media | Extensión y gestión segura de categorías en base y bot | FE-24 | Pendiente |
 | 21 | BE-21 | Media | Tareas programadas de notificaciones para clientes | FE-25, NOTIF-01 | Pendiente |
 
@@ -1132,9 +1132,19 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Cierre:** comportamiento y permisos preservados por regresiones; módulos testeables; llamadas y latencia comparadas para lotes; cambios de rendimiento respaldados por evidencia.
 - **Dependencias:** diseño fiable de BE-06, BE-07 y BE-10; pruebas de BE-17.
 
-### BE-19 — Notificación por WhatsApp al renovar suscripción
+### BE-19 — Pago confirmado con código nominativo por WhatsApp
 
-> **Estado vigente 29/10/2026:** Pendiente; aviso de renovación. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+> **Estado 30/10/2026:** implementado en rama, sin integrar/aplicar/desplegar. [Validación y límites](VALIDACION_BE_19.md).
+
+- Solicitud explícita del cliente vinculado por RENOVAR/QUIERO RENOVAR; una abierta por cliente, sin IA.
+- Administrador verifica pago y elige 1–3650 días o acceso sin vencimiento. Pago, código asignado y bandeja de envío se registran juntos, con reintento idempotente.
+- El mensaje confirma el pago y entrega el código para Ajustes. **Emitirlo no renueva**; el canje aplica los días una sola vez. No hay segundo WhatsApp ni aviso al ajuste administrativo de días.
+- Ventana de 23h55m, emisor de prueba verificado, vínculo vigente y preferencias. Vencida: conservar pago/código y esperar otro RENOVAR. Incertidumbre de envío: revisión, sin reenvío automático.
+- Tablas/RPC privadas 043, trabajador y recuperación existentes; panel paginado con estados. Pruebas ficticias, sin clientes reales. SQL, webhook y PWA requieren controles y aprobación específica; no modificar migraciones aplicadas.
+
+#### Propuesta anterior de BE-19 — histórica, reemplazada por decisión del propietario
+
+> **Estado declarado 29/10/2026 (histórico):** Pendiente; aviso de renovación. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
 
 
 - [ ] Pendiente.
