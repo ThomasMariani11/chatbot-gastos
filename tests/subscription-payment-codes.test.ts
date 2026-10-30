@@ -206,4 +206,3 @@ describe("BE-19: solicitud, pago y código nominativo", () => {
     await smokeRenewalContract((sql:string)=>db.exec(sql),user,{transaction:false});
   });
 });
-
