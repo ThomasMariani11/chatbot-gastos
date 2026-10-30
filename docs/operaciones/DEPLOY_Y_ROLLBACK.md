@@ -1,5 +1,9 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
+## Última publicación observada — 30/10/2026
+
+PWA **d2d05df**, SQL **001–042**, webhook **v65 ACTIVE** (verify_jwt=false con verificación propia conservada). CLI 2.120.0; texto original 042 registrado y SHA-256 comprobado. Cola v2 reanudada, sin trabajos activos, cron succeeded y datos financieros conservados. Aceptación manual BE-22 pendiente. [Registro](../planes/VALIDACION_RELEASE_042_PRODUCCION.md).
+
 ## Contrato de release — 29/10/2026
 
 El paquete actual requiere **042**: BE-22 envía listas de ediciones/bajas que 041 no aplica completas. El rollback fijado es **ecba42024d413ef05a2a4d1abeb04bdbb97e869e** (PR #67), con mínimo **041**. Se leen de `config/environments.json`; no son una lectura del entorno productivo ni aplican SQL.
@@ -64,7 +68,7 @@ No reenviar trabajos v1 fallidos ni eliminar pendientes para que los conteos que
 
 ## Instalación nueva y migraciones posteriores
 
-- Instalación vacía: aplicar **todas las migraciones completas en orden (001–035; verificadas en producción hasta el 27/10/2026)**, con Auth y publicación supabase_realtime preparados por Supabase. No usar un PostgreSQL común sin esquemas/extensiones como si fuera Supabase. El ensayo CI verifica el stack real con datos sintéticos.
+- Instalación vacía: aplicar **todas las migraciones completas en orden (001–042; historial productivo verificado el 30/10/2026)**, con Auth y publicación supabase_realtime preparados por Supabase. No usar un PostgreSQL común sin esquemas/extensiones como si fuera Supabase. El ensayo CI verifica el stack real con datos sintéticos.
 - Instalación existente: comparar el historial real con los archivos y sus hashes; aplicar únicamente las migraciones nuevas aprobadas, sin reescribir las ya aplicadas. Si hay deriva, parar y revisarla.
 - Preparar primero la expansión compatible del esquema; validar permisos, índices y dependencias antes de publicar el consumidor. Cualquier cambio destructivo requiere otro plan, no un down automático.
 - Antes de usar CLI remoto, verificar el contenido de supabase/.temp/project-ref coincide exactamente con ystyatotldslfmucvgsq. link solo cuando corresponda y nunca en el workdir local. Mantener SSL y restricciones de red; no abrir 0.0.0.0/0 ni resetear contraseña por un problema de conexión.

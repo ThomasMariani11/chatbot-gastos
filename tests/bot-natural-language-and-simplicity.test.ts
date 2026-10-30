@@ -1,3 +1,4 @@
+import { parsePendingEdit } from '../supabase/functions/whatsapp-webhook/draft-edit';
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { parseDraftMovements } from "../supabase/functions/whatsapp-webhook/local-movements";
 import { parseLocalCommand } from "../supabase/functions/whatsapp-webhook/local-commands";
@@ -251,4 +252,36 @@ describe("BOT-01: Migración 042 y ejecución de bajas y ediciones múltiples en
       await db.exec("rollback;");
     }
   });
+  it("aplica el mensaje real de corrección doble y conserva el tercer importe sin guardar movimientos", async () => {
+    await db.exec("begin; update public.whatsapp_queue_control set enabled=true;");
+    try {
+      const group = (await db.query<{ id: string }>(
+        "insert into public.draft_groups(user_id,status,version) values($1,'open',1) returning id", [user],
+      )).rows[0].id;
+      for (let position = 1; position <= 3; position++) {
+        await db.query(
+          "insert into public.draft_items(group_id,user_id,position,kind,description,amount,currency,status,occurred_on) values($1,$2,$3,'expense',$4,$5,'ARS','pending','2026-10-30')",
+          [group, user, position, ['Prueba alfa', 'Prueba beta', 'Prueba gamma'][position - 1], position * 101],
+        );
+      }
+      const beforeCount = (await db.query<{ n: number }>("select count(*)::int n from public.transactions")).rows[0].n;
+      const jobId = (await db.query<{ id: string }>(
+        "insert into public.whatsapp_message_queue(wa_message_id,wa_id,user_id,payload,queue_version,status,attempts,effect_applied) values('synthetic-double-amount','synthetic-bot',$1,'{}',2,'processing',1,false) returning id", [user],
+      )).rows[0].id;
+      await db.query("insert into public.whatsapp_worker_state(wa_id,lease_token,lease_until,user_id) values('synthetic-bot',$1,clock_timestamp()+interval '1 minute',$2) on conflict(wa_id) do update set lease_token=excluded.lease_token,lease_until=excluded.lease_until,user_id=excluded.user_id", [token, user]);
+      await db.query("insert into public.whatsapp_user_leases(user_id,lease_token,lease_until) values($1,$2,clock_timestamp()+interval '1 minute') on conflict(user_id) do update set lease_token=excluded.lease_token,lease_until=excluded.lease_until", [user, token]);
+      const draft = (await db.query<{ draft: Parameters<typeof parsePendingEdit>[1] }>("select public.get_active_draft_group($1) as draft", [user])).rows[0].draft;
+      const action = parsePendingEdit("El 1 fue de 150 y el 2 fue de 250", draft);
+      expect(action?.kind).toBe('edit');
+      const apply = () => db.query<{ result: { effect_applied: boolean } }>("select public.apply_whatsapp_job($1,$2,$3) as result", [jobId, token, JSON.stringify(action)]);
+      expect((await apply()).rows[0].result.effect_applied).toBe(true);
+      await apply(); // Reintento del mismo trabajo, sin repetir efectos ni crear movimientos.
+      const items = (await db.query<{ position: number; amount: string; description: string; currency: string }>("select position,amount,description,currency from public.draft_items where group_id=$1 order by position", [group])).rows;
+      expect(items.map(i => [i.position, Number(i.amount), i.description, i.currency])).toEqual([
+        [1, 150, 'Prueba alfa', 'ARS'], [2, 250, 'Prueba beta', 'ARS'], [3, 303, 'Prueba gamma', 'ARS'],
+      ]);
+      expect((await db.query<{ n: number }>("select count(*)::int n from public.transactions")).rows[0].n).toBe(beforeCount);
+    } finally { await db.exec('rollback;'); }
+  });
+
 });

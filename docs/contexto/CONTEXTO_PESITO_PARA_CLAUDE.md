@@ -2,13 +2,23 @@
 
 > **Documento de transferencia de contexto.** Describe el producto, la implementación y las decisiones vigentes. No autoriza cambios, despliegues, gastos ni acceso a cuentas.
 >
-> **Fecha:** 29/10/2026, Argentina. **Código revisado:** `main`, commit `ebbefceb75a3f73670e95ee7b51d76aaf9f072f3`, PR #68.
+> **Fecha:** 30/10/2026, Argentina. **Código publicado y verificado:** `main`, commit `d2d05df8229066f20e4a33f9625b0cdf3a0d04e6`, PR #72 (incluye BE-22/PR #68 y contrato PR #71).
 >
-> **Observaciones operativas:** la revisión de planes utiliza ecba420/001–041. Las observaciones previas son fechadas y no se revalidaron aquí. La aplicación productiva de 042/BE-22 está **sin verificar en esta tarea documental**; no inferir despliegue por merge.
+> **Observaciones verificadas 30/10:** historial productivo 001–042, webhook v65 ACTIVE y PWA version.json d2d05df. Cola v2 habilitada, recuperación succeeded y huellas de perfiles/vencimientos/movimientos conservadas. Aceptación manual WhatsApp de BE-22 pendiente. Ver `docs/planes/VALIDACION_RELEASE_042_PRODUCCION.md`; las observaciones anteriores permanecen como historia.
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
-## Revisión documental de planes — 29/10/2026
+## Incidencia de aceptación y corrección en rama — 30/10/2026
+
+La prueba manual BE-22 sobre v65 falló en la corrección doble de importes: una guarda local devolvía aclaración antes de la RPC 042. En codex/fix-bulk-amount-corrections se reconoce el mensaje completo con dos o más importes explícitos, sin IA y sin aceptar una parte si otro dato/destino es inválido. Comprobación texto→procesador→SQL y reintento agregada; 1.129 pruebas locales aprobadas. Aún no publicada al registrar esta nota; la aceptación debe repetirse después del despliegue. Ver docs/planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md.
+
+## Publicación comprobada — 30/10/2026
+
+Solo 042 aplicada y whatsapp-webhook v65 desplegado desde d2d05df, tras cinco comprobaciones locales y ensayo completo en CI #289 del mismo commit. Texto SQL registrado igual por SHA-256 al original; 26 archivos descargados de Edge iguales al candidato. PWA ya publicada e identidad pública comprobada. Pausa de cola 10:43:54–10:44:43 Argentina; restaurada. Ocho pendientes v1 históricos conservados y cero trabajos activos v2. Ambas rutas no autorizadas respondieron 401.
+
+Perfiles, vencimientos, movimientos, invitaciones y recibos conservaron sus huellas. Proveedores, claves, cupos, costos, roles y decisiones aplazadas sin cambios; retención desactivada. Falta prueba manual de acciones múltiples. Luego se propone BE-19, sin implementar. Ver docs/planes/VALIDACION_RELEASE_042_PRODUCCION.md y su evidencia.
+
+## Revisión documental histórica de planes — 29/10/2026
 
 Se reconciliaron ambos planes con base funcional ecba420 (PR #67) y migraciones 001–041, separando incorporaciones, pendientes y registros históricos. No se agregan funcionalidades ni se certifica un despliegue. BE-22/042 se conserva como avance posterior del checkout, con publicación productiva **sin verificar en esta tarea**.
 
@@ -848,7 +858,7 @@ No es cobertura 100%, auditoría universal ni todos los teléfonos. FE-21/BE-17 
 7. Verificar fuentes/ACL, historial, versión pública/SW/bundle y salud.
 8. Conservar un runtime de rollback compatible con el esquema expandido y las guardas vigentes.
 
-**Contrato de release revisado (rama, 29/10/2026):** candidato mínimo 042 por las operaciones múltiples de BE-22; rollback fijado en ecba42024d413ef05a2a4d1abeb04bdbb97e869e, mínimo 041. Ambos mínimos se contrastan con inventarios completos y SQL compartido sin modificar. El arnés exige tres filas: rollback sobre 041, candidato sobre 042 y rollback conservando la base 042. Incluye RPC reales, reintentos de envío sin reinterpretar/duplicar y controles de errores seguros/expiración. La matriz completa aprobó en CI #285/PR #71 sobre el código 3690a92: rollback sobre 041, candidato sobre 042 y rollback conservando 042. Ver `docs/planes/VALIDACION_CONTRATO_RELEASE_041_042.md` y su evidencia saneada. Un manifiesto o un mínimo numérico no certifica compatibilidad por sí solo; el CI tampoco acredita una publicación o el estado de producción. Antes de volver a un runtime anterior se exige quietud; no se promete compatibilidad de checkpoints múltiples BE-22 en vuelo. No se modifica producción ni ninguna migración aplicada.
+**Contrato de release incorporado (PR #71; publicado 30/10/2026):** candidato mínimo 042 por las operaciones múltiples de BE-22; rollback fijado en ecba42024d413ef05a2a4d1abeb04bdbb97e869e, mínimo 041. Ambos mínimos se contrastan con inventarios completos y SQL compartido sin modificar. El arnés exige tres filas: rollback sobre 041, candidato sobre 042 y rollback conservando la base 042. Incluye RPC reales, reintentos de envío sin reinterpretar/duplicar y controles de errores seguros/expiración. La matriz completa aprobó en CI #285/PR #71 sobre el código 3690a92: rollback sobre 041, candidato sobre 042 y rollback conservando 042. Ver `docs/planes/VALIDACION_CONTRATO_RELEASE_041_042.md` y su evidencia saneada. Un manifiesto o un mínimo numérico no certifica compatibilidad por sí solo; el CI tampoco acredita una publicación o el estado de producción. Antes de volver a un runtime anterior se exige quietud; no se promete compatibilidad de checkpoints múltiples BE-22 en vuelo. La tarea original del contrato no modificó producción. En la operación autorizada del 30/10 se aplicó 042 y se publicó v65 sin cambiar archivos de migraciones previas; PWA verificada en d2d05df. El rollback sigue acreditado por ensayo aislado, no por ejecución productiva.
 
 ## 15. Funcionalidades que no deben darse por existentes
 
@@ -891,7 +901,7 @@ No afirmar que ya hay:
 | BE-18 | Modularización y contexto paralelo del webhook. |
 | PR #66 | Cursor mensual por ID coherente antes del orden por fecha. |
 | FE-23 / PR #67 | Soporte WhatsApp en Dashboard. |
-| BE-22 / PR #68 | Lenguaje natural y simplificación en chatbot (bajas/ediciones múltiples, guarda de cancelación y comprobantes sin bloqueo de aclaración); 042. |
+| BE-22 / PR #68 | Lenguaje natural y simplificación; SQL 042 y webhook v65 publicados/verificados 30/10. Aceptación manual de bajas/ediciones múltiples pendiente. |
 
 Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garantías y límites; no asumir que un refactor los reemplazó por completo.
 
@@ -1124,6 +1134,6 @@ Inventario de creación, no de permisos efectivos actuales; no incluye los esque
 
 ### 19.2. Fuentes y alcance de esta entrega
 
-Preparado a partir de README, package/configuración, pantallas, módulos del bot, reglas/límites, migraciones 001–042, pruebas y documentos de operación/validación. Sincronizado en commit `ebbefce` (PR #68).
+Preparado a partir de README, package/configuración, pantallas, módulos del bot, reglas/límites, migraciones 001–042, pruebas y documentos de operación/validación. Código publicado comprobado en commit `d2d05df` (incluye PR #68, #71 y #72), SQL 042 y Edge v65 el 30/10/2026.
 
-Este trabajo agrega documentación. No cambia código de aplicación ni aplica migraciones/despliegues; no envía datos de clientes a IA, WhatsApp o correo. La evidencia fechada se distingue del contenido histórico o propuesto del plan.
+La entrega original de este contexto fue documental. La actualización del 30/10 registra la aplicación autorizada de 042 y el despliegue Edge v65, además de la PWA ya publicada. No se enviaron mensajes ni datos de clientes a IA/WhatsApp/correo durante la verificación. La evidencia fechada se distingue del contenido histórico o propuesto del plan.
