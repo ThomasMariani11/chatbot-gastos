@@ -2,11 +2,11 @@
 
 ## Estado vigente — 30/10/2026
 
-**Publicación técnica verificada:** main d2d05df (PR #72), historial productivo **001–042**, webhook **v65 ACTIVE** y PWA version.json d2d05df. BE-22 tiene SQL y código desplegados. Cola v2 activa y sin trabajos en curso; perfiles/vencimientos/movimientos sin cambios. Aceptación manual de acciones múltiples por WhatsApp pendiente; el despliegue no la sustituye. [Validación](VALIDACION_RELEASE_042_PRODUCCION.md).
+**Publicación técnica verificada:** main 7dd418e (PR #73), historial productivo **001–042**, webhook **v66 ACTIVE** y PWA version.json 7dd418e. BE-22 tiene SQL y código desplegados. Cola v2 activa y sin trabajos en curso; perfiles/vencimientos/movimientos sin cambios. Aceptación manual cerrada para correcciones de importe, bajas múltiples conservando números y cancelación sin guardar; respaldada por respuestas del propietario y lectura SQL. [Validación](VALIDACION_RELEASE_042_PRODUCCION.md).
 
-**Incidencia de aceptación BE-22:** el paso 3 (dos importes en un texto) falló en v65 por una guarda local. Corrección en rama, 1.129 pruebas aprobadas; pendiente CI/publicación y repetir aceptación. [Validación](VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
+**Incidencia de aceptación BE-22:** el paso 3 (dos importes en un texto) falló en v65 por una guarda local. Corrección integrada por PR #73 / 7dd418e, 1.129 pruebas y cuatro controles CI #290 aprobados. Con autorización específica se desplegó v66 ACTIVE; código descargado y salud verificados, tres pendientes conservados. No hubo migración nueva ni cambios en movimientos/perfiles. Aceptación del paso 3 y del cierre aprobada: importes 150/250/303, baja conjunta con número 2 estable, cancelación y resumen vacío; cero movimientos guardados. [Evidencia de aceptación](evidencias/BE_22_ACEPTACION_2026-10-30.json). [Validación](VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
-**Qué sigue:** publicar la corrección, repetir esa prueba corta y luego BE-19 (aviso al renovar). BE-19, FE-24/BE-20, FE-25/BE-21/NOTIF-01, FE-14 y FE-21/BE-17 siguen pendientes; INF-13/INF-08 al final e INF-14 preparada/desactivada. Thomas continúa como único administrador.
+**Qué sigue:** BE-19 (aviso al renovar), todavía sin implementar. La prueba corta de BE-22 quedó cerrada en el alcance anterior. BE-19, FE-24/BE-20, FE-25/BE-21/NOTIF-01, FE-14 y FE-21/BE-17 siguen pendientes; INF-13/INF-08 al final e INF-14 preparada/desactivada. Thomas continúa como único administrador.
 
 ## Reconciliación histórica — 29/10/2026
 

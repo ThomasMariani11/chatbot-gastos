@@ -2,17 +2,17 @@
 
 > **Documento de transferencia de contexto.** Describe el producto, la implementación y las decisiones vigentes. No autoriza cambios, despliegues, gastos ni acceso a cuentas.
 >
-> **Fecha:** 30/10/2026, Argentina. **Código publicado y verificado:** `main`, commit `d2d05df8229066f20e4a33f9625b0cdf3a0d04e6`, PR #72 (incluye BE-22/PR #68 y contrato PR #71).
+> **Fecha:** 30/10/2026, Argentina. **Código publicado y verificado:** `main`, commit `7dd418e367a797e8406c6cfe1acedeeba22c5258`, PR #73 (incluye BE-22 y su corrección local de importes múltiples).
 >
-> **Observaciones verificadas 30/10:** historial productivo 001–042, webhook v65 ACTIVE y PWA version.json d2d05df. Cola v2 habilitada, recuperación succeeded y huellas de perfiles/vencimientos/movimientos conservadas. Aceptación manual WhatsApp de BE-22 pendiente. Ver `docs/planes/VALIDACION_RELEASE_042_PRODUCCION.md`; las observaciones anteriores permanecen como historia.
+> **Observaciones verificadas 30/10:** historial productivo 001–042, webhook v66 ACTIVE y PWA version.json 7dd418e. Cola v2 habilitada, recuperación succeeded y huellas de perfiles/vencimientos/movimientos conservadas. Aceptación manual del caso BE-22 cerrada: importes múltiples, bajas con números estables y cancelación sin guardar, corroborados el 30/10. Ver `docs/planes/VALIDACION_RELEASE_042_PRODUCCION.md`; las observaciones anteriores permanecen como historia.
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
-## Incidencia de aceptación y corrección en rama — 30/10/2026
+## Corrección de importes múltiples publicada — 30/10/2026
 
-La prueba manual BE-22 sobre v65 falló en la corrección doble de importes: una guarda local devolvía aclaración antes de la RPC 042. En codex/fix-bulk-amount-corrections se reconoce el mensaje completo con dos o más importes explícitos, sin IA y sin aceptar una parte si otro dato/destino es inválido. Comprobación texto→procesador→SQL y reintento agregada; 1.129 pruebas locales aprobadas. Aún no publicada al registrar esta nota; la aceptación debe repetirse después del despliegue. Ver docs/planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md.
+La prueba manual BE-22 sobre v65 falló en la corrección doble de importes: una guarda local devolvía aclaración antes de la RPC 042. En codex/fix-bulk-amount-corrections se reconoce el mensaje completo con dos o más importes explícitos, sin IA y sin aceptar una parte si otro dato/destino es inválido. Comprobación texto→procesador→SQL y reintento agregada; 1.129 pruebas locales aprobadas. PR #73 integrada en main 7dd418e y cuatro controles CI #290 aprobados, incluido Deno completo en Linux. Tras la aprobación específica del propietario se desplegó Edge v66 ACTIVE desde 7dd418e a las 11:28 Argentina. Los 26 archivos descargados coinciden con el commit; PWA comprobada en 7dd418e. Cola habilitada sin pausa, tres pendientes conservados, perfiles/movimientos y SQL sin cambios; rutas no autorizadas 401. Aceptación cerrada en el alcance probado: el propietario copió ambos importes corregidos (150/250, tercero 303), luego la baja conjunta de 1 y 3 conservando el número 2; confirmó el cierre. Lectura SQL posterior acreditó CANCELAR y RESUMEN procesados, marca de envío del resumen vacío, cero grupos/ítems pendientes del propietario y movimientos definitivos sin cambios. Evidencia: docs/planes/evidencias/BE_22_ACEPTACION_2026-10-30.json. El próximo bloque es BE-19, aún pendiente. Evidencia: docs/planes/evidencias/BE_22_IMPORTES_DESPLIEGUE_2026-10-30.json. Ver docs/planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md.
 
-## Publicación comprobada — 30/10/2026
+## Registro histórico de la publicación inicial — 30/10/2026
 
 Solo 042 aplicada y whatsapp-webhook v65 desplegado desde d2d05df, tras cinco comprobaciones locales y ensayo completo en CI #289 del mismo commit. Texto SQL registrado igual por SHA-256 al original; 26 archivos descargados de Edge iguales al candidato. PWA ya publicada e identidad pública comprobada. Pausa de cola 10:43:54–10:44:43 Argentina; restaurada. Ocho pendientes v1 históricos conservados y cero trabajos activos v2. Ambas rutas no autorizadas respondieron 401.
 
@@ -901,7 +901,7 @@ No afirmar que ya hay:
 | BE-18 | Modularización y contexto paralelo del webhook. |
 | PR #66 | Cursor mensual por ID coherente antes del orden por fecha. |
 | FE-23 / PR #67 | Soporte WhatsApp en Dashboard. |
-| BE-22 / PR #68 | Lenguaje natural y simplificación; SQL 042 y webhook v65 publicados/verificados 30/10. Aceptación manual de bajas/ediciones múltiples pendiente. |
+| BE-22 / PR #68 y #73 | SQL 042 y webhook v66 publicados/verificados 30/10. Correcciones múltiples explícitas de importe resueltas localmente sin IA, con validación completa. Aceptación manual cerrada para importes múltiples, bajas estables y cancelación sin guardar; evidencia del 30/10. |
 
 Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garantías y límites; no asumir que un refactor los reemplazó por completo.
 
@@ -1134,6 +1134,6 @@ Inventario de creación, no de permisos efectivos actuales; no incluye los esque
 
 ### 19.2. Fuentes y alcance de esta entrega
 
-Preparado a partir de README, package/configuración, pantallas, módulos del bot, reglas/límites, migraciones 001–042, pruebas y documentos de operación/validación. Código publicado comprobado en commit `d2d05df` (incluye PR #68, #71 y #72), SQL 042 y Edge v65 el 30/10/2026.
+Preparado a partir de README, package/configuración, pantallas, módulos del bot, reglas/límites, migraciones 001–042, pruebas y documentos de operación/validación. Código publicado comprobado en commit `7dd418e` (incluye PR #73), SQL 042 y Edge v66 el 30/10/2026.
 
-La entrega original de este contexto fue documental. La actualización del 30/10 registra la aplicación autorizada de 042 y el despliegue Edge v65, además de la PWA ya publicada. No se enviaron mensajes ni datos de clientes a IA/WhatsApp/correo durante la verificación. La evidencia fechada se distingue del contenido histórico o propuesto del plan.
+La entrega original de este contexto fue documental. La actualización del 30/10 registra la aplicación autorizada de 042, su publicación inicial v65 y la corrección posterior v66 / PR #73, además de la PWA comprobada en 7dd418e. No se enviaron mensajes ni datos de clientes a IA/WhatsApp/correo durante la verificación. La evidencia fechada se distingue del contenido histórico o propuesto del plan.

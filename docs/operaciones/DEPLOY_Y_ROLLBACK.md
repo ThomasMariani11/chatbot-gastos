@@ -2,7 +2,7 @@
 
 ## Última publicación observada — 30/10/2026
 
-PWA **d2d05df**, SQL **001–042**, webhook **v65 ACTIVE** (verify_jwt=false con verificación propia conservada). CLI 2.120.0; texto original 042 registrado y SHA-256 comprobado. Cola v2 reanudada, sin trabajos activos, cron succeeded y datos financieros conservados. Aceptación manual BE-22 pendiente. [Registro](../planes/VALIDACION_RELEASE_042_PRODUCCION.md).
+PWA **7dd418e**, SQL **001–042**, webhook **v66 ACTIVE** (verify_jwt=false con verificación propia conservada). PR #73 corrige importes múltiples localmente, sin migración nueva ni pausa de cola. Código desplegado comparado con el commit, rutas no autorizadas 401, tres pendientes conservados y perfiles/movimientos/SQL sin cambios. Aceptación manual del caso BE-22 cerrada el 30/10: importes múltiples, bajas con números estables y cancelación sin guardar; no extiende el alcance a otras entradas. [Registro vigente](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md). La instalación inicial de 042/v65 se conserva en [su registro histórico](../planes/VALIDACION_RELEASE_042_PRODUCCION.md).
 
 ## Contrato de release — 29/10/2026
 

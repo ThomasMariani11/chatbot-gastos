@@ -29,7 +29,7 @@ El primer intento abortó por una representación distinta del separador en las 
 - POST sin firma y worker sin secreto: ambos **401**, sin efectos financieros.
 - Resguardo previo v64: 26 archivos descargados iguales a ecba420, el rollback ensayado. No se ejecutó rollback productivo ni se retiró SQL.
 
-## Aceptación que falta
+## Registro histórico — aceptación pendiente al publicar v65
 
 Publicación técnica comprobada; **pendiente prueba manual WhatsApp BE-22**: agregar tres movimientos ficticios, cambiar dos en un mensaje, quitar dos juntos y cancelar. Verificar números estables y resumen; no confirmar para guardar. Antes enviar RESUMEN y conservar cualquier pendiente real que se quiera guardar.
 
@@ -42,3 +42,7 @@ Se mantienen Thomas como único administrador, proveedores/claves/cupos/costo, C
 ## Seguimiento de aceptación — 30/10/2026
 
 El paso 3 falló en WhatsApp: la regla local rechazó dos importes en un texto sin modificar la lista. La publicación técnica 042/v65 se mantiene acreditada, pero la aceptación funcional no está cerrada. Ver [corrección en rama y pruebas](VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
+
+## Cierre posterior de la aceptación — 30/10/2026
+
+Con v66 / PR #73 se repitió el paso 3 y se verificaron correcciones dobles, bajas múltiples conservando números y cancelación/resumen vacío. Movimientos definitivos sin cambios y cero pendientes del propietario. Los estados pendientes anteriores describen el momento inicial de v65. [Validación vigente](VALIDACION_BE_22_IMPORTES_MULTIPLES.md) y [evidencia](evidencias/BE_22_ACEPTACION_2026-10-30.json).
