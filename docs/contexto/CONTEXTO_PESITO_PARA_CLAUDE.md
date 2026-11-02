@@ -8,6 +8,24 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## Mantenimiento de GitHub Actions — 02/11/2026, PR #9
+
+La actualización de Dependabot cambia únicamente las herramientas del workflow de pruebas y publicación; no incorpora funciones de producto. El propietario autorizó integrar la PR #9 el 02/11. Esta nota acompaña la propuesta: el merge y la publicación se acreditan por separado con la [PR #9](https://github.com/ThomasMariani11/chatbot-gastos/pull/9), su ejecución sobre main y el version.json público.
+
+La revisión previa del commit `9678a05f7df78c11047509658adc7b8517d4a160` aprobó Frontend, Webhook, PostgreSQL y Ensayo de release en [CI #296](https://github.com/ThomasMariani11/chatbot-gastos/actions/runs/41443758374). Publicar se omitió por ser una PR. Añadir esta nota requiere validar nuevamente el último commit antes de integrarlo. La consulta pública previa a la integración devolvió PWA `c12657269abb06755d00fa1969dc49bc34e9b410`; las observaciones SQL/Edge del 30/10 siguen siendo el último registro de backend y no se vuelven a certificar en este mantenimiento.
+
+Versiones de las acciones en esta actualización (se conservan fijadas por SHA):
+
+| Acción | Antes | Actualización |
+| --- | --- | --- |
+| actions/checkout | 4.4.0 | 7.0.1 |
+| actions/setup-node | 4.4.0 | 7.1.0 |
+| actions/upload-artifact | 4.6.2 | 7.0.2 |
+| actions/configure-pages | 5.0.0 | 6.0.0 |
+| actions/deploy-pages | 4.0.5 | 5.0.1 |
+
+Se conservan Node de .node-version para la aplicación, Deno fijado, cuatro controles antes de publicar, permisos y persist-credentials:false. Integrar a main ejecuta la publicación habitual de la PWA. No aplica migraciones ni despliega la Edge Function, y no cambia proveedores de IA, claves, costos, roles, hosting, backups o retención.
+
 ## BE-19 publicado — pago confirmado y código nominativo de renovación
 
 **30/10/2026.** Publicado en producción técnica bajo autorización expresa del propietario. PR #74 integrado en `main` (`800e82101a1d4c5269ae32179e7169ed6bd005c3`), SQL 043 aplicado (`001–043`), webhook Edge v67 ACTIVE y PWA publicada en GitHub Pages. [Validación BE-19](../planes/VALIDACION_BE_19.md) y [evidencia](evidencias/BE_19_DESPLIEGUE_2026-10-30.json). Aceptación manual pendiente con cuenta de prueba autorizada de Thomas.
@@ -838,6 +856,8 @@ deno task --config deno.ci.json test
 Los ensayos rechazan destinos remotos. No quitar guardas para conectarlos a producción. Usar Docker para CI/local no significa que producción sea Docker Compose.
 
 ### 14.4. CI/CD
+
+Las cinco acciones de GitHub mantenidas por Dependabot se actualizan en PR #9; versiones y evidencia previa se detallan al comienzo del documento. El runtime interno de esas herramientas es independiente del Node fijado para compilar/probar Pesito. Se conserva el workflow de publicación desde main con sus cuatro controles.
 
 `.github/workflows/deploy-pages.yml` ejecuta:
 
