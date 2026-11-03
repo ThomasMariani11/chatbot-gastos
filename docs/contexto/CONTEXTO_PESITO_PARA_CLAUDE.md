@@ -2,9 +2,9 @@
 
 > **Documento de transferencia de contexto.** Describe el producto, la implementación y las decisiones vigentes. No autoriza cambios, despliegues, gastos ni acceso a cuentas.
 >
-> **Fecha:** 03/11/2026, Argentina. **Código publicado y verificado:** `main`, commit `b87aedf51b76f66d52081a314fecaa2aeca38c55`, PR #76 (sincronización de emisor de prueba y robustez de avisos BE-19).
+> **Fecha:** 03/11/2026, Argentina. **Código publicado y verificado:** `main`, commit `3bc7b40d0ee2bb19e79ab8af3eb86b4904c977b1`, PR #77 (normalización de prefijo argentino en despacho de renovación BE-19).
 >
-> **Observaciones verificadas 03/11:** historial productivo 001–044 aplicado, PWA version.json b87aedf51b76f66d52081a314fecaa2aeca38c55 en GitHub Pages. CI #41445781000 aprobado. Webhook v67 ACTIVE. Aceptación manual de BE-19 en curso.
+> **Observaciones verificadas 03/11:** historial productivo 001–044 aplicado, webhook v68 ACTIVE (verify_jwt=false) y PWA version.json 3bc7b40d0ee2bb19e79ab8af3eb86b4904c977b1 en GitHub Pages. CI aprobado (Frontend, Webhook, PostgreSQL, Ensayo de release, Publicar). Despacho verificado en producción: aviso entregado a destino argentino en 1 intento (`notice_state: 'sent'`).
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
@@ -20,7 +20,7 @@ Durante la prueba de aceptación de BE-19 en producción (caso real de Matias Ma
 3. En `tests/renewal-delivery.test.ts`, verificar que `sendWhatsAppText` intente `54...` si `549...` recibe HTTP 400.
 4. 1.180 pruebas unitarias aprobadas (59 archivos), lint, SQL (12/12), guardas de release (14/14) y build aprobados.
 
-*Estado:* Implementado en rama `fix/renewal-argentina-recipient-delivery`. Requiere PR, CI, autorización de Thomas para desplegar webhook v68 y reiniciar el aviso en base de datos para entrega inmediata.
+*Estado:* Publicado y verificado en producción el 03/11/2026. PR #77 integrada en `main` (`3bc7b40d0ee2bb19e79ab8af3eb86b4904c977b1`), webhook v68 ACTIVE desplegado, PWA publicada en GitHub Pages. Tras reiniciar el aviso `88510344-5e84-4765-ac26-342ca4c7ead2` en la base de datos, el despachador lo tomó y entregó con éxito en 1 intento (`notice_state: 'sent'`), visualizándose en el panel como «Código enviado».
 
 ## Mantenimiento de GitHub Actions — 02/11/2026, PR #9
 
