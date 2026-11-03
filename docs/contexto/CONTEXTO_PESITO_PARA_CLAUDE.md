@@ -2,13 +2,13 @@
 
 > **Documento de transferencia de contexto.** Describe el producto, la implementación y las decisiones vigentes. No autoriza cambios, despliegues, gastos ni acceso a cuentas.
 >
-> **Fecha:** 03/11/2026, Argentina. **Código publicado y verificado:** `main`, commit `3bc7b40d0ee2bb19e79ab8af3eb86b4904c977b1`, PR #77 (normalización de prefijo argentino en despacho de renovación BE-19).
+> **Fecha:** 03/11/2026, Argentina. **Código publicado y verificado:** `main`, commit `641a7a1b64a36337bd85b2983958e828ad079a83`, PR #79 (propagación de concepto compartido en múltiples importes).
 >
-> **Observaciones verificadas 03/11:** historial productivo 001–044 aplicado, webhook v68 ACTIVE (verify_jwt=false) y PWA version.json 3bc7b40d0ee2bb19e79ab8af3eb86b4904c977b1 en GitHub Pages. CI aprobado (Frontend, Webhook, PostgreSQL, Ensayo de release, Publicar). Despacho verificado en producción: aviso entregado a destino argentino en 1 intento (`notice_state: 'sent'`).
+> **Observaciones verificadas 03/11:** historial productivo 001–044 aplicado, webhook v69 ACTIVE (verify_jwt=false) y PWA version.json 3bc7b40d0ee2bb19e79ab8af3eb86b4904c977b1 en GitHub Pages. CI aprobado (Frontend, Webhook, PostgreSQL, Ensayo de release). Webhook v69 desplegado y verificado con smoke test (rutas no autorizadas responden HTTP 401).
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
-## Corrección en rama: propagación de concepto compartido en múltiples importes — 03/11/2026
+## Corrección publicada: propagación de concepto compartido en múltiples importes — 03/11/2026
 
 Al cargar múltiples importes para un mismo servicio o concepto en una misma frase (ej. «Gasté 10800 y 11300 en Uber», «10800 y 11300 en Uber» o «5000, 8000 y 10000 en supermercado»), el parser determinista local asignaba «Gasto general» o derivaba a IA, la cual dejaba los primeros importes con «Concepto pendiente» (`missing_fields: ['description']`). Esto bloqueaba la confirmación (`confirm_draft_group` rechaza borradores con campos faltantes) y generaba acumulación de ítems al intentar reenviar el concepto.
 
@@ -21,6 +21,8 @@ Al cargar múltiples importes para un mismo servicio o concepto en una misma fra
 3. En `tests/deterministic-parser.test.ts`:
    - 11 nuevas pruebas unitarias cubriendo frases compuestas con conceptos compartidos finales, iniciales, rechazos de ambigüedad y preservación de conceptos independientes.
 4. 1.191 pruebas unitarias aprobadas (59 archivos), lint, SQL (12/12), guardas de release (14/14) y build aprobados.
+
+*Estado:* Publicado y verificado en producción el 03/11/2026. PR #79 integrada en `main` (`641a7a1b64a36337bd85b2983958e828ad079a83`), webhook v69 ACTIVE desplegado en Supabase y verificado con smoke test.
 
 ## Corrección en rama: normalización de prefijo móvil argentino en despacho de renovación BE-19 — 03/11/2026
 
