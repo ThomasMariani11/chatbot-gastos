@@ -8,7 +8,14 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
-## Contrato de release BE-19 — 30/10/2026
+## Contrato de release 044 (fix despacho renovación BE-19) — 03/11/2026
+
+Contrato candidato: mínimo **044**, rollback fijado en **c12657269abb06755d00fa1969dc49bc34e9b410** (PR #75), mínimo **043**.
+Corrige el bloqueo en `claim_subscription_renewal_notice` originado por `verified_test_sender_digits` en NULL en `public.whatsapp_ops_config`.
+Sincroniza el emisor aprobado desde `public.system_config.whatsapp_bot_phone`, instala trigger para cambios futuros y añade fallback defensivo.
+Al aplicar 044 a producción, el cron recuperador tomará automáticamente los avisos de renovación pendientes sin necesidad de reconfirmar el pago.
+
+## Contrato de release BE-19 (043) — registro histórico
 
 Contrato vigente: mínimo **043**, rollback de runtime **7dd418e367a797e8406c6cfe1acedeeba22c5258**, mínimo **042**. Se mantiene SQL 043 y los datos al volver al runtime v66. Migraciones 001–042 intactas; la configuración no acredita aplicación productiva. El ensayo debe cubrir rollback/042, candidato/043 y rollback/043; sobre 043 repite pago, código nominativo, envío simulado y canje con fixtures, conservando ACL y acumulación. Compatibilidad completa todavía pendiente de ensayo CI; pruebas SQL en memoria no la sustituyen.
 

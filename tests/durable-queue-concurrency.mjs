@@ -359,7 +359,7 @@ assert.equal((await execute(`select count(*) from public.app_settings where user
 assert.equal((await execute("select json_agg(id order by id) from public.profiles where role='admin';")).output,be13AdminsBefore,'El alta alteró administradores existentes');
 
 // BE-19: pago, entrega y canje concurrentes; solo fixtures en esta base descartable.
-for (const migration of ['040_atomic_whatsapp_linking.sql','041_safe_business_errors.sql','042_bulk_draft_actions.sql','043_subscription_payment_codes.sql']) {
+for (const migration of ['040_atomic_whatsapp_linking.sql','041_safe_business_errors.sql','042_bulk_draft_actions.sql','043_subscription_payment_codes.sql','044_sync_bot_sender_and_renewals.sql']) {
  await execute((await readFile(new URL(migration,migrations),'utf8')).replace(/\r\n/g,'\n'));
 }
 const paymentUser='43000000-0000-4000-8000-000000000001',paymentRequest='43000000-0000-4000-8000-000000000002';

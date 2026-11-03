@@ -101,7 +101,7 @@ describe("BOT-01: Migración 042 y ejecución de bajas y ediciones múltiples en
       end $$;
     `);
 
-    for (const m of migrations.filter((m) => m >= "021" && m <= "043")) {
+    for (const m of migrations.filter((m) => m >= "021" && m <= "044")) {
       let sql = await readFile(new URL(m, migrationUrl), "utf8");
       if (m === "021_whatsapp_queue_recovery.sql" || m === "022_whatsapp_recovery_private_transport.sql") {
         sql = sql.replace(/^create extension[^\n]+\n/gm, "");

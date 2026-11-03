@@ -8,6 +8,21 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## Corrección en rama: despacho de códigos de renovación BE-19 — 03/11/2026
+
+Durante la prueba de aceptación de BE-19 en producción, tras el envío de RENOVAR y la confirmación de pago por Thomas en el panel, el WhatsApp con el código al cliente no fue despachado y permaneció en `state = 'pending'`.
+
+**Causa raíz:** `claim_subscription_renewal_notice` (043) exigía `verified_test_sender_digits` no nulo en `whatsapp_ops_config`, columna creada en 027 para monitoreo que en producción quedó en NULL al no existir migración ni UI para poblarla (los tests la inyectaban manualmente). En cambio, el número del bot de Meta ya estaba guardado en `system_config.whatsapp_bot_phone` con formato `1555...`.
+
+**Solución en rama `fix/be19-renewal-delivery-sender-guard`:**
+1. Migración `044_sync_bot_sender_and_renewals.sql`: poblar `whatsapp_ops_config.verified_test_sender_digits` desde `system_config.whatsapp_bot_phone`.
+2. Trigger `sync_whatsapp_bot_phone_ops` en `system_config` para sincronizar cambios futuros del número de bot.
+3. Fallback defensivo en `claim_subscription_renewal_notice` hacia `system_config.whatsapp_bot_phone`.
+4. Contrato candidato 044, rollback fijado en `c12657269abb06755d00fa1969dc49bc34e9b410` (mínimo 043).
+5. 1.180 pruebas unitarias aprobadas, guardas de release (14/14) aprobadas, build aprobado.
+
+*Estado:* Implementado en rama, pendiente de PR, CI y autorización expresa de Thomas para aplicar migración a producción.
+
 ## Mantenimiento de GitHub Actions — 02/11/2026, PR #9
 
 La actualización de Dependabot cambia únicamente las herramientas del workflow de pruebas y publicación; no incorpora funciones de producto. El propietario autorizó integrar la PR #9 el 02/11. Esta nota acompaña la propuesta: el merge y la publicación se acreditan por separado con la [PR #9](https://github.com/ThomasMariani11/chatbot-gastos/pull/9), su ejecución sobre main y el version.json público.
@@ -889,7 +904,8 @@ No es cobertura 100%, auditoría universal ni todos los teléfonos. FE-21/BE-17 
 7. Verificar fuentes/ACL, historial, versión pública/SW/bundle y salud.
 8. Conservar un runtime de rollback compatible con el esquema expandido y las guardas vigentes.
 
-**Contrato BE-19 publicado:** mínimo 043, rollback fijado en 7dd418e367a797e8406c6cfe1acedeeba22c5258 (mínimo 042), conservando 043. El arnés añade pago/código/canje con datos ficticios y concurrencia; compatibilidad del stack completo pendiente de acreditar en CI. El runtime anterior no despacha esta nueva bandeja: preservarla y usar una corrección hacia adelante para recuperar entregas, sin copiar/reinterpretar mensajes ni restaurar SQL. Ver DEPLOY_Y_ROLLBACK.md y VALIDACION_BE_19.md.
+**Contrato candidato 044 (fix despacho renovación BE-19):** mínimo 044, rollback fijado en c12657269abb06755d00fa1969dc49bc34e9b410 (mínimo 043), conservando 044. Corrige el bloqueo en claim_subscription_renewal_notice por emisor null en ops_config mediante sincronización desde system_config.whatsapp_bot_phone y fallback defensivo.
+**Contrato BE-19 previo (043):** mínimo 043, rollback fijado en 7dd418e367a797e8406c6cfe1acedeeba22c5258 (mínimo 042). El arnés añade pago/código/canje con datos ficticios y concurrencia; compatibilidad del stack completo pendiente de acreditar en CI. El runtime anterior no despacha esta nueva bandeja: preservarla y usar una corrección hacia adelante para recuperar entregas, sin copiar/reinterpretar mensajes ni restaurar SQL. Ver DEPLOY_Y_ROLLBACK.md y VALIDACION_BE_19.md.
 
 **Contrato histórico incorporado (PR #71; publicado 30/10/2026):** candidato mínimo 042 por las operaciones múltiples de BE-22; rollback fijado en ecba42024d413ef05a2a4d1abeb04bdbb97e869e, mínimo 041. Ambos mínimos se contrastan con inventarios completos y SQL compartido sin modificar. El arnés exige tres filas: rollback sobre 041, candidato sobre 042 y rollback conservando la base 042. Incluye RPC reales, reintentos de envío sin reinterpretar/duplicar y controles de errores seguros/expiración. La matriz completa aprobó en CI #285/PR #71 sobre el código 3690a92: rollback sobre 041, candidato sobre 042 y rollback conservando 042. Ver `docs/planes/VALIDACION_CONTRATO_RELEASE_041_042.md` y su evidencia saneada. Un manifiesto o un mínimo numérico no certifica compatibilidad por sí solo; el CI tampoco acredita una publicación o el estado de producción. Antes de volver a un runtime anterior se exige quietud; no se promete compatibilidad de checkpoints múltiples BE-22 en vuelo. La tarea original del contrato no modificó producción. En la operación autorizada del 30/10 se aplicó 042 y se publicó v65 sin cambiar archivos de migraciones previas; PWA verificada en d2d05df. El rollback sigue acreditado por ensayo aislado, no por ejecución productiva.
 
@@ -1133,6 +1149,7 @@ Lista generada desde el repositorio de referencia. Una migración puede redefini
 | 041 | `supabase/migrations/041_safe_business_errors.sql` |
 | 042 | `supabase/migrations/042_bulk_draft_actions.sql` |
 | 043 | `supabase/migrations/043_subscription_payment_codes.sql` |
+| 044 | `supabase/migrations/044_sync_bot_sender_and_renewals.sql` |
 
 ### 19.1. Tablas públicas declaradas
 
@@ -1141,8 +1158,8 @@ Inventario de creación, no de permisos efectivos actuales; no incluye los esque
 | Tabla | Migración de creación |
 | --- | --- |
 | `public.admin_subscription_requests` | `031_atomic_subscription_renewals.sql` |
-| `public.subscription_renewal_requests` (en rama) | `043_subscription_payment_codes.sql` |
-| `public.subscription_renewal_notices` (en rama) | `043_subscription_payment_codes.sql` |
+| `public.subscription_renewal_requests` | `043_subscription_payment_codes.sql` |
+| `public.subscription_renewal_notices` | `043_subscription_payment_codes.sql` |
 | `public.ai_quota_days` | `035_shared_ai_quota.sql` |
 | `public.ai_quota_policy` | `035_shared_ai_quota.sql` |
 | `public.ai_quota_reservations` | `035_shared_ai_quota.sql` |

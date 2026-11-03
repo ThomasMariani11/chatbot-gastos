@@ -61,7 +61,7 @@ describe("BE-19: solicitud, pago y código nominativo", () => {
       end $$;
     `);
 
-    for (const m of migrations.filter((m) => m >= "021" && m < "044")) {
+    for (const m of migrations.filter((m) => m >= "021" && m < "045")) {
       let sql = await readFile(new URL(m, migrationUrl), "utf8");
       if (m === "021_whatsapp_queue_recovery.sql" || m === "022_whatsapp_recovery_private_transport.sql") {
         sql = sql.replace(/^create extension[^\n]+\n/gm, "");
@@ -103,7 +103,7 @@ describe("BE-19: solicitud, pago y código nominativo", () => {
     await db.query("insert into public.whatsapp_user_leases(user_id,lease_token,lease_until)values($1,$2,clock_timestamp()+interval '1 minute')on conflict(user_id)do update set lease_token=excluded.lease_token,lease_until=excluded.lease_until",[user,token]);
     return (await db.query<{r:{reply_text:string}}> ('select public.apply_whatsapp_job($1,$2,$3) as r',[id,token,JSON.stringify({kind:'renewal_request'})])).rows[0].r;
   }
-  it('aplica 001–043 y registra solicitudes repetidas sin emitir código ni renovar',async()=>{
+  it('aplica 001–044 y registra solicitudes repetidas sin emitir código ni renovar',async()=>{
     const before=(await db.query('select subscription_until from public.profiles where id=$1',[user])).rows;
     expect((await request()).reply_text).toContain('Registré tu solicitud');await request();
     expect((await db.query<{n:number}>('select count(*)::int n from public.subscription_renewal_requests')).rows[0].n).toBe(1);
@@ -200,6 +200,26 @@ describe("BE-19: solicitud, pago y código nominativo", () => {
   it('conserva ajuste manual y no crea un aviso de pago',async()=>{
     const requestId='41000000-0000-4000-8000-000000000099';await as(admin,'select public.admin_renew_subscription($1,$2,$3,$4) as r',[requestId,user,'extend',15]);
     expect((await db.query<{n:number}>('select count(*)::int n from public.subscription_renewal_notices')).rows[0].n).toBe(0);
+  });
+  it('resuelve emisor desde system_config cuando ops_config es null y sincroniza con trigger',async()=>{
+    await request();
+    await pay();
+    // 1. Con ops_config.verified_test_sender_digits en NULL pero system_config configurado:
+    await db.exec("update public.whatsapp_ops_config set verified_test_sender_digits=null; update public.system_config set value='15551234567' where key='whatsapp_bot_phone';");
+    const claimedWithFallback = await claim();
+    expect(claimedWithFallback).not.toBeNull();
+    expect((claimedWithFallback as unknown as { test_sender_digits: string }).test_sender_digits).toBe('15551234567');
+    await db.exec("update public.subscription_renewal_notices set state='pending', token=null, lease_until=null");
+
+    // 2. Trigger sincroniza cuando se actualiza whatsapp_bot_phone en system_config:
+    await db.exec("update public.whatsapp_ops_config set verified_test_sender_digits=null;");
+    await db.exec("update public.system_config set value='+1 (555) 987-6543' where key='whatsapp_bot_phone';");
+    const digits = (await db.query<{digits:string}>("select verified_test_sender_digits as digits from public.whatsapp_ops_config where singleton")).rows[0].digits;
+    expect(digits).toBe('15559876543');
+
+    // 3. Cuando ninguno tiene un emisor 1555 válido, no despacha:
+    await db.exec("update public.whatsapp_ops_config set verified_test_sender_digits=null; update public.system_config set value='invalid' where key='whatsapp_bot_phone';");
+    expect(await claim()).toBeNull();
   });
   it('ejecuta el mismo contrato SQL que se ensaya en instalación y rollback de runtime',async()=>{
     await db.exec("select set_config('request.jwt.claim.sub','',true)");
