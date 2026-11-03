@@ -2,26 +2,25 @@
 
 > **Documento de transferencia de contexto.** Describe el producto, la implementación y las decisiones vigentes. No autoriza cambios, despliegues, gastos ni acceso a cuentas.
 >
-> **Fecha:** 30/10/2026, Argentina. **Código publicado y verificado:** `main`, commit `800e82101a1d4c5269ae32179e7169ed6bd005c3`, PR #74 (BE-19: confirmación de pagos y códigos nominativos de renovación).
+> **Fecha:** 03/11/2026, Argentina. **Código publicado y verificado:** `main`, commit `b87aedf51b76f66d52081a314fecaa2aeca38c55`, PR #76 (sincronización de emisor de prueba y robustez de avisos BE-19).
 >
-> **Observaciones verificadas 30/10 (BE-19):** historial productivo 001–043, webhook v67 ACTIVE (verify_jwt=false) y PWA version.json 800e82101a1d4c5269ae32179e7169ed6bd005c3 en GitHub Pages. CI #41089399656 aprobado (Frontend, PostgreSQL, Webhook, Ensayo de release, Publicar). Rutas no autorizadas 401. Aceptación manual de BE-19 pendiente con cuenta autorizada de Thomas. Ver `docs/planes/VALIDACION_BE_19.md` y `docs/planes/evidencias/BE_19_DESPLIEGUE_2026-10-30.json`.
+> **Observaciones verificadas 03/11:** historial productivo 001–044 aplicado, PWA version.json b87aedf51b76f66d52081a314fecaa2aeca38c55 en GitHub Pages. CI #41445781000 aprobado. Webhook v67 ACTIVE. Aceptación manual de BE-19 en curso.
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
-## Corrección en rama: despacho de códigos de renovación BE-19 — 03/11/2026
+## Corrección en rama: normalización de prefijo móvil argentino en despacho de renovación BE-19 — 03/11/2026
 
-Durante la prueba de aceptación de BE-19 en producción, tras el envío de RENOVAR y la confirmación de pago por Thomas en el panel, el WhatsApp con el código al cliente no fue despachado y permaneció en `state = 'pending'`.
+Durante la prueba de aceptación de BE-19 en producción (caso real de Matias Mariani), tras aplicar la migración 044 el trabajador tomó la notificación pero la entrega hacia Meta Cloud API falló en 5 intentos consecutivos, quedando en `state = 'failed'` («No se pudo enviar · revisar»).
 
-**Causa raíz:** `claim_subscription_renewal_notice` (043) exigía `verified_test_sender_digits` no nulo en `whatsapp_ops_config`, columna creada en 027 para monitoreo que en producción quedó en NULL al no existir migración ni UI para poblarla (los tests la inyectaban manualmente). En cambio, el número del bot de Meta ya estaba guardado en `system_config.whatsapp_bot_phone` con formato `1555...`.
+**Causa raíz:** En `supabase/functions/whatsapp-webhook/index.ts`, `deliverRenewalNotices` invocaba `sendWhatsAppText` con `{ exactRecipient: true }`. En `meta-client.ts`, esta opción desactivaba la resolución de la variante argentina (`to.replace(/^549/, "54")`). Meta Cloud API rechaza llamadas `POST /messages` a destinos argentinos con prefijo `549...` retornando HTTP 400 Bad Request, exigiendo el formato internacional sin el `9` (`54...`). Al impedirse el uso de la variante, cada intento arrojó HTTP 400 hasta agotar los 5 reintentos permitidos.
 
-**Solución en rama `fix/be19-renewal-delivery-sender-guard`:**
-1. Migración `044_sync_bot_sender_and_renewals.sql`: poblar `whatsapp_ops_config.verified_test_sender_digits` desde `system_config.whatsapp_bot_phone`.
-2. Trigger `sync_whatsapp_bot_phone_ops` en `system_config` para sincronizar cambios futuros del número de bot.
-3. Fallback defensivo en `claim_subscription_renewal_notice` hacia `system_config.whatsapp_bot_phone`.
-4. Contrato candidato 044, rollback fijado en `c12657269abb06755d00fa1969dc49bc34e9b410` (mínimo 043).
-5. 1.180 pruebas unitarias aprobadas, guardas de release (14/14) aprobadas, build aprobado.
+**Solución en rama `fix/renewal-argentina-recipient-delivery`:**
+1. En `index.ts`, pasar `sendWhatsAppText` directamente a `deliverRenewalNotices` (igual que en los avisos operacionales y respuestas ordinarias del bot).
+2. En `meta-client.ts`, retirar la opción restrictiva `exactRecipient` asegurando que todo envío pruebe la variante argentina ante un rechazo de Meta.
+3. En `tests/renewal-delivery.test.ts`, verificar que `sendWhatsAppText` intente `54...` si `549...` recibe HTTP 400.
+4. 1.180 pruebas unitarias aprobadas (59 archivos), lint, SQL (12/12), guardas de release (14/14) y build aprobados.
 
-*Estado:* Implementado en rama, pendiente de PR, CI y autorización expresa de Thomas para aplicar migración a producción.
+*Estado:* Implementado en rama `fix/renewal-argentina-recipient-delivery`. Requiere PR, CI, autorización de Thomas para desplegar webhook v68 y reiniciar el aviso en base de datos para entrega inmediata.
 
 ## Mantenimiento de GitHub Actions — 02/11/2026, PR #9
 
