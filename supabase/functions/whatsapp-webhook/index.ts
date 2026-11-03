@@ -101,7 +101,7 @@ async function routeRequest(request: Request): Promise<Response> {
       );
       await deliverRenewalNotices(
         rpc,
-        (to, body) => sendWhatsAppText(to, body, undefined, { exactRecipient: true }),
+        sendWhatsAppText,
         isVerifiedOperationalTestSender,
       );
     }

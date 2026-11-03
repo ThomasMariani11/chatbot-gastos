@@ -48,13 +48,19 @@ describe('BE-19: despacho sin IA, plantillas o exposición del código', () => {
     const logger=vi.spyOn(console,'log').mockImplementation(()=>{});
     try {const s=setup(Error('PRIVATE_FAILURE'));await deliverRenewalNotices(s.rpc,s.send,s.verify);const logs=JSON.stringify(logger.mock.calls);expect(logs).not.toMatch(/PRIVATE|synthetic-recipient|synthetic-sender/);}finally{logger.mockRestore();}
   });
-  it('el transporte exacto no prueba otra variante del destino ante 503',async()=>{
-    vi.stubGlobal('Deno',{env:{get:(key:string)=>key==='WHATSAPP_GRAPH_API_VERSION'?'v26.0':'synthetic-credential'}});
-    const fetch=vi.fn(async(_url:string,_init:RequestInit)=>new Response('{}',{status:503}));vi.stubGlobal('fetch',fetch);
+  it('el transporte prueba la variante argentina 54 si 549 es rechazado con 400', async () => {
+    vi.stubGlobal('Deno', { env: { get: (key: string) => key === 'WHATSAPP_GRAPH_API_VERSION' ? 'v26.0' : 'synthetic-credential' } });
+    const calls: string[] = [];
+    const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      calls.push(body.to);
+      if (body.to.startsWith('549')) return new Response('{"error":{"message":"invalid recipient"}}', { status: 400 });
+      return new Response('{"messages":[{"id":"wamid.123"}]}', { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetch);
     try {
-      await expect(sendWhatsAppText('54'+'90000000000','ficticio',undefined,{exactRecipient:true})).rejects.toBeInstanceOf(OperationalFailure);
-      expect(fetch).toHaveBeenCalledOnce();
-      expect(JSON.parse(String(fetch.mock.calls[0][1].body)).to).toBe('54'+'90000000000');
+      await sendWhatsAppText('54' + '90000000000', 'ficticio');
+      expect(calls).toEqual(['5490000000000', '540000000000']);
     } finally { vi.unstubAllGlobals(); }
   });
 });
