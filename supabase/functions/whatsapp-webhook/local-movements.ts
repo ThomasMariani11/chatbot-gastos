@@ -121,6 +121,7 @@ export function parseDeterministicMovement(
   raw: string,
   today: string,
   allowMissingAmount = false,
+  allowBareAmount = false,
 ): ExtractedMovement | null {
   let text = raw.trim().replace(/[.!]+$/, "").trim();
   const normalized = normalize(text);
@@ -206,14 +207,17 @@ export function parseDeterministicMovement(
       normalize(description),
     )
   ) return null;
-  if (
-    !action && !namedIncome &&
-    (!description || /^(?:me|se|nos|le|les)\b/.test(normalize(description)) ||
-      /\b(tuve|tengo|tenia|tendre|gane|facture|encontre|perdi|devolvi|devolvieron|reintegro|sobro|faltan|falta|quedan|deben|debo|deuda|deudas|precio|precios|cuesta|vale|costaria|costara|seria|fue|eran|ejemplo|cotizacion|presupuesto|pendiente|pendientes)\b/
-        .test(normalize(description)) ||
-      /\b(gaste|pague|compre|cobre|ingreso|ingresaron|recibi|transferi|deposite|pagar|gastar|cobrar|gastado|pagado|gastamos|pagamos|cobramos|gastos|ingresos|cancela|cancelar|cancelame|cancelalo|anula|anular|anulame|anulalo|quita|quitar|quitame|borra|borrar|borrame|elimina|eliminar|eliminame|saca|sacar|sacame|descartar|descartalo)\b/
-        .test(normalize(description)))
-  ) return null;
+  if (!action && !namedIncome) {
+    if (!description && !allowBareAmount) return null;
+    if (
+      description &&
+      (/^(?:me|se|nos|le|les)\b/.test(normalize(description)) ||
+        /\b(tuve|tengo|tenia|tendre|gane|facture|encontre|perdi|devolvi|devolvieron|reintegro|sobro|faltan|falta|quedan|deben|debo|deuda|deudas|precio|precios|cuesta|vale|costaria|costara|seria|fue|eran|ejemplo|cotizacion|presupuesto|pendiente|pendientes)\b/
+          .test(normalize(description)) ||
+        /\b(gaste|pague|compre|cobre|ingreso|ingresaron|recibi|transferi|deposite|pagar|gastar|cobrar|gastado|pagado|gastamos|pagamos|cobramos|gastos|ingresos|cancela|cancelar|cancelame|cancelalo|anula|anular|anulame|anulalo|quita|quitar|quitame|borra|borrar|borrame|elimina|eliminar|eliminame|saca|sacar|sacame|descartar|descartalo)\b/
+          .test(normalize(description)))
+    ) return null;
+  }
   // No absorber magnitudes/fracciones desconocidas dentro del concepto.
   if (hasUnparsedNumberWords(description)) return null;
   // Un segundo verbo sin separador puede indicar otra operación incompleta.
@@ -274,16 +278,27 @@ export function parseDeterministicMovements(
     from = index + separator[0].length;
   }
   parts.push(text.slice(from));
+  const multi = parts.length > 1;
   const results: ExtractedMovement[] = [];
+  const hadBareAmount: boolean[] = [];
   for (const part of parts) {
     const cleaned = part.trim().replace(/^(?:[-•]\s+|\d+[.)]\s+)/, "");
     if (!cleaned) return null;
+    const norm = normalize(cleaned);
+    const hasAction = expenseAction.test(norm) || incomeAction.test(norm) ||
+      /^(sueldo|salario|haberes|venta)\b/.test(norm);
     const movement = parseDeterministicMovement(
       cleaned,
       today,
       allowMissingAmount,
+      multi,
     );
     if (!movement) return null;
+    hadBareAmount.push(
+      !hasAction &&
+        (movement.description === "Gasto general" ||
+          movement.description === "Ingreso general"),
+    );
     // No heredar silenciosamente el tipo en una lista de ingresos abreviada.
     if (
       results.at(-1)?.kind === "income" &&
@@ -300,6 +315,32 @@ export function parseDeterministicMovements(
     ) return null;
     results.push(movement);
   }
+  if (!results.length) return null;
+
+  if (multi) {
+    const isGeneric = (desc: string) =>
+      desc === "Gasto general" || desc === "Ingreso general";
+    const explicitMovements = results.filter((m) => !isGeneric(m.description));
+    const uniqueExplicit = new Set(
+      explicitMovements.map((m) => normalize(m.description)),
+    );
+
+    if (uniqueExplicit.size === 1) {
+      const shared = explicitMovements[0];
+      for (const m of results) {
+        if (isGeneric(m.description)) {
+          m.description = shared.description;
+          m.category = shared.category;
+          m.kind = shared.kind;
+        }
+      }
+    } else if (uniqueExplicit.size === 0) {
+      if (hadBareAmount.some(Boolean)) return null;
+    } else {
+      if (results.some((m) => isGeneric(m.description))) return null;
+    }
+  }
+
   return results.length ? results : null;
 }
 
