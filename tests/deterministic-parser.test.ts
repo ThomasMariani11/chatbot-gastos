@@ -234,3 +234,44 @@ describe("BE-04: no confundir referencias de producto ni monedas fuera del contr
     expect(parseDeterministicMovement(text)).toMatchObject({totalAmountArs: 1500, description: "Supermercado", occurredOn: "2026-10-19"});
   });
 });
+
+describe("conceptos compartidos con múltiples importes (BE-04 / María Martha case)", () => {
+  it.each([
+    ["Gasté 10800 y 11300 en Uber", [10800, 11300], "Uber", "Transporte"],
+    ["10800 y 11300 en Uber", [10800, 11300], "Uber", "Transporte"],
+    ["10800 y 11300 de Uber", [10800, 11300], "Uber", "Transporte"],
+    ["10800 y 11300 Uber", [10800, 11300], "Uber", "Transporte"],
+    ["Gasté 5000, 8000 y 10000 en supermercado", [5000, 8000, 10000], "Supermercado", "Alimentación"],
+    ["5000 y 8000 de nafta", [5000, 8000], "Nafta", "Transporte"],
+    ["Gasté en Uber 10800 y 11300", [10800, 11300], "Uber", "Transporte"],
+    ["Uber 10800 y 11300", [10800, 11300], "Uber", "Transporte"],
+  ])("propaga el concepto y categoría a todos los importes del grupo: %s", (text, amounts, description, category) => {
+    const movements = parseDeterministicMovements(text);
+    expect(movements).toHaveLength(amounts.length);
+    for (let i = 0; i < amounts.length; i++) {
+      expect(movements![i]).toMatchObject({
+        kind: "expense",
+        totalAmountArs: amounts[i],
+        description,
+        category,
+        currency: "ARS",
+      });
+    }
+  });
+
+  it("mantiene conceptos independientes cuando cada importe tiene el suyo", () => {
+    const items = parseDeterministicMovements("gaste 5000 en super y 4000 de nafta");
+    expect(items).toHaveLength(2);
+    expect(items![0]).toMatchObject({ description: "Super", totalAmountArs: 5000, category: "Alimentación" });
+    expect(items![1]).toMatchObject({ description: "Nafta", totalAmountArs: 4000, category: "Transporte" });
+  });
+
+  it("rechaza importes pelados sin concepto en ninguna parte del grupo", () => {
+    expect(parseDeterministicMovements("100 y 200")).toBeNull();
+    expect(parseDeterministicMovements("Gasté 100 y 200")).toBeNull();
+  });
+
+  it("rechaza grupos ambiguos con múltiples conceptos distintos y un importe sin concepto", () => {
+    expect(parseDeterministicMovements("Gasté 100 super, 200 nafta y 300")).toBeNull();
+  });
+});

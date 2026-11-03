@@ -8,6 +8,20 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## Corrección en rama: propagación de concepto compartido en múltiples importes — 03/11/2026
+
+Al cargar múltiples importes para un mismo servicio o concepto en una misma frase (ej. «Gasté 10800 y 11300 en Uber», «10800 y 11300 en Uber» o «5000, 8000 y 10000 en supermercado»), el parser determinista local asignaba «Gasto general» o derivaba a IA, la cual dejaba los primeros importes con «Concepto pendiente» (`missing_fields: ['description']`). Esto bloqueaba la confirmación (`confirm_draft_group` rechaza borradores con campos faltantes) y generaba acumulación de ítems al intentar reenviar el concepto.
+
+**Solución en rama `feat/shared-concept-multi-amount`:**
+1. En `supabase/functions/whatsapp-webhook/local-movements.ts`:
+   - En `parseDeterministicMovements`, cuando una frase compuesta contiene partes con importes y exactamente un concepto explícito para el grupo (sea final o inicial), propaga ese concepto y su categoría a los importes que habían quedado genéricos o pelados.
+   - Si no hay ningún concepto explícito y hay importes pelados (ej. «100 y 200»), o si hay múltiples conceptos distintos con importes huérfanos («100 super, 200 nafta y 300»), rechaza determinísticamente para no inventar ni adivinar.
+2. En `supabase/functions/whatsapp-webhook/gemini.ts` y `groq.ts`:
+   - Se añadió la regla de concepto compartido: ante frases con múltiples importes y un concepto conjunto, se asigna ese mismo concepto y categoría a todos los movimientos extraídos, evitando «Concepto pendiente» o «Gasto general».
+3. En `tests/deterministic-parser.test.ts`:
+   - 11 nuevas pruebas unitarias cubriendo frases compuestas con conceptos compartidos finales, iniciales, rechazos de ambigüedad y preservación de conceptos independientes.
+4. 1.191 pruebas unitarias aprobadas (59 archivos), lint, SQL (12/12), guardas de release (14/14) y build aprobados.
+
 ## Corrección en rama: normalización de prefijo móvil argentino en despacho de renovación BE-19 — 03/11/2026
 
 Durante la prueba de aceptación de BE-19 en producción (caso real de Matias Mariani), tras aplicar la migración 044 el trabajador tomó la notificación pero la entrega hacia Meta Cloud API falló en 5 intentos consecutivos, quedando en `state = 'failed'` («No se pudo enviar · revisar»).
@@ -378,6 +392,7 @@ Las correcciones validan grupo, versión, posición y campos permitidos. Ante am
 - No confirmar hasta completar lo esencial o quitar la operación incompleta.
 - Defaults: ARS, fecha local y categoría Otros cuando no se indican de forma identificable.
 - Una fecha expresamente ambigua puede requerir aclaración.
+- Conceptos compartidos: cuando el usuario menciona varios importes para un mismo concepto (ej. "10800 y 11300 en Uber"), todos los movimientos del grupo adoptan el concepto y categoría correspondiente; no quedan ítems con "Concepto pendiente" ni "Gasto general".
 - Tras **24 horas sin actividad**, pedir RETOMAR o DESCARTAR.
 - Si vuelve con un gasto nuevo, conservarlo hasta resolver la lista anterior.
 - Un CONFIRMAR retenido antes de RETOMAR no autoriza guardar una revisión nueva que nunca se mostró.
@@ -402,6 +417,7 @@ Combina parsers deterministas, prompts/esquemas, proveedores externos, normaliza
 - **Texto complejo:** extracción estructurada → validación/normalización → borrador. La respuesta del modelo no escribe finanzas directamente.
 - **Audio:** descarga de Meta → transcripción Whisper/Groq → normalización de números hablados → reutilización de comandos/correcciones/parser local → extracción compleja solo si sigue siendo necesaria.
 - **Foto:** descarga y validación → extracción por el adaptador de IA configurado → validación → borrador. No hay OCR offline propio acreditado.
+- **Conceptos compartidos:** tanto en parser local (`local-movements.ts`) como en adaptadores IA (`groq.ts`/`gemini.ts`), la mención de dos o más importes con un concepto compartido (ej. "Gasté 10800 y 11300 en Uber", "10800 y 11300 en Uber") propaga ese concepto y su categoría a todos los movimientos del conjunto.
 
 Un comprobante representa normalmente una compra/operación. Sus productos no son automáticamente gastos distintos. Varias operaciones se admiten si la imagen muestra comprobantes o movimientos claramente independientes.
 
