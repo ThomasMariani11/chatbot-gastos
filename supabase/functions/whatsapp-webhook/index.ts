@@ -6,6 +6,11 @@ import {
 } from "./operations.ts";
 import { handleAdminSend } from "./admin-send.ts";
 import { deliverRenewalNotices } from "./renewals.ts";
+import {
+  createPushSender,
+  deliverClientPush,
+  readVapidConfig,
+} from "./client-push.ts";
 import { LIMITS, processActorsLimited, timeoutSignal } from "./limits.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.114.0";
 import {
@@ -129,6 +134,19 @@ async function routeRequest(request: Request): Promise<Response> {
       return json({ error: "Cola no disponible." }, 503);
     }
   }
+  if (url.searchParams.get("action") === "client-push") {
+    const secret = Deno.env.get("WHATSAPP_WORKER_SECRET");
+    if (!secret || request.headers.get("x-worker-secret") !== secret) {
+      return json({ error: "No autorizado." }, 401);
+    }
+    const vapid = readVapidConfig((name) => Deno.env.get(name));
+    // Sin claves VAPID no se reclama nada: la bandeja queda pendiente.
+    if (!vapid) return json({ error: "Push no configurado." }, 503);
+    EdgeRuntime.waitUntil(
+      deliverClientPush(rpc, createPushSender(vapid, () => timeoutSignal(5000))),
+    );
+    return json({ accepted: true });
+  }
   if (url.searchParams.get("action") === "test-send") {
     return handleAdminSend(request, {
       legacyServiceKey: serviceKey,
@@ -162,11 +180,18 @@ async function routeRequest(request: Request): Promise<Response> {
 
 export async function handleRequest(request: Request): Promise<Response> {
   const started = performance.now();
-  let route: "webhook" | "worker" | "test_send" | "verification" = "webhook";
+  let route:
+    | "webhook"
+    | "worker"
+    | "client_push"
+    | "test_send"
+    | "verification" = "webhook";
   try {
     const action = new URL(request.url).searchParams.get("action");
     route = action === "worker"
       ? "worker"
+      : action === "client-push"
+      ? "client_push"
       : action === "test-send"
       ? "test_send"
       : request.method === "GET"

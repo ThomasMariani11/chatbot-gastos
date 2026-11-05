@@ -105,12 +105,12 @@ const schemas: Record<Event, Record<string, Validator>> = {
   http_request: {
     duration_ms: duration,
     status: (v) => numeric(599, true)(v) && (v as number) >= 100,
-    route: oneOf("webhook", "worker", "test_send", "verification"),
+    route: oneOf("webhook", "worker", "client_push", "test_send", "verification"),
   },
   http_request_failed: {
     duration_ms: duration,
     status: (v) => v === 503,
-    route: oneOf("webhook", "worker", "test_send", "verification"),
+    route: oneOf("webhook", "worker", "client_push", "test_send", "verification"),
   },
   worker_interrupted: { workers: numeric(100, true) },
 };

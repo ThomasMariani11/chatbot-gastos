@@ -3018,3 +3018,22 @@ button:active:not(:disabled),
   border-color: #dc2626 !important;
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.16) !important;
 }
+
+/* FE-25: avisos de cliente (vencimiento y recordatorio de registro) */
+.client-notices { display: grid; gap: 10px; margin: 0 0 14px; }
+.client-notice { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: start; padding: 14px 16px; border-radius: 14px; border: 1px solid #dce8e3; background: #f3faf7; color: #1f352b; overflow-wrap: anywhere; }
+.client-notice-warning { background: #fffbeb; border-color: #f5d27a; }
+.client-notice-urgent { background: #fff1f1; border-color: #e7a9ab; }
+.client-notice-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; background: #ffffff; color: var(--mint-dark); }
+.client-notice-warning .client-notice-icon { color: #b45309; }
+.client-notice-urgent .client-notice-icon { color: #991b1b; }
+.client-notice-copy { display: grid; gap: 2px; min-width: 0; }
+.client-notice-copy strong { font-size: 15px; }
+.client-notice-copy small { font-size: 13px; color: var(--muted); }
+.client-notice-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.client-notice-actions .button-secondary { text-decoration: none; }
+.client-notice-actions .text-button { padding: 8px 4px; border: 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: underline; }
+@media (min-width: 760px) {
+  .client-notice { grid-template-columns: auto 1fr auto; align-items: center; }
+  .client-notice-actions { grid-column: auto; justify-content: flex-end; }
+}

@@ -8,6 +8,14 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
+## Contrato candidato 046 (FE-25 / NOTIF-01 push) — 05/11/2026
+
+Rama `feat/fe25-avisos-cliente`: mínimo **046**, rollback fijado en **769b5b37937f26f4b92d9ca9610827c9c022c8c0** (mínimo 044). Orden sugerido: (1) generar un par VAPID; guardar `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY` y `VAPID_SUBJECT` como secretos Edge y la pública en `config/environments.json → production.vapidPublicKey`; (2) aplicar 045 y 046; (3) desplegar el webhook; (4) publicar la PWA. Sin VAPID el webhook responde 503 a `client-push` y los avisos quedan pendientes; sin la clave pública en la PWA el control de notificaciones no se muestra. Rollback: conservar 045/046 y sus datos; para frenar envíos, `select cron.unschedule('pesito-client-push')`. El runtime anterior no conoce la ruta: el cron recibiría un error, no envía nada. Sin aplicar ni publicar.
+
+## Contrato candidato 045 (FE-25 avisos de cliente) — 05/11/2026 (reemplazado por 046)
+
+Contrato candidato en rama `feat/fe25-avisos-cliente`: mínimo **045**, rollback fijado en **769b5b37937f26f4b92d9ca9610827c9c022c8c0** (main con webhook v69), mínimo **044**. 045 solo agrega `app_settings.client_reminders_enabled` (default true). La PWA nueva oculta recordatorio e interruptor si la columna no existe, y el runtime anterior no la lee: aplicar 045 antes o después de publicar la PWA es compatible. Rollback: conservar 045 y sus datos; no hacer down. Sin cambios en el webhook. Sin aplicar ni publicar.
+
 ## Contrato de release 044 (fix despacho renovación BE-19) — 03/11/2026
 
 Contrato candidato: mínimo **044**, rollback fijado en **c12657269abb06755d00fa1969dc49bc34e9b410** (PR #75), mínimo **043**.

@@ -8,6 +8,27 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## FE-25 / NOTIF-01 en rama: notificaciones push y avisos en el Resumen — 05/11/2026
+
+**Estado:** implementado en la rama `feat/fe25-avisos-cliente`, **sin integrar en main, sin migraciones 045/046 aplicadas, sin webhook desplegado y sin publicar**. Producción sigue en 001–044 y webhook v69.
+
+Decisiones del propietario (05/11/2026): los avisos llegan **al celular como notificaciones push** (Web Push, sin costo) y **también** se muestran en el Resumen. WhatsApp queda descartado para estos avisos por ahora (plantillas pagas de Meta). Alcance: vencimiento de membresía y recordatorio de registro **diario, al mediodía y a la noche** (ajuste del propietario, 05/11/2026); el resumen de fin de mes es mejora futura (NOTIF-02). Recordatorios **activados por defecto**.
+
+1. **Migración 045** (`045_client_reminder_preferences.sql`): `app_settings.client_reminders_enabled boolean not null default true` (opt-out del recordatorio de registro).
+2. **Migración 046** (`046_client_push_notifications.sql`):
+   - `push_subscriptions` (endpoint https, claves p256dh/auth; máximo 5 por cuenta; sin acceso directo de clientes) y RPC `save_push_subscription` / `delete_push_subscription` para `authenticated`.
+   - `client_notifications`: bandeja idempotente, única por `(user_id, kind, period_key)`. Tipos `subscription_7`, `subscription_1`, `registration_noon` y `registration_night` (period_key = día argentino).
+   - `enqueue_client_notifications` (hora argentina): vencimiento entre 9 y 21 h, a 7 días o menos y otro dentro de las últimas 24 h (uno por fecha de vencimiento). Registro **diario a las 12 y a las 21** (con una hora de margen si el cron no corrió), solo si ese día no hay movimientos confirmados y la preferencia está activa. Solo cuentas con al menos un dispositivo suscripto.
+   - `claim_client_notifications` / `finish_client_notification` solo para `service_role`. Un envío interrumpido se cierra como fallido (sin reenvío); al reclamar se omite el recordatorio si se apagó la preferencia o si se registró un movimiento después de encolarlo; endpoints 404/410 se borran.
+   - Cron `pesito-client-push` a los 7 minutos de cada hora: `dispatch_client_push()` encola y, si hay pendientes, llama por HTTP síncrono (como 022) a `whatsapp-webhook?action=client-push` con el secreto `whatsapp_worker_secret` del vault.
+3. **Webhook:** ruta `?action=client-push` (secreto del trabajador). `client-push.ts` arma textos sin importes ni nombres; `web-push.ts` implementa cifrado aes128gcm (RFC 8291) y VAPID (RFC 8292) solo con WebCrypto, sin dependencias. Requiere secretos Edge `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y `VAPID_SUBJECT` (mailto: o https:). Sin ellos responde 503 y no reclama nada.
+4. **PWA:** Ajustes → Avisos → "Notificaciones en este celular" (`src/PushNotificationsRow.tsx`, `src/pushNotifications.ts`). Estados: activable, activo, bloqueado por el navegador, iPhone sin instalar (explica Agregar a inicio; iOS 16.4+) y no compatible. El service worker (`public/sw.js`) muestra la notificación y al tocarla abre Pesito (vencimiento → Ajustes). La clave pública sale de `VITE_VAPID_PUBLIC_KEY` o `config/environments.json → production.vapidPublicKey`; vacía oculta el control.
+5. **Avisos en el Resumen** (`src/ClientNotices.tsx`, `src/clientNoticeRules.ts`): vencimiento a 7 días (ámbar) y a menos de 24 h (rojo, `role="alert"`) con "Renovar por WhatsApp" (RENOVAR, flujo BE-19) o "Ver cómo renovar"; recordatorio en el Resumen a los 3 días sin registrar (distinto del push diario) con "Cargar movimiento"; "Ocultar por hoy" en `localStorage`. Interruptor "Recordatorios para registrar movimientos" en Ajustes. Sin 045 el recordatorio y el interruptor se ocultan.
+6. **Contrato de release:** mínimo 046, rollback fijado en `769b5b37937f26f4b92d9ca9610827c9c022c8c0` (mínimo 044). El entorno local desprograma `pesito-client-push`.
+7. **Pruebas:** `tests/client-notices.test.ts`, `tests/client-push.test.ts` (descifrado RFC 8291 de ida y vuelta, firma VAPID, despacho y migración 046 en PGlite) y `tests/push-notifications-ui.test.ts`. Locales: 1.220 Vitest, 14 guardas, lint, TypeScript y build aprobados. En Supabase local (Docker) con 001–046: la ruta rechaza sin secreto (401), reclama y cierra avisos en el runtime Edge real y no registra datos personales. **Prueba real (05/11/2026):** con la PWA local (build de producción) en Chrome de escritorio del propietario, suscripción FCM real y webhook en el runtime Edge local con claves VAPID de prueba: Google aceptó los dos envíos (vencimiento y recordatorio de la noche, estado `sent`) y el propietario confirmó que ambas notificaciones aparecieron. **No verificado:** `deno check`/`deno lint` (Deno no instalado; queda para CI), `test:release` con Docker, celular Android/iPhone y producción.
+
+**Para publicar** (requiere autorización): generar un par VAPID; guardar la privada solo como secreto Edge y la pública en `config/environments.json`; aplicar 045 y 046; desplegar el webhook; publicar la PWA.
+
 ## Corrección publicada: propagación de concepto compartido en múltiples importes — 03/11/2026
 
 Al cargar múltiples importes para un mismo servicio o concepto en una misma frase (ej. «Gasté 10800 y 11300 en Uber», «10800 y 11300 en Uber» o «5000, 8000 y 10000 en supermercado»), el parser determinista local asignaba «Gasto general» o derivaba a IA, la cual dejaba los primeros importes con «Concepto pendiente» (`missing_fields: ['description']`). Esto bloqueaba la confirmación (`confirm_draft_group` rechaza borradores con campos faltantes) y generaba acumulación de ítems al intentar reenviar el concepto.
@@ -938,7 +959,7 @@ No afirmar que ya hay:
 - Gestión completa de categorías personalizadas: tener tabla `categories` no acredita esa feature.
 - Notificación automática de renovación al cliente.
 - Recordatorios proactivos o resúmenes periódicos a todos los clientes.
-- Centro completo de preferencias/avisos de cliente ni push por el solo hecho de ser PWA.
+- Centro completo de preferencias/avisos de cliente ni push por el solo hecho de ser PWA. (FE-25 en rama agrega avisos en el Resumen, notificaciones push opt-in y un interruptor de recordatorios; no está publicado.)
 - Operación financiera completa offline o backups por instalar la app.
 - Backups externos activos con RPO/restore certificados.
 - Modelo propio entrenado, OCR offline propio o agente autónomo general.
@@ -978,7 +999,10 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 | --- | --- | --- |
 | BE-19 (aceptación) | Prueba manual de pago confirmado y código nominativo con cuenta autorizada. | Enviar RENOVAR, confirmar pago en panel Clientes, recibir WhatsApp con código, canjear en Ajustes y verificar extensión sin segundo WhatsApp. |
 | FE-24 / BE-20 | Categorías ampliadas/personalizadas. | Catálogo, UI, propiedad, límites y reconocimiento dinámico del bot. Un máximo ejemplificado en el plan todavía no es una restricción real. |
-| FE-25 / BE-21 / NOTIF-01 | Notificaciones proactivas. | Opt-out/preferencias, recordatorios, vencimientos, resumen mensual, tareas seguras y costos de canal. |
+| FE-25 | Avisos en el Resumen y preferencias. | Implementado en rama `feat/fe25-avisos-cliente`: falta PR, CI y publicación. |
+| NOTIF-01 (push) | Notificaciones push al celular. | Implementado en rama: falta par VAPID productivo, aplicar 045/046, desplegar webhook, publicar PWA y probar en un dispositivo real. |
+| BE-21 (WhatsApp) | Avisos por WhatsApp. | Descartado por ahora por el propietario: plantilla Meta paga fuera de 24 h. |
+| NOTIF-02 | Resumen de fin de mes. | Mejora futura registrada el 05/11/2026; sin implementar. |
 | FE-14 | Zoom accesible. | Revisar bloqueo y gestos. |
 | FE-21 / BE-17 | Cobertura transversal. | Escenarios de UI/handler/migraciones aún no acreditados. |
 | INF-13 pendiente | Hosting/headers/framing. | Aplazado al final por el propietario. |
@@ -1001,6 +1025,9 @@ Leer cada bloque completo y evidencia reciente; no tomar el encabezado históric
 | `src/App.tsx` | Sesión, perfil, acceso, navegación y pantallas diferidas. |
 | `src/Login.tsx`, `src/registration.ts` | Acceso/registro y mensajes seguros. |
 | `src/Dashboard.tsx` | Resumen, movimientos, cuotas, formularios y soporte. |
+| `src/ClientNotices.tsx`, `src/clientNoticeRules.ts` | Avisos de vencimiento y recordatorio de registro en el Resumen (FE-25, en rama). |
+| `src/pushNotifications.ts`, `src/PushNotificationsRow.tsx` | Permiso y suscripción Web Push del dispositivo (FE-25, en rama). |
+| `supabase/functions/whatsapp-webhook/client-push.ts`, `web-push.ts` | Despacho de notificaciones push y cifrado/VAPID (FE-25, en rama). |
 | `src/dashboardData.ts`, `src/dashboardLoader.ts` | Lecturas, caché, contexto, paginación y descarte de resultados viejos. |
 | `src/installmentPlans.ts`, `src/installmentPresentation.ts` | Contrato de planes y presentación de cuotas reales. |
 | `src/pwaEntries.ts` | Intentos idempotentes de alta y comprobación posterior. |
@@ -1167,6 +1194,8 @@ Lista generada desde el repositorio de referencia. Una migración puede redefini
 | 042 | `supabase/migrations/042_bulk_draft_actions.sql` |
 | 043 | `supabase/migrations/043_subscription_payment_codes.sql` |
 | 044 | `supabase/migrations/044_sync_bot_sender_and_renewals.sql` |
+| 045 | `supabase/migrations/045_client_reminder_preferences.sql` (en rama, sin aplicar) |
+| 046 | `supabase/migrations/046_client_push_notifications.sql` (en rama, sin aplicar) |
 
 ### 19.1. Tablas públicas declaradas
 

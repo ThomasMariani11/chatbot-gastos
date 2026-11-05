@@ -8,6 +8,8 @@
 
 **Publicado y verificado 30/10/2026:** BE-19 (pago confirmado con código nominativo), PR #74 en main (`800e82101a1d4c5269ae32179e7169ed6bd005c3`), SQL 043 aplicado (`001–043`), Edge v67 ACTIVE y PWA en GitHub Pages. Ver [validación BE-19](VALIDACION_BE_19.md) y [evidencia](evidencias/BE_19_DESPLIEGUE_2026-10-30.json). Aceptación manual pendiente con cuenta autorizada de Thomas. FE-24/BE-20, FE-25/BE-21/NOTIF-01, FE-14 y FE-21/BE-17 siguen pendientes; INF-13/INF-08 al final e INF-14 preparada/desactivada. Thomas continúa como único administrador.
 
+**FE-25 / NOTIF-01 en rama — 05/11/2026:** avisos de vencimiento (7 días / 24 h) y recordatorio de registro **diario a las 12 y a las 21** si ese día no hubo movimientos, como **notificaciones push al celular**; en el Resumen el recordatorio aparece a los 3 días. Migraciones 045 (`client_reminders_enabled`, activado por defecto) y 046 (suscripciones push, bandeja idempotente y cron horario), ruta `client-push` del webhook con VAPID. Rama `feat/fe25-avisos-cliente`, sin PR, sin migraciones aplicadas y sin publicar. WhatsApp (BE-21) descartado por ahora; resumen de fin de mes → NOTIF-02.
+
 ## Reconciliación histórica — 29/10/2026
 
 - **Commit base funcional:** `ecba42024d413ef05a2a4d1abeb04bdbb97e869e` (PR #67). **Corte SQL contrastado: 001–041**, archivos del repositorio; no es una nueva comprobación o aplicación sobre Supabase.
@@ -66,7 +68,7 @@ Las secciones históricas se conservan como registro. “Siguiente paso”, “p
 | FE-22 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_16_22.md) · `tests/button-contrast-and-auth-tabs.test.ts` · PR #60 / b9c9df4 |
 | FE-23 | Terminada | **Incorporado en alcance documentado** | [Regresiones soporte](../../tests/support-whatsapp-button.test.ts) · `tests/support-whatsapp-button.test.ts` · PR #67 / ecba420 |
 | FE-24 | Pendiente | **Pendiente; con BE-20** | Alcance/decisión pendiente; no se supone implementación. |
-| FE-25 | Pendiente | **Pendiente; con BE-21 / NOTIF-01** | Alcance/decisión pendiente; no se supone implementación. |
+| FE-25 | Pendiente | **Implementado en rama; sin publicar** | `src/ClientNotices.tsx` · `src/PushNotificationsRow.tsx` · `tests/client-notices.test.ts` · `tests/push-notifications-ui.test.ts` · migraciones 045/046 |
 
 ### BE: inventario de estados
 
@@ -92,7 +94,7 @@ Las secciones históricas se conservan como registro. “Siguiente paso”, “p
 | BE-18 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_18.md) · `supabase/functions/whatsapp-webhook/context-repository.ts` · PR #64 / 8366517 |
 | BE-19 | Pendiente (histórico) | **Publicado 30/10/2026; aceptación pendiente** | Pago confirmado + código nominativo; ver VALIDACION_BE_19.md. No hay aviso al canjear. |
 | BE-20 | Pendiente | **Pendiente; con FE-24** | Alcance/decisión pendiente; no se supone implementación. |
-| BE-21 | Pendiente | **Pendiente; con FE-25 / NOTIF-01** | Alcance/decisión pendiente; no se supone implementación. |
+| BE-21 | Pendiente | **Reemplazado por push (NOTIF-01, en rama); WhatsApp descartado por ahora** | 046 + `client-push.ts` + `tests/client-push.test.ts`. Resumen mensual movido a NOTIF-02. |
 
 ### Contraste y límites
 
@@ -804,7 +806,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 > **Estado vigente 29/10/2026:** Pendiente; con BE-21 / NOTIF-01. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
 
 
-- [ ] Pendiente.
+- [ ] Pendiente de publicación. Implementado en rama `feat/fe25-avisos-cliente` (05/11/2026): aviso a 7 días y a menos de 24 h con botón RENOVAR/Ajustes, recordatorio a 3 días sin movimientos confirmados, "Ocultar por hoy", toggle de recordatorios (045) y "Notificaciones en este celular" (Web Push, 046). Sin WhatsApp.
 - **Categoría:** Feature / Retención.
 - **Alcance:** visualización de avisos informativos importantes en la PWA (vencimiento próximo de membresía, novedades) y panel de preferencias de notificaciones.
 - **Archivos:** `src/Dashboard.tsx`, `src/Settings.tsx`, `src/ui.css`.
@@ -1178,7 +1180,7 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 > **Estado vigente 29/10/2026:** Pendiente; con FE-25 / NOTIF-01. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
 
 
-- [ ] Pendiente.
+- [ ] Implementado en rama como **notificaciones push** (05/11/2026), por decisión del propietario en lugar de WhatsApp (plantilla Meta paga fuera de 24 h). Cron horario `pesito-client-push`: vencimiento 9–21 h ART y recordatorio de registro diario 12 h y 21 h si ese día no registró nada; bandeja idempotente sin duplicados, opt-out respetado, logs sin datos personales. Falta par VAPID productivo, aplicar 045/046, desplegar y probar en dispositivo real. El resumen de fin de mes se separó en NOTIF-02.
 - **Categoría:** Feature / Automatización y Notificaciones.
 - **Alcance:** motor programado de avisos a clientes por WhatsApp: vencimiento próximo de suscripción, resumen mensual de fin de mes y recordatorios de registro.
 - **Archivos:** `supabase/migrations/` (job pg_cron / cola de notificaciones), `supabase/functions/whatsapp-webhook/` (despacho seguro).
@@ -1189,6 +1191,12 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
   4. Encolado idempotente: evitar que una ejecución repetida del cron envíe más de un aviso por ciclo o alerte dos veces el mismo día.
   5. Registro seguro en logs sin exponer datos financieros ni nombres personales.
 - **Cierre:** simulación de cron en base aislada emite notificaciones en fechas correctas sin duplicados; cuentas vencidas o que desactivaron avisos no reciben mensajes; pruebas de volumen y fallos transitorios aprobadas.
+
+### NOTIF-02 — Resumen de fin de mes (mejora futura)
+
+- [ ] Pendiente. Registrado el 05/11/2026 por pedido del propietario.
+- **Alcance:** resumen opcional de fin de mes para el cliente (totales del mes, comparación y presupuesto), primero en la PWA y luego por WhatsApp si se habilita BE-21.
+- **Condiciones:** opt-in/opt-out propio, sin duplicados por mes, sin datos financieros en logs y sujeto a las mismas restricciones de ventana/plantillas y costos de Meta.
 
 ### Resultados y límites de la auditoría de backend
 
