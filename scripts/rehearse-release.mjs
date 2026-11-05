@@ -240,7 +240,7 @@ async function installedSchema(required) {
   assert.deepEqual(versions, [...required, '99999999999999'], 'El esquema ensayado debe ser exactamente el anunciado.');
   assertSchemaCoverage(versions, required);
   assert.equal(await sql('select not enabled from public.whatsapp_queue_control;'), 't');
-  assert.equal(await sql("select count(*) from cron.job where jobname in ('pesito-whatsapp-queue-recovery','pesito-whatsapp-observability','pesito-whatsapp-retention');"), '0');
+  assert.equal(await sql("select count(*) from cron.job where jobname in ('pesito-whatsapp-queue-recovery','pesito-whatsapp-observability','pesito-whatsapp-retention','pesito-client-push');"), '0');
 }
 async function quietQueue() {
   assert.equal(await sql("select count(*) from public.whatsapp_message_queue where status<>'processed';"), '0', 'No cambiar runtime con mensajes o checkpoints en vuelo.');
@@ -321,7 +321,7 @@ try {
     evidence.migrationCount = expected.length;
     evidence.tools.postgres = await sql('show server_version;');
     assert.equal(await sql('select not enabled from public.whatsapp_queue_control;'), 't');
-    assert.equal(await sql("select count(*) from cron.job where jobname in ('pesito-whatsapp-queue-recovery','pesito-whatsapp-observability','pesito-whatsapp-retention');"), '0');
+    assert.equal(await sql("select count(*) from cron.job where jobname in ('pesito-whatsapp-queue-recovery','pesito-whatsapp-observability','pesito-whatsapp-retention','pesito-client-push');"), '0');
   });
   const status = JSON.parse(await cli(['status', '-o', 'json']));
   const api = localUrl(status.API_URL);

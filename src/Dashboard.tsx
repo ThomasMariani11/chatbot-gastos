@@ -34,6 +34,7 @@ import { requestWhatsAppLinkCode } from './whatsappLink';
 import { formatAmountInput, numberToAmountInput, parseAmountNumber, formatMoney } from '../lib/finance';
 import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
+import { ClientNotices } from './ClientNotices';
 import type { UserProfile } from './Settings';
 
 type Movement = {
@@ -1005,6 +1006,19 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             )}
           </div>
         </section>
+      )}
+
+      {/* FE-25: avisos de vencimiento y recordatorio de registro (solo en el resumen) */}
+      {activeSection !== '#movimientos' && activeSection !== '#cuotas' && (
+        <ClientNotices
+          userId={userId}
+          profile={userProfile}
+          botPhone={waBotNumber}
+          botLinked={botState === 'active'}
+          refreshKey={movements.length}
+          onOpenSettings={onOpenSettings}
+          onAddMovement={openAddForm}
+        />
       )}
 
       <div className="currency-switch-bar">

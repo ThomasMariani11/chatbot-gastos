@@ -70,3 +70,36 @@ self.addEventListener('fetch', event => {
     }
   })());
 });
+
+// FE-25: notificaciones push (vencimiento y recordatorio de registro).
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = {}; }
+  const title = typeof data.title === 'string' && data.title ? data.title.slice(0, 120) : 'Pesito';
+  const body = typeof data.body === 'string' ? data.body.slice(0, 300) : '';
+  const target = new URL(typeof data.url === 'string' ? data.url : './', base);
+  const url = target.href.startsWith(base) ? target.href : base;
+  event.waitUntil(self.registration.showNotification(title, {
+    body,
+    icon: new URL('icon-192.png', base).href,
+    badge: new URL('icon-192.png', base).href,
+    tag: typeof data.tag === 'string' ? data.tag.slice(0, 64) : 'pesito',
+    data: { url },
+  }));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = typeof event.notification.data?.url === 'string' && event.notification.data.url.startsWith(base)
+    ? event.notification.data.url : base;
+  event.waitUntil((async () => {
+    const pages = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const open = pages.find(client => client.url.startsWith(base));
+    if (open) {
+      await open.focus();
+      if ('navigate' in open) await open.navigate(url).catch(() => undefined);
+      return;
+    }
+    await self.clients.openWindow(url);
+  })());
+});

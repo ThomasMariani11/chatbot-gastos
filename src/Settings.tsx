@@ -7,6 +7,7 @@ import { requestWhatsAppLinkCode } from './whatsappLink';
 import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
 import { useSwipeBack } from './useSwipeBack';
+import { PushNotificationsRow } from './PushNotificationsRow';
 
 export type UserProfile = {
   id: string;
@@ -53,6 +54,8 @@ export function Settings({
   const [code, setCode] = useState<string>();
   const [waDirectUrl, setWaDirectUrl] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(true);
+  const [remindersEnabled, setRemindersEnabled] = useState<boolean | null>(null);
+  const [remindersSaving, setRemindersSaving] = useState(false);
   const [status, setStatus] = useState('');
   const [botPhone, setBotPhone] = useState('');
   const [supportPhone, setSupportPhone] = useState('');
@@ -98,6 +101,8 @@ export function Settings({
     supabase.from('app_settings').select('*').eq('user_id', userId).single().then(({ data, error }) => {
       if (error) return;
       setEnabled(data.whatsapp_responses_enabled);
+      // FE-25: sin migración 045 la columna no existe y el interruptor queda oculto.
+      setRemindersEnabled(typeof data.client_reminders_enabled === 'boolean' ? data.client_reminders_enabled : null);
     });
 
     supabase.from('system_config').select('key, value').in('key', ['whatsapp_bot_phone', 'support_phone', 'payment_alias']).then(({ data }) => {
@@ -120,6 +125,23 @@ export function Settings({
     }
     setEnabled(nextEnabled);
     setStatus(nextEnabled ? 'Bot activado.' : 'Bot pausado.');
+    setTimeout(() => setStatus(''), 3000);
+  }
+
+  async function updateReminders(nextEnabled: boolean) {
+    if (remindersSaving) return;
+    setRemindersSaving(true);
+    const { error } = await supabase
+      .from('app_settings')
+      .update({ client_reminders_enabled: nextEnabled, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+    setRemindersSaving(false);
+    if (error) {
+      setStatus('No pudimos guardar los cambios.');
+      return;
+    }
+    setRemindersEnabled(nextEnabled);
+    setStatus(nextEnabled ? 'Recordatorios activados.' : 'Recordatorios desactivados.');
     setTimeout(() => setStatus(''), 3000);
   }
 
@@ -478,6 +500,35 @@ export function Settings({
           )}
         </article>
       </section>
+
+      {/* GRUPO: AVISOS (FE-25) — oculto si la preferencia no está disponible */}
+      {remindersEnabled !== null && (
+        <section className="settings-group" aria-labelledby="settings-group-avisos">
+          <h2 className="settings-group-title" id="settings-group-avisos">Avisos</h2>
+          <article className="settings-panel">
+            <PushNotificationsRow />
+            <div className="settings-bot-switch-row">
+              <div className="settings-bot-switch-copy">
+                <strong>Recordatorios para registrar movimientos</strong>
+                <small>Si activaste las notificaciones, te recordamos al mediodía y a la noche cuando ese día no registraste movimientos. En el resumen te avisamos si pasan 3 días sin registrar. Los avisos de vencimiento de tu membresía se envían siempre.</small>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={remindersEnabled}
+                aria-label="Recordatorios para registrar movimientos"
+                className={`settings-switch ${remindersEnabled ? 'is-on' : ''}`}
+                disabled={remindersSaving}
+                onClick={() => void updateReminders(!remindersEnabled)}
+              >
+                <span className="settings-switch-track">
+                  <span className="settings-switch-thumb" />
+                </span>
+              </button>
+            </div>
+          </article>
+        </section>
+      )}
 
       {/* GRUPO 3: APP (SÓLO SI NO ESTÁ INSTALADA) */}
       {canInstall && (
