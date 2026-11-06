@@ -38,3 +38,6 @@ next-env.d.ts
 /work/
 .temp/
 supabase/.temp/
+
+# configuración personal de Claude Code
+.claude/settings.local.json

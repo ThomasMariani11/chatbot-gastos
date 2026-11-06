@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pesito-local",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5199", "--strictPort"],
+      "port": 5199,
+      "url": "http://127.0.0.1:5199"
+    },
+    {
+      "name": "pesito-pwa",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js", "preview", "--outDir", ".temp/pwa-local", "--host", "127.0.0.1", "--port", "5198", "--strictPort"],
+      "port": 5198,
+      "url": "http://127.0.0.1:5198"
+    }
+  ]
+}
