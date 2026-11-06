@@ -35,6 +35,7 @@ import { formatAmountInput, numberToAmountInput, parseAmountNumber, formatMoney 
 import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
 import { ClientNotices } from './ClientNotices';
+import { PushPrompt } from './PushPrompt';
 import type { UserProfile } from './Settings';
 
 type Movement = {
@@ -1006,6 +1007,15 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
             )}
           </div>
         </section>
+      )}
+
+      {/* FE-26: invitación a activar notificaciones sin pasar por Ajustes (solo en el resumen) */}
+      {activeSection !== '#movimientos' && activeSection !== '#cuotas' && (
+        <PushPrompt
+          userId={userId}
+          accountCreatedAt={userProfile?.created_at}
+          onboardingPending={botState === 'unlinked' || botState === 'loading'}
+        />
       )}
 
       {/* FE-25: avisos de vencimiento y recordatorio de registro (solo en el resumen) */}
