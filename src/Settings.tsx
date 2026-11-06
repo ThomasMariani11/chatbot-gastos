@@ -18,6 +18,7 @@ export type UserProfile = {
   subscription_status: 'active' | 'expired' | 'suspended' | 'pending_code';
   subscription_until: string | null;
   phone_number: string | null;
+  created_at?: string | null;
 };
 
 type Props = {

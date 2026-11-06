@@ -69,6 +69,7 @@ Las secciones históricas se conservan como registro. “Siguiente paso”, “p
 | FE-23 | Terminada | **Incorporado en alcance documentado** | [Regresiones soporte](../../tests/support-whatsapp-button.test.ts) · `tests/support-whatsapp-button.test.ts` · PR #67 / ecba420 |
 | FE-24 | Pendiente | **Pendiente; con BE-20** | Alcance/decisión pendiente; no se supone implementación. |
 | FE-25 | Pendiente | **Publicado 05/11/2026; aceptación en celular pendiente** | `src/ClientNotices.tsx` · `src/PushNotificationsRow.tsx` · `tests/client-notices.test.ts` · `tests/push-notifications-ui.test.ts` · migraciones 045/046 |
+| FE-26 | Nueva (06/11/2026) | **Implementada en rama `feature/fe-26-invitacion-notificaciones`; sin publicar** | `src/PushPrompt.tsx` · `src/pushPromptRules.ts` · `tests/push-prompt.test.ts`. Invitación con un toque para activar push; a cuentas existentes como novedad. Sin activación automática (los navegadores exigen consentimiento). |
 
 ### BE: inventario de estados
 

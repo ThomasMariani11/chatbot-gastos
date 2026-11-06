@@ -8,6 +8,21 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## FE-26: invitación a activar notificaciones desde el Resumen — 06/11/2026
+
+**Estado:** implementado en la rama `feature/fe-26-invitacion-notificaciones`; **no está en main ni publicado**. Sin migraciones ni cambios en el webhook (solo PWA).
+
+**Aceptación de NOTIF-01 (06/11/2026):** el propietario activó las notificaciones en su celular en producción; se encoló una notificación de prueba (`registration_noon`, `period_key` con prefijo `prueba-`) para la cuenta admin y quedó `sent`; el propietario confirmó que llegó. El texto "from Pesito" lo agrega el sistema operativo y no se puede quitar desde la PWA.
+
+Pedido del propietario: que los clientes no tengan que entrar a Ajustes y que a los clientes existentes se les avise la novedad. **Activar sin consentimiento no es posible**: Android/iOS exigen que la persona toque "Permitir" y el pedido debe salir de un toque. Solución:
+
+- Tarjeta en el Resumen (`src/PushPrompt.tsx`, reglas en `src/pushPromptRules.ts`) con **Activar** (dispara el pedido de permiso del navegador) y **Ahora no**.
+- Cuentas creadas antes del 07/11/2026 (`profiles.created_at`) ven "Nuevo: ahora Pesito te avisa en el celular"; las nuevas, "¿Querés que Pesito te avise?".
+- iPhone sin instalar: explica Compartir → Agregar a inicio, sin botón Activar.
+- No aparece si ya están activas, bloqueadas o no soportadas, ni mientras la bienvenida de WhatsApp está pendiente o el estado del bot carga.
+- "Ahora no" la pospone 7 días; al tercer rechazo no vuelve (memoria por cuenta y dispositivo en localStorage `pesito:push-invitacion:<userId>`). Ajustes → Avisos sigue disponible.
+- Pruebas: `tests/push-prompt.test.ts`.
+
 ## FE-25 / NOTIF-01 publicado: notificaciones push y avisos en el Resumen — 05/11/2026
 
 **Estado:** **publicado y verificado técnicamente el 05/11/2026** con autorización del propietario: PR #81 en `main` (`bb14ace`), SQL 001–046, webhook v71 ACTIVE y PWA en GitHub Pages. Par VAPID productivo generado: la pública en `config/environments.json`, la privada solo como secreto Edge. **Aceptación pendiente en celular** (Android e iPhone instalado) con cuenta autorizada.
@@ -1000,8 +1015,9 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 | BE-19 (aceptación) | Prueba manual de pago confirmado y código nominativo con cuenta autorizada. | Enviar RENOVAR, confirmar pago en panel Clientes, recibir WhatsApp con código, canjear en Ajustes y verificar extensión sin segundo WhatsApp. |
 | FE-24 / BE-20 | Categorías ampliadas/personalizadas. | Catálogo, UI, propiedad, límites y reconocimiento dinámico del bot. Un máximo ejemplificado en el plan todavía no es una restricción real. |
 | FE-25 | Avisos en el Resumen y preferencias. | Publicado 05/11/2026 (PR #81, bb14ace). Falta aceptación manual en celular. |
-| NOTIF-01 (push) | Notificaciones push al celular. | Publicado 05/11/2026 (046 + webhook v71). Falta activar en un celular real y recibir un aviso (Android; iPhone con la app instalada). |
+| NOTIF-01 (push) | Notificaciones push al celular. | Publicado 05/11/2026 (046 + webhook v71). Recibido en el celular del propietario el 06/11/2026 (prueba manual). Falta probar iPhone instalado. |
 | BE-21 (WhatsApp) | Avisos por WhatsApp. | Descartado por ahora por el propietario: plantilla Meta paga fuera de 24 h. |
+| FE-26 | Invitación a activar notificaciones desde el Resumen. | Implementado en rama, sin publicar (06/11/2026). |
 | NOTIF-02 | Resumen de fin de mes. | Mejora futura registrada el 05/11/2026; sin implementar. |
 | FE-14 | Zoom accesible. | Revisar bloqueo y gestos. |
 | FE-21 / BE-17 | Cobertura transversal. | Escenarios de UI/handler/migraciones aún no acreditados. |
@@ -1027,6 +1043,7 @@ Leer cada bloque completo y evidencia reciente; no tomar el encabezado históric
 | `src/Dashboard.tsx` | Resumen, movimientos, cuotas, formularios y soporte. |
 | `src/ClientNotices.tsx`, `src/clientNoticeRules.ts` | Avisos de vencimiento y recordatorio de registro en el Resumen (FE-25). |
 | `src/pushNotifications.ts`, `src/PushNotificationsRow.tsx` | Permiso y suscripción Web Push del dispositivo (FE-25). |
+| `src/PushPrompt.tsx`, `src/pushPromptRules.ts` | Invitación a activar notificaciones en el Resumen (FE-26). |
 | `supabase/functions/whatsapp-webhook/client-push.ts`, `web-push.ts` | Despacho de notificaciones push y cifrado/VAPID (FE-25). |
 | `src/dashboardData.ts`, `src/dashboardLoader.ts` | Lecturas, caché, contexto, paginación y descarte de resultados viejos. |
 | `src/installmentPlans.ts`, `src/installmentPresentation.ts` | Contrato de planes y presentación de cuotas reales. |
