@@ -8,7 +8,7 @@
 
 **Publicado y verificado 30/10/2026:** BE-19 (pago confirmado con código nominativo), PR #74 en main (`800e82101a1d4c5269ae32179e7169ed6bd005c3`), SQL 043 aplicado (`001–043`), Edge v67 ACTIVE y PWA en GitHub Pages. Ver [validación BE-19](VALIDACION_BE_19.md) y [evidencia](evidencias/BE_19_DESPLIEGUE_2026-10-30.json). Aceptación manual pendiente con cuenta autorizada de Thomas. FE-24/BE-20, FE-25/BE-21/NOTIF-01, FE-14 y FE-21/BE-17 siguen pendientes; INF-13/INF-08 al final e INF-14 preparada/desactivada. Thomas continúa como único administrador.
 
-**FE-25 / NOTIF-01 publicado — 05/11/2026:** avisos de vencimiento (7 días / 24 h) y recordatorio de registro **diario a las 12 y a las 21** si ese día no hubo movimientos, como **notificaciones push al celular**; en el Resumen el recordatorio aparece a los 3 días. Migraciones 045 (`client_reminders_enabled`, activado por defecto) y 046 (suscripciones push, bandeja idempotente y cron horario), ruta `client-push` del webhook con VAPID. PR #81 en `main` (`bb14ace`), SQL 001–046, webhook v71 ACTIVE y PWA en GitHub Pages, verificados técnicamente. Falta aceptación en celular. WhatsApp (BE-21) descartado por ahora; resumen de fin de mes → NOTIF-02.
+**FE-25 / NOTIF-01 publicado — 05/11/2026:** avisos de vencimiento (7 días / 24 h) y recordatorio de registro **diario a las 12 y a las 21** si ese día no hubo movimientos, como **notificaciones push al celular**; en el Resumen el recordatorio aparece a los 3 días. Migraciones 045 (`client_reminders_enabled`, activado por defecto) y 046 (suscripciones push, bandeja idempotente y cron horario), ruta `client-push` del webhook con VAPID. PR #81 en `main` (`bb14ace`), SQL 001–046, webhook v71 ACTIVE y PWA en GitHub Pages, verificados técnicamente. Aceptación en el celular del propietario el 06/11/2026 (Android/Chrome; iPhone instalado pendiente). **FE-26 publicado 06/11/2026** (PR #83, `8e3d4bc`): invitación en el Resumen para activar notificaciones con un toque. WhatsApp (BE-21) descartado por ahora; resumen de fin de mes → NOTIF-02.
 
 ## Reconciliación histórica — 29/10/2026
 
@@ -69,7 +69,7 @@ Las secciones históricas se conservan como registro. “Siguiente paso”, “p
 | FE-23 | Terminada | **Incorporado en alcance documentado** | [Regresiones soporte](../../tests/support-whatsapp-button.test.ts) · `tests/support-whatsapp-button.test.ts` · PR #67 / ecba420 |
 | FE-24 | Pendiente | **Pendiente; con BE-20** | Alcance/decisión pendiente; no se supone implementación. |
 | FE-25 | Pendiente | **Publicado 05/11/2026; aceptación en celular pendiente** | `src/ClientNotices.tsx` · `src/PushNotificationsRow.tsx` · `tests/client-notices.test.ts` · `tests/push-notifications-ui.test.ts` · migraciones 045/046 |
-| FE-26 | Nueva (06/11/2026) | **Implementada en rama `feature/fe-26-invitacion-notificaciones`; sin publicar** | `src/PushPrompt.tsx` · `src/pushPromptRules.ts` · `tests/push-prompt.test.ts`. Invitación con un toque para activar push; a cuentas existentes como novedad. Sin activación automática (los navegadores exigen consentimiento). |
+| FE-26 | Nueva (06/11/2026) | **Publicado 06/11/2026 (PR #83, 8e3d4bc)** | `src/PushPrompt.tsx` · `src/pushPromptRules.ts` · `tests/push-prompt.test.ts`. Invitación con un toque para activar push; a cuentas existentes como novedad. Sin activación automática (los navegadores exigen consentimiento). |
 
 ### BE: inventario de estados
 

@@ -2,15 +2,17 @@
 
 > **Documento de transferencia de contexto.** Describe el producto, la implementación y las decisiones vigentes. No autoriza cambios, despliegues, gastos ni acceso a cuentas.
 >
-> **Fecha:** 05/11/2026, Argentina. **Código publicado y verificado:** `main`, commit `bb14ace67e5e5e5003316d68bf822fafe4f8489a`, PR #81 (FE-25 / NOTIF-01: notificaciones push y avisos de vencimiento y registro).
+> **Fecha:** 06/11/2026, Argentina. **Código publicado y verificado:** `main`, commit `8e3d4bc7dae72a188c8d81077acd2d302a8327e9`, PR #83 (FE-26: invitación a activar notificaciones desde el Resumen). Base anterior: PR #81 (`bb14ace`, FE-25 / NOTIF-01).
+>
+> **Observaciones verificadas 06/11:** CI de `main` aprobado (Frontend, Webhook, PostgreSQL, Ensayo de release, Publicar); PWA version.json 8e3d4bc7dae72a188c8d81077acd2d302a8327e9 en GitHub Pages y bundle publicado con la tarjeta FE-26. Sin migraciones nuevas (SQL sigue 001–046) ni despliegue del webhook (sigue v71).
 >
 > **Observaciones verificadas 05/11:** historial productivo 001–046 aplicado (`db push --linked`, solo 045 y 046), webhook v71 ACTIVE (verify_jwt=false), PWA version.json bb14ace67e5e5e5003316d68bf822fafe4f8489a en GitHub Pages. CI aprobado en PR #81 (Frontend, Webhook, PostgreSQL, Ensayo de release). Smoke: POST sin firma, `worker` y `client-push` sin secreto o con secreto incorrecto responden 401. Secretos Edge VAPID_PUBLIC_KEY/PRIVATE_KEY/SUBJECT cargados (sin revelar valores); cron `pesito-client-push` activo; cola v2 habilitada, sin leases activos.
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
-## FE-26: invitación a activar notificaciones desde el Resumen — 06/11/2026
+## FE-26 publicado: invitación a activar notificaciones desde el Resumen — 06/11/2026
 
-**Estado:** implementado en la rama `feature/fe-26-invitacion-notificaciones`; **no está en main ni publicado**. Sin migraciones ni cambios en el webhook (solo PWA).
+**Estado:** **publicado y verificado técnicamente el 06/11/2026** con autorización del propietario: PR #83 en `main` (`8e3d4bc`), PWA en GitHub Pages. Solo PWA: sin migraciones ni cambios en el webhook. El propietario vio y usó la tarjeta en un build local antes de publicar.
 
 **Aceptación de NOTIF-01 (06/11/2026):** el propietario activó las notificaciones en su celular en producción; se encoló una notificación de prueba (`registration_noon`, `period_key` con prefijo `prueba-`) para la cuenta admin y quedó `sent`; el propietario confirmó que llegó. El texto "from Pesito" lo agrega el sistema operativo y no se puede quitar desde la PWA.
 
@@ -1017,7 +1019,7 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 | FE-25 | Avisos en el Resumen y preferencias. | Publicado 05/11/2026 (PR #81, bb14ace). Falta aceptación manual en celular. |
 | NOTIF-01 (push) | Notificaciones push al celular. | Publicado 05/11/2026 (046 + webhook v71). Recibido en el celular del propietario el 06/11/2026 (prueba manual). Falta probar iPhone instalado. |
 | BE-21 (WhatsApp) | Avisos por WhatsApp. | Descartado por ahora por el propietario: plantilla Meta paga fuera de 24 h. |
-| FE-26 | Invitación a activar notificaciones desde el Resumen. | Implementado en rama, sin publicar (06/11/2026). |
+| FE-26 | Invitación a activar notificaciones desde el Resumen. | Publicado 06/11/2026 (PR #83, 8e3d4bc). |
 | NOTIF-02 | Resumen de fin de mes. | Mejora futura registrada el 05/11/2026; sin implementar. |
 | FE-14 | Zoom accesible. | Revisar bloqueo y gestos. |
 | FE-21 / BE-17 | Cobertura transversal. | Escenarios de UI/handler/migraciones aún no acreditados. |
