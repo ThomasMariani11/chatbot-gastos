@@ -83,6 +83,56 @@ pg_cron -> dispatch privado -> worker (misma credencial en Vault y Edge)
 
 La publicación de Pages no despliega Edge Functions ni aplica SQL. Los tres componentes deben registrarse juntos aunque sus versiones difieran. No hay staging alojado; los ensayos se hacen en Supabase local aislado, sin datos ni proveedores reales. No activan facturación.
 
+## Barreras locales del agente — 06/11/2026
+
+El checkout está vinculado a producción (`supabase/.temp/project-ref`) y la CLI de Supabase tiene un token persistente en el Administrador de credenciales de Windows. El vínculo se conserva para los despliegues autorizados. Para que Claude Code no ejecute operaciones productivas por accidente, `.claude/settings.json` registra el hook `PreToolUse` `.claude/hooks/guard-supabase.mjs`. El hook cubre Bash, PowerShell, Edit, Write, MultiEdit y NotebookEdit, y se ejecuta en forma exec (`node` + `args`) con `onFailure: "block"`.
+
+**Qué hace:**
+
+- **Bloquea siempre (`deny`)**, sin diálogo:
+  - `supabase link` y `unlink`;
+  - `config push`;
+  - `db reset` remoto;
+  - `migration repair|down|squash` fuera de un workdir local;
+  - `projects delete`;
+  - `branches delete`;
+  - `secrets unset`.
+
+  Si alguna vez hacen falta, las ejecuta el propietario a mano.
+- **Pide aprobación del propietario (`ask`)**, en el diálogo de permisos de la app:
+  - Cualquier invocación de la CLI de Supabase que no sea un subcomando local (`start`, `stop`, `status`, `functions serve`, `db reset`, `migration list --local`, etc.), con `--workdir` dentro de `.temp/` o `%TEMP%` y sin `--linked`, `--project-ref`, `--db-url` ni `--project-id`. Esto incluye operaciones remotas **sin** `--linked`: `functions deploy`, `secrets`, `projects`, `inspect`, `gen types` y subcomandos futuros.
+  - Comandos que mencionen el ref de producción o dominios `supabase.co/.com`.
+  - `psql`/`pg_dump` sin host loopback.
+  - `node scripts/verify-sql-transport.mjs`.
+  - `vite preview` de un build productivo (`.temp/pwa-prod-check`).
+  - Intérpretes con código arbitrario (`node -e`, scripts fuera de `scripts/` y `tests/`, `deno`, `python`, shells anidados, `Invoke-Expression`, `Start-Process`, `-EncodedCommand`).
+  - `npx`/`npm exec` de cualquier paquete distinto de `supabase@<.supabase-version>` en modo local.
+  - `npm install`/`ci`.
+  - Lecturas de credenciales (`cmdkey`, `Get-StoredCredential`, etc.).
+  - `npm run`/`npm test`/`node scripts|tests/…` cuando un archivo ejecutable difiere de `HEAD` y contiene patrones sensibles. El hook revisa:
+    - cambios sin preparar;
+    - la versión *staged* del índice;
+    - archivos nuevos sin seguimiento;
+    - archivos ignorados dentro de `scripts/`, `tests/` y `.claude/hooks/`.
+
+    Si `git` no responde, también pide aprobación.
+  - Edit/Write o comandos que toquen `.claude/settings*.json`, `.claude/hooks/`, `supabase/.temp/`, `supabase/config.toml`, `config/environments.json` o `~/.claude/settings*.json`.
+- **Ante cualquier error interno pide aprobación** (fail-closed). Si el proceso no arranca o falla, `onFailure: "block"` hace que Claude Code bloquee la herramienta.
+- **`permissions.deny`** repite las destructivas más comunes como segunda capa, y `disableBypassPermissionsMode: "disable"` impide el modo que omite permisos.
+
+**Cómo se autoriza:** solo en el diálogo de permisos que la app muestra al propietario, eligiendo "permitir una vez". No existe variable, flag ni texto dentro del comando que habilite una operación. El agente no puede editar el hook ni los settings sin pasar por ese mismo diálogo.
+
+**Autoprueba sin tocar producción:** en una sesión abierta en la raíz de `chatbot-gastos`, pedir `echo PESITO_GUARD_SELFTEST`. El hook responde `ask`. El comando es inofensivo y se puede rechazar.
+
+**Pruebas:** `node --test .claude/hooks/guard-supabase.test.mjs`. Solo usa JSON simulado de PreToolUse y repos git temporales en `%TEMP%`; no ejecuta la CLI ni accede a red.
+
+**Limitaciones (riesgo residual abierto, no resuelto):**
+
+1. **Es una heurística sobre texto.** Un comando o un archivo ofuscado (por ejemplo, un dominio armado por concatenación) puede no coincidir con ningún patrón.
+2. **Solo cubre las herramientas del agente** en sesiones abiertas en la raíz de `chatbot-gastos`. No cubre la terminal del propietario, CI, otras aplicaciones ni sesiones abiertas en otra carpeta.
+3. **Si alguien edita `.claude/settings.json` fuera del agente**, o si se usa una versión de Claude Code que no respeta `onFailure`, la barrera puede no aplicar.
+4. **El token persistente de la CLI sigue disponible para cualquier proceso del usuario.** La única barrera técnica fuerte sería no guardarlo de forma persistente y usar `SUPABASE_ACCESS_TOKEN` solo en la terminal del despliegue. El propietario decidió no cambiarlo por ahora.
+
 ## Registro previo y contrato
 
 1. Confirmar repo, rama, árbol limpio y remoto sincronizado. Si hay cambios ajenos, detenerse sin pisarlos.
