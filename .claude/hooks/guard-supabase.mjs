@@ -443,7 +443,7 @@ export function evaluate(input, ctx) {
 // Punto de entrada testeable: cualquier error se convierte en "ask" (fail-closed).
 export function decide(raw, options) {
   try {
-    return evaluate(JSON.parse(raw), createContext(options));
+    return evaluate(JSON.parse(String(raw).replace(/^﻿/, '')), createContext(options));
   } catch (error) {
     return ask(`La barrera no pudo analizar la acción (${error?.message ?? 'error desconocido'}); se pide aprobación.`);
   }

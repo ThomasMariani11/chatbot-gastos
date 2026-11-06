@@ -224,6 +224,9 @@ test('git: cambios sin preparar, staged, untracked e ignorados en archivos ejecu
 test('fail-closed: entradas inválidas o errores internos piden aprobación', () => {
   assert.equal(decide('esto no es JSON')?.decision, 'ask');
   assert.equal(decide('null')?.decision, 'ask');
+  // Un BOM inicial (p. ej. al canalizar desde PowerShell) no cambia la decisión.
+  assert.equal(decide('﻿' + JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'supabase config push' } }))?.decision, 'deny');
+  assert.equal(decide('﻿' + JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git status' } })), null);
   assert.equal(decide(JSON.stringify({ tool_name: 'Bash', tool_input: {} }))?.decision, 'ask');
   const broken = { ...ctx, get repoRoot() { throw new Error('fallo simulado'); } };
   assert.equal(decide(JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'npm test' } }), { repoRoot: join(tmpdir(), 'no-existe-pesito', '\0') })?.decision, 'ask');
