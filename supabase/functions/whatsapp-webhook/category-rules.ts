@@ -40,63 +40,63 @@ export const CATEGORY_RULES: readonly CategoryRule[] = [
     "Restaurantes y delivery",
     "Alimentación",
     true,
-    "restaurant, restaurante, pedidosya, rappi, mcdonalds, mostaza, burger, cafe, cafes, cafeteria, bar, parrilla, pizza, pizzeria, sushi, helado, heladeria, delivery",
+    "restaurant, restaurante, restaurantes, pedidosya, rappi, mcdonalds, mostaza, burger, cafe, cafes, cafeteria, bar, parrilla, pizza, pizzeria, sushi, helado, heladeria, delivery",
   ),
   rule(
     "expense",
     "Auto",
     "Transporte",
     true,
-    "mecanico, gomeria, cubiertas, neumaticos, service del auto, seguro del auto, seguro auto, lavadero, lavado del auto, cochera, estacionamiento, vtv",
+    "auto, mecanico, gomeria, cubiertas, neumaticos, service del auto, seguro del auto, seguro auto, lavadero, lavado del auto, cochera, estacionamiento, vtv",
   ),
   rule(
     "expense",
     "Tecnología",
     "Compras",
     true,
-    "celular, notebook, computadora, laptop, tablet, auriculares, cargador, teclado, monitor, iphone",
+    "tecnologia, celular, notebook, computadora, laptop, tablet, auriculares, cargador, teclado, monitor, iphone",
   ),
   rule(
     "expense",
     "Hogar",
     "Compras",
     true,
-    "mueble, muebles, colchon, heladera, lavarropas, microondas, electrodomestico, electrodomesticos, ferreteria, pintura, plomero, electricista, lavandina, detergente, articulos de limpieza",
+    "hogar, mueble, muebles, colchon, heladera, lavarropas, microondas, electrodomestico, electrodomesticos, ferreteria, pintura, plomero, electricista, lavandina, detergente, articulos de limpieza",
   ),
   rule(
     "expense",
     "Hijos",
     "Compras",
     true,
-    "panales, juguete, juguetes, jugueteria, ninera, guarderia",
+    "hijo, hijos, panales, juguete, juguetes, jugueteria, ninera, guarderia",
   ),
   rule(
     "expense",
     "Cuidado personal",
     "Cuidado personal",
     true,
-    "peluqueria, barberia, corte de pelo, perfumeria, perfume, cosmetica, maquillaje, manicura, depilacion",
+    "cuidado personal, peluqueria, barberia, corte de pelo, perfumeria, perfume, cosmetica, maquillaje, manicura, depilacion",
   ),
   rule(
     "expense",
     "Deporte",
     "Salud",
     true,
-    "gimnasio, gym, cancha, padel, natacion, creatina, suplemento, suplementos, proteina, proteinas",
+    "deporte, deportes, gimnasio, gym, cancha, padel, natacion, creatina, suplemento, suplementos, proteina, proteinas",
   ),
   rule(
     "expense",
     "Mascotas",
     "Mascotas",
     true,
-    "veterinaria, veterinario, balanceado, pet shop, petshop, mascota",
+    "veterinaria, veterinario, balanceado, pet shop, petshop, mascota, mascotas",
   ),
   rule(
     "expense",
     "Viajes",
     "Viajes",
     true,
-    "pasaje, pasajes, vuelo, vuelos, hotel, hostel, airbnb, booking, excursion, despegar, aerolineas",
+    "viaje, viajes, pasaje aereo, pasajes aereos, vuelo, vuelos, hotel, hostel, airbnb, booking, excursion, despegar, aerolineas",
   ),
   rule(
     "expense",
@@ -200,9 +200,9 @@ export const CATEGORY_RULES: readonly CategoryRule[] = [
     "Reintegros",
     "Reintegros",
     true,
-    "reintegro, reembolso, devolucion, cashback",
+    "reintegro, reintegros, reembolso, devolucion, cashback",
   ),
-  rule("income", "Regalos", "Regalos", true, "regalo, regalaron"),
+  rule("income", "Regalos", "Regalos", true, "regalo, regalos, regalaron"),
   rule(
     "income",
     "Jubilación y asignaciones",
@@ -221,7 +221,7 @@ export const CATEGORY_NAMES: Record<CategoryKind, readonly string[]> = {
 };
 
 export function normalizeConcept(text: string): string {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
 const matchers = new Map<CategoryRule, RegExp>(
@@ -236,6 +236,51 @@ function matchingRules(description: string, kind: CategoryKind) {
   return CATEGORY_RULES.filter((r) =>
     r.kind === kind && matchers.get(r)?.test(text)
   );
+}
+
+// Palabras clave que el parser reconocía antes de BE-20 (main en f7e74d6),
+// congeladas. Solo sirven al control multi-concepto del parser: una parte sin
+// ninguna de ellas se ignora (antes caía en "Otros"), para no derivar a IA
+// mensajes que antes se resolvían localmente. No clasifican: eso es CATEGORY_RULES.
+export const LEGACY_KEYWORDS: Record<CategoryKind, readonly string[]> = {
+  expense: (
+    "super, supermercado, chango, coto, vea, dia, disco, carrefour, almacen, " +
+    "verduleria, carniceria, panaderia, comida, almuerzo, cena, merienda, " +
+    "desayuno, cafe, cafes, restaurant, restaurante, pedidosya, rappi, " +
+    "mcdonalds, mostaza, burger, helado, facturas, kiosco, caramelos, " +
+    "nafta, combustible, ypf, shell, axion, uber, cabify, didi, taxi, " +
+    "colectivo, subte, tren, peaje, estacionamiento, cochera, sube, " +
+    "luz, gas, agua, internet, wifi, fibertel, telecentro, flow, cable, " +
+    "claro, personal, movistar, expensas, edenor, edesur, metrogas, " +
+    "alquiler, inmobiliaria, " +
+    "farmacia, remedio, medicamento, medico, doctor, dentista, odontologo, " +
+    "psicologo, consulta, analisis, creatina, suplemento, suplementos, " +
+    "proteina, proteinas, optica, " +
+    "colegio, facultad, universidad, curso, taller, capacitacion, libro, " +
+    "apunte, " +
+    "cine, teatro, boliche, recital, salida, bar, cerveza, juego, steam, " +
+    "playstation, netflix, spotify, disney, hbo, prime, " +
+    "ropa, zapatillas, remera, pantalon, shopping, zapatos, camisa, buzo, " +
+    "campera, " +
+    "afip, rentas, monotributo, arba, iibb, impuesto, tasa, patente, " +
+    "prestamo, tarjeta, deuda"
+  ).split(",").map((word) => word.trim()),
+  income: (
+    "sueldo, salario, haberes, quincena, freelance, diseno, proyecto, " +
+    "cliente, venta, mercadolibre"
+  ).split(",").map((word) => word.trim()),
+};
+
+const legacyMatchers: Record<CategoryKind, RegExp> = {
+  expense: new RegExp("\\b(" + LEGACY_KEYWORDS.expense.join("|") + ")\\b"),
+  income: new RegExp("\\b(" + LEGACY_KEYWORDS.income.join("|") + ")\\b"),
+};
+
+export function hasLegacyKeyword(
+  description: string,
+  kind: CategoryKind,
+): boolean {
+  return legacyMatchers[kind].test(normalizeConcept(description));
 }
 
 export function categoryFor(description: string, kind: CategoryKind): string {

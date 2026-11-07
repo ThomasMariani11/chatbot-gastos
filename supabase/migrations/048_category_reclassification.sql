@@ -22,15 +22,15 @@ revoke all on public.category_reclass_rules from public, anon, authenticated, se
 -- Literales E'' para que '\y' (límite de palabra) no dependa de standard_conforming_strings.
 insert into public.category_reclass_rules(kind, name, is_new, pattern) values
   ('expense', E'Suscripciones', true, E'\\y(netflix|spotify|disney|hbo|prime video|youtube premium|icloud|chatgpt|suscripcion|suscripciones)\\y'),
-  ('expense', E'Restaurantes y delivery', true, E'\\y(restaurant|restaurante|pedidosya|rappi|mcdonalds|mostaza|burger|cafe|cafes|cafeteria|bar|parrilla|pizza|pizzeria|sushi|helado|heladeria|delivery)\\y'),
-  ('expense', E'Auto', true, E'\\y(mecanico|gomeria|cubiertas|neumaticos|service del auto|seguro del auto|seguro auto|lavadero|lavado del auto|cochera|estacionamiento|vtv)\\y'),
-  ('expense', E'Tecnología', true, E'\\y(celular|notebook|computadora|laptop|tablet|auriculares|cargador|teclado|monitor|iphone)\\y'),
-  ('expense', E'Hogar', true, E'\\y(mueble|muebles|colchon|heladera|lavarropas|microondas|electrodomestico|electrodomesticos|ferreteria|pintura|plomero|electricista|lavandina|detergente|articulos de limpieza)\\y'),
-  ('expense', E'Hijos', true, E'\\y(panales|juguete|juguetes|jugueteria|ninera|guarderia)\\y'),
-  ('expense', E'Cuidado personal', true, E'\\y(peluqueria|barberia|corte de pelo|perfumeria|perfume|cosmetica|maquillaje|manicura|depilacion)\\y'),
-  ('expense', E'Deporte', true, E'\\y(gimnasio|gym|cancha|padel|natacion|creatina|suplemento|suplementos|proteina|proteinas)\\y'),
-  ('expense', E'Mascotas', true, E'\\y(veterinaria|veterinario|balanceado|pet shop|petshop|mascota)\\y'),
-  ('expense', E'Viajes', true, E'\\y(pasaje|pasajes|vuelo|vuelos|hotel|hostel|airbnb|booking|excursion|despegar|aerolineas)\\y'),
+  ('expense', E'Restaurantes y delivery', true, E'\\y(restaurant|restaurante|restaurantes|pedidosya|rappi|mcdonalds|mostaza|burger|cafe|cafes|cafeteria|bar|parrilla|pizza|pizzeria|sushi|helado|heladeria|delivery)\\y'),
+  ('expense', E'Auto', true, E'\\y(auto|mecanico|gomeria|cubiertas|neumaticos|service del auto|seguro del auto|seguro auto|lavadero|lavado del auto|cochera|estacionamiento|vtv)\\y'),
+  ('expense', E'Tecnología', true, E'\\y(tecnologia|celular|notebook|computadora|laptop|tablet|auriculares|cargador|teclado|monitor|iphone)\\y'),
+  ('expense', E'Hogar', true, E'\\y(hogar|mueble|muebles|colchon|heladera|lavarropas|microondas|electrodomestico|electrodomesticos|ferreteria|pintura|plomero|electricista|lavandina|detergente|articulos de limpieza)\\y'),
+  ('expense', E'Hijos', true, E'\\y(hijo|hijos|panales|juguete|juguetes|jugueteria|ninera|guarderia)\\y'),
+  ('expense', E'Cuidado personal', true, E'\\y(cuidado personal|peluqueria|barberia|corte de pelo|perfumeria|perfume|cosmetica|maquillaje|manicura|depilacion)\\y'),
+  ('expense', E'Deporte', true, E'\\y(deporte|deportes|gimnasio|gym|cancha|padel|natacion|creatina|suplemento|suplementos|proteina|proteinas)\\y'),
+  ('expense', E'Mascotas', true, E'\\y(veterinaria|veterinario|balanceado|pet shop|petshop|mascota|mascotas)\\y'),
+  ('expense', E'Viajes', true, E'\\y(viaje|viajes|pasaje aereo|pasajes aereos|vuelo|vuelos|hotel|hostel|airbnb|booking|excursion|despegar|aerolineas)\\y'),
   ('expense', E'Regalos y donaciones', true, E'\\y(regalo|regalos|donacion|donaciones)\\y'),
   ('expense', E'Alimentación', false, E'\\y(super|supermercado|chango|coto|vea|dia|disco|carrefour|almacen|verduleria|carniceria|panaderia|comida|almuerzo|cena|merienda|desayuno|facturas|kiosco|caramelos)\\y'),
   ('expense', E'Transporte', false, E'\\y(nafta|combustible|ypf|shell|axion|uber|cabify|didi|taxi|colectivo|subte|tren|peaje|sube)\\y'),
@@ -47,8 +47,8 @@ insert into public.category_reclass_rules(kind, name, is_new, pattern) values
   ('income', E'Ventas', false, E'\\y(venta|mercadolibre)\\y'),
   ('income', E'Rendimientos', false, E'\\y(plazo fijo|intereses|dividendos)\\y'),
   ('income', E'Alquileres', true, E'\\y(alquiler|alquileres|inquilino)\\y'),
-  ('income', E'Reintegros', true, E'\\y(reintegro|reembolso|devolucion|cashback)\\y'),
-  ('income', E'Regalos', true, E'\\y(regalo|regalaron)\\y'),
+  ('income', E'Reintegros', true, E'\\y(reintegro|reintegros|reembolso|devolucion|cashback)\\y'),
+  ('income', E'Regalos', true, E'\\y(regalo|regalos|regalaron)\\y'),
   ('income', E'Jubilación y asignaciones', true, E'\\y(jubilacion|pension|auh|asignacion|asignaciones|anses)\\y')
 on conflict (kind, name) do update set is_new = excluded.is_new, pattern = excluded.pattern;
 

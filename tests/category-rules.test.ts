@@ -60,7 +60,7 @@ describe("catálogo de categorías", () => {
   it("genera el patrón SQL con límites de palabra de Postgres", () => {
     const mascotas = CATEGORY_RULES.find((r) => r.name === "Mascotas")!;
     expect(sqlPatternFor(mascotas)).toBe(
-      "\\y(veterinaria|veterinario|balanceado|pet shop|petshop|mascota)\\y",
+      "\\y(veterinaria|veterinario|balanceado|pet shop|petshop|mascota|mascotas)\\y",
     );
   });
 

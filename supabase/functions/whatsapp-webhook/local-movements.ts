@@ -1,7 +1,11 @@
 import { hasUnparsedNumberWords } from "./spoken-amounts.ts";
 import type { ExtractedMovement } from "./movement-types.ts";
 import { looksLikeDraftCorrection } from "./draft-corrections.ts";
-import { categoryFamily, categoryFor } from "./category-rules.ts";
+import {
+  categoryFamily,
+  categoryFor,
+  hasLegacyKeyword,
+} from "./category-rules.ts";
 
 const normalize = (text: string) =>
   text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -179,14 +183,15 @@ export function parseDeterministicMovement(
     /\b(gaste|pague|compre|cobre|ingreso|ingresaron|recibi|me pagaron|me transfirieron)\b/
       .test(normalize(description))
   ) return null;
-  const concepts = description.split(/\s+y\s+/i).map((part) =>
-    categoryFor(part, kind)
-  );
   // Conceptos de la misma familia (p. ej. Alimentación y Restaurantes) se agrupan.
+  // Solo cuentan las partes con una palabra clave que ya se reconocía antes de
+  // BE-20; las demás se ignoran como antes "Otros", para no usar más IA que hoy.
   const knownCategories = new Set(
-    concepts.filter((category) => category !== "Otros").map((category) =>
-      categoryFamily(category, kind)
-    ),
+    description.split(/\s+y\s+/i)
+      .filter((part) => hasLegacyKeyword(part, kind))
+      .map((part) => categoryFor(part, kind))
+      .filter((category) => category !== "Otros")
+      .map((category) => categoryFamily(category, kind)),
   );
   if (knownCategories.size > 1) return null;
   const missingDescription = missingAmount && !description;
