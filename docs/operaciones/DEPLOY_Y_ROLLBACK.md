@@ -14,7 +14,7 @@ PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múlti
 
 ## Contrato candidato 048 (FE-24 / BE-20 categorías) — 07/11/2026
 
-Contrato candidato en rama `feat/categorias-ampliadas`: mínimo **048**, rollback fijado en **f7e74d684ebbad41589e15c1a14e7ab7e8146207** (#88, mínimo **046**). 047 es expansiva (catálogo de categorías ampliado, alta con 31, tablas `category_reclass_rules` / `category_reclass_log` y funciones); 048 solo instala (reclasificación reversible, sin cron nuevo ni datos reclasificados). Orden de publicación: 047 → webhook → PWA → 048. Rollback: conservar 047/048 y sus datos (sin down); la reclasificación se deshace únicamente con `category_reclass_revert`. Si #88 (f7e74d6) no fue publicado, el propietario debe elegir el último commit publicado como rollback antes de publicar. Sin aplicar ni publicar.
+Contrato candidato en rama `feat/categorias-ampliadas`: mínimo **048**, rollback fijado en **f7e74d684ebbad41589e15c1a14e7ab7e8146207** (#88, mínimo **046**). 047 es expansiva (catálogo de categorías ampliado y alta con 31); 048 solo instala la reclasificación reversible (tablas `category_reclass_rules` / `category_reclass_log` y funciones `category_reclass_target`, `category_reclass_candidates`, `category_reclass_preview`, `category_reclass_apply`, `category_reclass_revert`), sin cron nuevo ni datos reclasificados. Como el mínimo del contrato es 048, el orden de publicación es: 047 + 048 → webhook → PWA → vista previa → revisión del propietario → aplicar la reclasificación (con nueva autorización). Rollback: conservar 047/048 y sus datos (sin down); la reclasificación se deshace únicamente con `category_reclass_revert`. Si #88 (f7e74d6) no fue publicado, el propietario debe elegir el último commit publicado como rollback antes de publicar. Sin aplicar ni publicar.
 
 ## Contrato candidato 046 (FE-25 / NOTIF-01 push) — 05/11/2026
 
@@ -155,25 +155,25 @@ Estado: **implementado en la rama `feat/categorias-ampliadas`, sin publicar.** N
 **Qué contiene:**
 
 - **047** (expansiva): agrega 15 categorías (11 de gasto y 4 de ingreso) a todas las cuentas existentes con `on conflict do nothing` y redefine `bootstrap_user` para crear y verificar 31. La PWA y el webhook actuales siguen funcionando con ella aplicada.
-- **048**: solo **instala** la tabla de registro `category_reclass_log` y las funciones `category_reclass_preview`, `category_reclass_apply` y `category_reclass_revert`. **No mueve datos al aplicarse.** Las funciones son `SECURITY DEFINER` y están revocadas para `anon`, `authenticated` y `service_role`: solo se ejecutan por la vía de SQL de producción autorizada por el propietario, protegida por el diálogo del hook `guard-supabase.mjs` (ver "Barreras locales del agente").
+- **048**: solo **instala** la tabla de reglas `category_reclass_rules` (copia de `category-rules.ts`, con paridad verificada por test), la tabla de registro `category_reclass_log` y las funciones `category_reclass_target`, `category_reclass_candidates`, `category_reclass_preview`, `category_reclass_apply` y `category_reclass_revert`. **No mueve datos al aplicarse.** Las funciones son `SECURITY DEFINER` y están revocadas para `anon`, `authenticated` y `service_role`: solo se ejecutan por la vía de SQL de producción autorizada por el propietario, protegida por el diálogo del hook `guard-supabase.mjs` (ver "Barreras locales del agente").
 
 **Orden de publicación (cada paso con autorización explícita del propietario para esa acción):**
 
-1. Aplicar 047.
+1. Aplicar 047 y 048 (048 solo instala; el contrato candidato exige mínimo 048 antes de publicar webhook y PWA).
 2. Desplegar el webhook (`category-rules.ts`, `gemini.ts`, `local-movements.ts`).
 3. Publicar la PWA (`categoryVisuals.ts`, `Icons.tsx`).
-4. Aplicar 048 (solo instala).
-5. Ejecutar la vista previa: `select * from public.category_reclass_preview();`. Devuelve cantidades por par origen → destino, sin conceptos ni datos de clientes.
-6. El propietario revisa las cantidades. Si algo no cierra, no se aplica.
-7. Con **nueva autorización**, ejecutar `select * from public.category_reclass_apply(<total>);`, donde `<total>` es la suma de `movements` de la vista previa revisada. Guardar el `run_id` que devuelve en la evidencia de la operación.
+4. Ejecutar la vista previa: `select * from public.category_reclass_preview();`. Devuelve cantidades por par origen → destino, sin conceptos ni datos de clientes. Las cantidades **incluyen las filas cabecera** de los planes en cuotas (además de sus cuotas), así que la suma de `movements` es exactamente el valor que espera `category_reclass_apply`.
+5. El propietario revisa las cantidades. Si algo no cierra, no se aplica.
+6. Con **nueva autorización**, ejecutar `select * from public.category_reclass_apply(<total>);`, donde `<total>` es la suma de `movements` de la vista previa revisada. Guardar el `run_id` que devuelve en la evidencia de la operación.
 
 **Garantías de `category_reclass_apply`:**
 
-- Exige el total esperado. Si los candidatos actuales difieren, aborta con `RECLASS_EXPECTED_MISMATCH` sin mover ni registrar nada: repetir la vista previa y volver a revisar.
+- Exige el total esperado: con `p_expected` nulo o negativo aborta con `RECLASS_EXPECTED_REQUIRED`. Si los candidatos actuales difieren, aborta con `RECLASS_EXPECTED_MISMATCH` sin mover ni registrar nada: repetir la vista previa y volver a revisar.
 - Si un cliente editó un plan mientras corría, aborta con `RECLASS_CONCURRENT_CHANGE` y no se mueve nada (un plan en cuotas nunca queda partido). Reintentar después de una vista previa nueva.
 - Es idempotente: una segunda ejecución no encuentra candidatos.
+- Dentro de un plan que se mueve, las cuotas en estado `cancelled` o `pending` no son candidatas y **conservan su categoría anterior** (el cliente no las ve, así que no hay inconsistencia visible).
 
-**Reversión de la reclasificación:** `select public.category_reclass_revert('<run_id>');`. Restaura la categoría anterior **solo** de las filas que siguen en la categoría de destino; no pisa ediciones posteriores del cliente. Devuelve la cantidad restaurada.
+**Reversión de la reclasificación:** `select public.category_reclass_revert('<run_id>');`. Restaura la categoría anterior **solo** de las filas que siguen en la categoría de destino; no pisa ediciones posteriores del cliente. Devuelve la cantidad restaurada. Con `run_id` nulo aborta con `RECLASS_RUN_REQUIRED`.
 
 **Rollback compatible:**
 
