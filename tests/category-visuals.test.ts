@@ -75,6 +75,38 @@ describe('visuales de categorías', () => {
       expect(categoryVisual(name)).toEqual(NEW_CATEGORY_VISUALS[name]);
   });
 
+  // La dona de gastos pinta solo `.color`: un color nuevo debe distinguirse a simple vista.
+  // CIE76 ΔE ≥ 20 en Lab (D65): la diferencia apenas perceptible es ~2,3 y los pares casi
+  // idénticos de la revisión final medían ~1 (Tecnología vs Servicios); 20 deja margen claro.
+  it('los colores de gasto nuevos se distinguen de los sembrados y entre sí (ΔE76 ≥ 20, contraste ≥ 3:1)', () => {
+    const SEEDED_COLORS = ['#147c5b', '#956719', '#8260b3', '#16738e', '#b04570', '#306cc4', '#b55355', '#655ad8', '#596d78'];
+    for (const name of SEEDED_EXPENSE) expect(SEEDED_COLORS, name).toContain(categoryVisual(name).color);
+    const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const luminance = (hex: string) => {
+      const [r, g, b] = rgb(hex).map(lin);
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const lab = (hex: string) => {
+      const [r, g, b] = rgb(hex).map(lin);
+      const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
+      const x = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047);
+      const y = f(0.2126 * r + 0.7152 * g + 0.0722 * b);
+      const z = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+      return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+    };
+    const deltaE = (a: string, b: string) => Math.hypot(...lab(a).map((v, i) => v - lab(b)[i]));
+    const fresh = NEW_EXPENSE.map((name) => [name, NEW_CATEGORY_VISUALS[name].color] as const);
+    for (const [name, color] of fresh) {
+      expect(1.05 / (luminance(color) + 0.05), `${name} contraste`).toBeGreaterThanOrEqual(3);
+      for (const seeded of SEEDED_COLORS) expect(deltaE(color, seeded), `${name} vs ${seeded}`).toBeGreaterThanOrEqual(20);
+      for (const [other, otherColor] of fresh)
+        if (other !== name) expect(deltaE(color, otherColor), `${name} vs ${other}`).toBeGreaterThanOrEqual(20);
+    }
+    // Control: el par casi idéntico anterior no pasaría.
+    expect(deltaE('#0e7490', '#16738e')).toBeLessThan(20);
+  });
+
   it('los ingresos siguen usando arrowUpRight', () => {
     expect(movementVisual('Alquileres', 'income').icon).toBe('arrowUpRight');
   });
