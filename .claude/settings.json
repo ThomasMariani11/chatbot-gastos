@@ -1,0 +1,51 @@
+{
+  "permissions": {
+    "disableBypassPermissionsMode": "disable",
+    "deny": [
+      "Bash(supabase link *)",
+      "Bash(supabase unlink *)",
+      "Bash(supabase config push *)",
+      "Bash(supabase db reset --linked *)",
+      "Bash(supabase migration repair *)",
+      "Bash(supabase migration down *)",
+      "Bash(supabase projects delete *)",
+      "Bash(npx supabase@* link *)",
+      "Bash(npx supabase@* unlink *)",
+      "Bash(npx supabase@* config push *)",
+      "Bash(npx supabase@* db reset --linked *)",
+      "Bash(npx --yes supabase@* link *)",
+      "Bash(npx --yes supabase@* unlink *)",
+      "Bash(npx --yes supabase@* config push *)",
+      "Bash(npx --yes supabase@* db reset --linked *)",
+      "PowerShell(supabase link *)",
+      "PowerShell(supabase unlink *)",
+      "PowerShell(supabase config push *)",
+      "PowerShell(supabase db reset --linked *)",
+      "PowerShell(npx supabase@* link *)",
+      "PowerShell(npx supabase@* unlink *)",
+      "PowerShell(npx supabase@* config push *)",
+      "PowerShell(npx supabase@* db reset --linked *)",
+      "PowerShell(npx --yes supabase@* link *)",
+      "PowerShell(npx --yes supabase@* unlink *)",
+      "PowerShell(npx --yes supabase@* config push *)",
+      "PowerShell(npx --yes supabase@* db reset --linked *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-supabase.mjs"],
+            "onFailure": "block",
+            "timeout": 20,
+            "statusMessage": "Barrera de Pesito"
+          }
+        ]
+      }
+    ]
+  }
+}

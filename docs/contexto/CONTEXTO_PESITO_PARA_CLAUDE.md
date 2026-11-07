@@ -10,6 +10,23 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## Configuración del agente y barrera de Supabase — 06/11/2026 (en rama)
+
+**Estado:** en rama `chore/claude-config`, **sin integrar en `main`**. Es un cambio interno de herramientas: no altera la PWA, el SQL, el webhook ni producción, y no cambia credenciales ni el vínculo de Supabase.
+
+- **Carpeta de trabajo:** las sesiones de Claude Code para Pesito se abren en la raíz de `chatbot-gastos`. Así se cargan desde el inicio `CLAUDE.md`, `.claude/settings.json` y el hook.
+  - `CLAUDE.md` y `docs/contexto/TECNOLOGIAS_PESITO.md` quedan versionados.
+  - `.claude/launch.json` define `pesito-local` (vite, 127.0.0.1:5199) y `pesito-pwa` (preview de `.temp/pwa-local`, 127.0.0.1:5198).
+  - `.claude/settings.local.json` se ignora.
+- **Barrera de Supabase:** hook `PreToolUse` `.claude/hooks/guard-supabase.mjs`, con `onFailure: "block"`.
+  - Bloquea las operaciones destructivas.
+  - Pide aprobación explícita del propietario para cualquier operación remota de Supabase, con o sin `--linked`, para la ejecución de código arbitrario y para la edición de su propia configuración.
+  - No hay forma de autorizar escribiendo algo en el comando.
+  - Es una heurística, no una barrera absoluta. El token persistente de la CLI sigue siendo un riesgo residual abierto.
+  - Detalle y limitaciones: `docs/operaciones/DEPLOY_Y_ROLLBACK.md` → "Barreras locales del agente".
+- **Testing de navegador:** se usa el navegador integrado de la app con `pesito-local`/`pesito-pwa` contra Supabase local, además de Vitest/jsdom y los ensayos locales. No se usan los helpers Python de la skill `webapp-testing` ni se agregan Python o Playwright sin decisión del propietario.
+- **GitHub:** se usa GitHub CLI (`gh`) con autenticación oficial del propietario. No se crean tokens personales. El plugin MCP de GitHub falla por falta de token y no es necesario.
+
 ## FE-26 publicado: invitación a activar notificaciones desde el Resumen — 06/11/2026
 
 **Estado:** **publicado y verificado técnicamente el 06/11/2026** con autorización del propietario: PR #83 en `main` (`8e3d4bc`), PWA en GitHub Pages. Solo PWA: sin migraciones ni cambios en el webhook. El propietario vio y usó la tarjeta en un build local antes de publicar.
@@ -912,6 +929,9 @@ npm run test:release
 
 # Metadata del repo; no despliega:
 npm run release:manifest -- production
+
+# Barrera local del agente (solo entradas simuladas; sin red ni Supabase):
+node --test .claude/hooks/guard-supabase.test.mjs
 ```
 
 Desde `supabase/functions/whatsapp-webhook`:
