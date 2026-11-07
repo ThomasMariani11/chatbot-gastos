@@ -3,7 +3,7 @@
 -- Uso (operación de producción con autorización del propietario, ver
 -- docs/operaciones/DEPLOY_Y_ROLLBACK.md):
 --   1. select * from public.category_reclass_preview();   -- solo lectura, cantidades agregadas
---   2. select * from public.category_reclass_apply();     -- con nueva autorización; devuelve run_id
+--   2. select * from public.category_reclass_apply(<total de la vista previa>); -- con nueva autorización; devuelve run_id
 --   3. select public.category_reclass_revert('<run_id>'); -- deshace sin pisar ediciones posteriores
 -- Las reglas son las de supabase/functions/whatsapp-webhook/category-rules.ts
 -- (sqlPatternFor); tests/category-reclassification-sql.test.ts verifica la paridad.
@@ -69,12 +69,14 @@ revoke all on public.category_reclass_log from public, anon, authenticated, serv
 revoke all on sequence public.category_reclass_log_id_seq from public, anon, authenticated, service_role;
 
 -- Destino "claro": exactamente una regla del mismo kind coincide y es categoría nueva.
+-- Normalización equivalente a normalizeConcept (TS): NFD, quitar marcas combinantes
+-- U+0300–U+036F y minúsculas. Sin la extensión unaccent.
 create or replace function public.category_reclass_target(p_kind public.transaction_kind, p_description text)
 returns text language sql stable security definer set search_path=pg_catalog,public as $$
   select case when count(*) = 1 and bool_and(r.is_new) then min(r.name) end
   from public.category_reclass_rules r
   where r.kind = p_kind
-    and translate(lower(p_description), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') ~ r.pattern
+    and lower(regexp_replace(normalize(p_description, NFD), E'[\\u0300-\\u036f]', '', 'g')) ~ r.pattern
 $$;
 
 -- Filas a mover. Un plan en cuotas (grupo = coalesce(installment_group_id, id)) entra
@@ -96,7 +98,8 @@ language sql stable security definer set search_path=pg_catalog,public as $$
     from public.transactions t
     where t.status = 'confirmed'
        or (t.status = 'cancelled' and t.installment_number is null and t.installment_group_id is null
-           and exists (select 1 from public.transactions s where s.installment_group_id = t.id))
+           and exists (select 1 from public.transactions s
+                       where s.installment_group_id = t.id and s.status = 'confirmed'))
   ), resolved as (
     select e.*, d.id as to_id
     from eligible e
@@ -128,29 +131,62 @@ language sql stable security definer set search_path=pg_catalog,public as $$
   order by c.kind, f.name, d.name
 $$;
 
--- Aplica en un lote con run_id. Solo mueve (y registra) filas que siguen en su categoría
--- de origen al momento del update. Una segunda ejecución no encuentra candidatos.
-create or replace function public.category_reclass_apply()
+-- Aplica en un lote con run_id. p_expected es el total de la vista previa revisada
+-- (suma de movements): si los candidatos difieren, aborta sin mover ni registrar nada.
+-- Bloquea todas las filas de los grupos candidatos, recalcula y mueve; si alguna fila
+-- planificada no se movió (cambio concurrente), aborta todo: un plan nunca queda partido.
+-- Una segunda ejecución no encuentra candidatos.
+drop function if exists public.category_reclass_apply();
+create or replace function public.category_reclass_apply(p_expected bigint)
 returns table(run_id uuid, moved bigint)
 language plpgsql security definer set search_path=pg_catalog,public as $$
 #variable_conflict use_column
 declare
   v_run uuid := gen_random_uuid();
+  v_plan jsonb;
+  v_planned bigint;
   v_moved bigint;
 begin
+  if p_expected is null or p_expected < 0 then
+    raise exception 'RECLASS_EXPECTED_REQUIRED';
+  end if;
   perform pg_advisory_xact_lock(hashtext('public.category_reclass'));
+
+  -- 1. Bloquear todas las filas de los grupos candidatos (cabecera y cuotas).
+  perform 1 from public.transactions t
+   where coalesce(t.installment_group_id, t.id) in (
+     select coalesce(x.installment_group_id, x.id)
+       from public.category_reclass_candidates() c
+       join public.transactions x on x.id = c.transaction_id)
+   for update of t;
+
+  -- 2. Recalcular con las filas ya bloqueadas (nuevo snapshot).
+  select coalesce(jsonb_agg(to_jsonb(c)), '[]'::jsonb) into v_plan
+    from public.category_reclass_candidates() c;
+  v_planned := jsonb_array_length(v_plan);
+  if v_planned <> p_expected then
+    raise exception 'RECLASS_EXPECTED_MISMATCH' using detail = format('expected=%s candidates=%s', p_expected, v_planned);
+  end if;
+
+  -- 3. Mover y registrar solo lo que sigue en su categoría de origen.
   with c as (
-    select * from public.category_reclass_candidates()
+    select * from jsonb_to_recordset(v_plan)
+      as p(transaction_id uuid, user_id uuid, from_category_id uuid, to_category_id uuid)
   ), u as (
     update public.transactions t
        set category_id = c.to_category_id, updated_at = now()
       from c
-     where t.id = c.transaction_id and t.category_id = c.from_category_id
+     where t.id = c.transaction_id and t.user_id = c.user_id and t.category_id = c.from_category_id
     returning t.id, t.user_id, c.from_category_id, c.to_category_id
   )
   insert into public.category_reclass_log(run_id, transaction_id, user_id, from_category_id, to_category_id, applied_at)
   select v_run, u.id, u.user_id, u.from_category_id, u.to_category_id, now() from u;
   get diagnostics v_moved = row_count;
+
+  -- 4. Todo o nada: si algo planificado no se movió, se revierte el lote completo.
+  if v_moved <> v_planned then
+    raise exception 'RECLASS_CONCURRENT_CHANGE' using detail = format('planned=%s moved=%s', v_planned, v_moved);
+  end if;
   return query select v_run, v_moved;
 end;
 $$;
@@ -185,7 +221,7 @@ $$;
 revoke all on function public.category_reclass_target(public.transaction_kind, text) from public, anon, authenticated, service_role;
 revoke all on function public.category_reclass_candidates() from public, anon, authenticated, service_role;
 revoke all on function public.category_reclass_preview() from public, anon, authenticated, service_role;
-revoke all on function public.category_reclass_apply() from public, anon, authenticated, service_role;
+revoke all on function public.category_reclass_apply(bigint) from public, anon, authenticated, service_role;
 revoke all on function public.category_reclass_revert(uuid) from public, anon, authenticated, service_role;
 
 commit;

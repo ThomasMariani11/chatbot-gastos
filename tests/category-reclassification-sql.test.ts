@@ -130,7 +130,10 @@ describe('BE-20 migración 048: reglas y paridad TS ↔ SQL', () => {
 
   it('category_reclass_target da el mismo resultado final que reclassTarget', async () => {
     const concepts = ['Netflix', 'PedidosYa', 'Super y café', 'Nafta y lavadero', 'Supermercado', 'Varios',
-      'Creatina', 'Cochera', 'Veterinaria', 'Alquiler', 'CAFÉ con leche', 'Peluquería', 'Pañales', 'Devolución'];
+      'Creatina', 'Cochera', 'Veterinaria', 'Alquiler', 'CAFÉ con leche', 'Peluquería', 'Pañales', 'Devolución',
+      // Diacríticos fuera de áéíóúüñ y formas descompuestas (NFD): deben normalizar igual que TS.
+      'Netflix y cafè', 'CAFÈ', 'Pâtisserie y café', 'Netflix y café', 'NIÑERA', 'Niñera y Netflix',
+      'Spotify Façon', 'Garçon y pizzería', 'Ãnses', 'Jubilación ÀNSES'];
     for (const description of concepts) {
       for (const kind of ['expense', 'income'] as const) {
         const sql = (await query('select public.category_reclass_target($1,$2) t', [kind, description])).rows[0].t;
@@ -141,6 +144,8 @@ describe('BE-20 migración 048: reglas y paridad TS ↔ SQL', () => {
     expect(reclassTarget('Netflix', 'expense')).toBe('Suscripciones');
     expect(reclassTarget('Super y café', 'expense')).toBeNull();
     expect(reclassTarget('Alquiler', 'income')).toBe('Alquileres');
+    expect(reclassTarget('Netflix y cafè', 'expense')).toBeNull();
+    expect(reclassTarget('CAFÈ', 'expense')).toBe('Restaurantes y delivery');
   });
 });
 
@@ -194,7 +199,13 @@ describe('BE-20 migración 048: vista previa, cuotas y aislamiento', () => {
     const wa = [first, await tx(userA, 'expense', 'Auriculares', 'Compras', { group: first, number: 2, count: 2 })];
     // Cancelada que no es cabecera: excluida.
     ids.cancelled = await tx(userA, 'expense', 'Netflix', 'Ocio', { status: 'cancelled' });
-    Object.assign(ids, { header, mixedHeader, first });
+    // Plan borrado (029 delete_plan): cabecera y cuotas cancelled → la cabecera no entra sola.
+    const deletedHeader = await tx(userA, 'expense', 'Notebook', 'Compras', { status: 'cancelled', count: 2 });
+    mixed.push(deletedHeader);
+    for (const n of [1, 2]) {
+      mixed.push(await tx(userA, 'expense', 'Notebook', 'Compras', { status: 'cancelled', group: deletedHeader, number: n, count: 2 }));
+    }
+    Object.assign(ids, { header, mixedHeader, first, deletedHeader });
 
     const c = await candidates();
     const tecnologia = await categoryId(userA, 'expense', 'Tecnología');
@@ -224,11 +235,50 @@ describe('BE-20 migración 048: vista previa, cuotas y aislamiento', () => {
     expect(foreign).toBe(0);
   });
 
+  const applyError = async (expected: number | null) => {
+    try {
+      await query('select * from public.category_reclass_apply($1)', [expected]);
+    } catch (e) { return (e as Error).message; }
+    return null;
+  };
+  const logCount = async () => (await query('select count(*)::int n from public.category_reclass_log')).rows[0].n;
+
+  it('apply aborta sin mover ni registrar si p_expected no coincide con la vista previa', async () => {
+    const total = (await preview()).reduce((n, r) => n + r.movements, 0);
+    expect(total).toBeGreaterThan(0);
+    const before = await txHash();
+    for (const wrong of [total - 1, total + 1, 0]) expect(await applyError(wrong)).toBe('RECLASS_EXPECTED_MISMATCH');
+    expect(await applyError(null)).toBe('RECLASS_EXPECTED_REQUIRED');
+    expect(await applyError(-1)).toBe('RECLASS_EXPECTED_REQUIRED');
+    expect(await txHash()).toBe(before);
+    expect(await logCount()).toBe(0);
+  });
+
+  it('si una cuota cambia durante apply, se aborta el lote y ningún plan queda partido', async () => {
+    const total = (await preview()).reduce((n, r) => n + r.movements, 0);
+    const before = await txHash();
+    // Simula un cambio concurrente: la cuota 2 del plan Notebook ya no está en su origen
+    // cuando llega el update (el trigger descarta su actualización).
+    const cuota2 = (await query('select id from public.transactions where installment_group_id=$1 and installment_number=2', [ids.header])).rows[0].id;
+    await db.exec(`create function public.reclass_race() returns trigger language plpgsql as $$
+      begin if old.id = '${cuota2}'::uuid then return null; end if; return new; end $$;
+      create trigger reclass_race before update on public.transactions for each row execute function public.reclass_race();`);
+    let error: string | null;
+    try { error = await applyError(total); } finally {
+      await db.exec('drop trigger reclass_race on public.transactions; drop function public.reclass_race();');
+    }
+    expect(error).toBe('RECLASS_CONCURRENT_CHANGE');
+    expect(await txHash()).toBe(before);
+    expect(await logCount()).toBe(0);
+    expect(await categoryOf(ids.header)).toBe('Compras');
+  });
+
   it('apply mueve lo previsto, registra el lote y es idempotente', async () => {
     const expectedMoved = (await preview()).reduce((n, r) => n + r.movements, 0);
     const planned = await candidates();
     expect(expectedMoved).toBe(planned.length);
-    const first = (await query('select run_id, moved::int from public.category_reclass_apply()')).rows[0];
+    expect(planned.some(p => p.transaction_id === ids.deletedHeader)).toBe(false);
+    const first = (await query('select run_id, moved::int from public.category_reclass_apply($1)', [expectedMoved])).rows[0];
     expect(first.moved).toBe(expectedMoved);
     ids.run = first.run_id;
     for (const p of planned) {
@@ -242,7 +292,8 @@ describe('BE-20 migración 048: vista previa, cuotas y aislamiento', () => {
     expect(await categoryOf(ids.netflixServicios)).toBe('Servicios');
     expect(await categoryOf(ids.ambiguo)).toBe('Alimentación');
     expect(await preview()).toEqual([]);
-    const second = (await query('select run_id, moved::int from public.category_reclass_apply()')).rows[0];
+    expect(await categoryOf(ids.deletedHeader)).toBe('Compras');
+    const second = (await query('select run_id, moved::int from public.category_reclass_apply(0)')).rows[0];
     expect(second.moved).toBe(0);
     expect(second.run_id).not.toBe(ids.run);
   });
@@ -270,7 +321,7 @@ describe('BE-20 migración 048: vista previa, cuotas y aislamiento', () => {
 
 describe('BE-20 migración 048: permisos', () => {
   const fns = ['public.category_reclass_target(public.transaction_kind,text)', 'public.category_reclass_candidates()',
-    'public.category_reclass_preview()', 'public.category_reclass_apply()', 'public.category_reclass_revert(uuid)'];
+    'public.category_reclass_preview()', 'public.category_reclass_apply(bigint)', 'public.category_reclass_revert(uuid)'];
 
   it('las funciones no son ejecutables por roles de API y son security definer con search_path fijo', async () => {
     for (const fn of fns) {
@@ -280,8 +331,8 @@ describe('BE-20 migración 048: permisos', () => {
       expect((await query('select prosecdef,array_to_string(proconfig,\',\') config from pg_proc where oid=$1::regprocedure', [fn])).rows[0])
         .toEqual({ prosecdef: true, config: 'search_path=pg_catalog, public' });
     }
-    expect((await query("select has_function_privilege('authenticated','public.category_reclass_apply()','execute') ok")).rows[0].ok).toBe(false);
-    expect((await query("select has_function_privilege('anon','public.category_reclass_apply()','execute') ok")).rows[0].ok).toBe(false);
+    expect((await query("select has_function_privilege('authenticated','public.category_reclass_apply(bigint)','execute') ok")).rows[0].ok).toBe(false);
+    expect((await query("select has_function_privilege('anon','public.category_reclass_apply(bigint)','execute') ok")).rows[0].ok).toBe(false);
   });
 
   it('las tablas son privadas y tienen RLS', async () => {
