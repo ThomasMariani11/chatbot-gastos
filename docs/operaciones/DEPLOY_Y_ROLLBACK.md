@@ -144,6 +144,41 @@ El checkout está vinculado a producción (`supabase/.temp/project-ref`) y la CL
    - ejecutar `Remove-Item Env:SUPABASE_ACCESS_TOKEN` y cerrar la terminal.
 4. Rotar el token periódicamente o ante cualquier sospecha.
 
+## Reclasificación de categorías (047 / 048) — candidato en rama, 07/11/2026
+
+Estado: **implementado en la rama `feat/categorias-ampliadas`, sin publicar.** No hay nada aplicado en producción. Diseño y plan: [diseño](../superpowers/specs/2026-11-07-categorias-ampliadas-design.md) · [plan](../superpowers/plans/2026-11-07-categorias-ampliadas.md).
+
+**Qué contiene:**
+
+- **047** (expansiva): agrega 15 categorías (11 de gasto y 4 de ingreso) a todas las cuentas existentes con `on conflict do nothing` y redefine `bootstrap_user` para crear y verificar 31. La PWA y el webhook actuales siguen funcionando con ella aplicada.
+- **048**: solo **instala** la tabla de registro `category_reclass_log` y las funciones `category_reclass_preview`, `category_reclass_apply` y `category_reclass_revert`. **No mueve datos al aplicarse.** Las funciones son `SECURITY DEFINER` y están revocadas para `anon`, `authenticated` y `service_role`: solo se ejecutan por la vía de SQL de producción autorizada por el propietario, protegida por el diálogo del hook `guard-supabase.mjs` (ver "Barreras locales del agente").
+
+**Orden de publicación (cada paso con autorización explícita del propietario para esa acción):**
+
+1. Aplicar 047.
+2. Desplegar el webhook (`category-rules.ts`, `gemini.ts`, `local-movements.ts`).
+3. Publicar la PWA (`categoryVisuals.ts`, `Icons.tsx`).
+4. Aplicar 048 (solo instala).
+5. Ejecutar la vista previa: `select * from public.category_reclass_preview();`. Devuelve cantidades por par origen → destino, sin conceptos ni datos de clientes.
+6. El propietario revisa las cantidades. Si algo no cierra, no se aplica.
+7. Con **nueva autorización**, ejecutar `select * from public.category_reclass_apply(<total>);`, donde `<total>` es la suma de `movements` de la vista previa revisada. Guardar el `run_id` que devuelve en la evidencia de la operación.
+
+**Garantías de `category_reclass_apply`:**
+
+- Exige el total esperado. Si los candidatos actuales difieren, aborta con `RECLASS_EXPECTED_MISMATCH` sin mover ni registrar nada: repetir la vista previa y volver a revisar.
+- Si un cliente editó un plan mientras corría, aborta con `RECLASS_CONCURRENT_CHANGE` y no se mueve nada (un plan en cuotas nunca queda partido). Reintentar después de una vista previa nueva.
+- Es idempotente: una segunda ejecución no encuentra candidatos.
+
+**Reversión de la reclasificación:** `select public.category_reclass_revert('<run_id>');`. Restaura la categoría anterior **solo** de las filas que siguen en la categoría de destino; no pisa ediciones posteriores del cliente. Devuelve la cantidad restaurada.
+
+**Rollback compatible:**
+
+- Revertir la PWA no revierte SQL ni webhook, y no deshace una reclasificación ya aplicada.
+- 047 es expansiva: con la PWA o el webhook anteriores, las categorías extra no rompen nada. No se editan migraciones ya aplicadas; cualquier corrección va en una migración nueva.
+- Los movimientos reclasificados se deshacen solo con `category_reclass_revert`.
+
+**Limitaciones:** la vista previa y la reclasificación se probaron en PGlite con datos ficticios; no hay verificación contra producción hasta que el propietario autorice cada paso. Los borradores pendientes de WhatsApp y las filas `pending` (incluidas las v1 históricas) no se tocan.
+
 ## Registro previo y contrato
 
 1. Confirmar repo, rama, árbol limpio y remoto sincronizado. Si hay cambios ajenos, detenerse sin pisarlos.

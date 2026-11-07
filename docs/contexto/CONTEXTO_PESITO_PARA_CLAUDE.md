@@ -1043,7 +1043,7 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 | ID | Propuesta | Falta |
 | --- | --- | --- |
 | BE-19 (aceptación) | Prueba manual de pago confirmado y código nominativo con cuenta autorizada. | Enviar RENOVAR, confirmar pago en panel Clientes, recibir WhatsApp con código, canjear en Ajustes y verificar extensión sin segundo WhatsApp. |
-| FE-24 / BE-20 | Categorías ampliadas/personalizadas. | Catálogo, UI, propiedad, límites y reconocimiento dinámico del bot. Un máximo ejemplificado en el plan todavía no es una restricción real. |
+| FE-24 / BE-20 | Categorías ampliadas (catálogo fijo de 31). | Implementado en rama `feat/categorias-ampliadas` (07/11/2026), sin publicar. Alcance redefinido: sin categorías propias del cliente ni límite por usuario. Ver 16.3. |
 | FE-25 | Avisos en el Resumen y preferencias. | Publicado 05/11/2026 (PR #81, bb14ace). Falta aceptación manual en celular. |
 | NOTIF-01 (push) | Notificaciones push al celular. | Publicado 05/11/2026 (046 + webhook v71). Recibido en el celular del propietario el 06/11/2026 (prueba manual). Falta probar iPhone instalado. |
 | BE-21 (WhatsApp) | Avisos por WhatsApp. | Descartado por ahora por el propietario: plantilla Meta paga fuera de 24 h. |
@@ -1059,6 +1059,18 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 **Seguimiento BE-02 cerrado — 29/10/2026:** el propietario identificó como prueba el único código consumido sin usuario y aprobó explícitamente su borrado por UUID. Se eliminó exactamente ese registro en producción mediante una transacción con controles de referencias y filas afectadas. Un SELECT independiente confirmó ausencia y cero códigos consumidos sin usuario; perfiles, vencimientos, movimientos y recibos conservaron sus huellas. No hubo reasignación, corrección de vencimientos, migración ni despliegue. Ver `docs/planes/VALIDACION_FE_06_BE_02.md` y `docs/planes/evidencias/INVITACION_PRUEBA_ELIMINADA_2026-10-29.json`. Los estados abiertos en antecedentes fechados son históricos.
 
 Leer cada bloque completo y evidencia reciente; no tomar el encabezado histórico del plan como única fuente de estado.
+
+### 16.3. Categorías ampliadas (FE-24 / BE-20) — en rama, sin publicar
+
+Estado a 07/11/2026: implementado en la rama `feat/categorias-ampliadas`; **no integrado en `main`, no publicado, 047 y 048 sin aplicar**. Diseño: `docs/superpowers/specs/2026-11-07-categorias-ampliadas-design.md`; plan: `docs/superpowers/plans/2026-11-07-categorias-ampliadas.md`.
+
+- **Decisión del propietario:** catálogo fijo e igual para todas las cuentas, de 31 categorías (22 de gasto y 9 de ingreso). El cliente no crea, renombra ni borra categorías; no hay RPC de gestión ni límite por usuario. No se incluyen Inversiones ni Ahorro.
+- **Nuevas (15):** gasto: Restaurantes y delivery, Suscripciones, Auto, Hogar, Tecnología, Cuidado personal, Deporte, Mascotas, Hijos, Viajes, Regalos y donaciones. Ingreso: Alquileres, Reintegros, Regalos, Jubilación y asignaciones. Las 16 anteriores conservan nombre (su alcance se achica).
+- **Fuente de las reglas del bot:** `supabase/functions/whatsapp-webhook/category-rules.ts` (palabras clave sobre texto normalizado sin acentos; las específicas antes que las generales). `local-movements.ts` la usa en el parser determinístico y agrupa por familias (Alimentación~Restaurantes y delivery, Transporte~Auto, Compras~Tecnología/Hogar/Hijos, Salud~Deporte, Ocio~Suscripciones) para no mandar más mensajes a la IA. El prompt de `gemini.ts` (compartido con Groq) lista los nombres exactos. El bot resuelve la categoría por nombre en SQL, sin normalizar acentos: el nombre devuelto debe coincidir con el guardado.
+- **PWA:** los visuales (color e ícono) se resuelven por nombre en `src/categoryVisuals.ts` y `src/Icons.tsx`, e ignoran las columnas `color`/`icon` de la base. Los ingresos siguen con la flecha verde en la lista de movimientos.
+- **047 (expansiva):** inserta las 15 categorías en todas las cuentas (`on conflict do nothing`) y redefine `bootstrap_user` (partiendo de la versión de 040) para crear y verificar 31.
+- **048:** instala `category_reclass_log` y las funciones `category_reclass_preview()`, `category_reclass_apply(<total esperado>)` y `category_reclass_revert('<run_id>')`; no mueve datos al aplicarse. Solo reclasifica movimientos `confirmed` y cabeceras de planes en cuotas con una única coincidencia clara en una categoría nueva; un plan se mueve entero o no se mueve. Revocadas para `anon`, `authenticated` y `service_role`: se ejecutan solo por la vía de SQL de producción autorizada.
+- **Orden de publicación:** 047 → webhook → PWA → 048 → vista previa → revisión del propietario → aplicar con nueva autorización. Revertir la PWA no revierte SQL ni webhook. Detalle en `docs/operaciones/DEPLOY_Y_ROLLBACK.md` (sección "Reclasificación de categorías").
 
 ## 17. Mapa del repositorio
 

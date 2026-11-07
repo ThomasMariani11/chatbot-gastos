@@ -67,7 +67,7 @@ Las secciones históricas se conservan como registro. “Siguiente paso”, “p
 | FE-21 | Casilla sin marcar | **Pendiente transversal** | Alcance/decisión pendiente; no se supone implementación. |
 | FE-22 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_16_22.md) · `tests/button-contrast-and-auth-tabs.test.ts` · PR #60 / b9c9df4 |
 | FE-23 | Terminada | **Incorporado en alcance documentado** | [Regresiones soporte](../../tests/support-whatsapp-button.test.ts) · `tests/support-whatsapp-button.test.ts` · PR #67 / ecba420 |
-| FE-24 | Pendiente | **Pendiente; con BE-20** | Alcance/decisión pendiente; no se supone implementación. |
+| FE-24 | Pendiente | **Implementado en rama, sin publicar (07/11/2026); con BE-20** | Alcance redefinido por el propietario: catálogo fijo de 31 categorías, sin categorías propias del cliente. `src/categoryVisuals.ts` · `src/Icons.tsx` · [diseño](../superpowers/specs/2026-11-07-categorias-ampliadas-design.md) · [plan de implementación](../superpowers/plans/2026-11-07-categorias-ampliadas.md) |
 | FE-25 | Pendiente | **Publicado 05/11/2026; aceptación en celular pendiente** | `src/ClientNotices.tsx` · `src/PushNotificationsRow.tsx` · `tests/client-notices.test.ts` · `tests/push-notifications-ui.test.ts` · migraciones 045/046 |
 | FE-26 | Nueva (06/11/2026) | **Publicado 06/11/2026 (PR #83, 8e3d4bc)** | `src/PushPrompt.tsx` · `src/pushPromptRules.ts` · `tests/push-prompt.test.ts`. Invitación con un toque para activar push; a cuentas existentes como novedad. Sin activación automática (los navegadores exigen consentimiento). |
 
@@ -94,7 +94,7 @@ Las secciones históricas se conservan como registro. “Siguiente paso”, “p
 | BE-17 | Casilla sin marcar | **Pendiente transversal** | Alcance/decisión pendiente; no se supone implementación. |
 | BE-18 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_18.md) · `supabase/functions/whatsapp-webhook/context-repository.ts` · PR #64 / 8366517 |
 | BE-19 | Pendiente (histórico) | **Publicado 30/10/2026; aceptación pendiente** | Pago confirmado + código nominativo; ver VALIDACION_BE_19.md. No hay aviso al canjear. |
-| BE-20 | Pendiente | **Pendiente; con FE-24** | Alcance/decisión pendiente; no se supone implementación. |
+| BE-20 | Pendiente | **Implementado en rama, sin publicar (07/11/2026); con FE-24** | Migraciones 047 (catálogo) y 048 (reclasificación reversible, sin aplicar); reglas del bot en `category-rules.ts`. Runbook en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`. [diseño](../superpowers/specs/2026-11-07-categorias-ampliadas-design.md) · [plan de implementación](../superpowers/plans/2026-11-07-categorias-ampliadas.md) |
 | BE-21 | Pendiente | **Reemplazado por push (NOTIF-01, publicado 05/11/2026); WhatsApp descartado por ahora** | 046 + `client-push.ts` + `tests/client-push.test.ts`. Resumen mensual movido a NOTIF-02. |
 
 ### Contraste y límites
@@ -165,7 +165,7 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 | Cerrado | **FE-23** | Símbolo de WhatsApp para soporte en el Dashboard (excluido de Ajustes por decisión del propietario). | Publicado y verificado con enlace a support_phone y fallback a whatsapp_bot_phone. |
 | Cerrado | **BE-22** | Lenguaje natural y simplificación en chatbot WhatsApp (eliminaciones y ediciones múltiples, protección contra falsos gastos por comandos y confirmación sin bloqueos de aclaración). | Migración 042, regex local ampliado, prompt/schema Gemini multi-edit y validación Vitest/PGlite aprobados. |
 | Publicado | **BE-19** | RENOVAR → confirmar pago → enviar código por WhatsApp → canjear en Ajustes. | Sin activar días al emitir, sin segundo aviso al canjear. Migración 043 aplicada, webhook v67 y PWA publicados. Aceptación pendiente. |
-| Nuevo | **FE-24 / BE-20** | Extender categorías (catálogo base y personalizadas en PWA/bot). | Integridad (id, user_id), límites por usuario y coherencia en bot de WhatsApp. |
+| Nuevo | **FE-24 / BE-20** | Extender categorías (catálogo base y personalizadas en PWA/bot). Alcance reemplazado el 07/11/2026: solo catálogo fijo de 31 y reclasificación reversible; sin categorías propias. | Integridad (id, user_id), límites por usuario y coherencia en bot de WhatsApp. |
 | Nuevo | **NOTIF-01 (FE-25 / BE-21)** | Notificaciones para los clientes (vencimientos, recordatorios, resúmenes). | Tareas programadas seguras, opt-out de usuario en Ajustes y respeto de límites. |
 | Preparado y publicado; sin activar | **INF-14** | Política 30/90 validada y documentada en PR #47. | Retención false hasta una autorización específica; no impide avanzar con mejoras funcionales. |
 | Etapa final de la app | **INF-13 / hosting** | Headers HTTP y protección de framing, postergados por el propietario hasta terminar la funcionalidad. | Retomar entonces la evaluación con costo $0 y vista previa; aprobar el cambio después de probar Auth/PWA/rollback. |
@@ -788,10 +788,10 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-24 — Extender categorías en PWA y selector de movimientos
 
-> **Estado vigente 29/10/2026:** Pendiente; con BE-20. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+> **Estado vigente 07/11/2026:** implementado en rama `feat/categorias-ampliadas`, sin publicar; con BE-20. **Alcance redefinido por el propietario:** catálogo fijo de 31 categorías (22 de gasto y 9 de ingreso), iguales para todas las cuentas; el cliente no crea, renombra ni borra categorías. Ver [diseño](../superpowers/specs/2026-11-07-categorias-ampliadas-design.md) y [plan de implementación](../superpowers/plans/2026-11-07-categorias-ampliadas.md). El checklist de abajo se conserva como registro histórico: los puntos 2 y 4 (gestión de categorías propias, límite por usuario) y "Inversiones" quedaron **reemplazados** por esa decisión.
 
 
-- [ ] Pendiente.
+- [ ] Implementado en rama, sin publicar (07/11/2026): visuales (color e ícono) por nombre en `src/categoryVisuals.ts` y `src/Icons.tsx` para las 15 categorías nuevas; los selectores leen de la base. Falta publicar (ver runbook) y verificar el selector de 22 opciones en 375 px con la PWA publicada.
 - **Categoría:** Mejora y UX.
 - **Alcance:** ampliar el catálogo predeterminado de categorías y permitir al usuario gestionar categorías personalizadas en la PWA.
 - **Archivos:** `src/Dashboard.tsx`, `src/Settings.tsx`, `src/categories.ts`, `src/categoryVisuals.ts`.
@@ -1163,10 +1163,10 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### BE-20 — Extensión y gestión segura de categorías en base y bot
 
-> **Estado vigente 29/10/2026:** Pendiente; con FE-24. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
+> **Estado vigente 07/11/2026:** implementado en rama `feat/categorias-ampliadas`, sin publicar; con FE-24. **Alcance redefinido por el propietario:** sin RPC de gestión de categorías ni límite por usuario (el "máximo 30" del punto 2 era un ejemplo y queda **reemplazado**); catálogo fijo de 31 y reclasificación reversible de movimientos viejos claros. Ver [diseño](../superpowers/specs/2026-11-07-categorias-ampliadas-design.md) y [plan de implementación](../superpowers/plans/2026-11-07-categorias-ampliadas.md). El checklist de abajo se conserva como registro histórico.
 
 
-- [ ] Pendiente.
+- [ ] Implementado en rama, sin publicar (07/11/2026): migración 047 (15 categorías nuevas para todas las cuentas y `bootstrap_user` con 31), reglas del bot en `category-rules.ts` / `local-movements.ts` / prompt de `gemini.ts`, y migración 048 (instala vista previa, aplicar con total esperado y revertir por `run_id`; no mueve datos al aplicarse). Orden de publicación y reversión en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`. Falta publicar con autorización del propietario y aplicar la reclasificación solo tras revisar la vista previa.
 - **Categoría:** Modelo de Datos e Integridad.
 - **Alcance:** soporte en base de datos para categorías extendidas y personalizadas por usuario, alineado con el clasificador del bot de WhatsApp.
 - **Archivos:** `supabase/migrations/` (catálogo y restricciones de categorías), `supabase/functions/whatsapp-webhook/draft-corrections.ts`, `supabase/functions/whatsapp-webhook/processor.ts`.
