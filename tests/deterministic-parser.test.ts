@@ -11,7 +11,7 @@ describe('parseDeterministicMovements', () => {
       description: 'Creatina',
       totalAmountArs: 21000,
       currency: 'ARS',
-      category: 'Salud',
+      category: 'Deporte',
     });
 
     const res2 = parseDeterministicMovement('Gaste 21000 en creatina');
@@ -19,7 +19,7 @@ describe('parseDeterministicMovements', () => {
       kind: 'expense',
       description: 'Creatina',
       totalAmountArs: 21000,
-      category: 'Salud',
+      category: 'Deporte',
     });
 
     const res3 = parseDeterministicMovement('21.000 creatina');
@@ -27,7 +27,7 @@ describe('parseDeterministicMovements', () => {
       kind: 'expense',
       description: 'Creatina',
       totalAmountArs: 21000,
-      category: 'Salud',
+      category: 'Deporte',
     });
 
     const res4 = parseDeterministicMovement('21000 suplementos');
@@ -35,7 +35,7 @@ describe('parseDeterministicMovements', () => {
       kind: 'expense',
       description: 'Suplementos',
       totalAmountArs: 21000,
-      category: 'Salud',
+      category: 'Deporte',
     });
   });
 
@@ -69,7 +69,7 @@ describe('parseDeterministicMovements', () => {
       kind: 'expense',
       description: 'Creatina',
       totalAmountArs: 21000,
-      category: 'Salud',
+      category: 'Deporte',
     });
 
     const resDecimals = parseDeterministicMovement('caramelos 250,50');
@@ -122,8 +122,8 @@ describe("reglas reales: importes, monedas y lotes completos", () => {
   });
   it("no infiere categorías por fragmentos de otras palabras", () => {
     expect(parseDeterministicMovement("Gasté 1500 en diario")).toMatchObject({ category: "Otros" });
-    expect(parseDeterministicMovement("Gasté 1500 en cafetería")).toMatchObject({ category: "Otros" });
-    expect(parseDeterministicMovement("Gasté 1500 en proteínas")).toMatchObject({ category: "Salud" });
+    expect(parseDeterministicMovement("Gasté 1500 en cafeterías")).toMatchObject({ category: "Otros" });
+    expect(parseDeterministicMovement("Gasté 1500 en proteínas")).toMatchObject({ category: "Deporte" });
   });
   it.each([
     "Gasté 5000 super y pagué alquiler",
@@ -273,5 +273,10 @@ describe("conceptos compartidos con múltiples importes (BE-04 / María Martha c
 
   it("rechaza grupos ambiguos con múltiples conceptos distintos y un importe sin concepto", () => {
     expect(parseDeterministicMovements("Gasté 100 super, 200 nafta y 300")).toBeNull();
+  });
+  it("agrupa conceptos de la misma familia y deriva los de familias distintas", () => {
+    expect(parseDeterministicMovement("1500 café y facturas")).toMatchObject({ category: "Restaurantes y delivery" });
+    expect(parseDeterministicMovement("2000 nafta y lavadero")).toMatchObject({ category: "Auto" });
+    expect(parseDeterministicMovement("3000 super y netflix")).toBeNull();
   });
 });
