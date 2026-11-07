@@ -6,7 +6,7 @@ export const NEW_CATEGORY_VISUALS: Record<string, CategoryVisual> = {
   'Restaurantes y delivery': { icon: 'utensils', color: '#a25929' },
   Suscripciones: { icon: 'repeat', color: '#7c3aed' },
   Auto: { icon: 'wrench', color: '#475569' },
-  Hogar: { icon: 'home', color: '#8260b3' },
+  Hogar: { icon: 'sofa', color: '#0f766e' },
   Tecnología: { icon: 'laptop', color: '#0e7490' },
   'Cuidado personal': { icon: 'sparkles', color: '#be185d' },
   Deporte: { icon: 'dumbbell', color: '#15803d' },
@@ -22,10 +22,12 @@ export const NEW_CATEGORY_VISUALS: Record<string, CategoryVisual> = {
 const normalize = (value: string) =>
   value
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLowerCase();
-// Se evalúan antes que las reglas históricas: nombre exacto normalizado.
+// Se evalúan antes que las reglas históricas a propósito: las categorías nuevas (p. ej. Auto,
+// Deporte, Hogar) tienen visual propio aunque antes resolvieran por alias (Auto -> car, etc.).
+// Las categorías sembradas y el resto de los alias conservan su visual.
 const newCategories: Array<[RegExp, CategoryVisual]> = Object.entries(NEW_CATEGORY_VISUALS).map(
   ([name, visual]) => [new RegExp('^' + normalize(name) + '$'), visual],
 );

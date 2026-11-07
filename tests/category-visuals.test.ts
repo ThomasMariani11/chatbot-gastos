@@ -14,7 +14,35 @@ const NEW_EXPENSE = [
   'Viajes',
   'Regalos y donaciones',
 ];
-const EXISTING = ['Alimentación', 'Transporte', 'Compras', 'Ocio', 'Salud'];
+// Las 11 categorías de gasto sembradas (Otros cae en el fallback).
+const SEEDED_EXPENSE = [
+  'Alimentación', 'Transporte', 'Vivienda', 'Servicios', 'Salud', 'Educación',
+  'Ocio', 'Compras', 'Impuestos', 'Deudas', 'Otros',
+];
+const FALLBACK = { icon: 'receipt', color: '#596d78' };
+// Visuales previos a esta tarea de las 16 sembradas y de alias heredados.
+const LEGACY: Array<[string, { icon: string; color: string }]> = [
+  ['Alimentación', { icon: 'cart', color: '#147c5b' }],
+  ['Transporte', { icon: 'car', color: '#956719' }],
+  ['Vivienda', { icon: 'home', color: '#8260b3' }],
+  ['Servicios', { icon: 'bolt', color: '#16738e' }],
+  ['Salud', { icon: 'heart', color: '#b04570' }],
+  ['Educación', { icon: 'graduation', color: '#306cc4' }],
+  ['Ocio', { icon: 'music', color: '#b55355' }],
+  ['Compras', { icon: 'bag', color: '#655ad8' }],
+  ['Impuestos', { icon: 'bolt', color: '#16738e' }],
+  ['Deudas', FALLBACK],
+  ['Otros', FALLBACK],
+  ['Sueldo', { icon: 'briefcase', color: '#147c5b' }],
+  ['Freelance', FALLBACK],
+  ['Ventas', FALLBACK],
+  ['Rendimientos', FALLBACK],
+  ['Gimnasio', { icon: 'heart', color: '#b04570' }],
+  ['Farmacia', { icon: 'heart', color: '#b04570' }],
+  ['Nafta', { icon: 'car', color: '#956719' }],
+  ['Supermercado', { icon: 'cart', color: '#147c5b' }],
+  ['Internet', { icon: 'bolt', color: '#16738e' }],
+];
 const pair = (v: { icon: string; color: string }) => `${v.icon}|${v.color}`;
 
 describe('visuales de categorías', () => {
@@ -29,7 +57,12 @@ describe('visuales de categorías', () => {
   it('los pares icono+color son distintos entre sí y de las categorías existentes', () => {
     const pairs = NEW_EXPENSE.map((n) => pair(categoryVisual(n)));
     expect(new Set(pairs).size).toBe(NEW_EXPENSE.length);
-    for (const name of EXISTING) expect(pairs).not.toContain(pair(categoryVisual(name)));
+    for (const name of SEEDED_EXPENSE) expect(pairs).not.toContain(pair(categoryVisual(name)));
+    expect(pairs).not.toContain(pair(FALLBACK));
+  });
+
+  it('las categorías sembradas y alias heredados conservan su visual', () => {
+    for (const [name, visual] of LEGACY) expect(categoryVisual(name), name).toEqual(visual);
   });
 
   it('exporta las 15 categorías nuevas con color hex', () => {
