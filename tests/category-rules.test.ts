@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   CATEGORY_NAMES,
@@ -68,5 +69,13 @@ describe("catálogo de categorías", () => {
     for (const name of [...CATEGORY_NAMES.expense, ...CATEGORY_NAMES.income]) {
       expect(lines).toContain(name);
     }
+  });
+});
+
+describe("prompt de IA", () => {
+  it("usa el catálogo compartido y no la lista fija", () => {
+    const src = readFileSync("supabase/functions/whatsapp-webhook/gemini.ts", "utf8");
+    expect(src).toContain("${categoryPromptLines()}");
+    expect(src).not.toContain("* Gasto: Alimentación, Transporte, Vivienda");
   });
 });
