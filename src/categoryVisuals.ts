@@ -1,6 +1,34 @@
 import type { IconName } from './Icons';
 type CategoryVisual = { icon: IconName; color: string };
 const fallback: CategoryVisual = { icon: 'receipt', color: '#596d78' };
+// Categorías ampliadas (FE-24): estos valores se copian tal cual a la migración SQL.
+export const NEW_CATEGORY_VISUALS: Record<string, CategoryVisual> = {
+  'Restaurantes y delivery': { icon: 'utensils', color: '#a25929' },
+  Suscripciones: { icon: 'repeat', color: '#7c3aed' },
+  Auto: { icon: 'wrench', color: '#475569' },
+  Hogar: { icon: 'home', color: '#8260b3' },
+  Tecnología: { icon: 'laptop', color: '#0e7490' },
+  'Cuidado personal': { icon: 'sparkles', color: '#be185d' },
+  Deporte: { icon: 'dumbbell', color: '#15803d' },
+  Mascotas: { icon: 'paw', color: '#92400e' },
+  Hijos: { icon: 'smile', color: '#b45309' },
+  Viajes: { icon: 'plane', color: '#0369a1' },
+  'Regalos y donaciones': { icon: 'gift', color: '#c026d3' },
+  Alquileres: { icon: 'key', color: '#147c5b' },
+  Reintegros: { icon: 'refresh', color: '#147c5b' },
+  Regalos: { icon: 'gift', color: '#147c5b' },
+  'Jubilación y asignaciones': { icon: 'wallet', color: '#147c5b' },
+};
+const normalize = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim()
+    .toLowerCase();
+// Se evalúan antes que las reglas históricas: nombre exacto normalizado.
+const newCategories: Array<[RegExp, CategoryVisual]> = Object.entries(NEW_CATEGORY_VISUALS).map(
+  ([name, visual]) => [new RegExp('^' + normalize(name) + '$'), visual],
+);
 const categories: Array<[RegExp, CategoryVisual]> = [
   [/^(compras|ropa|indumentaria)$/, { icon: 'bag', color: '#655ad8' }],
   [/^(supermercado|alimentacion|comida|comidas|super|despensa)$/, { icon: 'cart', color: '#147c5b' }],
@@ -15,12 +43,10 @@ const categories: Array<[RegExp, CategoryVisual]> = [
 ];
 // Solo presentación: no modifica nombres, categorías guardadas ni agrupación financiera.
 export function categoryVisual(category: string): CategoryVisual {
-  const normalized = category
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
-  return categories.find(([pattern]) => pattern.test(normalized))?.[1] ?? fallback;
+  const normalized = normalize(category);
+  return (
+    [...newCategories, ...categories].find(([pattern]) => pattern.test(normalized))?.[1] ?? fallback
+  );
 }
 export function movementVisual(category: string, kind: 'expense' | 'income') {
   const visual =
