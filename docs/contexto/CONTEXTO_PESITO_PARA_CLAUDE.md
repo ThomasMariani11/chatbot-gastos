@@ -887,7 +887,7 @@ Preparada una política 30/90: retirar contenido original de mensajes terminados
 
 | Herramienta | Referencia del proyecto |
 | --- | --- |
-| Node CI | 22.23.3, `.node-version`. |
+| Node CI y local | 24.21.0, `.node-version` (desde el 07/11/2026; antes 22.23.3). Mismo Node en CI y en la PC del propietario; `npm run test:release` exige coincidencia exacta. |
 | Supabase CLI | 2.120.0, `.supabase-version`. |
 | Deno CI | 2.9.6. |
 | PostgreSQL concurrente | 17.11, imagen fijada por digest. |
