@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { botServiceFromConfig, type BotService } from './sidebarStatus';
 
 type Row = Record<string, unknown>;
 type Result = { data: unknown; error: unknown; count?: number | null };
@@ -173,6 +174,7 @@ export interface DashboardQueryCache {
   userId: string;
   botPhone?: CacheSlot<string>;
   supportPhone?: CacheSlot<string>;
+  botService?: CacheSlot<BotService>;
   botState?: CacheSlot<'active' | 'paused' | 'unlinked'>;
   months?: CacheSlot<{ months: string[]; monthsWarning: boolean }>;
   installments?: CacheSlot<Row[]>;
@@ -197,6 +199,7 @@ export function createDashboardQueryCache(userId: string): DashboardQueryCache {
     invalidateAll() {
       delete cache.botPhone;
       delete cache.supportPhone;
+      delete cache.botService;
       delete cache.botState;
       delete cache.months;
       delete cache.installments;
@@ -221,6 +224,8 @@ export type DashboardSnapshot = {
   months: string[];
   monthsWarning: boolean;
   botState: 'active' | 'paused' | 'unlinked' | 'unknown';
+  /** Estado global del bot (`system_config.bot_active`), independiente del vínculo de la cuenta. */
+  botService: BotService;
   botPhone: string;
   supportPhone?: string;
 };
@@ -287,6 +292,11 @@ export async function readDashboardSnapshot(
   const cachedSupportPhone = isFresh(activeCache?.supportPhone, BOT_PHONE_TTL_MS, now)
     ? activeCache!.supportPhone.value
     : null;
+  // Una pausa del bot debe verse pronto: su caché dura lo mismo que el estado del vínculo.
+  const cachedBotService = isFresh(activeCache?.botService, BOT_META_TTL_MS, now)
+    ? activeCache!.botService.value
+    : null;
+  const systemConfigCached = cachedBotPhone !== null && cachedBotService !== null;
 
   const readSystemPhones = () => {
     const selectBuilder = client.from('system_config').select('key, value');
@@ -295,7 +305,7 @@ export async function readDashboardSnapshot(
         selectBuilder as unknown as {
           in(col: string, vals: string[]): { abortSignal(sig: AbortSignal): PromiseLike<unknown> };
         }
-      ).in('key', ['whatsapp_bot_phone', 'support_phone']);
+      ).in('key', ['whatsapp_bot_phone', 'support_phone', 'bot_active']);
       return safe(inBuilder.abortSignal(signal));
     }
     return safe(
@@ -338,7 +348,7 @@ export async function readDashboardSnapshot(
     cachedMonths !== null
       ? Promise.resolve<Result>({ data: cachedMonths.months, error: null })
       : safe(client.rpc('get_distinct_transaction_months').abortSignal(signal)),
-    cachedBotPhone !== null
+    systemConfigCached
       ? Promise.resolve<Result>({
           data: [
             { key: 'whatsapp_bot_phone', value: cachedBotPhone },
@@ -417,9 +427,19 @@ export async function readDashboardSnapshot(
     }
   }
 
+  let botService: BotService;
+  if (systemConfigCached) {
+    botService = cachedBotService!;
+  } else {
+    botService = phone.error ? 'unknown' : botServiceFromConfig(phone.data);
+    if (activeCache && botService !== 'unknown') {
+      activeCache.botService = { value: botService, fetchedAt: now };
+    }
+  }
+
   let resolvedBotPhone = cachedBotPhone ?? '';
   let resolvedSupportPhone = cachedSupportPhone ?? '';
-  if (cachedBotPhone === null && !phone.error) {
+  if (!systemConfigCached && !phone.error) {
     if (Array.isArray(phone.data)) {
       for (const item of phone.data) {
         const row = record(item);
@@ -458,6 +478,7 @@ export async function readDashboardSnapshot(
     ),
     monthsWarning,
     botState,
+    botService,
     botPhone: resolvedBotPhone,
     supportPhone: resolvedSupportPhone || resolvedBotPhone,
   };

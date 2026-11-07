@@ -848,6 +848,18 @@
 
 
 
+/* Barra lateral: bot (servicio global) y WhatsApp de la cuenta en dos líneas. */
+.bot-status-panel {
+  margin-top: auto;
+  display: grid;
+  gap: 8px;
+}
+
+.bot-status-panel .bot-status {
+  margin-top: 0;
+  padding: 11px 14px;
+}
+
 .bot-status-paused {
   background: #fff8e8;
 }
