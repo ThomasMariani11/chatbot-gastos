@@ -22,7 +22,7 @@
   - Bloquea las operaciones destructivas.
   - Pide aprobación explícita del propietario para cualquier operación remota de Supabase, con o sin `--linked`, para la ejecución de código arbitrario y para la edición de su propia configuración.
   - No hay forma de autorizar escribiendo algo en el comando.
-  - Es una heurística, no una barrera absoluta. El token persistente de la CLI sigue siendo un riesgo residual abierto.
+  - Es una heurística, no una barrera absoluta. El token persistente de la CLI sigue siendo un riesgo residual abierto, aceptado por el propietario hasta el lanzamiento público (pendiente SEC-TOKEN en 16.2).
   - Detalle y limitaciones: `docs/operaciones/DEPLOY_Y_ROLLBACK.md` → "Barreras locales del agente".
 - **Testing de navegador:** se usa el navegador integrado de la app con `pesito-local`/`pesito-pwa` contra Supabase local, además de Vitest/jsdom y los ensayos locales. No se usan los helpers Python de la skill `webapp-testing` ni se agregan Python o Playwright sin decisión del propietario.
 - **GitHub:** se usa GitHub CLI (`gh`) con autenticación oficial del propietario. No se crean tokens personales. El plugin MCP de GitHub falla por falta de token y no es necesario.
@@ -1046,6 +1046,7 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 | INF-13 pendiente | Hosting/headers/framing. | Aplazado al final por el propietario. |
 | INF-08 | Backups/restore. | Aplazado al final; solución, costo y ensayo por acordar. |
 | INF-14 activación | Retención 30/90. | Preparada pero false; decisión específica antes de retirar contenido. |
+| SEC-TOKEN (lanzamiento) | Token de la CLI de Supabase fuera de la PC. | Decisión del propietario del 07/11/2026: sigue guardado en el Administrador de credenciales de Windows hasta el lanzamiento público. Al lanzar hay que: revocar el token actual; crear uno de deploy y guardarlo en un gestor de contraseñas; ejecutar `npx --yes supabase@2.120.0 logout`; desplegar pegando el token en `SUPABASE_ACCESS_TOKEN` solo en esa terminal, sin abrir `claude` desde ella. Ver `DEPLOY_Y_ROLLBACK.md` → "Barreras locales del agente". |
 
 **Seguimiento BE-02 cerrado — 29/10/2026:** el propietario identificó como prueba el único código consumido sin usuario y aprobó explícitamente su borrado por UUID. Se eliminó exactamente ese registro en producción mediante una transacción con controles de referencias y filas afectadas. Un SELECT independiente confirmó ausencia y cero códigos consumidos sin usuario; perfiles, vencimientos, movimientos y recibos conservaron sus huellas. No hubo reasignación, corrección de vencimientos, migración ni despliegue. Ver `docs/planes/VALIDACION_FE_06_BE_02.md` y `docs/planes/evidencias/INVITACION_PRUEBA_ELIMINADA_2026-10-29.json`. Los estados abiertos en antecedentes fechados son históricos.
 
