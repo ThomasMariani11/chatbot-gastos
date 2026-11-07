@@ -131,7 +131,18 @@ El checkout está vinculado a producción (`supabase/.temp/project-ref`) y la CL
 1. **Es una heurística sobre texto.** Un comando o un archivo ofuscado (por ejemplo, un dominio armado por concatenación) puede no coincidir con ningún patrón.
 2. **Solo cubre las herramientas del agente** en sesiones abiertas en la raíz de `chatbot-gastos`. No cubre la terminal del propietario, CI, otras aplicaciones ni sesiones abiertas en otra carpeta.
 3. **Si alguien edita `.claude/settings.json` fuera del agente**, o si se usa una versión de Claude Code que no respeta `onFailure`, la barrera puede no aplicar.
-4. **El token persistente de la CLI sigue disponible para cualquier proceso del usuario.** La única barrera técnica fuerte sería no guardarlo de forma persistente y usar `SUPABASE_ACCESS_TOKEN` solo en la terminal del despliegue. El propietario decidió no cambiarlo por ahora.
+4. **El token persistente de la CLI sigue disponible para cualquier proceso del usuario.** La única barrera técnica fuerte sería no guardarlo de forma persistente y usar `SUPABASE_ACCESS_TOKEN` solo en la terminal del despliegue. El 07/11/2026 el propietario decidió mantenerlo guardado **hasta el lanzamiento público**.
+
+**Al lanzar (pendiente SEC-TOKEN):**
+
+1. En https://supabase.com/dashboard/account/tokens, revocar el token actual de la CLI y crear uno de deploy, por ejemplo `pesito-deploy-…`. Guardarlo solo en un gestor de contraseñas.
+2. Ejecutar `npx --yes supabase@2.120.0 logout`. Quita la credencial `Supabase CLI:supabase` y conserva `supabase/.temp`.
+3. En cada deploy autorizado:
+   - abrir una terminal nueva, **sin ejecutar `claude` en ella**;
+   - cargar el token con `$s = Read-Host "Token de Supabase" -AsSecureString; $env:SUPABASE_ACCESS_TOKEN = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))`;
+   - desplegar;
+   - ejecutar `Remove-Item Env:SUPABASE_ACCESS_TOKEN` y cerrar la terminal.
+4. Rotar el token periódicamente o ante cualquier sospecha.
 
 ## Registro previo y contrato
 
