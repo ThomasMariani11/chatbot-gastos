@@ -36,6 +36,8 @@ import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
 import { ClientNotices } from './ClientNotices';
 import { PushPrompt } from './PushPrompt';
+import { sidebarStatus, type BotService } from './sidebarStatus';
+import { ENTRY_ALREADY_SAVED, ENTRY_NOTICE_TTL_MS, ENTRY_REMOVED_BEFORE, ENTRY_REPLAYED, ENTRY_SAVED, isTransientEntryNotice } from './entryNotice';
 import type { UserProfile } from './Settings';
 
 type Movement = {
@@ -362,6 +364,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const [budgetError, setBudgetError] = useState<string>('');
   const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [botState, setBotState] = useState<BotState>('loading');
+  const [botService, setBotService] = useState<BotService | 'loading'>('loading');
   const [showAdd, setShowAdd] = useState(false);
   const [manualKind, setManualKind] = useState<'expense' | 'income'>('expense');
   const [categoryId, setCategoryId] = useState('');
@@ -529,14 +532,18 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
     return Array.from(grouped, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [filteredMovements]);
 
-  const botStatus = {
-    active: { title: 'Bot habilitado', detail: 'WhatsApp activo' },
-    paused: { title: 'Bot pausado', detail: 'Respuestas desactivadas' },
-    unlinked: { title: 'Sin vincular', detail: 'Conectá tu WhatsApp' },
-    'cost-blocked': { title: 'Bot bloqueado', detail: 'Mensajes pagos no autorizados' },
-    loading: { title: 'Comprobando bot', detail: 'Consultando configuración' },
-    unknown: { title: 'Estado no disponible', detail: 'Revisá la configuración' },
-  }[botState];
+  // Dos líneas independientes: el bot (servicio global) y el WhatsApp de esta cuenta.
+  const [botLine, whatsAppLine] = sidebarStatus(botService, botState);
+
+  // Los avisos de éxito se ocultan solos y al cambiar de sección; los errores quedan hasta el próximo intento.
+  useEffect(() => {
+    if (!isTransientEntryNotice(entryMessage)) return;
+    const timer = window.setTimeout(() => setEntryMessage(current => (current === entryMessage ? '' : current)), ENTRY_NOTICE_TTL_MS);
+    return () => window.clearTimeout(timer);
+  }, [entryMessage]);
+  useEffect(() => {
+    setEntryMessage(current => (isTransientEntryNotice(current) ? '' : current));
+  }, [activeSection]);
 
   useEffect(() => {
     let active = true;
@@ -589,13 +596,14 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         setKnownMonths(snapshot.months);
         setMonthsWarning(snapshot.monthsWarning);
         setBotState(snapshot.botState);
+        setBotService(snapshot.botService);
         setWaBotNumber(snapshot.botPhone);
         setSupportPhone(snapshot.supportPhone ?? snapshot.botPhone);
         setInstallmentPlans(computedPlans);
         setDataContext(loadContext);
         setReadView({ context: loadContext, status: 'ready', refreshing: false });
       },
-      fail: () => { setReadView({ context: loadContext, status: 'error', refreshing: false }); setBotState('unknown'); },
+      fail: () => { setReadView({ context: loadContext, status: 'error', refreshing: false }); setBotState('unknown'); setBotService('unknown'); },
     });
     const refresh = () => { void loader.refresh(); };
     const onTransactionChange = () => {
@@ -754,8 +762,8 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
         setShowAdd(false); setIsInstallments(false); setInstallmentCount(3); setIsCustomInstallmentCount(false);
         setCustomCountInput('3'); setInstallmentAmountMode('total'); setCurrentInstallmentNumber(1);
         setFormAmount(''); setFormDescription(''); setFormDate(todayKey());
-        setEntryMessage(completed.result.state === 'removed' ? 'Ese envío ya se había guardado y después se eliminó. No lo volvimos a crear.'
-          : cancel ? 'El envío ya estaba guardado. Lo comprobamos sin duplicarlo.' : completed.result.replayed ? 'Envío comprobado. Se guardó una sola vez.' : 'Movimiento guardado.');
+        setEntryMessage(completed.result.state === 'removed' ? ENTRY_REMOVED_BEFORE
+          : cancel ? ENTRY_ALREADY_SAVED : completed.result.replayed ? ENTRY_REPLAYED : ENTRY_SAVED);
         refreshDashboard();
       }
     } catch (error) {
@@ -926,7 +934,11 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           </button>
         )}
       </nav>
-      <div className={`bot-status bot-status-${botState}`}><span className="status-dot"/><div><strong>{botStatus.title}</strong><small>{botStatus.detail}</small></div></div>
+      <div className="bot-status-panel" role="group" aria-label="Estado del bot y de tu WhatsApp">
+        {[botLine, whatsAppLine].map((line, index) => (
+          <div key={index} className={`bot-status bot-status-${line.tone}`}><span className="status-dot"/><div><strong>{line.title}</strong><small>{line.detail}</small></div></div>
+        ))}
+      </div>
       <button className="profile logout-button" type="button" onClick={onSignOut}><span>{userInitials}</span><div><strong>{userDisplayName}</strong><small>Cerrar sesión</small></div><b>›</b></button>
     </aside>
     <section className="content" id="resumen">

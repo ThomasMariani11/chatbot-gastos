@@ -248,6 +248,14 @@ Confirmación y entrega de correo dependen de la configuración de Auth y del se
 
 Se usan estado React, hashes e historial del navegador. No es una app basada en React Router o Next.js. Incluye navegación inferior móvil, accesos de escritorio y gestos para volver en los flujos correspondientes.
 
+**Barra lateral de escritorio (en rama `fix/aviso-y-estado-bot`, 07/11/2026):** muestra dos líneas independientes.
+- **Bot:** estado global, según `system_config.bot_active`, con la misma regla que el panel admin y las RPC: solo `"false"` lo pausa. Muestra "Bot funcionando" o "Bot en pausa".
+- **WhatsApp:** vínculo de la cuenta, según `whatsapp_links.status` y `app_settings.whatsapp_responses_enabled`. Muestra "WhatsApp vinculado" (con respuestas activadas o desactivadas) o "WhatsApp sin vincular".
+
+`bot_active` se lee en la misma consulta de `system_config` que los teléfonos (sin consultas nuevas), con caché de 2 minutos. Antes, una sola línea decía "Bot habilitado · WhatsApp activo" a partir del vínculo de la cuenta. Configuración sigue mostrando el número desde `profiles.phone_number`; el vínculo real (040) actualiza ambos datos.
+
+**Avisos tras guardar (misma rama):** "Movimiento guardado." y los demás avisos de éxito se ocultan solos a los 5 s y al cambiar de sección (`src/entryNotice.ts`). Los errores siguen visibles hasta el próximo intento.
+
 ### 3.3. Resumen mensual
 
 - Saludo por nombre y selección del mes.

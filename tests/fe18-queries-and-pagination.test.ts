@@ -535,6 +535,23 @@ describe('FE-18: Reducir consultas y paginar resultados', () => {
     expect(mockState.queryCounts.categories).toBe(initialCategoryCalls);
   });
 
+  it('la barra lateral separa el estado global del bot del WhatsApp de la cuenta', async () => {
+    mockState.systemConfig.bot_active = 'false';
+    try {
+      await act(async () => {
+        root.render(h(Dashboard, { userId: 'user-sidebar', userEmail: 'test@example.com', onOpenSettings: () => {}, onSignOut: () => {} }));
+      });
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      const panel = container.querySelector('[aria-label="Estado del bot y de tu WhatsApp"]');
+      expect(panel).not.toBeNull();
+      const lines = Array.from(panel!.querySelectorAll('.bot-status')).map(node => node.textContent);
+      expect(lines).toEqual(['Bot en pausaPausado temporalmente', 'WhatsApp vinculadoRespuestas activadas']);
+      expect(mockState.queryCounts.system_config).toBe(1);
+    } finally {
+      mockState.systemConfig.bot_active = 'true';
+    }
+  });
+
   it('AdminPanel unifica system_config en 1 consulta, lee múltiples páginas de perfiles y pagina tablas de Clientes e Invitaciones', async () => {
     mockState.profiles = Array.from({ length: 55 }, (_, idx) => {
       const n = idx + 1;
