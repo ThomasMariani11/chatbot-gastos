@@ -216,7 +216,7 @@ async function buildAndSmoke(directory, commit, api, anon) {
     assert.ok((await (await fetch(base + '/chatbot-gastos/sw.js')).text()).includes(commit));
   } finally { await new Promise(resolve => server.close(resolve)); }
 }
-async function seedRuntimeUser(api, status) {
+async function seedRuntimeUser(api, status, expectedCategories) {
     await sql("insert into public.invitation_codes(code,duration_days) values('INF10-LOCAL',30);");
     const created = await request(api, '/auth/v1/admin/users', { key: status.SERVICE_ROLE_KEY, body: {
       email: 'inf10@example.invalid', password: syntheticPassword, email_confirm: true,
@@ -227,7 +227,7 @@ async function seedRuntimeUser(api, status) {
     assert.match(user.id, /^[a-f0-9-]{36}$/);
     const profile = await (await request(api, '/rest/v1/profiles?id=eq.' + user.id + '&select=role,subscription_status,first_name', { key: status.SERVICE_ROLE_KEY })).json();
     assert.deepEqual(profile, [{ role: 'client', subscription_status: 'active', first_name: 'Ensayo' }]);
-    assert.equal(await sql("select count(*) from public.categories where user_id='" + user.id + "';"), '16');
+    assert.equal(await sql("select count(*) from public.categories where user_id='" + user.id + "';"), expectedCategories);
     await sql("insert into public.transactions(user_id,kind,description,amount_ars,occurred_on,status,source) values('" + user.id + "','expense','Solo ensayo local',100,current_date,'confirmed','pwa');");
     assert.equal(await sql("select has_function_privilege('anon','public.get_active_draft_group(uuid)','EXECUTE');"), 'f');
     const denied = await request(api, '/rest/v1/rpc/get_active_draft_group', { key: status.ANON_KEY, body: { p_user_id: user.id } });
@@ -296,7 +296,8 @@ try {
     const status = JSON.parse(await cli(['status', '-o', 'json']));
     const api = localUrl(status.API_URL);
     assert.ok(status.ANON_KEY && status.SERVICE_ROLE_KEY);
-    const id = await seedRuntimeUser(api, status);
+    // Esquema de rollback (046): alta con 16 categorías.
+    const id = await seedRuntimeUser(api, status, '16');
     await smokeBusinessContract(sql, id);
     await startWorker(api);await smokeWorker(api);
     await smokeQuotaSql(id);await smokeDraftEditSql(id);await smokeWaitingRecoverySql(id);
@@ -326,7 +327,7 @@ try {
   const status = JSON.parse(await cli(['status', '-o', 'json']));
   const api = localUrl(status.API_URL);
   assert.ok(status.ANON_KEY && status.SERVICE_ROLE_KEY, 'Faltan credenciales exclusivamente locales.');
-  const id = await step('auth_sql_y_datos_sinteticos', () => seedRuntimeUser(api, status));
+  const id = await step('auth_sql_y_datos_sinteticos', () => seedRuntimeUser(api, status, '31'));
   await step('registro_auth_atomico_y_reintento', async () => {
     // API real del stack local, sin SMTP externo ni credenciales productivas.
     const email='be13-signup@example.invalid';
@@ -344,7 +345,7 @@ try {
     assert.equal(await sql("select count(*) from public.profiles where id='"+uid+"' and role='client' and subscription_status='active' and first_name='Alta' and last_name='Ficticia';"),'1');
     assert.equal(await sql("select count(*) from public.app_settings where user_id='"+uid+"';"),'1');
     assert.equal(await sql("select count(*) from public.whatsapp_links where user_id='"+uid+"';"),'1');
-    assert.equal(await sql("select count(*) from public.categories where user_id='"+uid+"';"),'16');
+    assert.equal(await sql("select count(*) from public.categories where user_id='"+uid+"';"),'31');
     const stale=await request(api,'/auth/v1/signup',{key:status.ANON_KEY,body:{email:'be13-other@example.invalid',password:syntheticPassword,data:{invitation_code:'BE13-AUTH'}}});
     assert.equal(stale.status,500);await stale.body?.cancel();
     assert.equal(await sql("select count(*) from auth.users where email='be13-other@example.invalid';"),'0');
