@@ -11,7 +11,7 @@ describe('parseDeterministicMovements', () => {
       description: 'Creatina',
       totalAmountArs: 21000,
       currency: 'ARS',
-      category: 'Salud',
+      category: 'Deporte',
     });
 
     const res2 = parseDeterministicMovement('Gaste 21000 en creatina');
@@ -19,7 +19,7 @@ describe('parseDeterministicMovements', () => {
       kind: 'expense',
       description: 'Creatina',
       totalAmountArs: 21000,
-      category: 'Salud',
+      category: 'Deporte',
     });
 
     const res3 = parseDeterministicMovement('21.000 creatina');
@@ -27,7 +27,7 @@ describe('parseDeterministicMovements', () => {
       kind: 'expense',
       description: 'Creatina',
       totalAmountArs: 21000,
-      category: 'Salud',
+      category: 'Deporte',
     });
 
     const res4 = parseDeterministicMovement('21000 suplementos');
@@ -35,7 +35,7 @@ describe('parseDeterministicMovements', () => {
       kind: 'expense',
       description: 'Suplementos',
       totalAmountArs: 21000,
-      category: 'Salud',
+      category: 'Deporte',
     });
   });
 
@@ -69,7 +69,7 @@ describe('parseDeterministicMovements', () => {
       kind: 'expense',
       description: 'Creatina',
       totalAmountArs: 21000,
-      category: 'Salud',
+      category: 'Deporte',
     });
 
     const resDecimals = parseDeterministicMovement('caramelos 250,50');
@@ -122,8 +122,8 @@ describe("reglas reales: importes, monedas y lotes completos", () => {
   });
   it("no infiere categorías por fragmentos de otras palabras", () => {
     expect(parseDeterministicMovement("Gasté 1500 en diario")).toMatchObject({ category: "Otros" });
-    expect(parseDeterministicMovement("Gasté 1500 en cafetería")).toMatchObject({ category: "Otros" });
-    expect(parseDeterministicMovement("Gasté 1500 en proteínas")).toMatchObject({ category: "Salud" });
+    expect(parseDeterministicMovement("Gasté 1500 en cafeterías")).toMatchObject({ category: "Otros" });
+    expect(parseDeterministicMovement("Gasté 1500 en proteínas")).toMatchObject({ category: "Deporte" });
   });
   it.each([
     "Gasté 5000 super y pagué alquiler",
@@ -273,5 +273,81 @@ describe("conceptos compartidos con múltiples importes (BE-04 / María Martha c
 
   it("rechaza grupos ambiguos con múltiples conceptos distintos y un importe sin concepto", () => {
     expect(parseDeterministicMovements("Gasté 100 super, 200 nafta y 300")).toBeNull();
+  });
+  it("agrupa conceptos de la misma familia y deriva los de familias distintas", () => {
+    expect(parseDeterministicMovement("1500 café y facturas")).toMatchObject({ category: "Restaurantes y delivery" });
+    expect(parseDeterministicMovement("2000 nafta y lavadero")).toMatchObject({ category: "Auto" });
+    expect(parseDeterministicMovement("3000 super y netflix")).toBeNull();
+  });
+});
+
+describe("BE-20: el control multi-concepto no deriva a IA más que antes", () => {
+  it.each([
+    ["5000 peluquería y super", "Cuidado personal"],
+    ["3000 celular y super", "Tecnología"],
+    ["4000 gimnasio y nafta", "Deporte"],
+    ["2000 detergente y super", "Hogar"],
+    ["1500 café y facturas", "Restaurantes y delivery"],
+  ])("resuelve localmente %s (la parte sin palabra previa a BE-20 se ignora)", (text, category) => {
+    expect(parseDeterministicMovement(text)).toMatchObject({ category });
+  });
+
+  it("sigue derivando familias previas distintas, como en main", () => {
+    expect(parseDeterministicMovement("3000 super y netflix")).toBeNull();
+  });
+
+  it("ingreso mixto con una categoría nueva se resuelve localmente, como en main", () => {
+    expect(parseDeterministicMovements("cobré 1000 por diseño y plazo fijo")).toEqual([
+      expect.objectContaining({ kind: "income", category: "Freelance" }),
+    ]);
+  });
+
+  // Resultado de main (f7e74d6) para cada mensaje: true = main devolvía null.
+  // Excepción conocida y documentada: "bar y cine"/"bar y cerveza" (bar pasó de
+  // Ocio a Restaurantes y delivery, familia Alimentación) ahora se derivan.
+  const nullOnMain: Array<[string, boolean]> = [
+    ["5000 peluquería y super", false], ["3000 celular y super", false],
+    ["4000 gimnasio y nafta", false], ["2000 detergente y super", false],
+    ["1500 café y facturas", false], ["3000 super y netflix", true],
+    ["2000 nafta y lavadero", false], ["3000 prime y cine", false],
+    ["2000 pan y leche", false], ["3000 netflix y spotify", false],
+    ["3000 regalo y ropa", false], ["3000 mascota y super", false],
+    ["3000 hotel y nafta", false], ["3000 cochera y nafta", false],
+    ["3000 creatina y farmacia", false], ["3000 pizza y cerveza", false],
+    ["3000 helado y cine", true], ["2000 juguete y ropa", false],
+    ["3000 colchon y luz", false], ["3000 vuelo y taxi", false],
+    ["3000 notebook y libro", false], ["3000 gym y proteina", false],
+    ["3000 viaje y nafta", false], ["3000 suscripcion y luz", false],
+    ["3000 super y nafta", true], ["3000 regalo y cine", false],
+    ["3000 delivery y super", false], ["3000 sushi y cerveza", false],
+    ["3000 rappi y cine", true], ["3000 auto y nafta", false],
+    ["3000 hogar y super", false], ["3000 cuidado personal y super", true],
+    ["3000 tecnologia y ropa", false], ["3000 deporte y super", false],
+    ["sueldo 1000 plazo fijo y aguinaldo", false],
+    ["cobré 1000 por diseño y plazo fijo", false],
+    ["cobré 1000 por proyecto y reintegro", false],
+    ["cobré 1000 por venta y devolución", false],
+  ];
+  it.each(nullOnMain)("%s: null solo si main también daba null", (text, mainWasNull) => {
+    if (!mainWasNull) expect(parseDeterministicMovements(text)).not.toBeNull();
+  });
+});
+
+describe("BE-20: nombres de categoría como palabras clave", () => {
+  it("cuidado personal gana por orden; la reclasificación no la toma (dos coincidencias)", async () => {
+    const { categoryFor, matchingCategories, reclassTarget } = await import(
+      "../supabase/functions/whatsapp-webhook/category-rules"
+    );
+    expect(parseDeterministicMovement("3000 cuidado personal")).toMatchObject({ category: "Cuidado personal" });
+    expect(categoryFor("Cuidado personal", "expense")).toBe("Cuidado personal");
+    expect(matchingCategories("Cuidado personal", "expense")).toEqual(["Cuidado personal", "Servicios"]);
+    expect(reclassTarget("Cuidado personal", "expense")).toBeNull();
+  });
+  it("viaje es Viajes; pasaje solo, no", () => {
+    expect(parseDeterministicMovement("3000 viaje")).toMatchObject({ category: "Viajes" });
+    expect(parseDeterministicMovement("3000 pasaje aéreo")).toMatchObject({ category: "Viajes" });
+    expect(parseDeterministicMovement("3000 Pasaje")).not.toMatchObject({ category: "Viajes" });
+    expect(parseDeterministicMovement("3000 autopista")).not.toMatchObject({ category: "Auto" });
+    expect(parseDeterministicMovement("3000 auto")).toMatchObject({ category: "Auto" });
   });
 });

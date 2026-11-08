@@ -1,6 +1,11 @@
 import { hasUnparsedNumberWords } from "./spoken-amounts.ts";
 import type { ExtractedMovement } from "./movement-types.ts";
 import { looksLikeDraftCorrection } from "./draft-corrections.ts";
+import {
+  categoryFamily,
+  categoryFor,
+  hasLegacyKeyword,
+} from "./category-rules.ts";
 
 const normalize = (text: string) =>
   text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -66,53 +71,6 @@ function dateIn(text: string, today: string) {
     text: `${marker ? before.slice(0, marker.index) : before} ${after}`.trim(),
     occurredOn,
   };
-}
-
-function categoryFor(description: string, kind: "expense" | "income"): string {
-  const text = normalize(description);
-  const categories: Array<[string, RegExp]> = kind === "income"
-    ? [
-      ["Sueldo", /\b(sueldo|salario|haberes|quincena)\b/],
-      ["Freelance", /\b(freelance|diseno|proyecto|cliente)\b/],
-      ["Ventas", /\b(venta|mercadolibre)\b/],
-    ]
-    : [
-      [
-        "Alimentación",
-        /\b(super|supermercado|chango|coto|vea|dia|disco|carrefour|almacen|verduleria|carniceria|panaderia|comida|almuerzo|cena|merienda|desayuno|cafe|cafes|restaurant|restaurante|pedidosya|rappi|mcdonalds|mostaza|burger|helado|facturas|kiosco|caramelos)\b/,
-      ],
-      [
-        "Transporte",
-        /\b(nafta|combustible|ypf|shell|axion|uber|cabify|didi|taxi|colectivo|subte|tren|peaje|estacionamiento|cochera|sube)\b/,
-      ],
-      [
-        "Servicios",
-        /\b(luz|gas|agua|internet|wifi|fibertel|telecentro|flow|cable|claro|personal|movistar|expensas|edenor|edesur|metrogas)\b/,
-      ],
-      ["Vivienda", /\b(alquiler|inmobiliaria)\b/],
-      [
-        "Salud",
-        /\b(farmacia|remedio|medicamento|medico|doctor|dentista|odontologo|psicologo|consulta|analisis|creatina|suplementos?|proteinas?|optica)\b/,
-      ],
-      [
-        "Educación",
-        /\b(colegio|facultad|universidad|curso|taller|capacitacion|libro|apunte)\b/,
-      ],
-      [
-        "Ocio",
-        /\b(cine|teatro|boliche|recital|salida|bar|cerveza|juego|steam|playstation|netflix|spotify|disney|hbo|prime)\b/,
-      ],
-      [
-        "Compras",
-        /\b(ropa|zapatillas|remera|pantalon|shopping|zapatos|camisa|buzo|campera)\b/,
-      ],
-      [
-        "Impuestos",
-        /\b(afip|rentas|monotributo|arba|iibb|impuesto|tasa|patente)\b/,
-      ],
-      ["Deudas", /\b(prestamo|tarjeta|deuda)\b/],
-    ];
-  return categories.find(([, rule]) => rule.test(text))?.[0] ?? "Otros";
 }
 
 // Gramática conservadora: si queda un número/dato sin entender, se deriva el
@@ -225,11 +183,15 @@ export function parseDeterministicMovement(
     /\b(gaste|pague|compre|cobre|ingreso|ingresaron|recibi|me pagaron|me transfirieron)\b/
       .test(normalize(description))
   ) return null;
-  const concepts = description.split(/\s+y\s+/i).map((part) =>
-    categoryFor(part, kind)
-  );
+  // Conceptos de la misma familia (p. ej. Alimentación y Restaurantes) se agrupan.
+  // Solo cuentan las partes con una palabra clave que ya se reconocía antes de
+  // BE-20; las demás se ignoran como antes "Otros", para no usar más IA que hoy.
   const knownCategories = new Set(
-    concepts.filter((category) => category !== "Otros"),
+    description.split(/\s+y\s+/i)
+      .filter((part) => hasLegacyKeyword(part, kind))
+      .map((part) => categoryFor(part, kind))
+      .filter((category) => category !== "Otros")
+      .map((category) => categoryFamily(category, kind)),
   );
   if (knownCategories.size > 1) return null;
   const missingDescription = missingAmount && !description;

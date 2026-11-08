@@ -1,6 +1,36 @@
 import type { IconName } from './Icons';
 type CategoryVisual = { icon: IconName; color: string };
 const fallback: CategoryVisual = { icon: 'receipt', color: '#596d78' };
+// Categorías ampliadas (FE-24): estos valores se copian tal cual a la migración SQL.
+export const NEW_CATEGORY_VISUALS: Record<string, CategoryVisual> = {
+  'Restaurantes y delivery': { icon: 'utensils', color: '#ea580c' },
+  Suscripciones: { icon: 'repeat', color: '#6d28d9' },
+  Auto: { icon: 'wrench', color: '#292524' },
+  Hogar: { icon: 'sofa', color: '#3f6212' },
+  Tecnología: { icon: 'laptop', color: '#86198f' },
+  'Cuidado personal': { icon: 'sparkles', color: '#c026d3' },
+  Deporte: { icon: 'dumbbell', color: '#16a34a' },
+  Mascotas: { icon: 'paw', color: '#9a3412' },
+  Hijos: { icon: 'smile', color: '#65a30d' },
+  Viajes: { icon: 'plane', color: '#312e81' },
+  'Regalos y donaciones': { icon: 'gift', color: '#e11d48' },
+  Alquileres: { icon: 'key', color: '#147c5b' },
+  Reintegros: { icon: 'refresh', color: '#147c5b' },
+  Regalos: { icon: 'gift', color: '#147c5b' },
+  'Jubilación y asignaciones': { icon: 'wallet', color: '#147c5b' },
+};
+const normalize = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+// Se evalúan antes que las reglas históricas a propósito: las categorías nuevas (p. ej. Auto,
+// Deporte, Hogar) tienen visual propio aunque antes resolvieran por alias (Auto -> car, etc.).
+// Las categorías sembradas y el resto de los alias conservan su visual.
+const newCategories: Array<[RegExp, CategoryVisual]> = Object.entries(NEW_CATEGORY_VISUALS).map(
+  ([name, visual]) => [new RegExp('^' + normalize(name) + '$'), visual],
+);
 const categories: Array<[RegExp, CategoryVisual]> = [
   [/^(compras|ropa|indumentaria)$/, { icon: 'bag', color: '#655ad8' }],
   [/^(supermercado|alimentacion|comida|comidas|super|despensa)$/, { icon: 'cart', color: '#147c5b' }],
@@ -15,12 +45,10 @@ const categories: Array<[RegExp, CategoryVisual]> = [
 ];
 // Solo presentación: no modifica nombres, categorías guardadas ni agrupación financiera.
 export function categoryVisual(category: string): CategoryVisual {
-  const normalized = category
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
-  return categories.find(([pattern]) => pattern.test(normalized))?.[1] ?? fallback;
+  const normalized = normalize(category);
+  return (
+    [...newCategories, ...categories].find(([pattern]) => pattern.test(normalized))?.[1] ?? fallback
+  );
 }
 export function movementVisual(category: string, kind: 'expense' | 'income') {
   const visual =

@@ -18,6 +18,7 @@ import {
   OperationalFailure,
   providerFailure,
 } from "./failures.ts";
+import { categoryPromptLines } from "./category-rules.ts";
 import { writeOperationalLog } from "./logging.ts";
 import {
   buildStrictSchema,
@@ -197,8 +198,7 @@ REGLAS PARA OPERACIONES ("movements"):
 - CONCEPTO COMPARTIDO: Si el usuario menciona dos o más importes para un mismo concepto o servicio (ej: "10800 y 11300 en Uber", "gasté 5000 y 8000 de nafta", "ayer pagué 1200 y 3400 de peajes"), asigná ese mismo concepto y su categoría a TODOS los movimientos extraídos. NUNCA uses "Concepto pendiente" ni "Gasto general" si la frase indica un concepto para el conjunto.
 - MONEDA Y MONTOS: Solo ARS (pesos argentinos) y USD (dólares estadounidenses). "Dólares" o u$s sin otro calificador significan USD; sin indicación de moneda, ARS. Si menciona una moneda distinta o contradictoria, devolvé intent="unknown" y movements=[]: no la conviertas ni la reemplaces por ARS/USD. Interpretá "lucas" y "k" como miles de ARS (ej: "20 lucas" = 20000, "5k" = 5000). Admití montos con decimales (centavos), ej: "10000,50" o "10000.50" = 10000.5.
 - CATEGORÍAS:
-  * Gasto: Alimentación, Transporte, Vivienda, Servicios, Salud, Educación, Ocio, Compras, Impuestos, Deudas, Otros.
-  * Ingreso: Sueldo, Freelance, Ventas, Rendimientos, Otros.
+${categoryPromptLines()}
 - CUOTAS: Si es en cuotas, indicá installments y firstInstallmentMonth. De lo contrario installments = 1.
 - FALTANTES Y DUDAS: Si una operación tiene importe, concepto/comercio y fecha, está COMPLETA: asignale la categoría más adecuada (o "Otros"), confidence=0.95, missingFields=[] y dejá clarification en null. NO agregues "review" en missingFields ni generes dudas innecesarias en comprobantes o facturas válidas. Solo usá missingFields=["amount"] si falta el importe, missingFields=["description"] si no hay concepto, o missingFields=["review"] si el mensaje/comprobante es completamente incomprensible.
 - COMPROBANTES: Si el usuario envía una imagen de un comprobante o ticket, interpretalo como UNA sola operación por el total del ticket; no dividas sus productos individuales. Si la imagen muestra varios comprobantes separados, extraé cada uno como una operación independiente.

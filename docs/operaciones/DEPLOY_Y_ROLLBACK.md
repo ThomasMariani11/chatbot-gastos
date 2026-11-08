@@ -12,6 +12,10 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
+## Contrato candidato 048 (FE-24 / BE-20 categorías) — 07/11/2026
+
+Contrato candidato en rama `feat/categorias-ampliadas`: mínimo **048**, rollback fijado en **f7e74d684ebbad41589e15c1a14e7ab7e8146207** (#88, mínimo **046**). 047 es expansiva (catálogo de categorías ampliado y alta con 31); 048 solo instala la reclasificación reversible (tablas `category_reclass_rules` / `category_reclass_log` y funciones `category_reclass_target`, `category_reclass_candidates`, `category_reclass_preview`, `category_reclass_apply`, `category_reclass_revert`), sin cron nuevo ni datos reclasificados. Como el mínimo del contrato es 048, el orden de publicación es: 047 + 048 → webhook → PWA → vista previa → revisión del propietario → aplicar la reclasificación (con nueva autorización). Rollback: conservar 047/048 y sus datos (sin down); la reclasificación se deshace únicamente con `category_reclass_revert`. Si #88 (f7e74d6) no fue publicado, el propietario debe elegir el último commit publicado como rollback antes de publicar. Sin aplicar ni publicar.
+
 ## Contrato candidato 046 (FE-25 / NOTIF-01 push) — 05/11/2026
 
 Publicado el 05/11/2026 (ver cabecera). Contrato: mínimo **046**, rollback fijado en **769b5b37937f26f4b92d9ca9610827c9c022c8c0** (mínimo 044). Orden sugerido: (1) generar un par VAPID; guardar `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY` y `VAPID_SUBJECT` como secretos Edge y la pública en `config/environments.json → production.vapidPublicKey`; (2) aplicar 045 y 046; (3) desplegar el webhook; (4) publicar la PWA. Sin VAPID el webhook responde 503 a `client-push` y los avisos quedan pendientes; sin la clave pública en la PWA el control de notificaciones no se muestra. Rollback: conservar 045/046 y sus datos; para frenar envíos, `select cron.unschedule('pesito-client-push')`. El runtime anterior no conoce la ruta: el cron recibiría un error, no envía nada. Aplicado y publicado el 05/11/2026.
@@ -143,6 +147,41 @@ El checkout está vinculado a producción (`supabase/.temp/project-ref`) y la CL
    - desplegar;
    - ejecutar `Remove-Item Env:SUPABASE_ACCESS_TOKEN` y cerrar la terminal.
 4. Rotar el token periódicamente o ante cualquier sospecha.
+
+## Reclasificación de categorías (047 / 048) — candidato en rama, 07/11/2026
+
+Estado: **implementado en la rama `feat/categorias-ampliadas`, sin publicar.** No hay nada aplicado en producción. Diseño y plan: [diseño](../superpowers/specs/2026-11-07-categorias-ampliadas-design.md) · [plan](../superpowers/plans/2026-11-07-categorias-ampliadas.md).
+
+**Qué contiene:**
+
+- **047** (expansiva): agrega 15 categorías (11 de gasto y 4 de ingreso) a todas las cuentas existentes con `on conflict do nothing` y redefine `bootstrap_user` para crear y verificar 31. La PWA y el webhook actuales siguen funcionando con ella aplicada.
+- **048**: solo **instala** la tabla de reglas `category_reclass_rules` (copia de `category-rules.ts`, con paridad verificada por test), la tabla de registro `category_reclass_log` y las funciones `category_reclass_target`, `category_reclass_candidates`, `category_reclass_preview`, `category_reclass_apply` y `category_reclass_revert`. **No mueve datos al aplicarse.** Las funciones son `SECURITY DEFINER` y están revocadas para `anon`, `authenticated` y `service_role`: solo se ejecutan por la vía de SQL de producción autorizada por el propietario, protegida por el diálogo del hook `guard-supabase.mjs` (ver "Barreras locales del agente").
+
+**Orden de publicación (cada paso con autorización explícita del propietario para esa acción):**
+
+1. Aplicar 047 y 048 (048 solo instala; el contrato candidato exige mínimo 048 antes de publicar webhook y PWA).
+2. Desplegar el webhook (`category-rules.ts`, `gemini.ts`, `local-movements.ts`).
+3. Publicar la PWA (`categoryVisuals.ts`, `Icons.tsx`).
+4. Ejecutar la vista previa: `select * from public.category_reclass_preview();`. Devuelve cantidades por par origen → destino, sin conceptos ni datos de clientes. Las cantidades **incluyen las filas cabecera** de los planes en cuotas (además de sus cuotas), así que la suma de `movements` es exactamente el valor que espera `category_reclass_apply`.
+5. El propietario revisa las cantidades. Si algo no cierra, no se aplica.
+6. Con **nueva autorización**, ejecutar `select * from public.category_reclass_apply(<total>);`, donde `<total>` es la suma de `movements` de la vista previa revisada. Guardar el `run_id` que devuelve en la evidencia de la operación.
+
+**Garantías de `category_reclass_apply`:**
+
+- Exige el total esperado: con `p_expected` nulo o negativo aborta con `RECLASS_EXPECTED_REQUIRED`. Si los candidatos actuales difieren, aborta con `RECLASS_EXPECTED_MISMATCH` sin mover ni registrar nada: repetir la vista previa y volver a revisar.
+- Si un cliente editó un plan mientras corría, aborta con `RECLASS_CONCURRENT_CHANGE` y no se mueve nada (un plan en cuotas nunca queda partido). Reintentar después de una vista previa nueva.
+- Es idempotente: una segunda ejecución no encuentra candidatos.
+- Dentro de un plan que se mueve, las cuotas en estado `cancelled` o `pending` no son candidatas y **conservan su categoría anterior** (el cliente no las ve, así que no hay inconsistencia visible).
+
+**Reversión de la reclasificación:** `select public.category_reclass_revert('<run_id>');`. Restaura la categoría anterior **solo** de las filas que siguen en la categoría de destino; no pisa ediciones posteriores del cliente. Devuelve la cantidad restaurada. Con `run_id` nulo aborta con `RECLASS_RUN_REQUIRED`.
+
+**Rollback compatible:**
+
+- Revertir la PWA no revierte SQL ni webhook, y no deshace una reclasificación ya aplicada.
+- 047 es expansiva: con la PWA o el webhook anteriores, las categorías extra no rompen nada. No se editan migraciones ya aplicadas; cualquier corrección va en una migración nueva.
+- Los movimientos reclasificados se deshacen solo con `category_reclass_revert`.
+
+**Limitaciones:** la vista previa y la reclasificación se probaron en PGlite con datos ficticios; no hay verificación contra producción hasta que el propietario autorice cada paso. Los borradores pendientes de WhatsApp y las filas `pending` (incluidas las v1 históricas) no se tocan.
 
 ## Registro previo y contrato
 
