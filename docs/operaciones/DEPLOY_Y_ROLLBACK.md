@@ -1,6 +1,10 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
-## Última publicación observada — 05/11/2026 (FE-25 / NOTIF-01)
+## Última publicación observada — 08/11/2026 (FE-24 / BE-20)
+
+PWA **61fa83db0cba53e8591fd2fbb87173eedc1330ce** (PR #89), SQL **001–048**, webhook **v72 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR → Pages con `version.json` = 61fa83d (la PWA salió antes que el SQL; compatible) → IP actual agregada a Network Restrictions por el propietario (el pooler rechazaba la conexión) → `db push --linked --dry-run` (solo 047 y 048) → `db push --linked` → verificación (4 cuentas × 31 categorías, 29 reglas, registro vacío, funciones sin acceso para anon/authenticated) → deploy del webhook desde 61fa83d → smoke 401 en `/`, `worker` y `client-push` → vista previa (16) revisada por el propietario → `category_reclass_apply(16)`: 16 movidos, `run_id` **29036e58-c4f5-42b6-b69c-8a5ba0239d60**, vista previa posterior 0. Cola v2 habilitada y sin leases antes del cambio. Rollback: PWA y webhook a f7e74d6 / v71 conservando 047/048; reclasificación con `select public.category_reclass_revert('29036e58-c4f5-42b6-b69c-8a5ba0239d60');`. Aceptación manual en el celular realizada por el propietario el 09/11/2026.
+
+## Registro histórico — 05/11/2026 (FE-25 / NOTIF-01)
 
 PWA **bb14ace67e5e5e5003316d68bf822fafe4f8489a** (PR #81), SQL **001–046**, webhook **v71 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: secretos VAPID (privada solo en Edge) → `db push --linked` con dry-run previo (solo 045 y 046) → deploy del webhook desde 48b184f → smoke 401 en `/`, `worker` y `client-push` → merge de la PR → Pages con `version.json` = bb14ace. Cola v2 habilitada y sin leases activos antes y después; los 8 trabajos v1 históricos pendientes no se tocaron. Aceptación en celular pendiente.
 
@@ -148,9 +152,9 @@ El checkout está vinculado a producción (`supabase/.temp/project-ref`) y la CL
    - ejecutar `Remove-Item Env:SUPABASE_ACCESS_TOKEN` y cerrar la terminal.
 4. Rotar el token periódicamente o ante cualquier sospecha.
 
-## Reclasificación de categorías (047 / 048) — candidato en rama, 07/11/2026
+## Reclasificación de categorías (047 / 048) — publicada 08/11/2026
 
-Estado: **implementado en la rama `feat/categorias-ampliadas`, sin publicar.** No hay nada aplicado en producción. Diseño y plan: [diseño](../superpowers/specs/2026-11-07-categorias-ampliadas-design.md) · [plan](../superpowers/plans/2026-11-07-categorias-ampliadas.md).
+Estado: **publicado y aplicado el 08/11/2026** (ver "Última publicación observada"). El procedimiento de abajo se conserva para referencia y para una eventual reversión. Diseño y plan: [diseño](../superpowers/specs/2026-11-07-categorias-ampliadas-design.md) · [plan](../superpowers/plans/2026-11-07-categorias-ampliadas.md).
 
 **Qué contiene:**
 
