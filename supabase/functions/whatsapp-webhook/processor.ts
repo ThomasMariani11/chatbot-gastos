@@ -1,3 +1,4 @@
+import { BOT_MESSAGES } from "./bot-messages.ts";
 import { formatOverLimitReply } from "./draft-summary.ts";
 import { buildPendingEdit, parsePendingEdit } from "./draft-edit.ts";
 import { formatMonthlySnapshot } from "./monthly-summary.ts";
@@ -90,7 +91,7 @@ export async function prepareMessage(
   );
   if (query === "clarify") {
     return reply(
-      "No agregué ni modifiqué movimientos de este mensaje. Mandame el gasto o ingreso y la consulta por separado. Si solo querías cargar un movimiento, indicá el concepto y el importe. Tu lista pendiente se conserva; podés verla con RESUMEN.",
+      BOT_MESSAGES.mixedQuery,
     );
   }
   if (query === "commercial") {
@@ -122,7 +123,7 @@ export async function prepareMessage(
   // Verificar compatibilidad de mensaje antes de consultar el borrador en la base de datos.
   if (!text && !message.image?.id && !message.audio?.id) {
     return reply(
-      "Este tipo de mensaje no es compatible. Podés enviar texto, audio o una foto.",
+      BOT_MESSAGES.unsupportedType,
     );
   }
 
@@ -310,7 +311,7 @@ export async function prepareMessage(
             intent: "clarify_completion",
             movements: [],
             completionReply:
-              "No pude aplicar las modificaciones a la lista. Revisala con RESUMEN.",
+              BOT_MESSAGES.changeFailed,
           };
         }
       }
@@ -321,30 +322,30 @@ export async function prepareMessage(
   const requestText = () =>
     reply(
       result?.requestTextReason === "quota"
-        ? 'Llegamos al cupo diario de interpretación automática. Tus pendientes se conservan. Pasame el gasto o ingreso en texto simple, por ejemplo: "Gasté 1500 en supermercado". Podés seguir revisando, confirmando o cancelando tu lista. No cargué movimientos de este mensaje.'
+        ? BOT_MESSAGES.aiQuota
         : result?.requestTextReason === "size"
-        ? "El archivo es demasiado grande. Podés mandar una foto de hasta 5 MiB o un audio de hasta 10 MiB, o escribirme el concepto y el monto. No cargué movimientos de ese archivo."
+        ? BOT_MESSAGES.fileTooLarge
         : result?.requestTextReason === "type"
-        ? "No puedo leer ese formato de archivo. Mandame una foto JPG/PNG o escribime el gasto o ingreso con el concepto y el monto. No cargué movimientos de ese archivo."
+        ? BOT_MESSAGES.fileFormat
         : message.audio?.id
-        ? 'No pude interpretar tu audio. Escribime el gasto o ingreso con el concepto y el monto, por ejemplo: "Gasté 1500 en supermercado". Si eran varios, mandalos todos en texto. Todavía no cargué nada de ese audio.'
+        ? BOT_MESSAGES.audioUnclear
         : message.image?.id
-        ? "No pude interpretar la imagen. Escribime el gasto o ingreso con el concepto y el monto. Si eran varios, mandalos todos en texto. Todavía no cargué nada de esa imagen."
-        : 'No pude interpretar todos los datos. Escribime el gasto o ingreso con el concepto y el monto, por ejemplo: "Gasté 1500 en supermercado". Si eran varios, mandalos todos en texto. No cargué nada de ese mensaje.',
+        ? BOT_MESSAGES.imageUnclear
+        : BOT_MESSAGES.textUnclear,
     );
   switch (result.intent) {
     case "edit_pending":
       return result.pendingEdit ??
-        reply("No pude aplicar la corrección. Revisá tu lista con RESUMEN.");
+        reply(BOT_MESSAGES.changeFailed);
     case "complete_item":
       return result.completion ??
         reply(
-          "Indicá el movimiento y el dato faltante. No modifiqué la lista.",
+          BOT_MESSAGES.completionUnclear,
         );
     case "clarify_completion":
       return reply(
         result.completionReply ??
-          "Indicá el movimiento y el dato faltante. No modifiqué la lista.",
+          BOT_MESSAGES.completionUnclear,
       );
     case "request_text":
       return requestText();
@@ -367,12 +368,12 @@ export async function prepareMessage(
           positions,
         };
       }
-      return reply("Indicame el número del movimiento que querés quitar.");
+      return reply(BOT_MESSAGES.removeWithoutNumber);
     }
     case "edit_item":
       // Checkpoint anterior al contrato versionado: no reinterpretar su destino.
       return reply(
-        "Revisá la lista con RESUMEN y repetí la corrección indicando el número y el dato. No modifiqué la lista.",
+        BOT_MESSAGES.changeFailed,
       );
     case "add_movements":
       if (result.movements?.length > 20) {
@@ -380,7 +381,7 @@ export async function prepareMessage(
       }
       if (correctionIntent) {
         return reply(
-          'No pude identificar qué cambiar. Indicá el número y el dato a corregir, por ejemplo: "El 2 fue de 250". No agregué movimientos ni modifiqué la lista.',
+          BOT_MESSAGES.editUnclear,
         );
       }
       try {

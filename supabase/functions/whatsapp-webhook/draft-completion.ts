@@ -1,3 +1,4 @@
+import { BOT_MESSAGES } from "./bot-messages.ts";
 import { parseDraftCorrection } from "./draft-corrections.ts";
 import { parseDeterministicMovements } from "./local-movements.ts";
 import {
@@ -26,7 +27,7 @@ export type CompletionAction = {
 const clarify = () => ({
   kind: "reply" as const,
   text:
-    'Indicá un movimiento y el dato que falta: "El 2 fue de 5000", "El 2 fecha 2026-10-26" o "El 2 concepto farmacia". Para aclararlo completo: "El 2: gasté 5000 en farmacia". No modifiqué la lista.',
+    BOT_MESSAGES.completionUnclear,
 });
 export function parseDraftCompletion(
   raw: string,

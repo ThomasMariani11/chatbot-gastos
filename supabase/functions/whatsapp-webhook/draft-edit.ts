@@ -1,3 +1,4 @@
+import { BOT_MESSAGES } from "./bot-messages.ts";
 import {
   looksLikeDraftCorrection,
   parseDraftCorrection,
@@ -32,7 +33,7 @@ const norm = (s: string) =>
 const clarify = () => ({
   kind: "reply" as const,
   text:
-    'Indicá el número y el cambio: "El 2 fue de 250", "El 2 concepto farmacia", "El 2 categoría Salud", "El 2 moneda USD", "El 2 fecha 2026-10-26" o "El 2 cuotas 3 desde 2026-11". Para varios cambios: "El 2: importe 250; moneda USD". No agregué movimientos. No modifiqué la lista.',
+    BOT_MESSAGES.editUnclear,
 });
 export function buildPendingEdit(
   position: number,
@@ -50,7 +51,7 @@ export function buildPendingEdit(
     return {
       kind: "reply",
       text:
-        "No encontré ese movimiento pendiente en la lista actual. Revisala con RESUMEN; no modifiqué nada.",
+        BOT_MESSAGES.itemNotFound,
     };
   }
   const keys = Object.keys(patch),

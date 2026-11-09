@@ -218,7 +218,7 @@ Deno.test("una corrección incompleta no modifica ni se convierte en gasto", asy
   };
   const result = await prepareMessage(db, input, () => Promise.resolve());
   assert(
-    result.kind === "reply" && String(result.text).includes("No agregué"),
+    result.kind === "reply" && String(result.text).includes('"el 2 fue de 250"'),
     "Una respuesta IA inválida agregó un gasto",
   );
 });
@@ -230,7 +230,7 @@ Deno.test("dos correcciones juntas piden aclarar y conservan la lista", async ()
     () => Promise.resolve(),
   );
   assert(
-    result.kind === "reply" && String(result.text).includes("No modifiqué"),
+    result.kind === "reply" && String(result.text).includes('"el 2 fue de 250"'),
     "Se aceptó parcialmente una instrucción ambigua",
   );
 });
@@ -260,7 +260,7 @@ Deno.test("audio: descarga fallida pide texto con checkpoint, sin interpretació
       return Promise.resolve();
     });
     assert(
-      result.kind === "reply" && String(result.text).includes("Escribime"),
+      result.kind === "reply" && String(result.text).includes("🎧"),
       "No pidió texto",
     );
     assert(
@@ -459,8 +459,8 @@ Deno.test("audio: 503 en ambos modelos conserva checkpoint y pide texto sin rein
       return Promise.resolve();
     });
     assert(
-      result.kind === "reply" && String(result.text).includes("Escribime") &&
-        String(result.text).includes("Todavía no cargué"),
+      result.kind === "reply" && String(result.text).includes("No logré entender el audio") &&
+        String(result.text).includes('👉 "Gasté 1500 en súper"'),
       "No pidió reemplazo textual",
     );
     assert(
@@ -582,7 +582,7 @@ Deno.test("audio: ruido pide texto y operaciones incompletas se conservan junto 
         continue;
       }
       assert(
-        result.kind === "reply" && String(result.text).includes("Escribime"),
+        result.kind === "reply" && String(result.text).includes('👉 "Gasté 1500 en súper"'),
         "No pide texto",
       );
       assert(
@@ -751,7 +751,7 @@ Deno.test("multimedia: tamaño declarado excesivo pide texto sin descargar ni in
     });
     assert(
       calls === 1 && action.kind === "reply" &&
-        String(action.text).includes("5 MiB"),
+        String(action.text).includes("5 MB"),
       "No cortó antes de descargar",
     );
     assert(
@@ -1177,7 +1177,7 @@ Deno.test("caption de imagen no ejecuta un comando local ni omite el comprobante
         () => Promise.resolve(),
       );
       assert(
-        action.kind === "reply" && String(action.text).includes("imagen") &&
+        action.kind === "reply" && String(action.text).includes("foto") &&
           calls === 1,
         "Caption confirmó movimientos sin procesar la imagen",
       );
@@ -1488,9 +1488,9 @@ Deno.test("UTF-8 y normalización de montos hablados de Whisper", async () => {
   ]);
   assert(
     summary.includes("Tenés 1 movimiento") &&
-      summary.includes("1. 🔴 Panadería ·") &&
-      summary.includes("Podés seguir agregando") &&
-      summary.includes('("quitá el 2")') &&
+      summary.includes("1. *Gasto* Panadería —") &&
+      summary.includes("*CONFIRMAR*") &&
+      summary.includes('"quitá el 1"') &&
       !summary.includes("\u00c3") &&
       !summary.includes("\u00f0\u0178"),
     "El resumen de borrador tiene caracteres UTF-8 corruptos",
@@ -1765,7 +1765,7 @@ Deno.test("BE-04: contexto ambiguo y 503 no habilitan propuestas locales parcial
         );
         assert(
           action.kind === "reply" &&
-            String(action.text).includes("No cargué nada") &&
+            String(action.text).includes("No terminé de entender") &&
             calls === before + (unavailable ? 2 : 1),
           "Aceptó un alta local ambigua o ignoró el error",
         );
@@ -1944,8 +1944,8 @@ Deno.test("BE-05: mezcla y ambigüedad piden aclarar sin tocar ni reinterpretar 
       });
       assert(
         result.kind === "reply" && Object.keys(result).length === 2 &&
-          String(result.text).includes("No agregué ni modifiqué") &&
-          String(result.text).includes("RESUMEN"),
+          String(result.text).includes("por separado") &&
+          String(result.text).includes("Tu lista sigue igual"),
         "La aclaración creó un efecto o limpió el resumen pendiente",
       );
       assert(
@@ -2478,7 +2478,7 @@ Deno.test("BE-08: un proveedor no puede fabricar una intención interna de compl
       () => Promise.resolve(),
     );
     assert(
-      result.kind === "reply" && String(result.text).includes("No cargué"),
+      result.kind === "reply" && String(result.text).includes('👉 "Gasté 1500 en súper"'),
       "El proveedor obtuvo un atajo de escritura",
     );
   } finally {
@@ -2524,7 +2524,7 @@ for (const status of [429, 503]) {
         });
         assert(
           first.kind === "reply" &&
-            String(first.text).includes("No cargué nada"),
+            String(first.text).includes('👉 "Gasté 1500 en súper"'),
           "No aclaró que el mensaje no se cargó",
         );
         assert(
@@ -2652,8 +2652,8 @@ Deno.test("INF-15: reserva Qwen antes de HTTP, agotamiento persistido y sin repe
       gate,
     );
     assert(
-      first.kind === "reply" && String(first.text).includes("cupo diario") &&
-        String(first.text).includes("pendientes se conservan"),
+      first.kind === "reply" && String(first.text).includes("llegué a mi límite") &&
+        String(first.text).includes("Tus pendientes siguen ahí"),
       "No dio una salida local al cliente",
     );
     assert(
@@ -3265,7 +3265,7 @@ Deno.test("BE-12: un checkpoint de edición antiguo pide repetir sin adivinar de
   });
   assert(
     result.kind === "reply" &&
-      String(result.text).includes("repetí la corrección"),
+      String(result.text).includes("probá de nuevo"),
     "Checkpoint sin versión modificó la lista",
   );
 });
@@ -3300,8 +3300,8 @@ for (const count of [21, 101]) {
         );
         assert(
           action.kind === "reply" &&
-            String(action.text).includes("Recibí " + count + " movimientos") &&
-            String(action.text).includes("No agregué ninguno"),
+            String(action.text).includes("Me mandaste " + count) &&
+            String(action.text).includes("hasta 20 por lista"),
           "Excedente truncado o retenido sin salida",
         );
         assert(
@@ -3445,7 +3445,7 @@ Deno.test("BE-18: consolida system_config en 1 consulta .in(), paraleliza contex
   );
   assert(
     incompatibleRes.kind === "reply" &&
-      String(incompatibleRes.text).includes("no es compatible"),
+      String(incompatibleRes.text).includes("no lo puedo leer"),
     "Mensaje incompatible no rechazado",
   );
   assert(

@@ -1,3 +1,4 @@
+import { BOT_MESSAGES } from '../supabase/functions/whatsapp-webhook/bot-messages';
 import { describe, expect, it } from 'vitest';
 import { formatSupportContact, resolveActorAccess } from '../supabase/functions/whatsapp-webhook/context-repository';
 import { extractFromGemini, multiResponseJsonSchema } from '../supabase/functions/whatsapp-webhook/gemini';
@@ -212,7 +213,7 @@ describe('BE-18: Separación de responsabilidades y reducción de llamadas remot
     const incompatibleReply = await prepareMessage(db, stickerJob, async () => {});
     expect(incompatibleReply).toEqual({
       kind: 'reply',
-      text: 'Este tipo de mensaje no es compatible. Podés enviar texto, audio o una foto.',
+      text: BOT_MESSAGES.unsupportedType,
     });
     expect(draftReads).toBe(0);
   });

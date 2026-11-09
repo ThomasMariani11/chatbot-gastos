@@ -16,6 +16,10 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
+## Contrato candidato 049 (textos del bot más cercanos) — 09/11/2026
+
+Rama `feat/mensajes-bot-cercanos`: mínimo **049**, rollback fijado en **fbbad78d801d6f9869f07b4776b776198d486435** (main publicado: PWA 61fa83d + docs, webhook v72; mínimo **048**). 049 solo reemplaza textos de respuesta en `apply_whatsapp_job`, `next_whatsapp_job` y `whatsapp_over_limit_reply` (reemplazo verificado del texto anterior, sin cambiar lógica ni permisos); aborta sin cambios si la definición vigente no contiene exactamente los textos esperados. Orden: 049 → webhook → PWA (la PWA no cambia en lo funcional). Rollback: conservar 049 (el runtime anterior funciona igual; solo verá los textos nuevos en las respuestas generadas por SQL). Sin aplicar ni publicar.
+
 ## Contrato candidato 048 (FE-24 / BE-20 categorías) — 07/11/2026
 
 Contrato candidato en rama `feat/categorias-ampliadas`: mínimo **048**, rollback fijado en **f7e74d684ebbad41589e15c1a14e7ab7e8146207** (#88, mínimo **046**). 047 es expansiva (catálogo de categorías ampliado y alta con 31); 048 solo instala la reclasificación reversible (tablas `category_reclass_rules` / `category_reclass_log` y funciones `category_reclass_target`, `category_reclass_candidates`, `category_reclass_preview`, `category_reclass_apply`, `category_reclass_revert`), sin cron nuevo ni datos reclasificados. Como el mínimo del contrato es 048, el orden de publicación es: 047 + 048 → webhook → PWA → vista previa → revisión del propietario → aplicar la reclasificación (con nueva autorización). Rollback: conservar 047/048 y sus datos (sin down); la reclasificación se deshace únicamente con `category_reclass_revert`. Si #88 (f7e74d6) no fue publicado, el propietario debe elegir el último commit publicado como rollback antes de publicar. Sin aplicar ni publicar.
