@@ -218,7 +218,7 @@ Deno.test("una corrección incompleta no modifica ni se convierte en gasto", asy
   };
   const result = await prepareMessage(db, input, () => Promise.resolve());
   assert(
-    result.kind === "reply" && String(result.text).includes("No agregué"),
+    result.kind === "reply" && String(result.text).includes('"el 2 fue de 250"'),
     "Una respuesta IA inválida agregó un gasto",
   );
 });
@@ -260,7 +260,7 @@ Deno.test("audio: descarga fallida pide texto con checkpoint, sin interpretació
       return Promise.resolve();
     });
     assert(
-      result.kind === "reply" && String(result.text).includes("Escribime"),
+      result.kind === "reply" && String(result.text).includes("🎧"),
       "No pidió texto",
     );
     assert(
@@ -459,8 +459,8 @@ Deno.test("audio: 503 en ambos modelos conserva checkpoint y pide texto sin rein
       return Promise.resolve();
     });
     assert(
-      result.kind === "reply" && String(result.text).includes("Escribime") &&
-        String(result.text).includes("Todavía no cargué"),
+      result.kind === "reply" && String(result.text).includes("No logré entender el audio") &&
+        String(result.text).includes('👉 "Gasté 1500 en súper"'),
       "No pidió reemplazo textual",
     );
     assert(
@@ -582,7 +582,7 @@ Deno.test("audio: ruido pide texto y operaciones incompletas se conservan junto 
         continue;
       }
       assert(
-        result.kind === "reply" && String(result.text).includes("Escribime"),
+        result.kind === "reply" && String(result.text).includes('👉 "Gasté 1500 en súper"'),
         "No pide texto",
       );
       assert(
@@ -751,7 +751,7 @@ Deno.test("multimedia: tamaño declarado excesivo pide texto sin descargar ni in
     });
     assert(
       calls === 1 && action.kind === "reply" &&
-        String(action.text).includes("5 MiB"),
+        String(action.text).includes("5 MB"),
       "No cortó antes de descargar",
     );
     assert(
@@ -1177,7 +1177,7 @@ Deno.test("caption de imagen no ejecuta un comando local ni omite el comprobante
         () => Promise.resolve(),
       );
       assert(
-        action.kind === "reply" && String(action.text).includes("imagen") &&
+        action.kind === "reply" && String(action.text).includes("foto") &&
           calls === 1,
         "Caption confirmó movimientos sin procesar la imagen",
       );
@@ -1765,7 +1765,7 @@ Deno.test("BE-04: contexto ambiguo y 503 no habilitan propuestas locales parcial
         );
         assert(
           action.kind === "reply" &&
-            String(action.text).includes("No cargué nada") &&
+            String(action.text).includes("No terminé de entender") &&
             calls === before + (unavailable ? 2 : 1),
           "Aceptó un alta local ambigua o ignoró el error",
         );
@@ -2478,7 +2478,7 @@ Deno.test("BE-08: un proveedor no puede fabricar una intención interna de compl
       () => Promise.resolve(),
     );
     assert(
-      result.kind === "reply" && String(result.text).includes("No cargué"),
+      result.kind === "reply" && String(result.text).includes('👉 "Gasté 1500 en súper"'),
       "El proveedor obtuvo un atajo de escritura",
     );
   } finally {
@@ -2524,7 +2524,7 @@ for (const status of [429, 503]) {
         });
         assert(
           first.kind === "reply" &&
-            String(first.text).includes("No cargué nada"),
+            String(first.text).includes('👉 "Gasté 1500 en súper"'),
           "No aclaró que el mensaje no se cargó",
         );
         assert(
@@ -3265,7 +3265,7 @@ Deno.test("BE-12: un checkpoint de edición antiguo pide repetir sin adivinar de
   });
   assert(
     result.kind === "reply" &&
-      String(result.text).includes("repetí la corrección"),
+      String(result.text).includes("probá de nuevo"),
     "Checkpoint sin versión modificó la lista",
   );
 });
