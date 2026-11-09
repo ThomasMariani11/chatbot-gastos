@@ -1060,9 +1060,9 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 
 Leer cada bloque completo y evidencia reciente; no tomar el encabezado histórico del plan como única fuente de estado.
 
-### 16.4. Textos del bot más cercanos — en rama, sin publicar (09/11/2026)
+### 16.4. Textos del bot más cercanos — publicado 09/11/2026
 
-Rama `feat/mensajes-bot-cercanos`. El propietario aprobó un estilo cercano y legible (una idea por mensaje, un ejemplo con 👉, saltos de línea, sin "No modifiqué la lista" ni términos técnicos) para: lista de movimientos, correcciones mal indicadas, límite de 20 y audio/foto/mensajes no entendidos. La lista pasa a un renglón por movimiento: `1. *Gasto* Súper — $ 1.500 · Alimentación · hoy` (tipo escrito en negrita, fechas "hoy/ayer/dd/mm", sin "Cat:" ni "[USD]", cuotas "en 12 cuotas desde dic."). Textos centralizados en `supabase/functions/whatsapp-webhook/bot-messages.ts`; los que genera SQL están en la migración 049 con paridad verificada en `tests/durable-queue.test.ts`. Confirmar, cancelar, renovación, vinculación y el mensaje de categoría inexistente no cambiaron.
+**Publicado:** PR #91 en `main` (`4ba7f79`), PWA en GitHub Pages, SQL **001–049** aplicado, webhook **v73 ACTIVE**. Aceptación manual en WhatsApp pendiente. El propietario aprobó un estilo cercano y legible (una idea por mensaje, un ejemplo con 👉, saltos de línea, sin "No modifiqué la lista" ni términos técnicos) para: lista de movimientos, correcciones mal indicadas, límite de 20 y audio/foto/mensajes no entendidos. La lista pasa a un renglón por movimiento: `1. *Gasto* Súper — $ 1.500 · Alimentación · hoy` (tipo escrito en negrita, fechas "hoy/ayer/dd/mm", sin "Cat:" ni "[USD]", cuotas "en 12 cuotas desde dic."). Textos centralizados en `supabase/functions/whatsapp-webhook/bot-messages.ts`; los que genera SQL están en la migración 049 con paridad verificada en `tests/durable-queue.test.ts`. Confirmar, cancelar, renovación, vinculación y el mensaje de categoría inexistente no cambiaron.
 
 ### 16.3. Categorías ampliadas (FE-24 / BE-20) — publicado 08/11/2026
 
