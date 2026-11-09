@@ -1043,7 +1043,7 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 | ID | Propuesta | Falta |
 | --- | --- | --- |
 | BE-19 (aceptación) | Prueba manual de pago confirmado y código nominativo con cuenta autorizada. | Enviar RENOVAR, confirmar pago en panel Clientes, recibir WhatsApp con código, canjear en Ajustes y verificar extensión sin segundo WhatsApp. |
-| FE-24 / BE-20 | Categorías ampliadas (catálogo fijo de 31). | Publicado 08/11/2026 (PR #89, 61fa83d; SQL 001–048; webhook v72; 16 movimientos reclasificados). Falta aceptación en celular. Alcance redefinido: sin categorías propias del cliente ni límite por usuario. Ver 16.3. |
+| FE-24 / BE-20 | Categorías ampliadas (catálogo fijo de 31). | Publicado 08/11/2026 (PR #89, 61fa83d; SQL 001–048; webhook v72; 16 movimientos reclasificados). Aceptación manual del propietario 09/11/2026. Alcance redefinido: sin categorías propias del cliente ni límite por usuario. Ver 16.3. |
 | FE-25 | Avisos en el Resumen y preferencias. | Publicado 05/11/2026 (PR #81, bb14ace). Falta aceptación manual en celular. |
 | NOTIF-01 (push) | Notificaciones push al celular. | Publicado 05/11/2026 (046 + webhook v71). Recibido en el celular del propietario el 06/11/2026 (prueba manual). Falta probar iPhone instalado. |
 | BE-21 (WhatsApp) | Avisos por WhatsApp. | Descartado por ahora por el propietario: plantilla Meta paga fuera de 24 h. |
@@ -1062,7 +1062,7 @@ Leer cada bloque completo y evidencia reciente; no tomar el encabezado históric
 
 ### 16.3. Categorías ampliadas (FE-24 / BE-20) — publicado 08/11/2026
 
-Estado a 08/11/2026: **publicado.** PR #89 integrado en `main` (`61fa83d`), PWA en GitHub Pages, SQL **001–048** aplicado, webhook **v72 ACTIVE**. Reclasificación aplicada con aprobación del propietario: 16 movimientos, `run_id` `29036e58-c4f5-42b6-b69c-8a5ba0239d60` (se deshace con `category_reclass_revert`). Aceptación manual en celular pendiente. El texto que sigue describe el diseño; las menciones a "sin aplicar" son del 07/11. Diseño: `docs/superpowers/specs/2026-11-07-categorias-ampliadas-design.md`; plan: `docs/superpowers/plans/2026-11-07-categorias-ampliadas.md`.
+Estado a 08/11/2026: **publicado.** PR #89 integrado en `main` (`61fa83d`), PWA en GitHub Pages, SQL **001–048** aplicado, webhook **v72 ACTIVE**. Reclasificación aplicada con aprobación del propietario: 16 movimientos, `run_id` `29036e58-c4f5-42b6-b69c-8a5ba0239d60` (se deshace con `category_reclass_revert`). Aceptación manual en el celular realizada por el propietario el 09/11/2026. El texto que sigue describe el diseño; las menciones a "sin aplicar" son del 07/11. Diseño: `docs/superpowers/specs/2026-11-07-categorias-ampliadas-design.md`; plan: `docs/superpowers/plans/2026-11-07-categorias-ampliadas.md`.
 
 - **Decisión del propietario:** catálogo fijo e igual para todas las cuentas, de 31 categorías (22 de gasto y 9 de ingreso). El cliente no crea, renombra ni borra categorías; no hay RPC de gestión ni límite por usuario. No se incluyen Inversiones ni Ahorro.
 - **Nuevas (15):** gasto: Restaurantes y delivery, Suscripciones, Auto, Hogar, Tecnología, Cuidado personal, Deporte, Mascotas, Hijos, Viajes, Regalos y donaciones. Ingreso: Alquileres, Reintegros, Regalos, Jubilación y asignaciones. Las 16 anteriores conservan nombre (su alcance se achica).
