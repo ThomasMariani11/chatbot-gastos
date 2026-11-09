@@ -296,8 +296,8 @@ try {
     const status = JSON.parse(await cli(['status', '-o', 'json']));
     const api = localUrl(status.API_URL);
     assert.ok(status.ANON_KEY && status.SERVICE_ROLE_KEY);
-    // Esquema de rollback (046): alta con 16 categorías.
-    const id = await seedRuntimeUser(api, status, '16');
+    // Esquema de rollback: 16 categorías por alta antes de 047, 31 desde 047.
+    const id = await seedRuntimeUser(api, status, tools.release.rollbackMinimumMigration >= '047' ? '31' : '16');
     await smokeBusinessContract(sql, id);
     await startWorker(api);await smokeWorker(api);
     await smokeQuotaSql(id);await smokeDraftEditSql(id);await smokeWaitingRecoverySql(id);

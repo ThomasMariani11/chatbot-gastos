@@ -1,3 +1,4 @@
+import { BOT_MESSAGES } from "./bot-messages.ts";
 const normalize = (text: string) =>
   text.normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
@@ -21,7 +22,7 @@ export function parseDraftCorrection(text: string): Correction | null {
   const clarify: Correction = {
     kind: "reply",
     text:
-      'Para cambiar el monto, indicá un movimiento y un importe positivo. Por ejemplo: "El 2 fue de 250". No agregué movimientos. No modifiqué la lista.',
+      BOT_MESSAGES.amountUnclear,
   };
   if (!match) return clarify;
   const position = Number(match[1] ?? match[2]);

@@ -1,5 +1,6 @@
 import { parseLocalCommand } from "../supabase/functions/whatsapp-webhook/local-commands";
 import { formatOverLimitReply } from "../supabase/functions/whatsapp-webhook/draft-summary";
+import { BOT_MESSAGES } from "../supabase/functions/whatsapp-webhook/bot-messages";
 import { OperationalFailure } from '../supabase/functions/whatsapp-webhook/failures';
 import { createLogWriter } from '../supabase/functions/whatsapp-webhook/logging';
 import { PGlite } from '@electric-sql/pglite';
@@ -17,6 +18,8 @@ const t1='31000000-0000-4000-8000-000000000001', t2='31000000-0000-4000-8000-000
 const migrationUrl = new URL('../supabase/migrations/', import.meta.url);
 let applyPropertiesBefore: unknown;
 let capacitySeedSnapshot: Array<{wa_message_id:string;capacity_resumes:number}>;
+let aclBefore049: unknown[];
+const aclSql="select p.oid::regprocedure::text fn,p.proacl::text acl,p.prosecdef,p.proconfig::text cfg from pg_proc p where p.oid in ('public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure,'public.next_whatsapp_job(text,uuid)'::regprocedure,'public.whatsapp_over_limit_reply(integer)'::regprocedure) order by 1";
 let be11PropertiesBefore: unknown;
 const be11PropertiesSql="select proname,proowner,proacl::text,prosecdef,proconfig from pg_proc where oid in('public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure,'public.next_whatsapp_job(text,uuid)'::regprocedure,'public.due_whatsapp_actors()'::regprocedure,'public.fail_whatsapp_job(uuid,uuid)'::regprocedure) order by proname";
 const applyPropertiesSql = "select proowner,proacl::text,prosecdef,proconfig from pg_proc where oid='public.apply_whatsapp_job(uuid,uuid,jsonb)'::regprocedure";
@@ -118,6 +121,8 @@ beforeAll(async()=>{
   await db.exec(await readFile(new URL('038_waiting_queue_recovery.sql',migrationUrl),'utf8'));
   capacitySeedSnapshot=(await db.query<{wa_message_id:string;capacity_resumes:number}>("select wa_message_id,capacity_resumes from public.whatsapp_message_queue where wa_id='synthetic-migration-seed' order by wa_message_id")).rows;
   await db.exec("delete from public.whatsapp_message_queue where wa_id='synthetic-migration-seed'");
+  aclBefore049=(await db.query(aclSql)).rows;
+  await db.exec(await readFile(new URL('049_friendlier_bot_messages.sql',migrationUrl),'utf8'));
 },30000);
 beforeEach(async()=>{await db.exec('begin; update public.whatsapp_queue_control set enabled=true');});
 afterEach(async()=>{await db.exec('rollback');});
@@ -295,12 +300,12 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
     const result=await apply(job,{kind:'add',items:Array.from({length:21},()=>movement())}); await finish(result);
     expect((await db.query('select count(*)::int as n from public.draft_items')).rows[0]).toEqual({n:0});
     expect((await db.query('select status,pause_reason from public.whatsapp_message_queue')).rows[0]).toEqual({status:'processed',pause_reason:null});
-    expect(result.reply_text).toContain('Recibí 21 movimientos');
+    expect(result.reply_text).toBe(formatOverLimitReply(21));
   });
   it('un intento agotado no desaparece: pasa a revisión y envía un aviso durable',async()=>{
     await enqueue(message('one')); await claim();
     await db.exec('update public.whatsapp_message_queue set attempts=5');
-    const job=(await next())!; expect(job.effect_applied).toBe(true); expect(job.reply_text).toContain('conservado'); await finish(job);
+    const job=(await next())!; expect(job.effect_applied).toBe(true); expect(job.reply_text).toBe(BOT_MESSAGES.manualReview); await finish(job);
     expect((await db.query('select status,pause_reason from public.whatsapp_message_queue')).rows[0]).toEqual({status:'waiting',pause_reason:'manual_review'});
   });
   it('un audio en revisión no bloquea audios ni textos nuevos ni la recuperación',async()=>{
@@ -320,10 +325,10 @@ describe('INF-03 / BE-06: persistencia y exclusión reales en PostgreSQL efímer
   it('el aviso agotado explica que no cargó el mensaje, pide texto y permite continuar',async()=>{
     await enqueue(message('broken')); await claim(); await db.exec('update public.whatsapp_message_queue set attempts=5');
     const job=(await next())!;
-    expect(job.reply_text).toContain('no lo cargué');
-    expect(job.reply_text).toContain('texto');
+    expect(job.reply_text).toBe(BOT_MESSAGES.manualReview);
+    expect(job.reply_text).toContain('Lo guardé para revisarlo');
     expect(job.reply_text).toContain('concepto y el monto');
-    expect(job.reply_text).toContain('Podés seguir');
+    expect(job.reply_text).toContain('Tu lista sigue igual');
     await finish(job);
   });
   it('confirma solo movimientos revisados sin incluir ni reintentar el mensaje aislado',async()=>{
@@ -944,7 +949,7 @@ describe('BE-08: dudas, aislamiento y capacidad',()=>{
  it('completar no reintenta capacidad; una respuesta numérica pasa y quitar libera el mensaje',async()=>{
   await add('be08-full',Array.from({length:20},(_,i)=>i===0?{...movement('Sin importe'),totalAmountArs:null,missingFields:['amount']}:movement('Otro '+i)));
   const group=await rpc<{group_id:string;version:number}>('get_active_draft_group',{p_user_id:a});
-  await enqueue(message('be08-capacity'));const blocked=(await next())!;await apply(blocked,{kind:'add',items:[movement('Retenido')]});await finish(blocked);
+  await enqueue(message('be08-capacity'));const blocked=(await next())!;const held=await apply(blocked,{kind:'add',items:[movement('Retenido')]});expect(held.reply_text).toBe(BOT_MESSAGES.listCapacityWaiting);await finish(blocked);
   await enqueue(message('be08-number','synthetic-a','5000'));const number=(await next())!;expect(number.payload.id).toBe('be08-number');
   await apply(number,{kind:'complete',position:1,group_id:group.group_id,version:group.version,patch:{amount:5000}});await finish(number);
   expect((await db.query('select status,pause_reason,attempts from public.whatsapp_message_queue where id=$1',[blocked.id])).rows[0]).toEqual({status:'waiting',pause_reason:'capacity',attempts:1});
@@ -1136,7 +1141,7 @@ describe('BE-12: edición atómica con SQL y esquema reales',()=>{
  });
  it.each([{amount:0},{amount:-1},{amount:1.001},{amount:1e12},{currency:'EUR'},{occurred_on:'2026-02-30'},{installments:0},{installments:61},{installments:3.5},{description:''},{category:null},{unknown:'x'}, {installments:1,first_installment_month:'2026-11'},{installments:60,first_installment_month:'9999-12'}])('rechaza patch inválido entero sin cambios parciales: %o',async patch=>{
   await add('be12-invalid');const before=await snap();const result=await edit({description:'NO DEBE CAMBIAR',...patch});
-  expect(result.reply_text).toContain('No modifiqué la lista');expect(await snap()).toEqual(before);
+  expect(result.reply_text).toBe(BOT_MESSAGES.changeFailed);expect(await snap()).toEqual(before);
  });
  it('una categoría desconocida no aplica tampoco el importe/concepto',async()=>{
   await add('be12-category');const before=await snap();const result=await edit({amount:999,description:'No cambiar',category:'No existe'});
@@ -1149,15 +1154,15 @@ describe('BE-12: edición atómica con SQL y esquema reales',()=>{
  });
  it('tipo ingreso requiere quitar cuotas explícitamente y elige categoría del tipo correcto',async()=>{
   await add('be12-kind',[{...movement(),installments:3,firstInstallmentMonth:'2026-11'}]);const before=await snap();
-  expect((await edit({kind:'income'})).reply_text).toContain('No modifiqué');expect(await snap()).toEqual(before);
+  expect((await edit({kind:'income'})).reply_text).toBe(BOT_MESSAGES.changeFailed);expect(await snap()).toEqual(before);
   await edit({kind:'income',installments:1});expect((await snap()).items[0]).toMatchObject({kind:'income',installments:1,first_installment_month:null,category_name:'Otros'});
  });
  it('rechaza versión vieja, grupo ajeno, posición inexistente o quitada',async()=>{
   await add('be12-target',[movement(),movement('Quitar')]);const old=await snap();await edit({amount:120});const current=await snap();
-  expect((await edit({amount:999},{version:old.version})).reply_text).toContain('La lista cambió');expect(await snap()).toEqual(current);
+  expect((await edit({amount:999},{version:old.version})).reply_text).toBe(BOT_MESSAGES.listChanged);expect(await snap()).toEqual(current);
   const other=await db.query<{id:string}>('insert into public.draft_groups(user_id)values($1)returning id',[b]);
-  expect((await edit({amount:999},{group:other.rows[0].id})).reply_text).toContain('La lista cambió');expect(await snap()).toEqual(current);
-  expect((await edit({amount:999},{position:9})).reply_text).toContain('No encontré');
+  expect((await edit({amount:999},{group:other.rows[0].id})).reply_text).toBe(BOT_MESSAGES.listChanged);expect(await snap()).toEqual(current);
+  expect((await edit({amount:999},{position:9})).reply_text).toBe(BOT_MESSAGES.itemNotFound);
   await enqueue(message('be12-remove'));const q=(await next())!;await apply(q,{kind:'remove',position:2});await finish(q);const removed=await snap();
   expect((await edit({amount:999},{position:2})).reply_text).toContain('No encontré');expect(await snap()).toEqual(removed);
  });
@@ -1175,7 +1180,7 @@ describe('BE-12: edición atómica con SQL y esquema reales',()=>{
  });
 });
 
-it('BE-12: un patch vacío no incrementa la versión',async()=>{await add('be12-empty');const g=await rpc('get_active_draft_group',{p_user_id:a});await enqueue(message('be12-empty-edit'));const q=(await next())!;const result=await apply(q,{kind:'edit',position:1,group_id:g.group_id,version:g.version,patch:{}});expect(result.reply_text).toContain('No modifiqué');expect(await rpc('get_active_draft_group',{p_user_id:a})).toEqual(g);});
+it('BE-12: un patch vacío no incrementa la versión',async()=>{await add('be12-empty');const g=await rpc('get_active_draft_group',{p_user_id:a});await enqueue(message('be12-empty-edit'));const q=(await next())!;const result=await apply(q,{kind:'edit',position:1,group_id:g.group_id,version:g.version,patch:{}});expect(result.reply_text).toBe(BOT_MESSAGES.changeFailed);expect(await rpc('get_active_draft_group',{p_user_id:a})).toEqual(g);});
 
 it('BE-12: una corrección nueva pasa detrás de capacidad sin soltar el excedente',async()=>{
  await add('be12-full',Array.from({length:20},(_,n)=>movement('Ficticio '+n,n+1)));
@@ -1233,7 +1238,7 @@ describe('BE-11: resolver esperas sin perder ni duplicar movimientos',()=>{
  });
  it('18 + 3 se retienen completos y reaparecen después de liberar un espacio',async()=>{
   await add('be11-18',Array.from({length:18},(_,i)=>movement('Previo '+i,i+1)));const before=await readGroup();const items=[movement('Retenido A',101),movement('Retenido B',202),movement('Retenido C',303)];const q=await held(items);
-  expect(q.reply_text).toContain('Tenés 18');expect(q.reply_text).toContain('trae 3');expect((await readGroup()).items).toHaveLength(18);
+  expect(q.reply_text).toBe(BOT_MESSAGES.listCapacityWaiting);expect((await readGroup()).items).toHaveLength(18);
   await command('sacame el 2');const released=(await next())!;expect(released.id).toBe(q.id);expect(released.parsed_result).toEqual({intent:'add_movements',movements:items});
   await apply(released,{kind:'add',items});await finish(released);const after=await readGroup();expect(after.items).toHaveLength(20);expect(after.items.slice(-3).map(i=>[i.position,i.description,i.amount])).toEqual([[19,'Retenido A',101],[20,'Retenido B',202],[21,'Retenido C',303]]);
   for(const row of before.items.filter(i=>i.position!==2))expect(after.items.find(i=>i.id===row.id)).toEqual(row);
@@ -1268,7 +1273,7 @@ describe('BE-11: resolver esperas sin perder ni duplicar movimientos',()=>{
   const row=(await db.query<{seconds:number;attempts:number;capacity_resumes:number}>('select extract(epoch from scheduled_for-clock_timestamp())::float8 seconds,attempts,capacity_resumes from public.whatsapp_message_queue where id=$1',[q.id])).rows[0];expect(row.seconds).toBeGreaterThan(8);expect(row.seconds).toBeLessThanOrEqual(10);expect(row.attempts).toBe(21);expect(row.capacity_resumes).toBe(20);
  });
  it('cinco fallos reales todavía pasan a revisión manual',async()=>{
-  await enqueue(message('be11-real-failures'));await claim();await db.exec('update public.whatsapp_message_queue set attempts=8,capacity_resumes=3');const q=(await next())!;expect(q.effect_applied).toBe(true);expect((q as Job&{pause_reason:string}).pause_reason).toBe('manual_review');expect(q.attempts).toBe(9);
+  await enqueue(message('be11-real-failures'));await claim();await db.exec('update public.whatsapp_message_queue set attempts=8,capacity_resumes=3');const q=(await next())!;expect(q.effect_applied).toBe(true);expect((q as Job&{pause_reason:string}).pause_reason).toBe('manual_review');expect((q as Job&{reply_text:string}).reply_text).toBe(BOT_MESSAGES.manualReview);expect(q.attempts).toBe(9);
  });
  it('inicializa solo checkpoints exitosos de capacidad y mantiene ACL privadas',async()=>{
   expect(capacitySeedSnapshot).toEqual([{wa_message_id:'be11-seed-cap',capacity_resumes:5},{wa_message_id:'be11-seed-failed',capacity_resumes:0},{wa_message_id:'be11-seed-manual',capacity_resumes:0}]);expect((await db.query(be11PropertiesSql)).rows).toEqual(be11PropertiesBefore);
@@ -1291,3 +1296,9 @@ it('BE-11: payload multimedia no se interpreta como control por traer un campo t
  expect(await rpc('whatsapp_can_pass_waiting',{p_payload:{type:'audio',text:{body:'CONFIRMAR'},audio:{id:'synthetic'}}})).toBe(false);
 });
 it.each([21,100,101])('BE-11: SQL y procesador usan el mismo aviso para %s movimientos',async n=>expect(await rpc('whatsapp_over_limit_reply',{p_count:n})).toBe(formatOverLimitReply(n)));
+
+it('049: ninguna función conserva los textos anteriores del bot',async()=>{
+ const old=['No encontré ese movimiento en tu lista pendiente.','La lista cambió. Revisala con RESUMEN','No pude aplicar el cambio: revisá los datos','Conservé este mensaje completo en espera','No pude procesar este mensaje y no lo cargué','No agregué ninguno de este mensaje'];
+ for(const text of old)expect((await db.query<{n:number}>("select count(*)::int n from pg_proc p join pg_namespace s on s.oid=p.pronamespace where s.nspname='public' and position($1 in p.prosrc)>0",[text])).rows[0].n).toBe(0);
+ expect((await db.query(aclSql)).rows).toEqual(aclBefore049);
+});

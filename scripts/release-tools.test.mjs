@@ -48,23 +48,23 @@ test('el motor Docker debe ser local; rechaza contextos TCP o SSH remotos', () =
 });
 
 const migrationRange = count => Array.from({ length: count }, (_, i) => String(i + 1).padStart(3, '0'));
-const contract = { minimumMigration: '048', rollbackCommit: 'f7e74d684ebbad41589e15c1a14e7ab7e8146207', rollbackMinimumMigration: '046' };
+const contract = { minimumMigration: '049', rollbackCommit: 'fbbad78d801d6f9869f07b4776b776198d486435', rollbackMinimumMigration: '048' };
 
 test('el contrato exige los mínimos exactos de candidato y rollback', () => {
-  assert.deepEqual(validateReleaseContract(contract, migrationRange(48), migrationRange(46)), { candidate: migrationRange(48), rollback: migrationRange(46) });
-  for (const minimumMigration of ['039', '041', '047', 48, null]) {
-    assert.throws(() => validateReleaseContract({ ...contract, minimumMigration }, migrationRange(48), migrationRange(46)));
+  assert.deepEqual(validateReleaseContract(contract, migrationRange(49), migrationRange(48)), { candidate: migrationRange(49), rollback: migrationRange(48) });
+  for (const minimumMigration of ['039', '041', '048', 49, null]) {
+    assert.throws(() => validateReleaseContract({ ...contract, minimumMigration }, migrationRange(49), migrationRange(48)));
   }
-  for (const rollbackMinimumMigration of ['038', '040', '045', null]) {
-    assert.throws(() => validateReleaseContract({ ...contract, rollbackMinimumMigration }, migrationRange(48), migrationRange(46)));
+  for (const rollbackMinimumMigration of ['038', '040', '047', null]) {
+    assert.throws(() => validateReleaseContract({ ...contract, rollbackMinimumMigration }, migrationRange(49), migrationRange(48)));
   }
 });
 
 test('rechaza rollback no fijado y mínimos con inventario posterior al candidato', () => {
   for (const rollbackCommit of ['main', 'a'.repeat(39), 'a'.repeat(40) + '\n', null, {}, 'A'.repeat(40)]) {
-    assert.throws(() => validateReleaseContract({ ...contract, rollbackCommit }, migrationRange(48), migrationRange(46)));
+    assert.throws(() => validateReleaseContract({ ...contract, rollbackCommit }, migrationRange(49), migrationRange(48)));
   }
-  assert.throws(() => validateReleaseContract({ ...contract, rollbackMinimumMigration: '049' }, migrationRange(48), migrationRange(49)));
+  assert.throws(() => validateReleaseContract({ ...contract, rollbackMinimumMigration: '050' }, migrationRange(49), migrationRange(50)));
 });
 
 test('rechaza huecos, duplicados y versiones inválidas sin modificar el inventario', () => {
@@ -76,13 +76,13 @@ test('rechaza huecos, duplicados y versiones inválidas sin modificar el inventa
   assert.deepEqual(input, ['002', '001']);
 });
 
-test('047 no habilita el candidato 048 y una fila final no sustituye el historial completo', () => {
-  assert.throws(() => assertSchemaCoverage(migrationRange(47), migrationRange(48)));
-  assert.throws(() => assertSchemaCoverage(['048'], migrationRange(48)));
-  assert.throws(() => assertSchemaCoverage(migrationRange(48).filter(v => v !== '040'), migrationRange(48)));
-  assert.throws(() => assertSchemaCoverage([...migrationRange(48), '041'], migrationRange(46)));
-  assert.doesNotThrow(() => assertSchemaCoverage(migrationRange(46), migrationRange(46)));
-  assert.doesNotThrow(() => assertSchemaCoverage([...migrationRange(48), '99999999999999'], migrationRange(46)));
+test('048 no habilita el candidato 049 y una fila final no sustituye el historial completo', () => {
+  assert.throws(() => assertSchemaCoverage(migrationRange(48), migrationRange(49)));
+  assert.throws(() => assertSchemaCoverage(['049'], migrationRange(49)));
+  assert.throws(() => assertSchemaCoverage(migrationRange(49).filter(v => v !== '040'), migrationRange(49)));
+  assert.throws(() => assertSchemaCoverage([...migrationRange(49), '041'], migrationRange(48)));
+  assert.doesNotThrow(() => assertSchemaCoverage(migrationRange(48), migrationRange(48)));
+  assert.doesNotThrow(() => assertSchemaCoverage([...migrationRange(49), '99999999999999'], migrationRange(48)));
 });
 
 test('no se acepta SQL compartido alterado ni renombrado para el rollback', () => {
@@ -101,19 +101,19 @@ test('la configuración real cubre las migraciones distribuidas y fija el rollba
   const files = await digestFiles(join(root, 'supabase/migrations'), n => n.endsWith('.sql'));
   assert.equal(configured.rollbackCommit, contract.rollbackCommit);
   assert.equal(configured.rollbackMinimumMigration, contract.rollbackMinimumMigration);
-  assert.doesNotThrow(() => validateReleaseContract(configured, files.map(row => row.file.split('_')[0]), migrationRange(46)));
+  assert.doesNotThrow(() => validateReleaseContract(configured, files.map(row => row.file.split('_')[0]), migrationRange(48)));
 });
 
 test('no se declara compatibilidad si falta una fila o el runtime/esquema no coincide', () => {
   const source = 'a'.repeat(40);
   const rows = [
-    { schemaHead: '046', runtimeCommit: contract.rollbackCommit, passed: true },
-    { schemaHead: '048', runtimeCommit: source, passed: true },
     { schemaHead: '048', runtimeCommit: contract.rollbackCommit, passed: true },
+    { schemaHead: '049', runtimeCommit: source, passed: true },
+    { schemaHead: '049', runtimeCommit: contract.rollbackCommit, passed: true },
   ];
   assert.doesNotThrow(() => assertReleaseMatrix(rows, source, contract));
   assert.throws(() => assertReleaseMatrix(rows.slice(1), source, contract));
-  assert.throws(() => assertReleaseMatrix(rows.map((r, i) => i === 0 ? { ...r, schemaHead: '048' } : r), source, contract));
+  assert.throws(() => assertReleaseMatrix(rows.map((r, i) => i === 0 ? { ...r, schemaHead: '049' } : r), source, contract));
   assert.throws(() => assertReleaseMatrix(rows.map((r, i) => i === 2 ? { ...r, passed: false } : r), source, contract));
   assert.throws(() => assertReleaseMatrix(rows.map((r, i) => i === 2 ? { ...r, runtimeCommit: source } : r), source, contract));
 });

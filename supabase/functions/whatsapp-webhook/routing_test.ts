@@ -230,7 +230,7 @@ Deno.test("dos correcciones juntas piden aclarar y conservan la lista", async ()
     () => Promise.resolve(),
   );
   assert(
-    result.kind === "reply" && String(result.text).includes("No modifiqué"),
+    result.kind === "reply" && String(result.text).includes('"el 2 fue de 250"'),
     "Se aceptó parcialmente una instrucción ambigua",
   );
 });
@@ -1488,9 +1488,9 @@ Deno.test("UTF-8 y normalización de montos hablados de Whisper", async () => {
   ]);
   assert(
     summary.includes("Tenés 1 movimiento") &&
-      summary.includes("1. 🔴 Panadería ·") &&
-      summary.includes("Podés seguir agregando") &&
-      summary.includes('("quitá el 2")') &&
+      summary.includes("1. *Gasto* Panadería —") &&
+      summary.includes("*CONFIRMAR*") &&
+      summary.includes('"quitá el 1"') &&
       !summary.includes("\u00c3") &&
       !summary.includes("\u00f0\u0178"),
     "El resumen de borrador tiene caracteres UTF-8 corruptos",
@@ -1944,8 +1944,8 @@ Deno.test("BE-05: mezcla y ambigüedad piden aclarar sin tocar ni reinterpretar 
       });
       assert(
         result.kind === "reply" && Object.keys(result).length === 2 &&
-          String(result.text).includes("No agregué ni modifiqué") &&
-          String(result.text).includes("RESUMEN"),
+          String(result.text).includes("por separado") &&
+          String(result.text).includes("Tu lista sigue igual"),
         "La aclaración creó un efecto o limpió el resumen pendiente",
       );
       assert(
@@ -2652,8 +2652,8 @@ Deno.test("INF-15: reserva Qwen antes de HTTP, agotamiento persistido y sin repe
       gate,
     );
     assert(
-      first.kind === "reply" && String(first.text).includes("cupo diario") &&
-        String(first.text).includes("pendientes se conservan"),
+      first.kind === "reply" && String(first.text).includes("llegué a mi límite") &&
+        String(first.text).includes("Tus pendientes siguen ahí"),
       "No dio una salida local al cliente",
     );
     assert(
@@ -3300,8 +3300,8 @@ for (const count of [21, 101]) {
         );
         assert(
           action.kind === "reply" &&
-            String(action.text).includes("Recibí " + count + " movimientos") &&
-            String(action.text).includes("No agregué ninguno"),
+            String(action.text).includes("Me mandaste " + count) &&
+            String(action.text).includes("hasta 20 por lista"),
           "Excedente truncado o retenido sin salida",
         );
         assert(
@@ -3445,7 +3445,7 @@ Deno.test("BE-18: consolida system_config en 1 consulta .in(), paraleliza contex
   );
   assert(
     incompatibleRes.kind === "reply" &&
-      String(incompatibleRes.text).includes("no es compatible"),
+      String(incompatibleRes.text).includes("no lo puedo leer"),
     "Mensaje incompatible no rechazado",
   );
   assert(

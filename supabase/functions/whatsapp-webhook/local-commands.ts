@@ -1,3 +1,4 @@
+import { BOT_MESSAGES } from "./bot-messages.ts";
 type LocalCommand =
   | { kind: "confirm" | "cancel" | "summary" | "resume" | "discard" }
   | { kind: "remove"; position: number; positions?: number[] }
@@ -65,7 +66,7 @@ export function parseLocalCommand(raw: string): LocalCommand | null {
     return {
       kind: "reply",
       text:
-        'Indicá el número del movimiento para quitar, por ejemplo: "Quitá el 2". No modifiqué la lista.',
+        BOT_MESSAGES.removeWithoutNumber,
     };
   }
   return null;
