@@ -1,6 +1,10 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
-## Última publicación observada — 08/11/2026 (FE-24 / BE-20)
+## Última publicación observada — 09/11/2026 (textos del bot más cercanos)
+
+PWA **4ba7f79f94f4de2284e88f4e71b7aa1989671fc0** (PR #91), SQL **001–049**, webhook **v73 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR → `db push --linked --dry-run` (solo 049) → cola habilitada, 0 leases y 0 trabajos en proceso → `db push --linked` → verificación (historial 049, cero funciones con los textos anteriores, `whatsapp_over_limit_reply` con el texto nuevo, `apply_whatsapp_job` sin acceso para authenticated) → deploy del webhook desde 4ba7f79 → smoke 401 en `/`, `worker` y `client-push` → Pages con `version.json` = 4ba7f79. Rollback: PWA y webhook a fbbad78 / v72 conservando 049 (el runtime anterior funciona igual con los textos SQL nuevos). Aceptación manual en WhatsApp del propietario: 10/11/2026.
+
+## Registro histórico — 08/11/2026 (FE-24 / BE-20)
 
 PWA **61fa83db0cba53e8591fd2fbb87173eedc1330ce** (PR #89), SQL **001–048**, webhook **v72 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR → Pages con `version.json` = 61fa83d (la PWA salió antes que el SQL; compatible) → IP actual agregada a Network Restrictions por el propietario (el pooler rechazaba la conexión) → `db push --linked --dry-run` (solo 047 y 048) → `db push --linked` → verificación (4 cuentas × 31 categorías, 29 reglas, registro vacío, funciones sin acceso para anon/authenticated) → deploy del webhook desde 61fa83d → smoke 401 en `/`, `worker` y `client-push` → vista previa (16) revisada por el propietario → `category_reclass_apply(16)`: 16 movidos, `run_id` **29036e58-c4f5-42b6-b69c-8a5ba0239d60**, vista previa posterior 0. Cola v2 habilitada y sin leases antes del cambio. Rollback: PWA y webhook a f7e74d6 / v71 conservando 047/048; reclasificación con `select public.category_reclass_revert('29036e58-c4f5-42b6-b69c-8a5ba0239d60');`. Aceptación manual en el celular realizada por el propietario el 09/11/2026.
 
