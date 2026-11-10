@@ -98,15 +98,54 @@ describe('Web Push (RFC 8291 / 8292)', () => {
 
 describe('Despacho de avisos push', () => {
   it('los textos no incluyen importes ni datos personales', () => {
-    expect(formatClientPush({ kind: 'subscription_7', days: 5 }).title).toBe('Tu membresía de Pesito vence en 5 días');
-    expect(formatClientPush({ kind: 'subscription_1', days: 1 }).title).toContain('menos de 24 horas');
-    expect(formatClientPush({ kind: 'subscription_7', days: 5 }).url).toBe('./#settings');
+    expect(formatClientPush({ kind: 'subscription_7', days: 5 })!.title).toBe('Tu membresía de Pesito vence en 5 días');
+    expect(formatClientPush({ kind: 'subscription_1', days: 1 })!.title).toContain('menos de 24 horas');
+    expect(formatClientPush({ kind: 'subscription_7', days: 5 })!.url).toBe('./#settings');
     for (const kind of ['registration_noon', 'registration_night'] as const) {
-      const reminder = formatClientPush({ kind, days: null });
+      const reminder = formatClientPush({ kind, days: null })!;
       expect(reminder.body.toLowerCase()).toContain('hoy');
       expect(reminder.body).not.toMatch(/\$|\d/);
     }
-    expect(formatClientPush({ kind: 'registration_noon', days: null }).title).not.toBe(formatClientPush({ kind: 'registration_night', days: null }).title);
+    expect(formatClientPush({ kind: 'registration_noon', days: null })!.title).not.toBe(formatClientPush({ kind: 'registration_night', days: null })!.title);
+    const summary = formatClientPush({ kind: 'monthly_summary', days: null, period_key: '2026-11' })!;
+    expect(summary.body).not.toMatch(/\$|\d/);
+    expect(summary.title).not.toMatch(/\$|\d/);
+  });
+
+  it('formatea el resumen de fin de mes con el mes resumido', () => {
+    expect(formatClientPush({ kind: 'monthly_summary', days: null, period_key: '2026-11' })).toEqual({
+      title: '📊 Tu resumen de noviembre',
+      body: 'Tu resumen del mes está listo. Tocá para ver cuánto gastaste y cuánto te quedó.',
+      url: './#cierre-mes',
+      tag: 'pesito-resumen',
+    });
+    // Sin period_key (SQL anterior): mes anterior a "ahora" en hora argentina.
+    const now = Date.parse('2027-01-01T10:07:00-03:00');
+    expect(formatClientPush({ kind: 'monthly_summary', days: null }, now)!.title).toBe('📊 Tu resumen de diciembre');
+    // period_key inválido: mismo respaldo.
+    expect(formatClientPush({ kind: 'monthly_summary', days: null, period_key: '2026-13' }, now)!.title).toBe('📊 Tu resumen de diciembre');
+    // 1/1 a las 00:30 argentinas ya son las 03:30 UTC del 1/1; a las 23:30 del 31/12 sigue siendo diciembre → noviembre.
+    expect(formatClientPush({ kind: 'monthly_summary', days: null }, Date.parse('2026-12-31T23:30:00-03:00'))!.title).toBe('📊 Tu resumen de noviembre');
+  });
+
+  it('un tipo desconocido no tiene texto', () => {
+    expect(formatClientPush({ kind: 'otro' as never, days: null })).toBeNull();
+  });
+
+  it('no envía un tipo desconocido y lo cierra como omitido', async () => {
+    const batch = [{ id: 'x1', kind: 'otro', days: null, subscriptions: [{ endpoint: 'https://a/1', p256dh: 'x', auth: 'y' }] }] as unknown as ClientNotification[];
+    const finished: Record<string, unknown>[] = [];
+    let claims = 0;
+    const rpc = vi.fn(async (name: string, args?: Record<string, unknown>) => {
+      if (name === 'claim_client_notifications') return (claims++ === 0 ? batch : []) as never;
+      finished.push(args!);
+      return true as never;
+    });
+    const send = vi.fn(async () => 'sent' as const);
+    const totals = await deliverClientPush(rpc, send);
+    expect(send).not.toHaveBeenCalled();
+    expect(totals).toEqual({ sent: 0, failed: 0 });
+    expect(finished.map((f) => [f.p_id, f.p_outcome, f.p_gone_endpoints])).toEqual([['x1', 'skipped', []]]);
   });
 
   it('exige VAPID completo y un subject mailto/https', () => {
