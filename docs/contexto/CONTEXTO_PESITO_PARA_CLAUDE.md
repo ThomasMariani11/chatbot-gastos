@@ -1027,7 +1027,7 @@ No afirmar que ya hay:
 | FE-10 | Límite 2–60 y errores visibles coherentes. |
 | FE-20 | Cancelación de timers y corrección del gesto de volver. |
 | FE-16 / FE-22 | Contraste y pestañas de acceso. |
-| FE-08 | Dependencias de pruebas actualizadas por auditoría. |
+| FE-08 | Dependencias de pruebas actualizadas por auditoría. Seguimiento 10/11/2026: override de `minimatch` 11.0.5 para `typescript-eslint` (aviso moderado de desarrollo); retirarlo cuando `typescript-eslint` acepte minimatch 11. |
 | FE-15 | Diálogos reutilizables, foco/teclado/roles y labels. |
 | FE-18 | Cachés, consultas reducidas y paginación. |
 | BE-18 | Modularización y contexto paralelo del webhook. |
