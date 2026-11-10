@@ -7,8 +7,8 @@
     "vapidPublicKey": "BErNV1GtLAf9dSONKnnw8Ywy2tZeA3YJhE3F5Y_xekBx06ht-b2qlWVfyCTRMQaW4Q2ebDKfs0yocxJ6usKuSPY"
   },
   "release": {
-    "minimumMigration": "050",
-    "rollbackCommit": "70b057661d752a184e1f143d977fffe3f62290a7",
-    "rollbackMinimumMigration": "049"
+    "minimumMigration": "051",
+    "rollbackCommit": "26673fdc16a3ef02e5df384533e934c798acee14",
+    "rollbackMinimumMigration": "050"
   }
 }
