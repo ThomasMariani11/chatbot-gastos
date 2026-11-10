@@ -1062,7 +1062,7 @@ Leer cada bloque completo y evidencia reciente; no tomar el encabezado históric
 
 ### 16.5. Segunda tanda de textos del bot — publicado 10/11/2026
 
-**Publicado:** PR #94 en `main` (`7a6055d`), PWA en GitHub Pages, SQL **001–050** aplicado, webhook **v74 ACTIVE**. Aceptación manual en WhatsApp: pendiente.
+**Publicado:** PR #94 en `main` (`7a6055d`), PWA en GitHub Pages, SQL **001–050** aplicado, webhook **v74 ACTIVE**. Aceptación manual en WhatsApp realizada por el propietario el 10/11/2026.
 
 Rama `feat/mensajes-bot-cercanos-2`. Mismo estilo aprobado en 16.4, ahora para confirmar ("¡Listo! Guardé 3 movimientos ✅", singular con uno), cancelar, "No pude guardar la lista 😕" + motivo, lista de más de un día (RETOMAR/DESCARTAR), categoría inexistente, vinculación, cuenta en pausa/suscripción terminada/mantenimiento, ayuda, "¡De nada!", resumen del mes ("📊 *Tu resumen de noviembre*", con 💸/💰/📈 y 🎯 o ⚠️ según el presupuesto), consulta de planes y renovación (pedido, recibo con el código sin negrita para que se pueda copiar, casos especiales). Textos del webhook en `bot-messages.ts` y `monthly-summary.ts`; los de SQL en la migración 050, verificada en `tests/bot-messages-sql.test.ts`. Decisión del agente: "La lista no está abierta." pasó a "Esta lista ya no está abierta. Escribí RESUMEN para ver la actual."
 
