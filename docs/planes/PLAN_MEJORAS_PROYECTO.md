@@ -1195,7 +1195,7 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
   5. Registro seguro en logs sin exponer datos financieros ni nombres personales.
 - **Cierre:** simulación de cron en base aislada emite notificaciones en fechas correctas sin duplicados; cuentas vencidas o que desactivaron avisos no reciben mensajes; pruebas de volumen y fallos transitorios aprobadas.
 
-### NOTIF-02 — Resumen de fin de mes (mejora futura)
+### NOTIF-02 — Resumen de fin de mes (en rama, sin publicar)
 
 - [ ] Implementado en la rama `feat/notif-02-resumen-mensual` (10/11/2026); **sin publicar** (051 sin aplicar, webhook sin desplegar). Registrado el 05/11/2026 por pedido del propietario.
 - **Implementado:** push el día 1 a las 10 h ART (margen hasta las 11 h) resumiendo el mes anterior, **sin montos**; tarjeta de cierre del mes en el Resumen los días 1 a 7 (por moneda, comparación de gastos, presupuesto; se puede cerrar); interruptor propio "Resumen del mes" en Ajustes, activado por defecto; migración 051 expansiva (`monthly_summary_enabled`, tipo `monthly_summary`, uno por mes por unicidad). Solo para cuentas activas con dispositivo suscripto y movimientos en el mes.
