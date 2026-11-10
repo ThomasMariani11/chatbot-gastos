@@ -2,7 +2,7 @@
 
 ## Última publicación observada — 09/11/2026 (textos del bot más cercanos)
 
-PWA **4ba7f79f94f4de2284e88f4e71b7aa1989671fc0** (PR #91), SQL **001–049**, webhook **v73 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR → `db push --linked --dry-run` (solo 049) → cola habilitada, 0 leases y 0 trabajos en proceso → `db push --linked` → verificación (historial 049, cero funciones con los textos anteriores, `whatsapp_over_limit_reply` con el texto nuevo, `apply_whatsapp_job` sin acceso para authenticated) → deploy del webhook desde 4ba7f79 → smoke 401 en `/`, `worker` y `client-push` → Pages con `version.json` = 4ba7f79. Rollback: PWA y webhook a fbbad78 / v72 conservando 049 (el runtime anterior funciona igual con los textos SQL nuevos).
+PWA **4ba7f79f94f4de2284e88f4e71b7aa1989671fc0** (PR #91), SQL **001–049**, webhook **v73 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR → `db push --linked --dry-run` (solo 049) → cola habilitada, 0 leases y 0 trabajos en proceso → `db push --linked` → verificación (historial 049, cero funciones con los textos anteriores, `whatsapp_over_limit_reply` con el texto nuevo, `apply_whatsapp_job` sin acceso para authenticated) → deploy del webhook desde 4ba7f79 → smoke 401 en `/`, `worker` y `client-push` → Pages con `version.json` = 4ba7f79. Rollback: PWA y webhook a fbbad78 / v72 conservando 049 (el runtime anterior funciona igual con los textos SQL nuevos). Aceptación manual en WhatsApp del propietario: 10/11/2026.
 
 ## Registro histórico — 08/11/2026 (FE-24 / BE-20)
 
