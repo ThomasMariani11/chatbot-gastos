@@ -1062,7 +1062,7 @@ Leer cada bloque completo y evidencia reciente; no tomar el encabezado históric
 
 ### 16.6. Resumen de fin de mes (NOTIF-02) — publicado 10/11/2026
 
-**Publicado:** PR #97 en `main` (`6a768f9`), PWA en GitHub Pages, SQL **001–051** aplicado, webhook **v75 ACTIVE**. Probado antes en Supabase local con datos ficticios y fecha simulada (tarjeta, "Ver noviembre", interruptor, 360 px). Primer envío real el 01/12/2026 a las 10 h ART; aceptación del propietario pendiente.
+**Publicado:** PR #97 en `main` (`6a768f9`), PWA en GitHub Pages, SQL **001–051** aplicado, webhook **v75 ACTIVE**. Probado antes en Supabase local con datos ficticios y fecha simulada (tarjeta, "Ver noviembre", interruptor, 360 px). Prueba del push en el iPhone del propietario (10/11/2026, autorizada, solo su cuenta): avisos `monthly_summary` de octubre y septiembre y un recordatorio de control, recibidos; el primero (16:54) lo entregó Apple recién a las 17:00 junto con los otros (urgencia "normal", entrega diferida esperable). La tarjeta se acepta el 01/12/2026. Primer envío real el 01/12/2026 a las 10 h ART.
 
 **Estado previo (registro):** rama `feat/notif-02-resumen-mensual`. Contrato de release: mínimo **051**, rollback a `26673fdc16a3ef02e5df384533e934c798acee14` con mínimo **050**. Diseño en `docs/superpowers/specs/2026-11-10-notif-02-resumen-mensual-design.md`.
 
