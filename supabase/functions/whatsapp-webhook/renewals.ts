@@ -1,3 +1,4 @@
+import { renewalReceiptMessage } from "./bot-messages.ts";
 import { failureMetadata } from "./failures.ts";
 import { writeOperationalLog } from "./logging.ts";
 
@@ -15,13 +16,7 @@ export function isRenewalRequest(text: string): boolean {
 }
 
 export function formatRenewalReceipt(code: string, days: number | null): string {
-  return "✅ Pago confirmado — Pesito\n\n" +
-    (days === null
-      ? "Recibimos tu pago por acceso sin vencimiento."
-      : `Recibimos tu pago por ${days} días.`) +
-    `\nTu código de renovación es: ${code}\n\n` +
-    "Canjealo en Ajustes → ¿Tenés un código de renovación? para activar tu suscripción. " +
-    "El nuevo vencimiento aparecerá en la app después del canje.";
+  return renewalReceiptMessage(code, days);
 }
 
 export async function deliverRenewalNotices(

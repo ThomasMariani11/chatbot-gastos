@@ -10,7 +10,7 @@ describe('BE-19: despacho sin IA, plantillas o exposición del código', () => {
   it.each(['Gasté 5000 para renovar Netflix','Cobré 100 por renovar un servicio','¿Cuánto sale renovar?','RENOVAR y gasté 500'])('no intercepta movimiento o consulta mixta: %s', text => expect(isRenewalRequest(text)).toBe(false));
   it('el recibo confirma pago y días, sin declarar activación ni fecha ficticia', () => {
     const body = formatRenewalReceipt('SYNTHETIC-CODE',30);
-    expect(body).toContain('Pago confirmado');expect(body).toContain('30 días');expect(body).toContain('SYNTHETIC-CODE');expect(body).toContain('después del canje');
+    expect(body).toContain('Pago confirmado');expect(body).toContain('30 días');expect(body).toContain('SYNTHETIC-CODE');expect(body).toContain('apenas lo canjeás');expect(body).not.toContain('*SYNTHETIC-CODE*');
     expect(body).not.toContain('renovación confirmada');expect(formatRenewalReceipt('SYNTHETIC-CODE',null)).toContain('sin vencimiento');
   });
   it('el procesador deriva RENOVAR a la cola antes de bloquear por vencimiento, sin red ni lecturas', async () => {

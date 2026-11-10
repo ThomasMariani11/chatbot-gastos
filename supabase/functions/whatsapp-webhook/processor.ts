@@ -1,4 +1,4 @@
-import { BOT_MESSAGES } from "./bot-messages.ts";
+import { BOT_MESSAGES, commercialQueryMessage } from "./bot-messages.ts";
 import { formatOverLimitReply } from "./draft-summary.ts";
 import { buildPendingEdit, parsePendingEdit } from "./draft-edit.ts";
 import { formatMonthlySnapshot } from "./monthly-summary.ts";
@@ -97,7 +97,7 @@ export async function prepareMessage(
   if (query === "commercial") {
     const support = await resolveSupportContact(db, access.supportDetails);
     return reply(
-      `¡Hola! 👋 Para renovar tu membresía en Pesito o consultar planes y medios de pago:${support}\n\nComunicate con soporte para activar tu cuenta.`,
+      commercialQueryMessage(support),
     );
   }
   const command = !message.image?.id && !message.audio?.id

@@ -32,13 +32,13 @@ export function parseLocalCommand(raw: string): LocalCommand | null {
     return {
       kind: "reply",
       text:
-        'Podés mandarme gastos e ingresos juntos, por ejemplo: "Gasté 1500 en super y cobré 10000 por diseño". Quedan pendientes hasta que respondas CONFIRMAR. Usá RESUMEN para verlos, "El 2 fue de 250" para corregir, "Quitá el 2" para quitar o CANCELAR para descartar la lista.',
+        BOT_MESSAGES.help,
     };
   }
   if (/^(gracias|muchas gracias|genial)$/.test(text)) {
     return {
       kind: "reply",
-      text: "¡De nada! Cuando quieras, podés seguir cargando tus movimientos.",
+      text: BOT_MESSAGES.thanks,
     };
   }
   if (

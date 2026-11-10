@@ -97,23 +97,41 @@ export function formatMonthlySnapshot(
   const snapshot = parseMonthlySnapshot(value, expectedMonth);
   const ars = snapshot.currencies.find((r) => r.currency === "ARS")!;
   const usd = snapshot.currencies.find((r) => r.currency === "USD")!;
-  let body =
-    `📊 *Resumen de ${snapshot.month}:*\n\n*Pesos (ARS)*\n• Total gastado: ${
-      money(ars.expenses, "ARS")
-    }\n• Total ingresos: ${money(ars.income, "ARS")}\n• Balance neto: ${
-      money(ars.balance, "ARS")
-    }`;
-  body += snapshot.budget === null
-    ? "\n\n💡 Podés fijar un presupuesto mensual en pesos en la app."
-    : `\n• Disponible del presupuesto (ARS): ${
-      money(snapshot.remaining!, "ARS")
-    }`;
+  const monthName = MONTH_NAMES[Number(snapshot.month.slice(5, 7)) - 1] ??
+    snapshot.month;
+  let body = `📊 *Tu resumen de ${monthName}*\n\n*Pesos*\n💸 Gastos: ${
+    money(ars.expenses, "ARS")
+  }\n💰 Ingresos: ${money(ars.income, "ARS")}\n📈 Balance: ${
+    money(ars.balance, "ARS")
+  }`;
+  if (snapshot.budget === null) {
+    body += "\n💡 Podés fijar un presupuesto mensual en la app.";
+  } else if (snapshot.remaining! < 0n) {
+    body += `\n⚠️ Te pasaste ${money(-snapshot.remaining!, "ARS")} del presupuesto`;
+  } else {
+    body += `\n🎯 Te quedan ${money(snapshot.remaining!, "ARS")} del presupuesto`;
+  }
   if (usd.operations > 0n) {
-    body += `\n\n*Dólares (USD)*\n• Total gastado: ${
+    body += `\n\n*Dólares*\n💸 Gastos: ${
       money(usd.expenses, "USD")
-    }\n• Total ingresos: ${money(usd.income, "USD")}\n• Balance neto: ${
+    }\n💰 Ingresos: ${money(usd.income, "USD")}\n📈 Balance: ${
       money(usd.balance, "USD")
     }`;
   }
   return body;
 }
+
+const MONTH_NAMES = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
+];

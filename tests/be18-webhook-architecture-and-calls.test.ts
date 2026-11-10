@@ -263,7 +263,7 @@ describe('BE-18: Separación de responsabilidades y reducción de llamadas remot
     const pausedClient = await prepareMessage(db, buildJob('Gasté 500 en pan', 'user-1'), async () => {});
     expect(pausedClient).toEqual({
       kind: 'reply',
-      text: 'Pesito: El bot se encuentra temporalmente en pausa por mantenimiento. Intentá nuevamente más tarde.',
+      text: BOT_MESSAGES.maintenance,
       clear_summary: true,
     });
 
