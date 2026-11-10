@@ -113,7 +113,7 @@ Se conservan Node de .node-version para la aplicación, Deno fijado, cuatro cont
 
 ## BE-19 publicado — pago confirmado y código nominativo de renovación
 
-**30/10/2026.** Publicado en producción técnica bajo autorización expresa del propietario. PR #74 integrado en `main` (`800e82101a1d4c5269ae32179e7169ed6bd005c3`), SQL 043 aplicado (`001–043`), webhook Edge v67 ACTIVE y PWA publicada en GitHub Pages. [Validación BE-19](../planes/VALIDACION_BE_19.md) y [evidencia](evidencias/BE_19_DESPLIEGUE_2026-10-30.json). Aceptación manual pendiente con cuenta de prueba autorizada de Thomas.
+**30/10/2026.** Publicado en producción técnica bajo autorización expresa del propietario. PR #74 integrado en `main` (`800e82101a1d4c5269ae32179e7169ed6bd005c3`), SQL 043 aplicado (`001–043`), webhook Edge v67 ACTIVE y PWA publicada en GitHub Pages. [Validación BE-19](../planes/VALIDACION_BE_19.md) y [evidencia](evidencias/BE_19_DESPLIEGUE_2026-10-30.json). Aceptación manual realizada por el propietario el 10/11/2026.
 
 ## Corrección de importes múltiples publicada — 30/10/2026
 
@@ -1034,7 +1034,7 @@ No afirmar que ya hay:
 | PR #66 | Cursor mensual por ID coherente antes del orden por fecha. |
 | FE-23 / PR #67 | Soporte WhatsApp en Dashboard. |
 | BE-22 / PR #68 y #73 | SQL 042 y webhook v66 publicados/verificados 30/10. Correcciones múltiples explícitas de importe resueltas localmente sin IA, con validación completa. Aceptación manual cerrada para importes múltiples, bajas estables y cancelación sin guardar; evidencia del 30/10. |
-| BE-19 / PR #74 | Publicado y verificado 30/10/2026: SQL 043, Edge v67 y PWA 800e821. Solicitud RENOVAR por WhatsApp, confirmación administrativa con duración configurable, código nominativo y outbox duradera con ventana Meta 23h55m sin IA. Canje único en Ajustes. Aceptación manual pendiente con cuenta de prueba autorizada. |
+| BE-19 / PR #74 | Publicado y verificado 30/10/2026: SQL 043, Edge v67 y PWA 800e821. Solicitud RENOVAR por WhatsApp, confirmación administrativa con duración configurable, código nominativo y outbox duradera con ventana Meta 23h55m sin IA. Canje único en Ajustes. Aceptación manual realizada el 10/11/2026. |
 
 Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garantías y límites; no asumir que un refactor los reemplazó por completo.
 
@@ -1042,7 +1042,7 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 
 | ID | Propuesta | Falta |
 | --- | --- | --- |
-| BE-19 (aceptación) | Prueba manual de pago confirmado y código nominativo con cuenta autorizada. | Enviar RENOVAR, confirmar pago en panel Clientes, recibir WhatsApp con código, canjear en Ajustes y verificar extensión sin segundo WhatsApp. |
+| BE-19 (aceptación) | Prueba manual de pago confirmado y código nominativo. | **Cerrado 10/11/2026:** RENOVAR, pago confirmado en el panel, código recibido por WhatsApp y canjeado en Ajustes. |
 | FE-24 / BE-20 | Categorías ampliadas (catálogo fijo de 31). | Publicado 08/11/2026 (PR #89, 61fa83d; SQL 001–048; webhook v72; 16 movimientos reclasificados). Aceptación manual del propietario 09/11/2026. Alcance redefinido: sin categorías propias del cliente ni límite por usuario. Ver 16.3. |
 | FE-25 | Avisos en el Resumen y preferencias. | Publicado 05/11/2026 (PR #81, bb14ace). Aceptación manual en Android (06/11/2026) e iPhone instalado (10/11/2026). |
 | NOTIF-01 (push) | Notificaciones push al celular. | Publicado 05/11/2026 (046 + webhook v71). Recibido en el celular del propietario el 06/11/2026 (prueba manual). Probado en iPhone con la PWA instalada el 10/11/2026. |
