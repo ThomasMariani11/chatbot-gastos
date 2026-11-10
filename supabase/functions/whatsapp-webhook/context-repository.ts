@@ -1,3 +1,4 @@
+import { accountPausedMessage, BOT_MESSAGES, subscriptionEndedMessage } from "./bot-messages.ts";
 import { OperationalFailure } from "./failures.ts";
 import type { DatabaseOperation } from "./failures.ts";
 import type { Job } from "./queue.ts";
@@ -202,7 +203,7 @@ export async function resolveActorAccess(
       return {
         allowed: false,
         action: reply(
-          "Tu número no está vinculado a Pesito. Podés vincularlo generando un código desde la app.",
+          BOT_MESSAGES.notLinked,
         ),
       };
     }
@@ -210,7 +211,7 @@ export async function resolveActorAccess(
       return {
         allowed: false,
         action: reply(
-          "El vínculo de tu cuenta cambió. No registré este mensaje. Revisá la cuenta vinculada y envialo nuevamente.",
+          BOT_MESSAGES.linkChanged,
         ),
       };
     }
@@ -231,7 +232,7 @@ export async function resolveActorAccess(
       return {
         allowed: false,
         action: reply(
-          "Tu número no está vinculado a Pesito. Podés vincularlo generando un código desde la app.",
+          BOT_MESSAGES.notLinked,
         ),
       };
     }
@@ -272,7 +273,7 @@ export async function resolveActorAccess(
       return {
         allowed: false,
         action: blocked(
-          `Tu cuenta de Pesito se encuentra en pausa ⏸️.${support}`,
+          accountPausedMessage(support),
         ),
       };
     }
@@ -286,7 +287,7 @@ export async function resolveActorAccess(
       return {
         allowed: false,
         action: blocked(
-          `Tu suscripción en Pesito ha finalizado ⏳.${support}`,
+          subscriptionEndedMessage(support),
         ),
       };
     }
@@ -296,7 +297,7 @@ export async function resolveActorAccess(
     return {
       allowed: false,
       action: blocked(
-        "Pesito: El bot se encuentra temporalmente en pausa por mantenimiento. Intentá nuevamente más tarde.",
+        BOT_MESSAGES.maintenance,
       ),
     };
   }

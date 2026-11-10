@@ -1060,6 +1060,10 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 
 Leer cada bloque completo y evidencia reciente; no tomar el encabezado histórico del plan como única fuente de estado.
 
+### 16.5. Segunda tanda de textos del bot — en rama, sin publicar (10/11/2026)
+
+Rama `feat/mensajes-bot-cercanos-2`. Mismo estilo aprobado en 16.4, ahora para confirmar ("¡Listo! Guardé 3 movimientos ✅", singular con uno), cancelar, "No pude guardar la lista 😕" + motivo, lista de más de un día (RETOMAR/DESCARTAR), categoría inexistente, vinculación, cuenta en pausa/suscripción terminada/mantenimiento, ayuda, "¡De nada!", resumen del mes ("📊 *Tu resumen de noviembre*", con 💸/💰/📈 y 🎯 o ⚠️ según el presupuesto), consulta de planes y renovación (pedido, recibo con el código sin negrita para que se pueda copiar, casos especiales). Textos del webhook en `bot-messages.ts` y `monthly-summary.ts`; los de SQL en la migración 050, verificada en `tests/bot-messages-sql.test.ts`. Decisión del agente: "La lista no está abierta." pasó a "Esta lista ya no está abierta. Escribí RESUMEN para ver la actual."
+
 ### 16.4. Textos del bot más cercanos — publicado 09/11/2026
 
 **Publicado:** PR #91 en `main` (`4ba7f79`), PWA en GitHub Pages, SQL **001–049** aplicado, webhook **v73 ACTIVE**. Aceptación manual en WhatsApp realizada por el propietario el 10/11/2026. El propietario aprobó un estilo cercano y legible (una idea por mensaje, un ejemplo con 👉, saltos de línea, sin "No modifiqué la lista" ni términos técnicos) para: lista de movimientos, correcciones mal indicadas, límite de 20 y audio/foto/mensajes no entendidos. La lista pasa a un renglón por movimiento: `1. *Gasto* Súper — $ 1.500 · Alimentación · hoy` (tipo escrito en negrita, fechas "hoy/ayer/dd/mm", sin "Cat:" ni "[USD]", cuotas "en 12 cuotas desde dic."). Textos centralizados en `supabase/functions/whatsapp-webhook/bot-messages.ts`; los que genera SQL están en la migración 049 con paridad verificada en `tests/durable-queue.test.ts`. Confirmar, cancelar, renovación, vinculación y el mensaje de categoría inexistente no cambiaron.

@@ -36,7 +36,36 @@ export const BOT_MESSAGES = {
   manualReview:
     "No pude procesar este mensaje 😕 Lo guardé para revisarlo.\nMientras tanto, escribime el gasto con el concepto y el monto.\n\nTu lista sigue igual.",
   mixedQuery: "Mandame la consulta y el gasto por separado, así no me confundo 🙂\nTu lista sigue igual.",
+  // Estado de la cuenta y vínculo (aprobados el 10/11/2026).
+  maintenance: "El bot está en mantenimiento por un rato 🛠️\nProbá de nuevo más tarde.",
+  notLinked:
+    "Tu número todavía no está vinculado a Pesito.\nGenerá un código desde la app, en Ajustes, y mandámelo por acá.",
+  linkChanged:
+    "El vínculo de tu cuenta cambió y no registré este mensaje.\nRevisá la cuenta vinculada en la app y mandalo de nuevo.",
+  help:
+    'Así me podés usar 👇\n\n📝 Mandame gastos e ingresos:\n👉 "Gasté 1500 en súper y cobré 10000 por diseño"\n\n✅ *CONFIRMAR* para guardarlos\n📋 *RESUMEN* para ver la lista\n✏️ "el 2 fue de 250" para corregir\n🗑️ "quitá el 2" para sacar uno\n❌ *CANCELAR* para descartar todo',
+  thanks: "¡De nada! 🙌\nCuando quieras, seguí cargando tus movimientos.",
 } as const;
+
+// `support` es el bloque de contacto de soporte (puede venir vacío).
+export function accountPausedMessage(support: string): string {
+  return `Tu cuenta de Pesito está en pausa ⏸️\nEscribile a soporte para reactivarla.${support}`;
+}
+export function subscriptionEndedMessage(support: string): string {
+  return `Tu suscripción de Pesito terminó ⏳\nEscribile a soporte para renovarla.${support}`;
+}
+export function commercialQueryMessage(support: string): string {
+  return `¡Hola! 👋 Para renovar o consultar planes y medios de pago, escribile a soporte.${support}`;
+}
+
+export function renewalReceiptMessage(code: string, days: number | null): string {
+  return "✅ ¡Pago confirmado!\n\n" +
+    (days === null ? "Recibimos tu pago por acceso sin vencimiento." : `Recibimos tu pago por ${days} días.`) +
+    // Sin negrita: al copiar el código de WhatsApp los asteriscos podrían colarse.
+    `\nTu código de renovación es: ${code}\n\n` +
+    "Canjealo en la app: Ajustes → ¿Tenés un código de renovación?\n" +
+    "El nuevo vencimiento aparece apenas lo canjeás.";
+}
 
 // `example` es un número que existe en la lista (el primer incompleto, o el primero).
 export function listFooter(count: number, incomplete: boolean, example = 2): string {

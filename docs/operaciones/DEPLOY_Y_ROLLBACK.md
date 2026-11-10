@@ -20,6 +20,10 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
+## Contrato candidato 050 (segunda tanda de textos del bot) — 10/11/2026
+
+Rama `feat/mensajes-bot-cercanos-2`: mínimo **050**, rollback fijado en **70b057661d752a184e1f143d977fffe3f62290a7** (main publicado: PWA 4ba7f79 + docs, webhook v73; mínimo **049**). 050 solo reemplaza textos de respuesta en `apply_whatsapp_job` (confirmar, cancelar, retomar/descartar, vinculación, categoría inexistente), `confirm_draft_group` (motivos de "No pude guardar la lista") y `register_subscription_renewal` (RENOVAR); aborta sin cambios si alguna función no tiene exactamente los textos esperados. Orden: 050 → webhook → PWA (la PWA no cambia en lo funcional). Rollback: conservar 050 (el runtime anterior funciona igual con los textos SQL nuevos). Sin aplicar ni publicar.
+
 ## Contrato candidato 049 (textos del bot más cercanos) — 09/11/2026
 
 Rama `feat/mensajes-bot-cercanos`: mínimo **049**, rollback fijado en **fbbad78d801d6f9869f07b4776b776198d486435** (main publicado: PWA 61fa83d + docs, webhook v72; mínimo **048**). 049 solo reemplaza textos de respuesta en `apply_whatsapp_job`, `next_whatsapp_job` y `whatsapp_over_limit_reply` (reemplazo verificado del texto anterior, sin cambiar lógica ni permisos); aborta sin cambios si la definición vigente no contiene exactamente los textos esperados. Orden: 049 → webhook → PWA (la PWA no cambia en lo funcional). Rollback: conservar 049 (el runtime anterior funciona igual; solo verá los textos nuevos en las respuestas generadas por SQL). Sin aplicar ni publicar.

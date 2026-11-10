@@ -2053,7 +2053,7 @@ Deno.test("BE-05/BE-09: saldo consulta una RPC agregada de la cuenta, sin IA ni 
       result.kind === "reply" && body.includes("$ 125,50") &&
         body.includes("$ 374,50") && body.includes("$ 874,50") &&
         body.includes("US$ 10") && body.includes("US$ 20") &&
-        body.includes("Disponible del presupuesto (ARS)") && calls === 1 &&
+        body.includes("🎯 Te quedan $ 874,50 del presupuesto") && calls === 1 &&
         fixture.draftReads() === 0,
       "Resumen incorrecto o ruta de IA/borrador utilizada",
     );
@@ -2077,7 +2077,7 @@ Deno.test("BE-05: correcciones con palabra suscripción y comandos conservan sus
     });
     assert(result.kind === kind, "El ruteo interceptó comando/corrección");
     assert(
-      !String(result.text).includes("Comunicate con soporte"),
+      !String(result.text).includes("consultar planes y medios de pago"),
       "Corrección desviada a soporte",
     );
   }
@@ -3010,8 +3010,14 @@ for (
         },
       );
       assert(
-        calls === 1 && String(result.text).includes(expected) &&
-          String(result.text).includes("Balance neto: $ 0"),
+        calls === 1 &&
+          String(result.text).includes(
+            "Tu resumen de " +
+              ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][
+                Number(expected.slice(5, 7)) - 1
+              ],
+          ) &&
+          String(result.text).includes("📈 Balance: $ 0"),
         "No respondió el mes local sin IA",
       );
     } finally {
