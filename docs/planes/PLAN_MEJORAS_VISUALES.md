@@ -123,6 +123,6 @@ El cierre corresponde al alcance de implementación visual. La comprobación fí
 ## Seguimiento posterior al cierre
 
 - Mantener la evidencia de los cinco bloques y sus publicaciones como registro.
-- Comprobar en un dispositivo físico Safari/iOS y PWA instalada: navegación, formularios, hover táctil, selector de mes y legibilidad. Esa aceptación no se presume realizada.
+- ~~Comprobar en un dispositivo físico Safari/iOS y PWA instalada~~ **Realizado el 10/11/2026:** el propietario probó la PWA instalada en iPhone (navegación, formularios, selector de mes y legibilidad) sin incidencias informadas.
 - Registrar cualquier incidencia visual nueva como una tarea concreta de mantenimiento.
 - Continuar en el plan general con FE-01, FE-02 y FE-03: integridad de cuotas, escrituras atómicas y preservación de importes/identidad. Los resultados visuales no cierran esos problemas.
