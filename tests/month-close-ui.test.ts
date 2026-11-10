@@ -40,17 +40,22 @@ function fakeClient(opts: { settings?: Result; transactions?: Tx[]; budget?: num
   const client = {
     from(table: string) {
       calls.push(table);
+      // Ids ficticios; una sola página (menos de 250 filas).
+      const rows = (opts.transactions ?? []).map((tx, i) => ({ id: `tx-${String(i + 1).padStart(5, '0')}`, ...tx }));
       const result = (): Result =>
         table === 'app_settings'
           ? (opts.settings ?? { data: { monthly_summary_enabled: true }, error: null })
           : table === 'budgets'
             ? { data: opts.budget == null ? null : { amount_ars: String(opts.budget) }, error: null }
-            : { data: opts.transactions ?? [], error: null };
+            : { data: rows, error: null };
       const builder = {
         select: () => builder,
         eq: () => builder,
+        gt: () => builder,
         gte: () => builder,
         lte: () => builder,
+        order: () => builder,
+        limit: () => builder,
         maybeSingle: () => Promise.resolve(result()),
         then: ((onfulfilled, onrejected) => Promise.resolve(result()).then(onfulfilled, onrejected)) as Promise<Result>['then'],
       };
@@ -85,7 +90,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-// La tarjeta carga una vez por cuenta al montarse: cada escenario nuevo se monta de cero.
+// La tarjeta carga una vez por cuenta y mes cerrado: cada escenario nuevo se monta de cero.
 async function remount() {
   await act(async () => root.unmount());
   root = createRoot(node);
@@ -144,6 +149,32 @@ describe('NOTIF-02 · tarjeta de cierre del mes', () => {
     });
     expect(node.textContent).toContain('▼ 8% vs oct.');
     expect(node.textContent).not.toContain('Dólares');
+  });
+
+  it('gastos iguales al mes anterior se muestran como "= 0%"', async () => {
+    await render({
+      transactions: [
+        { amount_ars: 100000, currency: 'ARS', kind: 'expense', occurred_on: '2026-10-10' },
+        { amount_ars: 100000, currency: 'ARS', kind: 'expense', occurred_on: '2026-11-10' },
+      ],
+    });
+    expect(node.querySelector('.month-close-change')?.textContent).toBe('= 0% vs oct.');
+  });
+
+  it('con la app abierta desde el 30/11, al pasar al 1/12 aparece sin remontar', async () => {
+    const api = fakeClient({ transactions: happy, budget: 400000 });
+    const props = { userId: 'u1', onViewMonth: vi.fn(), client: api.client };
+    await act(async () => {
+      root.render(h(MonthCloseCard, { ...props, now: Date.parse('2026-11-30T22:00:00-03:00') }));
+    });
+    expect(node.innerHTML).toBe('');
+    expect(api.calls).toEqual([]);
+
+    await act(async () => {
+      root.render(h(MonthCloseCard, { ...props, now: Date.parse('2026-12-01T09:00:00-03:00') }));
+    });
+    expect(node.querySelector('section[aria-label="Cierre del mes"]')?.textContent).toContain('Cerraste noviembre');
+    expect(api.calls).toEqual(['app_settings', 'transactions', 'budgets']);
   });
 
   it('"Ver noviembre" lleva al mes; "Cerrar" la oculta para ese mes y no vuelve al montar', async () => {

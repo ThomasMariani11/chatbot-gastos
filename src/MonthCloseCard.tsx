@@ -33,24 +33,35 @@ export function MonthCloseCard({ userId, onViewMonth, client, now }: Props) {
   // Se guarda la cuenta junto al resultado para no mostrar el cierre de otra cuenta al cambiar de usuario.
   const [loaded, setLoaded] = useState<{ userId: string; close: MonthClose | null } | null>(null);
   const [hiddenMonth, setHiddenMonth] = useState<string | null>(null);
+  const [, setWakeups] = useState(0);
   const reader = client ?? (supabase as unknown as Parameters<typeof loadMonthClose>[0]);
+  // Se calcula en cada render: si la PWA quedó abierta desde fin de mes, el cambio de mes
+  // (p. ej. al tocar el push del día 1) dispara una nueva lectura sin remontar la tarjeta.
+  const currentMonth = closedMonth(now ?? Date.now());
 
   useEffect(() => {
-    const at = now ?? Date.now();
-    const month = closedMonth(at);
-    if (!month || isMonthCloseDismissed(userId, month)) return;
+    // Al volver a la app se re-renderiza para recalcular el mes aunque el padre no cambie.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') setWakeups((n) => n + 1);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
+  useEffect(() => {
+    if (!currentMonth || isMonthCloseDismissed(userId, currentMonth)) return;
     let active = true;
-    void loadMonthClose(reader, userId, at).then((close) => {
+    void loadMonthClose(reader, userId, now ?? Date.now()).then((close) => {
       if (active) setLoaded({ userId, close });
     });
     return () => {
       active = false;
     };
-    // `reader` y `now` son estables: el cliente de producción o los inyectados por las pruebas.
-  }, [userId]);
+    // `reader` es estable: el cliente de producción o el inyectado por las pruebas.
+  }, [userId, currentMonth]);
 
   const close = loaded?.userId === userId ? loaded.close : null;
-  if (!close || close.month !== closedMonth(now ?? Date.now())) return null;
+  if (!close || close.month !== currentMonth) return null;
   if (hiddenMonth === close.month || isMonthCloseDismissed(userId, close.month)) return null;
 
   const month = close.month;

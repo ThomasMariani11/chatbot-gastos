@@ -130,6 +130,10 @@ describe('buildMonthClose', () => {
 
 type Call = { table: string; select?: string; filters: Array<[string, string, string]> };
 
+// Ids ficticios ordenables como texto (igual que los uuid en minúscula).
+const txId = (n: number) => `tx-${String(n).padStart(5, '0')}`;
+const withIds = (items: Array<Record<string, unknown>>) => items.map((item, i) => ({ id: txId(i + 1), ...item }));
+
 function fakeClient(opts: {
   settings?: { data: unknown; error: unknown };
   transactions?: { data: unknown; error: unknown };
@@ -140,12 +144,22 @@ function fakeClient(opts: {
     from(table: string) {
       const call: Call = { table, filters: [] };
       calls.push(call);
+      let after: string | null = null;
+      let pageSize: number | null = null;
+      const transactions = () => {
+        const base = opts.transactions ?? { data: [], error: null };
+        if (!Array.isArray(base.data)) return base;
+        // Respeta orden por id, cursor (gt) y límite como PostgREST.
+        const sorted = [...(base.data as Array<{ id: string }>)].sort((a, b) => a.id.localeCompare(b.id));
+        const rest = after === null ? sorted : sorted.filter((item) => item.id > (after as string));
+        return { data: pageSize === null ? rest : rest.slice(0, pageSize), error: base.error };
+      };
       const result = () =>
         table === 'app_settings'
           ? (opts.settings ?? { data: { monthly_summary_enabled: true }, error: null })
           : table === 'budgets'
             ? (opts.budget ?? { data: null, error: null })
-            : (opts.transactions ?? { data: [], error: null });
+            : transactions();
       const builder: any = {
         select(columns: string) {
           call.select = columns;
@@ -155,12 +169,26 @@ function fakeClient(opts: {
           call.filters.push(['eq', column, value]);
           return builder;
         },
+        gt(column: string, value: string) {
+          call.filters.push(['gt', column, value]);
+          after = value;
+          return builder;
+        },
         gte(column: string, value: string) {
           call.filters.push(['gte', column, value]);
           return builder;
         },
         lte(column: string, value: string) {
           call.filters.push(['lte', column, value]);
+          return builder;
+        },
+        order(column: string, options: { ascending: boolean }) {
+          call.filters.push(['order', column, options.ascending ? 'asc' : 'desc']);
+          return builder;
+        },
+        limit(count: number) {
+          call.filters.push(['limit', '', String(count)]);
+          pageSize = count;
           return builder;
         },
         maybeSingle: () => Promise.resolve(result()),
@@ -202,21 +230,70 @@ describe('loadMonthClose', () => {
     expect(await loadMonthClose(shape.client, 'u1', NOW)).toBeNull();
 
     const budget = fakeClient({
-      transactions: { data: [{ amount_ars: '10', currency: 'ARS', kind: 'expense', occurred_on: '2026-11-03' }], error: null },
+      transactions: { data: withIds([{ amount_ars: '10', currency: 'ARS', kind: 'expense', occurred_on: '2026-11-03' }]), error: null },
       budget: { data: null, error: { message: 'x' } },
     });
     expect(await loadMonthClose(budget.client, 'u1', NOW)).toBeNull();
+
+    const noId = fakeClient({
+      transactions: { data: [{ amount_ars: '10', currency: 'ARS', kind: 'expense', occurred_on: '2026-11-03' }], error: null },
+    });
+    expect(await loadMonthClose(noId.client, 'u1', NOW)).toBeNull();
+  });
+
+  it('pagina por id: suma todas las filas aunque superen una página', async () => {
+    // 600 gastos de noviembre (3 páginas: 250 + 250 + 100) y 300 de octubre.
+    const data = withIds([
+      ...Array.from({ length: 600 }, () => ({ amount_ars: '10', currency: 'ARS', kind: 'expense', occurred_on: '2026-11-15' })),
+      ...Array.from({ length: 300 }, () => ({ amount_ars: '10', currency: 'ARS', kind: 'expense', occurred_on: '2026-10-15' })),
+    ]);
+    const { client, calls } = fakeClient({ transactions: { data, error: null } });
+    const close = await loadMonthClose(client, 'u1', NOW);
+    expect(close?.currencies).toEqual([
+      { currency: 'ARS', expenses: 6000, income: 0, balance: -6000, expenseChange: 100 },
+    ]);
+
+    const pages = calls.filter((c) => c.table === 'transactions');
+    expect(pages).toHaveLength(4);
+    const base = [
+      ['eq', 'user_id', 'u1'],
+      ['eq', 'status', 'confirmed'],
+      ['gte', 'occurred_on', '2026-10-01'],
+      ['lte', 'occurred_on', '2026-11-30'],
+      ['order', 'id', 'asc'],
+      ['limit', '', '250'],
+    ];
+    expect(pages[0].filters).toEqual(base);
+    expect(pages[1].filters).toEqual([...base, ['gt', 'id', txId(250)]]);
+    expect(pages[2].filters).toEqual([...base, ['gt', 'id', txId(500)]]);
+    expect(pages[3].filters).toEqual([...base, ['gt', 'id', txId(750)]]);
+  });
+
+  it('devuelve null si una página posterior falla', async () => {
+    const data = withIds(
+      Array.from({ length: 300 }, () => ({ amount_ars: '10', currency: 'ARS', kind: 'expense', occurred_on: '2026-11-15' })),
+    );
+    const { client } = fakeClient({ transactions: { data, error: null } });
+    let page = 0;
+    const from = client.from.bind(client);
+    client.from = (table: string) => {
+      const builder = from(table);
+      if (table !== 'transactions' || page++ === 0) return builder;
+      builder.then = (resolve: (value: unknown) => unknown) => Promise.resolve({ data: null, error: { message: 'x' } }).then(resolve);
+      return builder;
+    };
+    expect(await loadMonthClose(client, 'u1', NOW)).toBeNull();
   });
 
   it('caso feliz: arma el cierre y pide el rango y filtros exactos', async () => {
     const { client, calls } = fakeClient({
       transactions: {
-        data: [
+        data: withIds([
           { amount_ars: '100000.00', currency: 'ARS', kind: 'expense', occurred_on: '2026-10-10' },
           { amount_ars: '350000', currency: 'ARS', kind: 'expense', occurred_on: '2026-11-05' },
           { amount_ars: 470000, currency: 'ARS', kind: 'income', occurred_on: '2026-11-01' },
           { amount_ars: '50', currency: 'USD', kind: 'expense', occurred_on: '2026-11-09' },
-        ],
+        ]),
         error: null,
       },
       budget: { data: { amount_ars: '400000' }, error: null },
@@ -237,13 +314,17 @@ describe('loadMonthClose', () => {
     expect(settings?.filters).toEqual([['eq', 'user_id', 'u1']]);
 
     const tx = calls.find((c) => c.table === 'transactions');
-    expect(tx?.select).toBe('amount_ars,currency,kind,occurred_on');
+    expect(tx?.select).toBe('id,amount_ars,currency,kind,occurred_on');
     expect(tx?.filters).toEqual([
       ['eq', 'user_id', 'u1'],
       ['eq', 'status', 'confirmed'],
       ['gte', 'occurred_on', '2026-10-01'],
       ['lte', 'occurred_on', '2026-11-30'],
+      ['order', 'id', 'asc'],
+      ['limit', '', '250'],
     ]);
+    // Una página corta alcanza: no se pide otra.
+    expect(calls.filter((c) => c.table === 'transactions')).toHaveLength(1);
 
     const budgets = calls.find((c) => c.table === 'budgets');
     expect(budgets?.select).toBe('amount_ars');
@@ -255,11 +336,11 @@ describe('loadMonthClose', () => {
 
   it('cambio de año: el 1/1 pide 2026-11-01 a 2026-12-31', async () => {
     const { client, calls } = fakeClient({
-      transactions: { data: [{ amount_ars: '10', currency: 'ARS', kind: 'expense', occurred_on: '2026-12-31' }], error: null },
+      transactions: { data: withIds([{ amount_ars: '10', currency: 'ARS', kind: 'expense', occurred_on: '2026-12-31' }]), error: null },
     });
     const close = await loadMonthClose(client, 'u1', Date.parse('2027-01-01T11:00:00-03:00'));
     expect(close?.month).toBe('2026-12');
-    expect(calls.find((c) => c.table === 'transactions')?.filters.slice(2)).toEqual([
+    expect(calls.find((c) => c.table === 'transactions')?.filters.slice(2, 4)).toEqual([
       ['gte', 'occurred_on', '2026-11-01'],
       ['lte', 'occurred_on', '2026-12-31'],
     ]);
@@ -267,7 +348,7 @@ describe('loadMonthClose', () => {
 
   it('sin presupuesto cargado el cierre no tiene línea de presupuesto', async () => {
     const { client } = fakeClient({
-      transactions: { data: [{ amount_ars: '10', currency: 'ARS', kind: 'expense', occurred_on: '2026-11-03' }], error: null },
+      transactions: { data: withIds([{ amount_ars: '10', currency: 'ARS', kind: 'expense', occurred_on: '2026-11-03' }]), error: null },
     });
     expect((await loadMonthClose(client, 'u1', NOW))?.budget).toBeNull();
   });
