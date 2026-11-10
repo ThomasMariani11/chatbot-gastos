@@ -35,7 +35,8 @@ vi.mock('../src/BotOperations', () => ({
   BotOperations: () => h('div', { 'data-testid': 'bot-operations-stub' }, 'Bot ops'),
 }));
 
-vi.mock('../src/dashboardData', () => ({
+vi.mock('../src/dashboardData', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/dashboardData')>()),
   readDashboardSnapshot: async (_user: string, month: string) => {
     const rows = api.rows.filter((row) => row.status === 'confirmed');
     return {
