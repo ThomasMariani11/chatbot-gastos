@@ -1197,7 +1197,10 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 
 ### NOTIF-02 — Resumen de fin de mes (mejora futura)
 
-- [ ] Pendiente. Registrado el 05/11/2026 por pedido del propietario.
+- [ ] Implementado en la rama `feat/notif-02-resumen-mensual` (10/11/2026); **sin publicar** (051 sin aplicar, webhook sin desplegar). Registrado el 05/11/2026 por pedido del propietario.
+- **Implementado:** push el día 1 a las 10 h ART (margen hasta las 11 h) resumiendo el mes anterior, **sin montos**; tarjeta de cierre del mes en el Resumen los días 1 a 7 (por moneda, comparación de gastos, presupuesto; se puede cerrar); interruptor propio "Resumen del mes" en Ajustes, activado por defecto; migración 051 expansiva (`monthly_summary_enabled`, tipo `monthly_summary`, uno por mes por unicidad). Solo para cuentas activas con dispositivo suscripto y movimientos en el mes.
+- **Decisiones del propietario (10/11/2026):** día 1 a las 10 h ART; push sin montos; tarjeta en el Resumen; interruptor propio activado por defecto.
+- **Decisiones del agente:** margen de una hora; tarjeta días 1–7; sin movimientos no hay push ni tarjeta; comparación solo de gastos. Pendiente: revisión visual a 360 px en celular real. Orden de publicación previsto: webhook → 051 → PWA. Ver 16.6 del contexto y `DEPLOY_Y_ROLLBACK.md`.
 - **Alcance:** resumen opcional de fin de mes para el cliente (totales del mes, comparación y presupuesto), primero en la PWA y luego por WhatsApp si se habilita BE-21.
 - **Condiciones:** opt-in/opt-out propio, sin duplicados por mes, sin datos financieros en logs y sujeto a las mismas restricciones de ventana/plantillas y costos de Meta.
 

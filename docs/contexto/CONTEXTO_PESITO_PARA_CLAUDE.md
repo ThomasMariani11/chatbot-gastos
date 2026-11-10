@@ -1048,7 +1048,7 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 | NOTIF-01 (push) | Notificaciones push al celular. | Publicado 05/11/2026 (046 + webhook v71). Recibido en el celular del propietario el 06/11/2026 (prueba manual). Probado en iPhone con la PWA instalada el 10/11/2026. |
 | BE-21 (WhatsApp) | Avisos por WhatsApp. | Descartado por ahora por el propietario: plantilla Meta paga fuera de 24 h. |
 | FE-26 | Invitación a activar notificaciones desde el Resumen. | Publicado 06/11/2026 (PR #83, 8e3d4bc). |
-| NOTIF-02 | Resumen de fin de mes. | Mejora futura registrada el 05/11/2026; sin implementar. |
+| NOTIF-02 | Resumen de fin de mes. | Implementado en la rama `feat/notif-02-resumen-mensual` (10/11/2026); **sin publicar** (051 sin aplicar, webhook sin desplegar). Ver 16.6. |
 | FE-14 | Zoom accesible. | Revisar bloqueo y gestos. |
 | FE-21 / BE-17 | Cobertura transversal. | Escenarios de UI/handler/migraciones aún no acreditados. |
 | INF-13 pendiente | Hosting/headers/framing. | Aplazado al final por el propietario. |
@@ -1059,6 +1059,23 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 **Seguimiento BE-02 cerrado — 29/10/2026:** el propietario identificó como prueba el único código consumido sin usuario y aprobó explícitamente su borrado por UUID. Se eliminó exactamente ese registro en producción mediante una transacción con controles de referencias y filas afectadas. Un SELECT independiente confirmó ausencia y cero códigos consumidos sin usuario; perfiles, vencimientos, movimientos y recibos conservaron sus huellas. No hubo reasignación, corrección de vencimientos, migración ni despliegue. Ver `docs/planes/VALIDACION_FE_06_BE_02.md` y `docs/planes/evidencias/INVITACION_PRUEBA_ELIMINADA_2026-10-29.json`. Los estados abiertos en antecedentes fechados son históricos.
 
 Leer cada bloque completo y evidencia reciente; no tomar el encabezado histórico del plan como única fuente de estado.
+
+### 16.6. Resumen de fin de mes (NOTIF-02) — en rama, sin publicar (10/11/2026)
+
+**Estado:** rama `feat/notif-02-resumen-mensual`, sin push ni PR. Migración **051** sin aplicar, webhook sin desplegar, PWA sin publicar. Contrato de release: mínimo **051**, rollback a `26673fdc16a3ef02e5df384533e934c798acee14` con mínimo **050**. Diseño en `docs/superpowers/specs/2026-11-10-notif-02-resumen-mensual-design.md`.
+
+Decisiones del propietario (10/11/2026): push el **día 1 de cada mes a las 10 (hora argentina)** resumiendo el mes que terminó; **sin montos** en la notificación ("📊 Tu resumen de noviembre", texto fijo); **tarjeta de cierre del mes** arriba del Resumen con gastos, ingresos y balance por moneda, comparación y presupuesto, que se puede cerrar; **interruptor propio "Resumen del mes" en Ajustes, activado por defecto**, independiente de los recordatorios.
+
+Implementación: SQL 051 (`app_settings.monthly_summary_enabled`, tipo `monthly_summary` en `client_notifications` con `period_key` = mes resumido, `enqueue_client_notifications` y `claim_client_notifications` redefinidas; `claim` omite el aviso si el cliente apagó el interruptor y devuelve `period_key`; mismos permisos que 046 y mismo cron `pesito-client-push`); `client-push.ts` con el tipo nuevo (`url ./#cierre-mes`, tag `pesito-resumen`); `src/monthCloseRules.ts`, `src/MonthCloseCard.tsx`, cambios en `Dashboard.tsx`, `Settings.tsx` y `summary.css`. Pruebas: `tests/monthly-summary-push-sql.test.ts`, `tests/client-push.test.ts`, `tests/month-close.test.ts`, `tests/month-close-ui.test.ts`.
+
+Decisiones del agente y límites conocidos:
+
+- Margen de una hora (10 y 11 h) por si el cron no corre. Si el cron no corre en ninguna de las dos horas del día 1, ese mes no recibe push (la tarjeta igual se muestra los días 1 a 7).
+- Tarjeta visible los días 1 a 7. Sin movimientos en el mes no hay push ni tarjeta.
+- Comparación solo de gastos (no de ingresos). Cuando el cambio redondea a 0% se muestra "= 0%".
+- Un tipo de aviso desconocido ya no se envía: se cierra como `skipped` (antes caía en el texto de vencimiento).
+- La tarjeta se verificó solo en jsdom. **Pendiente:** revisión visual a 360 px en un celular real y prueba manual del propietario el día 1.
+- Orden de publicación previsto: webhook → SQL 051 → PWA (ver `DEPLOY_Y_ROLLBACK.md`).
 
 ### 16.5. Segunda tanda de textos del bot — publicado 10/11/2026
 

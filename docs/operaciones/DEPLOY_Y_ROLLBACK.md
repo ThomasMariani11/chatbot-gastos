@@ -24,6 +24,10 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
+## Contrato candidato 051 (NOTIF-02, resumen de fin de mes) — 10/11/2026
+
+Rama `feat/notif-02-resumen-mensual`: mínimo **051**, rollback fijado en **26673fdc16a3ef02e5df384533e934c798acee14** (main publicado, webhook v74; mínimo **050**). 051 es expansiva: agrega `app_settings.monthly_summary_enabled` (default true), admite `monthly_summary` en `client_notifications.kind` y redefine `enqueue_client_notifications` y `claim_client_notifications` (esta última devuelve además `period_key`; mismos permisos que 046). Orden: **webhook → SQL 051 → PWA**. El webhook nuevo funciona con el SQL anterior (nunca recibe `monthly_summary`) y así ningún webhook viejo recibe el tipo nuevo; la PWA va al final porque lee la columna nueva. Rollback: conservar 051; volver PWA y webhook a 26673fd / v74. Los avisos `monthly_summary` ya encolados quedarían pendientes con el webhook anterior, que los enviaría con el texto de vencimiento: apagar el cron o marcarlos como omitidos antes de revertir el webhook. Sin aplicar ni publicar.
+
 ## Contrato candidato 050 (segunda tanda de textos del bot) — 10/11/2026
 
 Rama `feat/mensajes-bot-cercanos-2`: mínimo **050**, rollback fijado en **70b057661d752a184e1f143d977fffe3f62290a7** (main publicado: PWA 4ba7f79 + docs, webhook v73; mínimo **049**). 050 solo reemplaza textos de respuesta en `apply_whatsapp_job` (confirmar, cancelar, retomar/descartar, vinculación, categoría inexistente), `confirm_draft_group` (motivos de "No pude guardar la lista") y `register_subscription_renewal` (RENOVAR); aborta sin cambios si alguna función no tiene exactamente los textos esperados. Orden: 050 → webhook → PWA (la PWA no cambia en lo funcional). Rollback: conservar 050 (el runtime anterior funciona igual con los textos SQL nuevos). Publicado el 10/11/2026 (ver arriba).
