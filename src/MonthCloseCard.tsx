@@ -96,7 +96,7 @@ export function MonthCloseCard({ userId, onViewMonth, client, now }: Props) {
               </div>
               <div>
                 <dt><span aria-hidden="true">📈 </span>Balance</dt>
-                <dd>{formatMoney(item.balance, item.currency)}</dd>
+                <dd>{item.balance < 0 ? '−' : ''}{formatMoney(Math.abs(item.balance), item.currency)}</dd>
               </div>
             </dl>
           </div>

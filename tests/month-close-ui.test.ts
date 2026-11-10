@@ -123,6 +123,9 @@ describe('NOTIF-02 · tarjeta de cierre del mes', () => {
     expect(text).toContain(formatMoney(470000, 'ARS'));
     expect(text).toContain(formatMoney(120000, 'ARS'));
     expect(text).toContain(formatMoney(50, 'USD'));
+    // Balance negativo con el signo adelante, como en el resto de la app.
+    expect(text).toContain(`−${formatMoney(50, 'USD')}`);
+    expect(text).not.toContain('US$ -50');
     expect(text).toContain('▲ 250% vs oct.');
     expect(text).toContain(`Te sobraron ${formatMoney(50000, 'ARS')} del presupuesto`);
     // Las monedas nunca se suman: no aparece un total combinado.
