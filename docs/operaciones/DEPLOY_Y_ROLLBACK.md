@@ -1,6 +1,10 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
-## Última publicación observada — 09/11/2026 (textos del bot más cercanos)
+## Última publicación observada — 10/11/2026 (segunda tanda de textos del bot)
+
+PWA **7a6055d63b57d2e4e2e6dd0d6a751a98adc32f52** (PR #94), SQL **001–050**, webhook **v74 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR → `db push --linked --dry-run` (solo 050) → cola con 283 procesados y 8 pendientes históricos v1 (sin tocar) → `db push --linked` → verificación (`apply_whatsapp_job`, `confirm_draft_group` y `register_subscription_renewal` con una sola versión cada una, sin textos anteriores y con los nuevos; SECURITY DEFINER, `search_path=pg_catalog, public`, dueño postgres y EXECUTE solo para postgres/service_role, o solo postgres en la renovación) → deploy del webhook desde 7a6055d → smoke 401 en `/`, `worker` y `client-push` → Pages con `version.json` = 7a6055d. Rollback: PWA y webhook a 70b0576 / v73 conservando 050 (el runtime anterior funciona igual con los textos SQL nuevos). Aceptación manual en WhatsApp del propietario: 10/11/2026.
+
+## Registro histórico — 09/11/2026 (textos del bot más cercanos)
 
 PWA **4ba7f79f94f4de2284e88f4e71b7aa1989671fc0** (PR #91), SQL **001–049**, webhook **v73 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR → `db push --linked --dry-run` (solo 049) → cola habilitada, 0 leases y 0 trabajos en proceso → `db push --linked` → verificación (historial 049, cero funciones con los textos anteriores, `whatsapp_over_limit_reply` con el texto nuevo, `apply_whatsapp_job` sin acceso para authenticated) → deploy del webhook desde 4ba7f79 → smoke 401 en `/`, `worker` y `client-push` → Pages con `version.json` = 4ba7f79. Rollback: PWA y webhook a fbbad78 / v72 conservando 049 (el runtime anterior funciona igual con los textos SQL nuevos). Aceptación manual en WhatsApp del propietario: 10/11/2026.
 
@@ -22,7 +26,7 @@ PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múlti
 
 ## Contrato candidato 050 (segunda tanda de textos del bot) — 10/11/2026
 
-Rama `feat/mensajes-bot-cercanos-2`: mínimo **050**, rollback fijado en **70b057661d752a184e1f143d977fffe3f62290a7** (main publicado: PWA 4ba7f79 + docs, webhook v73; mínimo **049**). 050 solo reemplaza textos de respuesta en `apply_whatsapp_job` (confirmar, cancelar, retomar/descartar, vinculación, categoría inexistente), `confirm_draft_group` (motivos de "No pude guardar la lista") y `register_subscription_renewal` (RENOVAR); aborta sin cambios si alguna función no tiene exactamente los textos esperados. Orden: 050 → webhook → PWA (la PWA no cambia en lo funcional). Rollback: conservar 050 (el runtime anterior funciona igual con los textos SQL nuevos). Sin aplicar ni publicar.
+Rama `feat/mensajes-bot-cercanos-2`: mínimo **050**, rollback fijado en **70b057661d752a184e1f143d977fffe3f62290a7** (main publicado: PWA 4ba7f79 + docs, webhook v73; mínimo **049**). 050 solo reemplaza textos de respuesta en `apply_whatsapp_job` (confirmar, cancelar, retomar/descartar, vinculación, categoría inexistente), `confirm_draft_group` (motivos de "No pude guardar la lista") y `register_subscription_renewal` (RENOVAR); aborta sin cambios si alguna función no tiene exactamente los textos esperados. Orden: 050 → webhook → PWA (la PWA no cambia en lo funcional). Rollback: conservar 050 (el runtime anterior funciona igual con los textos SQL nuevos). Publicado el 10/11/2026 (ver arriba).
 
 ## Contrato candidato 049 (textos del bot más cercanos) — 09/11/2026
 
