@@ -1195,9 +1195,9 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
   5. Registro seguro en logs sin exponer datos financieros ni nombres personales.
 - **Cierre:** simulación de cron en base aislada emite notificaciones en fechas correctas sin duplicados; cuentas vencidas o que desactivaron avisos no reciben mensajes; pruebas de volumen y fallos transitorios aprobadas.
 
-### NOTIF-02 — Resumen de fin de mes (en rama, sin publicar)
+### NOTIF-02 — Resumen de fin de mes (publicado 10/11/2026)
 
-- [ ] Implementado en la rama `feat/notif-02-resumen-mensual` (10/11/2026); **sin publicar** (051 sin aplicar, webhook sin desplegar). Registrado el 05/11/2026 por pedido del propietario.
+- [ ] Publicado el 10/11/2026: PR #97 (`6a768f9`), SQL 051, webhook v75, PWA en Pages. Falta la aceptación del propietario con el primer envío real (01/12/2026). Registrado el 05/11/2026 por pedido del propietario.
 - **Implementado:** push el día 1 a las 10 h ART (margen hasta las 11 h) resumiendo el mes anterior, **sin montos**; tarjeta de cierre del mes en el Resumen los días 1 a 7 (por moneda, comparación de gastos, presupuesto; se puede cerrar); interruptor propio "Resumen del mes" en Ajustes, activado por defecto; migración 051 expansiva (`monthly_summary_enabled`, tipo `monthly_summary`, uno por mes por unicidad). Solo para cuentas activas con dispositivo suscripto y movimientos en el mes.
 - **Decisiones del propietario (10/11/2026):** día 1 a las 10 h ART; push sin montos; tarjeta en el Resumen; interruptor propio activado por defecto.
 - **Decisiones del agente:** margen de una hora; tarjeta días 1–7; sin movimientos no hay push ni tarjeta; comparación solo de gastos. Pendiente: revisión visual a 360 px en celular real. Orden de publicación previsto: webhook → 051 → PWA. Ver 16.6 del contexto y `DEPLOY_Y_ROLLBACK.md`.

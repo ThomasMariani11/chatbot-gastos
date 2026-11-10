@@ -1048,7 +1048,7 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 | NOTIF-01 (push) | Notificaciones push al celular. | Publicado 05/11/2026 (046 + webhook v71). Recibido en el celular del propietario el 06/11/2026 (prueba manual). Probado en iPhone con la PWA instalada el 10/11/2026. |
 | BE-21 (WhatsApp) | Avisos por WhatsApp. | Descartado por ahora por el propietario: plantilla Meta paga fuera de 24 h. |
 | FE-26 | Invitación a activar notificaciones desde el Resumen. | Publicado 06/11/2026 (PR #83, 8e3d4bc). |
-| NOTIF-02 | Resumen de fin de mes. | Implementado en la rama `feat/notif-02-resumen-mensual` (10/11/2026); **sin publicar** (051 sin aplicar, webhook sin desplegar). Ver 16.6. |
+| NOTIF-02 | Resumen de fin de mes. | Publicado el 10/11/2026 (PR #97, SQL 051, webhook v75, PWA 6a768f9). Primer envío real el 01/12/2026; aceptación pendiente. Ver 16.6. |
 | FE-14 | Zoom accesible. | Revisar bloqueo y gestos. |
 | FE-21 / BE-17 | Cobertura transversal. | Escenarios de UI/handler/migraciones aún no acreditados. |
 | INF-13 pendiente | Hosting/headers/framing. | Aplazado al final por el propietario. |
@@ -1060,9 +1060,11 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 
 Leer cada bloque completo y evidencia reciente; no tomar el encabezado histórico del plan como única fuente de estado.
 
-### 16.6. Resumen de fin de mes (NOTIF-02) — en rama, sin publicar (10/11/2026)
+### 16.6. Resumen de fin de mes (NOTIF-02) — publicado 10/11/2026
 
-**Estado:** rama `feat/notif-02-resumen-mensual`, sin push ni PR. Migración **051** sin aplicar, webhook sin desplegar, PWA sin publicar. Contrato de release: mínimo **051**, rollback a `26673fdc16a3ef02e5df384533e934c798acee14` con mínimo **050**. Diseño en `docs/superpowers/specs/2026-11-10-notif-02-resumen-mensual-design.md`.
+**Publicado:** PR #97 en `main` (`6a768f9`), PWA en GitHub Pages, SQL **001–051** aplicado, webhook **v75 ACTIVE**. Probado antes en Supabase local con datos ficticios y fecha simulada (tarjeta, "Ver noviembre", interruptor, 360 px). Primer envío real el 01/12/2026 a las 10 h ART; aceptación del propietario pendiente.
+
+**Estado previo (registro):** rama `feat/notif-02-resumen-mensual`. Contrato de release: mínimo **051**, rollback a `26673fdc16a3ef02e5df384533e934c798acee14` con mínimo **050**. Diseño en `docs/superpowers/specs/2026-11-10-notif-02-resumen-mensual-design.md`.
 
 Decisiones del propietario (10/11/2026): push el **día 1 de cada mes a las 10 (hora argentina)** resumiendo el mes que terminó; **sin montos** en la notificación ("📊 Tu resumen de noviembre", texto fijo); **tarjeta de cierre del mes** arriba del Resumen con gastos, ingresos y balance por moneda, comparación y presupuesto, que se puede cerrar; **interruptor propio "Resumen del mes" en Ajustes, activado por defecto**, independiente de los recordatorios.
 
