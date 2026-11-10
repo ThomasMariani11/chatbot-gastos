@@ -173,7 +173,7 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 | Etapa final de la app | **INF-13 / hosting** | Headers HTTP y protección de framing, postergados por el propietario hasta terminar la funcionalidad. | Retomar entonces la evaluación con costo $0 y vista previa; aprobar el cambio después de probar Auth/PWA/rollback. |
 | Último | **INF-08** | Backups y recuperación aplazados por el propietario. | Nueva evaluación/autorización cuando se priorice; no habilitar almacenamiento ahora. |
 
-Siguen abiertos: seguimiento histórico BE-02 (un código usado sin usuario), compatibilidad física fuera del flujo iPhone aceptado, revisión de dependencias de desarrollo INF-07/FE-08, cobertura transversal FE-21/BE-17 y las tareas pendientes de sus tablas. Los estados históricos que siguen no sustituyen esta secuencia vigente.
+Siguen abiertos: seguimiento histórico BE-02 (un código usado sin usuario), compatibilidad física fuera del flujo iPhone aceptado, cobertura transversal FE-21/BE-17 y las tareas pendientes de sus tablas. Los estados históricos que siguen no sustituyen esta secuencia vigente.
 
 ## Revisión incremental del 23/10/2026 — registro histórico
 
