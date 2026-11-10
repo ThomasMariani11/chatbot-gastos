@@ -59,7 +59,8 @@ async function vapidKeys() {
   return { config: { publicKey: base64UrlEncode(publicRaw), privateKey: jwk.d!, subject: 'https://pesito.example.test/' }, verifyKey: keys.publicKey };
 }
 
-describe('Web Push (RFC 8291 / 8292)', () => {
+// Cifrado y firma reales (ECDH/ECDSA): con la suite completa en paralelo superan los 5 s por defecto.
+describe('Web Push (RFC 8291 / 8292)', { timeout: 30_000 }, () => {
   it('el navegador puede descifrar el payload cifrado', async () => {
     const browser = await receiver();
     const body = await encryptPayload(encoder.encode('{"title":"Hola"}'), browser.subscription);

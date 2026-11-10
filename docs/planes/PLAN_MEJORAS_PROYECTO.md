@@ -66,7 +66,7 @@ Las secciones históricas se conservan como registro. “Siguiente paso”, “p
 | FE-18 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_18.md) · `src/dashboardData.ts` · PR #63 / b58d4f2 |
 | FE-19 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_13.md) |
 | FE-20 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_20.md) · `src/useSwipeBack.ts` · PR #58 / ff532b5; #59 / 0790e9a |
-| FE-21 | Casilla sin marcar | **Pendiente transversal** | Alcance/decisión pendiente; no se supone implementación. |
+| FE-21 | Terminada | **Cerrada 10/11/2026** | [Validación e inventario](VALIDACION_FE_21_BE_17.md): dominio único en el Resumen, Paywall y diálogos. |
 | FE-22 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_FE_16_22.md) · `tests/button-contrast-and-auth-tabs.test.ts` · PR #60 / b9c9df4 |
 | FE-23 | Terminada | **Incorporado en alcance documentado** | [Regresiones soporte](../../tests/support-whatsapp-button.test.ts) · `tests/support-whatsapp-button.test.ts` · PR #67 / ecba420 |
 | FE-24 | Pendiente | **Publicado 08/11/2026 (PR #89, 61fa83d); con BE-20; aceptación manual 09/11/2026** | Alcance redefinido por el propietario: catálogo fijo de 31 categorías, sin categorías propias del cliente. `src/categoryVisuals.ts` · `src/Icons.tsx` · [diseño](../superpowers/specs/2026-11-07-categorias-ampliadas-design.md) · [plan de implementación](../superpowers/plans/2026-11-07-categorias-ampliadas.md) |
@@ -93,7 +93,7 @@ Las secciones históricas se conservan como registro. “Siguiente paso”, “p
 | BE-14 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_14.md) · `supabase/migrations/040_atomic_whatsapp_linking.sql` · PR #52 / 6e127cd; #54 / b46e02d |
 | BE-15 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_INF_12.md) |
 | BE-16 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_16.md) · `supabase/migrations/041_safe_business_errors.sql` · PR #53 / 641a573 |
-| BE-17 | Casilla sin marcar | **Pendiente transversal** | Alcance/decisión pendiente; no se supone implementación. |
+| BE-17 | Terminada | **Cerrada 10/11/2026** | [Validación e inventario](VALIDACION_FE_21_BE_17.md): IA (groq.ts) y cuota de IA con respuestas simuladas. |
 | BE-18 | Terminada | **Incorporado en alcance documentado** | [Validación](VALIDACION_BE_18.md) · `supabase/functions/whatsapp-webhook/context-repository.ts` · PR #64 / 8366517 |
 | BE-19 | Pendiente (histórico) | **Publicado 30/10/2026; aceptación manual 10/11/2026** | Pago confirmado + código nominativo; ver VALIDACION_BE_19.md. No hay aviso al canjear. |
 | BE-20 | Pendiente | **Publicado 08/11/2026 (SQL 001–048, webhook v72); con FE-24** | Migraciones 047 (catálogo) y 048 (reclasificación reversible; aplicada el 08/11 con 16 movimientos, run 29036e58); reglas del bot en `category-rules.ts`. Runbook en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`. [diseño](../superpowers/specs/2026-11-07-categorias-ampliadas-design.md) · [plan de implementación](../superpowers/plans/2026-11-07-categorias-ampliadas.md) |
@@ -173,7 +173,7 @@ Publicación autorizada e integrada en [PR #37](https://github.com/ThomasMariani
 | Etapa final de la app | **INF-13 / hosting** | Headers HTTP y protección de framing, postergados por el propietario hasta terminar la funcionalidad. | Retomar entonces la evaluación con costo $0 y vista previa; aprobar el cambio después de probar Auth/PWA/rollback. |
 | Último | **INF-08** | Backups y recuperación aplazados por el propietario. | Nueva evaluación/autorización cuando se priorice; no habilitar almacenamiento ahora. |
 
-Siguen abiertos: seguimiento histórico BE-02 (un código usado sin usuario), compatibilidad física fuera del flujo iPhone aceptado, cobertura transversal FE-21/BE-17 y las tareas pendientes de sus tablas. Los estados históricos que siguen no sustituyen esta secuencia vigente.
+Siguen abiertos: seguimiento histórico BE-02 (un código usado sin usuario), compatibilidad física fuera del flujo iPhone aceptado, las tareas pendientes de sus tablas (FE-21/BE-17 cerradas el 10/11/2026, ver [validación](VALIDACION_FE_21_BE_17.md)). Los estados históricos que siguen no sustituyen esta secuencia vigente.
 
 ## Revisión incremental del 23/10/2026 — registro histórico
 
@@ -481,7 +481,7 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 | 1 | FE-01 | Alta | Contrato de cuotas de WhatsApp y PWA | FE-02, FE-03, BE-03 | Terminada; publicada y aceptada |
 | 2 | FE-02 | Alta | Escrituras atómicas de planes | BE-10, BE-17 | Terminada; publicada y aceptada |
 | 3 | FE-03 | Alta | Preservar importes y cuotas eliminadas | FE-01, FE-02 | Terminada; publicada y aceptada |
-| 4 | FE-21 | Media | Pruebas de flujos y dominio real | BE-17, INF-06 | En curso; regresiones por bloque, cobertura restante abierta |
+| 4 | FE-21 | Media | Pruebas de flujos y dominio real | BE-17, INF-06 | Terminada 10/11/2026 |
 | 5 | FE-04 | Alta | Evitar movimientos duplicados | BE-10 | Terminada; publicada y aceptada |
 | 6 | FE-05 | Alta | Carga por mes y errores visibles | FE-18 | Terminada; publicada y aceptada |
 | 7 | FE-09 | Media | Totales de cuotas restantes | FE-03 | Terminada; PR #39 publicada y verificada en su alcance |
@@ -749,6 +749,8 @@ Implementar una sola vez el trabajo compartido y registrar su validación en las
 
 ### FE-21 — Probar flujos del cliente y reutilizar el dominio financiero
 
+> **Cerrada 10/11/2026:** alcance decidido por el propietario (dominio único en el Resumen, Paywall, diálogos e inventario por dominio). Ver [validación e inventario](VALIDACION_FE_21_BE_17.md). Sin E2E en navegador real ni medición de cobertura (decisión del propietario).
+
 > **Estado vigente 29/10/2026:** Pendiente transversal. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
 
 
@@ -847,7 +849,7 @@ Cuando una tarea BE e INF comparten implementación, se realizan una sola vez. E
 | 1 | BE-01 | Crítica | Autorización de RPC privilegiadas | INF-01 | Terminada |
 | 2 | BE-03 | Alta | Escrituras y propiedad de datos operativos | INF-02 | Terminada |
 | 3 | BE-02 | Alta | Renovaciones bloqueadas por el trigger | — | Corrección terminada; seguimiento histórico abierto |
-| 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | En curso; esquema/roles/concurrencia por bloque, alcance global abierto |
+| 4 | BE-17 | Media | Pruebas del código y esquema reales | INF-06 | Terminada 10/11/2026 |
 | 5 | BE-04 | Alta | Parser determinista e interpretación financiera | — | Terminada en el alcance probado; PR #40/v55 y aceptación WhatsApp |
 | 6 | BE-05 | Alta | Detección de consultas comerciales y saldo | — | Terminada en el alcance probado; PR #41/v56 y aceptación verificada |
 | 7 | BE-06 | Alta | Cola, orden y concurrencia | INF-03 | Terminada |
@@ -1112,6 +1114,8 @@ Las pruebas de BE-17 deben agregarse junto con cada corrección, empezando por l
 - **Trabajo compartido:** INF-09 e INF-14; coordinar BE-10.
 
 ### BE-17 — Probar el código real y las migraciones combinadas
+
+> **Cerrada 10/11/2026:** pruebas directas de `groq.ts` y de la cuota de IA con respuestas simuladas, más el inventario por dominio. Ver [validación e inventario](VALIDACION_FE_21_BE_17.md). Sin llamadas reales a proveedores.
 
 > **Estado vigente 29/10/2026:** Pendiente transversal. Auditoría/etapas siguientes conservadas como registro histórico, no como lista actual de trabajo.
 

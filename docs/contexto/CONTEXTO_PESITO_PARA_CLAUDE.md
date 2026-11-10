@@ -974,7 +974,7 @@ Tests de UI/dominio con Vitest/jsdom, SQL real con PGlite, carreras PostgreSQL y
 
 Hay casos de RLS/propiedad, monedas/centavos, cuotas, triggers fallidos/rollback, reintentos, confirmaciones simultáneas, listas viejas, 20+1, respuestas perdidas, multimedia/timeouts, componentes reales y proveedores simulados.
 
-No es cobertura 100%, auditoría universal ni todos los teléfonos. FE-21/BE-17 mantienen alcance transversal abierto aunque existan muchas suites particulares.
+No es cobertura 100%, auditoría universal ni todos los teléfonos. FE-21/BE-17 se cerraron el 10/11/2026 con un alcance acotado e inventario por dominio (`docs/planes/VALIDACION_FE_21_BE_17.md`); no implica cobertura completa.
 
 ### 14.6. Publicación y rollback
 
@@ -1050,7 +1050,7 @@ Los bloques anteriores de permisos, fiabilidad, cuotas y PWA conservan sus garan
 | FE-26 | Invitación a activar notificaciones desde el Resumen. | Publicado 06/11/2026 (PR #83, 8e3d4bc). |
 | NOTIF-02 | Resumen de fin de mes. | Publicado el 10/11/2026 (PR #97, SQL 051, webhook v75, PWA 6a768f9). Primer envío real el 01/12/2026; aceptación pendiente. Ver 16.6. |
 | FE-14 | Zoom accesible. | Revisar bloqueo y gestos. |
-| FE-21 / BE-17 | Cobertura transversal. | Escenarios de UI/handler/migraciones aún no acreditados. |
+| FE-21 / BE-17 | Cobertura transversal. | Cerradas el 10/11/2026 (rama `test/fe21-be17-cierre`): dominio único en el Resumen, pruebas de Paywall, diálogos, IA y cuota de IA, e inventario por dominio. Límites: sin E2E en navegador real ni medición de cobertura. |
 | INF-13 pendiente | Hosting/headers/framing. | Aplazado al final por el propietario. |
 | INF-08 | Backups/restore. | Aplazado al final; solución, costo y ensayo por acordar. |
 | INF-14 activación | Retención 30/90. | Preparada pero false; decisión específica antes de retirar contenido. |
