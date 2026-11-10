@@ -28,8 +28,7 @@ import {
 } from './installmentPlans';
 import { EntrySender, browserEntryStorage, entryError, type EntryAttempt, type EntryDraft } from './pwaEntries';
 import { createDashboardLoader, canShowDashboard, type LoadView } from './dashboardLoader';
-import * as dashboardDataModule from './dashboardData';
-import type { DashboardQueryCache } from './dashboardData';
+import { computeTotalsByCurrency, createDashboardQueryCache, DASHBOARD_POLL_INTERVAL_MS, readDashboardSnapshot } from './dashboardData';
 import { requestWhatsAppLinkCode } from './whatsappLink';
 import { formatAmountInput, numberToAmountInput, parseAmountNumber, formatMoney } from '../lib/finance';
 import { usePwaInstall } from './usePwaInstall';
@@ -116,60 +115,7 @@ function IconSettings({ className = 'nav-icon' }: { className?: string }) { retu
 
 const isPresetInstallmentCount = (count: number) => (PRESET_INSTALLMENT_COUNTS as readonly number[]).includes(count);
 export const MOVEMENTS_PAGE_SIZE = 50;
-const DASHBOARD_POLL_INTERVAL_MS =
-  'DASHBOARD_POLL_INTERVAL_MS' in dashboardDataModule &&
-  typeof dashboardDataModule.DASHBOARD_POLL_INTERVAL_MS === 'number'
-    ? dashboardDataModule.DASHBOARD_POLL_INTERVAL_MS
-    : 30_000;
 
-function getDashboardQueryCache(userId: string): DashboardQueryCache {
-  if (
-    'createDashboardQueryCache' in dashboardDataModule &&
-    typeof dashboardDataModule.createDashboardQueryCache === 'function'
-  ) {
-    return dashboardDataModule.createDashboardQueryCache(userId);
-  }
-  const fallback: DashboardQueryCache = {
-    userId,
-    invalidateInstallments() { delete fallback.installments; },
-    invalidateMonths() { delete fallback.months; },
-    invalidateBotState() { delete fallback.botState; },
-    invalidateAll() {
-      delete fallback.botPhone;
-      delete fallback.supportPhone;
-      delete fallback.botState;
-      delete fallback.months;
-      delete fallback.installments;
-    },
-  };
-  return fallback;
-}
-
-function getTotalsByCurrency(
-  items: ReadonlyArray<{ amount: number; currency?: 'ARS' | 'USD'; kind: 'expense' | 'income' }>,
-  currency: 'ARS' | 'USD',
-) {
-  if (
-    'computeTotalsByCurrency' in dashboardDataModule &&
-    typeof dashboardDataModule.computeTotalsByCurrency === 'function'
-  ) {
-    return dashboardDataModule.computeTotalsByCurrency(items, currency);
-  }
-  let expenseCents = 0;
-  let incomeCents = 0;
-  for (const item of items) {
-    if ((item.currency || 'ARS') !== currency) continue;
-    const cents = Math.round(Number(item.amount) * 100);
-    if (!Number.isFinite(cents) || cents <= 0) continue;
-    if (item.kind === 'expense') expenseCents += cents;
-    else if (item.kind === 'income') incomeCents += cents;
-  }
-  return {
-    expenses: expenseCents / 100,
-    income: incomeCents / 100,
-    balance: (incomeCents - expenseCents) / 100,
-  };
-}
 
 export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSignOut, isAdmin, onOpenAdmin }: Props) {
   // Solo el primer nombre para el saludo de bienvenida ("Hola, María 👋")
@@ -222,7 +168,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   const [waBotNumber, setWaBotNumber] = useState<string>('');
   const [supportPhone, setSupportPhone] = useState<string>('');
   const [waLinkReady, setWaLinkReady] = useState<{ url: string; code: string } | null>(null);
-  const queryCache = useMemo(() => getDashboardQueryCache(userId), [userId]);
+  const queryCache = useMemo(() => createDashboardQueryCache(userId), [userId]);
 
   const supportWhatsAppUrl = useMemo(() => {
     const rawPhone =
@@ -519,7 +465,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   );
 
   const currencyTotals = useMemo(
-    () => getTotalsByCurrency(movements, activeCurrency),
+    () => computeTotalsByCurrency(movements, activeCurrency),
     [movements, activeCurrency],
   );
   const expenses = currencyTotals.expenses;
@@ -574,7 +520,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
   useEffect(() => {
     const loadContext = userId + ':' + month;
     const loader = createDashboardLoader({
-      read: signal => dashboardDataModule.readDashboardSnapshot(userId, month, signal, supabase, { cache: queryCache }),
+      read: signal => readDashboardSnapshot(userId, month, signal, supabase, { cache: queryCache }),
       start: () => setReadView(current => ({ context: loadContext,
         status: current.context === loadContext && current.status === 'ready' ? 'ready' : 'loading', refreshing: true })),
       commit: snapshot => {

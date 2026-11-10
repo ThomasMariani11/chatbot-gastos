@@ -8,7 +8,7 @@ const catId = '00000000-0000-4000-8000-000000000099';
 const api = vi.hoisted(() => ({ rows: [] as Record<string, unknown>[], failed: false, wait: null as Promise<void> | null, calls: [] as Record<string, unknown>[] }));
 vi.mock('../src/usePwaInstall',()=>({usePwaInstall:()=>({canInstall:false,showIosModal:false,showDesktopModal:false,triggerInstall:vi.fn(),setShowIosModal:vi.fn(),setShowDesktopModal:vi.fn()})}));
 vi.mock('recharts',()=>({ResponsiveContainer:({children}:{children:ReactNode})=>h('div',null,children),PieChart:({children}:{children:ReactNode})=>h('div',null,children),Pie:()=>null,Cell:()=>null}));
-vi.mock('../src/dashboardData',()=>({readDashboardSnapshot:async(_user:string,month:string)=>{
+vi.mock('../src/dashboardData',async(importOriginal)=>({...(await importOriginal<typeof import('../src/dashboardData')>()),readDashboardSnapshot:async(_user:string,month:string)=>{
  const rows=api.rows.filter(row=>row.status==='confirmed');return{transactions:rows.filter(row=>String(row.occurred_on).startsWith(month)),installments:rows,budget:0,months:['2026-01','2026-02','2026-03'],monthsWarning:false,botState:'unlinked',botPhone:''};
 }}));
 vi.mock('../src/supabase',()=>({supabase:{
