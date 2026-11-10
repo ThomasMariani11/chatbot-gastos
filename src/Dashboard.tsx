@@ -35,6 +35,7 @@ import { formatAmountInput, numberToAmountInput, parseAmountNumber, formatMoney 
 import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
 import { ClientNotices } from './ClientNotices';
+import { MonthCloseCard } from './MonthCloseCard';
 import { PushPrompt } from './PushPrompt';
 import { sidebarStatus, type BotService } from './sidebarStatus';
 import { ENTRY_ALREADY_SAVED, ENTRY_NOTICE_TTL_MS, ENTRY_REMOVED_BEFORE, ENTRY_REPLAYED, ENTRY_SAVED, isTransientEntryNotice } from './entryNotice';
@@ -1028,6 +1029,11 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           accountCreatedAt={userProfile?.created_at}
           onboardingPending={botState === 'unlinked' || botState === 'loading'}
         />
+      )}
+
+      {/* NOTIF-02: cierre del mes (días 1 a 7, solo en el resumen) */}
+      {activeSection !== '#movimientos' && activeSection !== '#cuotas' && (
+        <MonthCloseCard userId={userId} onViewMonth={(m) => setMonth(m)} />
       )}
 
       {/* FE-25: avisos de vencimiento y recordatorio de registro (solo en el resumen) */}

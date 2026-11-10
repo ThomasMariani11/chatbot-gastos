@@ -1486,3 +1486,15 @@ details[open] > summary .admin-summary-chevron {
 /* FE-25: fila de interruptor como único contenido del panel */
 .settings-bot-switch-row.settings-switch-row-standalone { margin-top: 0; padding-top: 0; border-top: 0; }
 .settings-push-error { color: #b91c1c; font-weight: 700; }
+
+/* NOTIF-02: tarjeta de cierre del mes (reutiliza .client-notice) */
+.month-close { margin: 0 0 14px; }
+.month-close .client-notice-icon { font-size: 18px; }
+.month-close-currency { display: grid; gap: 4px; margin-top: 8px; min-width: 0; }
+.month-close-currency-name { font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); }
+.month-close-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px 12px; margin: 0; }
+.month-close-grid > div { min-width: 0; }
+.month-close-grid dt { font-size: 12px; color: var(--muted); }
+.month-close-grid dd { margin: 0; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.month-close-grid .month-close-change { display: block; font-size: 12px; font-weight: 600; }
+.month-close-budget { margin: 8px 0 0; font-size: 13px; font-weight: 600; }

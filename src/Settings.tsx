@@ -57,6 +57,8 @@ export function Settings({
   const [enabled, setEnabled] = useState(true);
   const [remindersEnabled, setRemindersEnabled] = useState<boolean | null>(null);
   const [remindersSaving, setRemindersSaving] = useState(false);
+  const [summaryEnabled, setSummaryEnabled] = useState<boolean | null>(null);
+  const [summarySaving, setSummarySaving] = useState(false);
   const [status, setStatus] = useState('');
   const [botPhone, setBotPhone] = useState('');
   const [supportPhone, setSupportPhone] = useState('');
@@ -104,6 +106,8 @@ export function Settings({
       setEnabled(data.whatsapp_responses_enabled);
       // FE-25: sin migración 045 la columna no existe y el interruptor queda oculto.
       setRemindersEnabled(typeof data.client_reminders_enabled === 'boolean' ? data.client_reminders_enabled : null);
+      // NOTIF-02: sin migración 051 la columna no existe y el interruptor queda oculto.
+      setSummaryEnabled(typeof data.monthly_summary_enabled === 'boolean' ? data.monthly_summary_enabled : null);
     });
 
     supabase.from('system_config').select('key, value').in('key', ['whatsapp_bot_phone', 'support_phone', 'payment_alias']).then(({ data }) => {
@@ -143,6 +147,23 @@ export function Settings({
     }
     setRemindersEnabled(nextEnabled);
     setStatus(nextEnabled ? 'Recordatorios activados.' : 'Recordatorios desactivados.');
+    setTimeout(() => setStatus(''), 3000);
+  }
+
+  async function updateMonthlySummary(nextEnabled: boolean) {
+    if (summarySaving) return;
+    setSummarySaving(true);
+    const { error } = await supabase
+      .from('app_settings')
+      .update({ monthly_summary_enabled: nextEnabled, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+    setSummarySaving(false);
+    if (error) {
+      setStatus('No pudimos guardar los cambios.');
+      return;
+    }
+    setSummaryEnabled(nextEnabled);
+    setStatus(nextEnabled ? 'Resumen del mes activado.' : 'Resumen del mes desactivado.');
     setTimeout(() => setStatus(''), 3000);
   }
 
@@ -502,31 +523,54 @@ export function Settings({
         </article>
       </section>
 
-      {/* GRUPO: AVISOS (FE-25) — oculto si la preferencia no está disponible */}
-      {remindersEnabled !== null && (
+      {/* GRUPO: AVISOS (FE-25, NOTIF-02) — oculto si ninguna preferencia está disponible */}
+      {(remindersEnabled !== null || summaryEnabled !== null) && (
         <section className="settings-group" aria-labelledby="settings-group-avisos">
           <h2 className="settings-group-title" id="settings-group-avisos">Avisos</h2>
           <article className="settings-panel">
             <PushNotificationsRow />
-            <div className="settings-bot-switch-row">
-              <div className="settings-bot-switch-copy">
-                <strong>Recordatorios para registrar movimientos</strong>
-                <small>Si activaste las notificaciones, te recordamos al mediodía y a la noche cuando ese día no registraste movimientos. En el resumen te avisamos si pasan 3 días sin registrar. Los avisos de vencimiento de tu membresía se envían siempre.</small>
+            {remindersEnabled !== null && (
+              <div className="settings-bot-switch-row">
+                <div className="settings-bot-switch-copy">
+                  <strong>Recordatorios para registrar movimientos</strong>
+                  <small>Si activaste las notificaciones, te recordamos al mediodía y a la noche cuando ese día no registraste movimientos. En el resumen te avisamos si pasan 3 días sin registrar. Los avisos de vencimiento de tu membresía se envían siempre.</small>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={remindersEnabled}
+                  aria-label="Recordatorios para registrar movimientos"
+                  className={`settings-switch ${remindersEnabled ? 'is-on' : ''}`}
+                  disabled={remindersSaving}
+                  onClick={() => void updateReminders(!remindersEnabled)}
+                >
+                  <span className="settings-switch-track">
+                    <span className="settings-switch-thumb" />
+                  </span>
+                </button>
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={remindersEnabled}
-                aria-label="Recordatorios para registrar movimientos"
-                className={`settings-switch ${remindersEnabled ? 'is-on' : ''}`}
-                disabled={remindersSaving}
-                onClick={() => void updateReminders(!remindersEnabled)}
-              >
-                <span className="settings-switch-track">
-                  <span className="settings-switch-thumb" />
-                </span>
-              </button>
-            </div>
+            )}
+            {summaryEnabled !== null && (
+              <div className="settings-bot-switch-row">
+                <div className="settings-bot-switch-copy">
+                  <strong>Resumen del mes</strong>
+                  <small>El día 1 te avisamos que tu resumen del mes anterior está listo y lo ves arriba del Resumen durante la primera semana.</small>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={summaryEnabled}
+                  aria-label="Resumen del mes"
+                  className={`settings-switch ${summaryEnabled ? 'is-on' : ''}`}
+                  disabled={summarySaving}
+                  onClick={() => void updateMonthlySummary(!summaryEnabled)}
+                >
+                  <span className="settings-switch-track">
+                    <span className="settings-switch-thumb" />
+                  </span>
+                </button>
+              </div>
+            )}
           </article>
         </section>
       )}

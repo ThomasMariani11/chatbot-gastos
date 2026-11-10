@@ -7,18 +7,54 @@ import { sendWebPush, type PushResult, type PushSubscriptionKeys, type VapidConf
 type Rpc = <T>(name: string, args?: Record<string, unknown>) => Promise<T>;
 export type ClientNotification = {
   id: string;
-  kind: "subscription_7" | "subscription_1" | "registration_noon" | "registration_night";
+  kind: "subscription_7" | "subscription_1" | "registration_noon" | "registration_night" | "monthly_summary";
   days: number | null;
+  // 'YYYY-MM' del mes resumido (solo monthly_summary); puede faltar si el SQL es anterior a 051.
+  period_key?: string | null;
   subscriptions: PushSubscriptionKeys[];
 };
 type Send = (subscription: PushSubscriptionKeys, payload: string) => Promise<PushResult>;
 
-export function formatClientPush(notification: Pick<ClientNotification, "kind" | "days">): {
+const MONTH_NAMES = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
+];
+
+// Mes resumido: el de period_key; si falta o es inválido, el anterior a "ahora" en hora argentina (UTC−3, sin horario de verano).
+function summaryMonthName(periodKey: string | null | undefined, now: number): string {
+  const match = /^\d{4}-(0[1-9]|1[0-2])$/.exec(periodKey ?? "");
+  if (match) return MONTH_NAMES[Number(match[1]) - 1];
+  const currentMonth = new Date(now - 3 * 60 * 60 * 1000).getUTCMonth();
+  return MONTH_NAMES[(currentMonth + 11) % 12];
+}
+
+export function formatClientPush(
+  notification: Pick<ClientNotification, "kind" | "days" | "period_key">,
+  now: number = Date.now(),
+): {
   title: string;
   body: string;
   url: string;
   tag: string;
-} {
+} | null {
+  if (notification.kind === "monthly_summary") {
+    return {
+      title: `📊 Tu resumen de ${summaryMonthName(notification.period_key, now)}`,
+      body: "Tu resumen del mes está listo. Tocá para ver cuánto gastaste y cuánto te quedó.",
+      url: "./#cierre-mes",
+      tag: "pesito-resumen",
+    };
+  }
   if (notification.kind === "registration_noon") {
     return {
       title: "¿Cómo viene el día?",
@@ -35,6 +71,8 @@ export function formatClientPush(notification: Pick<ClientNotification, "kind" |
       tag: "pesito-registro",
     };
   }
+  // Un tipo que este webhook no conoce nunca debe enviar el texto de vencimiento.
+  if (notification.kind !== "subscription_7" && notification.kind !== "subscription_1") return null;
   const days = notification.days ?? 1;
   return {
     title: notification.kind === "subscription_1"
@@ -72,7 +110,23 @@ export async function deliverClientPush(
     }
     if (batch.length === 0) return totals;
     for (const notification of batch) {
-      const payload = JSON.stringify(formatClientPush(notification));
+      const message = formatClientPush(notification, now());
+      if (!message) {
+        // Tipo desconocido para este webhook: se cierra sin enviar.
+        try {
+          await rpc("finish_client_notification", {
+            p_id: notification.id,
+            p_token: token,
+            p_outcome: "skipped",
+            p_gone_endpoints: [],
+          });
+        } catch {
+          writeOperationalLog("ops_error", { stage: "notification" });
+          return totals;
+        }
+        continue;
+      }
+      const payload = JSON.stringify(message);
       const gone: string[] = [];
       let delivered = 0;
       for (const subscription of notification.subscriptions ?? []) {
