@@ -10,6 +10,13 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## Pantalla de inicio animada — 25/11/2026 (en rama)
+
+**Estado:** **en rama** `feat/pantalla-inicio-animada`; sin integrar ni publicar. Solo PWA; sin SQL ni webhook. Diseño en `docs/superpowers/specs/2026-11-25-pantalla-inicio-animada-design.md`.
+
+- **PWA:** `index.html` trae dentro de `#root` la pantalla de inicio (fondo `#20b984`, chanchito flotando, moneda que entra en la ranura, barra que avanza y se frena en ~92 %) con su CSS en un `<style>` en línea, sin scripts; se ve antes de que cargue el bundle. `src/Splash.tsx` repite el marcado (sin CSS propio) y reemplaza los cuatro "Abriendo Pesito…" de arranque en `App.tsx`; la barra continúa con `animation-delay` negativo desde `performance.now()`. Con movimiento reducido: logo quieto y texto visible. Las cargas internas (`ScreenFallback`) no cambian.
+- **Pruebas:** `tests/splash.test.ts` (marcado, sin scripts en línea, movimiento reducido) y `tests/splash-component.test.ts` (accesibilidad, continuidad de la barra, mismo marcado que `index.html`).
+
 ## SEC-05: con una foto solo se cargan gastos — publicado el 25/11/2026
 
 **Estado:** **publicado.** PR #123 (9ebf5e9), webhook **v80** con smoke 401; sin SQL ni PWA. Tarea 2.1 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-25-sec-05-fotos-solo-gastos-design.md`.

@@ -4,6 +4,7 @@ import { useUpdateBlocker } from './PwaUpdates';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { lazyWithRetry, ScreenErrorBoundary, ScreenFallback } from './lazyWithRetry';
+import { Splash } from './Splash';
 import type { UserProfile } from './Settings';
 import { supabase } from './supabase';
 import { hasActiveSubscription } from './subscription';
@@ -50,11 +51,11 @@ export function App() {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  if (session === undefined) return <main className="auth-page"><p className="loading-copy">Abriendo Pesito…</p></main>;
+  if (session === undefined) return <Splash />;
   if (!session) {
     return (
       <ScreenErrorBoundary fallbackTitle="No pudimos cargar el ingreso">
-        <Suspense fallback={<ScreenFallback label="Abriendo Pesito…" />}>
+        <Suspense fallback={<Splash />}>
           <Login />
         </Suspense>
       </ScreenErrorBoundary>
@@ -247,11 +248,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
   };
 
   if (session === undefined || (session && loadingProfile)) {
-    return (
-      <main className="auth-page">
-        <p className="loading-copy">Abriendo Pesito…</p>
-      </main>
-    );
+    return <Splash />;
   }
 
   if (profileError || !profile) return (
@@ -338,7 +335,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
 
   return (
     <>
-      <Suspense fallback={<ScreenFallback label="Abriendo Pesito…" />}>
+      <Suspense fallback={<Splash />}>
         <Dashboard
           userId={session.user.id}
           userEmail={session.user.email}
