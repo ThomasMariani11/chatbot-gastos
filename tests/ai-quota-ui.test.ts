@@ -128,8 +128,13 @@ it('confirma el guardado y el aviso se va solo', async () => {
   api.update.mockResolvedValue({ data: { lane: 'whisper', daily_limit: 200, per_user_daily_limit: 25, enabled: true }, error: null });
   await act(async () => root.render(h(AiQuotaUsage)));
   await save('whisper');
-  expect(node.querySelector('[role="status"]')?.textContent).toContain('Límites de audios a texto guardados.');
+  // El aviso queda junto al formulario del carril guardado (arriba de la sección no se veía en el celular).
+  const lane = node.querySelector('form[data-lane="whisper"]')!.closest('li')!;
+  expect(lane.querySelector('[role="status"]')?.textContent).toContain('Límites de audios a texto guardados.');
+  expect(node.querySelector('form[data-lane="qwen"]')!.closest('li')!.querySelector('[role="status"]')).toBeNull();
   await act(async () => vi.advanceTimersByTime(5000));
+  expect(lane.textContent).toContain('guardados.');
+  await act(async () => vi.advanceTimersByTime(3000));
   expect(node.textContent).not.toContain('guardados.');
 });
 it('el error de un intento anterior se borra al volver a editar', async () => {

@@ -56,13 +56,15 @@ function LaneLimitsForm({ row, onSave }: { row: QuotaLane; onSave: OnSave }) {
   </form>;
 }
 
-export function AiQuotaView({ snapshot, onSave, stale = false, notice = null }: { snapshot: AiQuotaSnapshot; onSave?: OnSave; stale?: boolean; notice?: string | null }) {
+// El aviso va junto al formulario del carril guardado: arriba de la sección quedaba fuera de la vista en el celular.
+type SaveNotice = { lane: 'qwen' | 'whisper'; text: string };
+
+export function AiQuotaView({ snapshot, onSave, stale = false, notice = null }: { snapshot: AiQuotaSnapshot; onSave?: OnSave; stale?: boolean; notice?: SaveNotice | null }) {
   const warnings = stale ? [] : snapshot.lanes.filter(r => r.used * 100 >= r.limit * 75 || !r.enabled);
   const critical = warnings.some(r => r.used * 100 >= r.limit * 90 || !r.enabled);
   return <section className="bot-ops-quota" aria-label="Cupo diario de IA">
     <h3>Cupo diario de IA</h3>
     <p className="bot-ops-meta">Global compartido · Reinicia a las 00:00 de Argentina</p>
-    {notice && <p className="bot-ops-meta" role="status">{notice}</p>}
     <ul>{snapshot.lanes.map(row => <li key={row.lane}>
       <span>{LANE_LABEL[row.lane]}</span>
       {!stale && <strong>{row.used} / {row.limit}</strong>}
@@ -71,6 +73,7 @@ export function AiQuotaView({ snapshot, onSave, stale = false, notice = null }: 
       {!stale && row.top_users && row.top_users.length > 0 && <ol className="bot-ops-top" aria-label={`Clientes con más uso: ${LANE_LABEL[row.lane]}`}>{row.top_users.map(u => <li key={u.user_id}>{u.name} — {u.used}</li>)}</ol>}
       {onSave && row.per_user_limit === undefined && <p className="bot-ops-meta">La edición de límites todavía no está disponible.</p>}
       {onSave && row.per_user_limit !== undefined && <details><summary>{`Editar límites: ${LANE_TEXT[row.lane]}`}</summary><LaneLimitsForm key={`${row.lane}-${row.limit}-${row.per_user_limit}`} row={row} onSave={onSave} /></details>}
+      {notice?.lane === row.lane && <p className="bot-ops-meta" role="status">{notice.text}</p>}
     </li>)}</ul>
     {warnings.length > 0 && <p className="bot-ops-warning" role={critical ? 'alert' : 'status'}>
       {warnings.some(r => !r.enabled) ? 'La interpretación automática está pausada.'
@@ -85,10 +88,10 @@ export function AiQuotaUsage() {
   const [snapshot, setSnapshot] = useState<AiQuotaSnapshot | null>(null);
   const [error, setError] = useState(false);
   const [revision, setRevision] = useState(0);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<SaveNotice | null>(null);
   useEffect(() => {
     if (!notice) return;
-    const timer = window.setTimeout(() => setNotice(null), 4000);
+    const timer = window.setTimeout(() => setNotice(null), 8000);
     return () => window.clearTimeout(timer);
   }, [notice]);
   useEffect(() => {
@@ -120,7 +123,7 @@ export function AiQuotaUsage() {
   async function save(lane: 'qwen' | 'whisper', daily: number, perUser: number): Promise<SaveResult> {
     const result = await supabase.rpc('admin_update_ai_quota_policy', { p_lane: lane, p_daily_limit: daily, p_per_user_daily_limit: perUser });
     if (result.error) return result.error.code === '22023' ? 'invalid' : result.error.code === '42501' ? 'denied' : 'failed';
-    setNotice(`Límites de ${LANE_TEXT[lane]} guardados.`);
+    setNotice({ lane, text: `Límites de ${LANE_TEXT[lane]} guardados.` });
     setRevision(v => v + 1);
     return null;
   }
