@@ -1,6 +1,10 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
-## Última publicación observada — 18/11/2026 (seguimiento de SEC-01: sin formato de 6 dígitos)
+## Última publicación observada — 25/11/2026 (SEC-04: cupo de IA por cliente)
+
+PWA **136810f77858a0aa09b3b13cc4b3c867fb10aa89** (PR #119), SQL **001–055**, webhook **v79 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR #119 → CI de `main` en verde (Frontend, PostgreSQL, Webhook, ensayo de release y Publicar) y Pages con `version.json` = 136810f → deploy del webhook desde 136810f (v79) → smoke 401 en `/`, `worker` y `client-push` → `db push --linked --dry-run` (solo 055) → `db push --linked` → verificación de solo lectura por `db query --linked`: historial 055; política qwen 100/15 y whisper 200/25, ambas habilitadas; `admin_update_ai_quota_policy` SECURITY DEFINER, dueño postgres, `search_path=pg_catalog, public`, EXECUTE solo para authenticated (no anon, no service_role, no PUBLIC); `reserve_whatsapp_ai_quota` SECURITY DEFINER, mismo `search_path`, EXECUTE solo para service_role; `whatsapp_ai_quota_dashboard` SECURITY DEFINER, EXECUTE para authenticated y no para anon; `ai_quota_user_days` con RLS, sin privilegios para anon, authenticated ni service_role y 0 filas; crons `pesito-client-push`, `pesito-whatsapp-observability`, `pesito-whatsapp-queue-recovery` y `pesito-whatsapp-retention` activos. Prueba previa en PGlite, Supabase local aislado (navegador) y el ensayo de release del CI. **Discrepancia:** el último registro anterior era v77 y este deploy quedó como v79; no hay registro de qué fue la v78. Rollback: conservar la 055; PWA a 2a4fe60; antes de volver el webhook a una versión anterior, igualar el límite por cliente al global en ambos carriles desde el panel. **Pendiente:** editar un límite desde el panel en producción con MFA y volver a dejarlo; concurrencia real con `npm run test:concurrency`.
+
+## Registro histórico — 18/11/2026 (seguimiento de SEC-01: sin formato de 6 dígitos)
 
 PWA **c9d87611e06541ea6bf58d183f20c153876c9100** (PR #111), SQL **001–054** (sin cambios), webhook **v77 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR #111 → CI de `main` en verde (incluido el ensayo de release) y Pages con `version.json` = c9d8761 → deploy del webhook desde c9d8761 (v77) → smoke 401 en `/`, `worker` y `client-push`. Desde esta versión el webhook y la PWA aceptan solo `XXXX-XXXX-XXXX` (o sin separadores, alfabeto de la 054). Rollback: PWA 8406a9e y webhook v76, compatibles con la 054.
 
@@ -44,7 +48,7 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
-## Contrato candidato 055 (SEC-04, cupo de IA por cliente) — 25/11/2026
+## Contrato 055 (SEC-04, cupo de IA por cliente) — publicado el 25/11/2026
 
 Rama `feat/sec-04-cupo-ia-por-cliente`: mínimo **055**, rollback fijado en **2a4fe60559fe7560d120c42e270d3731c2de45ca** (`main` publicado, verificado con `version.json`; mínimo **054**). Diseño en `docs/superpowers/specs/2026-11-25-sec-04-cupo-ia-por-cliente-design.md`.
 
@@ -60,7 +64,7 @@ Rama `feat/sec-04-cupo-ia-por-cliente`: mínimo **055**, rollback fijado en **2a
 3. `db push --linked --dry-run` (debe proponer solo la 055) y luego `db push --linked`.
 4. Verificar: límites iniciales 15/25, permisos de la RPC (no ejecutable por `anon`), y editar un límite desde el panel con MFA y volver a dejarlo.
 
-**Rollback:** conservar la 055. **No volver el webhook a v77 mientras la 055 esté aplicada** sin antes igualar el límite por cliente al límite global en ambos carriles desde el panel (así el global se agota antes y nunca se devuelve `user_exhausted`): v77 trataría `user_exhausted` como error de configuración. La PWA anterior (2a4fe60) no muestra los límites por cliente pero funciona. Nunca hacer un down.
+**Rollback:** conservar la 055. **No volver el webhook a una versión anterior a v79 (v77 o la v78 sin registro) mientras la 055 esté aplicada** sin antes igualar el límite por cliente al límite global en ambos carriles desde el panel (así el global se agota antes y nunca se devuelve `user_exhausted`): v77 trataría `user_exhausted` como error de configuración. La PWA anterior (2a4fe60) no muestra los límites por cliente pero funciona. Nunca hacer un down.
 
 **Pendiente:** probar la concurrencia real del último lugar del cupo con `npm run test:concurrency` (Docker); las pruebas PGlite son secuenciales.
 
