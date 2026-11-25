@@ -17,6 +17,14 @@ export class AiQuotaExceeded extends OperationalFailure {
     super("rate_limit", "groq");
   }
 }
+// Un cliente agotó su cupo diario en un carril; los demás carriles siguen disponibles.
+export class AiUserQuotaExceeded extends OperationalFailure {
+  readonly lane: "qwen" | "whisper";
+  constructor(lane: "qwen" | "whisper") {
+    super("rate_limit", "groq");
+    this.lane = lane;
+  }
+}
 export function createAiQuotaGate(
   context: PreparationContext,
   job: { id: string; attempts: number },
@@ -36,6 +44,10 @@ export function createAiQuotaGate(
     signal?.throwIfAborted();
     if (result?.allowed === true) return;
     if (result?.reason === "exhausted") throw new AiQuotaExceeded();
+    if (
+      result?.reason === "user_exhausted" &&
+      (lane === "qwen" || lane === "whisper")
+    ) throw new AiUserQuotaExceeded(lane);
     throw new OperationalFailure(
       "configuration",
       lane === "gemini" ? "gemini" : "groq",

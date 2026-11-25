@@ -2,7 +2,7 @@ import { BOT_MESSAGES, commercialQueryMessage } from "./bot-messages.ts";
 import { formatOverLimitReply } from "./draft-summary.ts";
 import { buildPendingEdit, parsePendingEdit } from "./draft-edit.ts";
 import { formatMonthlySnapshot } from "./monthly-summary.ts";
-import { AiQuotaExceeded } from "./ai-quota.ts";
+import { AiQuotaExceeded, AiUserQuotaExceeded } from "./ai-quota.ts";
 import { isRenewalRequest } from "./renewals.ts";
 import { parseLinkCommand } from "./link-code.ts";
 import type { BeforeAiRequest } from "./ai-quota.ts";
@@ -60,6 +60,39 @@ const localDate = () =>
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+
+export function requestTextReasonFor(
+  error: unknown,
+  failure: FailureMetadata,
+): GeminiParsedOutput["requestTextReason"] {
+  if (error instanceof AiUserQuotaExceeded) {
+    return error.lane === "whisper" ? "user_quota_audio" : "user_quota_text";
+  }
+  return error instanceof AiQuotaExceeded
+    ? "quota"
+    : failure.reason === "media_too_large"
+    ? "size"
+    : failure.reason === "unsupported_media"
+    ? "type"
+    : undefined;
+}
+
+// Mensaje fijo para el motivo; undefined si hay que elegir según el tipo de mensaje.
+export function requestTextReply(
+  reason: GeminiParsedOutput["requestTextReason"],
+): string | undefined {
+  return reason === "quota"
+    ? BOT_MESSAGES.aiQuota
+    : reason === "user_quota_audio"
+    ? BOT_MESSAGES.aiUserQuotaAudio
+    : reason === "user_quota_text"
+    ? BOT_MESSAGES.aiUserQuotaText
+    : reason === "size"
+    ? BOT_MESSAGES.fileTooLarge
+    : reason === "type"
+    ? BOT_MESSAGES.fileFormat
+    : undefined;
+}
 
 export async function prepareMessage(
   db: WebhookDatabaseClient,
@@ -230,13 +263,7 @@ export async function prepareMessage(
       result = {
         intent: "request_text",
         movements: [],
-        requestTextReason: error instanceof AiQuotaExceeded
-          ? "quota"
-          : failure.reason === "media_too_large"
-          ? "size"
-          : failure.reason === "unsupported_media"
-          ? "type"
-          : undefined,
+        requestTextReason: requestTextReasonFor(error, failure),
       };
     }
     // Conservar la solicitud en la cola, sin bloquear el próximo texto ni
@@ -322,17 +349,12 @@ export async function prepareMessage(
   }
   const requestText = () =>
     reply(
-      result?.requestTextReason === "quota"
-        ? BOT_MESSAGES.aiQuota
-        : result?.requestTextReason === "size"
-        ? BOT_MESSAGES.fileTooLarge
-        : result?.requestTextReason === "type"
-        ? BOT_MESSAGES.fileFormat
-        : message.audio?.id
+      requestTextReply(result?.requestTextReason) ??
+        (message.audio?.id
         ? BOT_MESSAGES.audioUnclear
         : message.image?.id
         ? BOT_MESSAGES.imageUnclear
-        : BOT_MESSAGES.textUnclear,
+        : BOT_MESSAGES.textUnclear),
     );
   switch (result.intent) {
     case "edit_pending":
