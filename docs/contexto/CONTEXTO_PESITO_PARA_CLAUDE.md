@@ -10,6 +10,16 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## SEC-07: baja de notificaciones al cerrar sesión — 25/11/2026 (en rama)
+
+**Estado:** rama `fix/sec-07-push-al-cerrar-sesion`, sin integrar ni publicar. Tarea 2.3 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-25-sec-07-push-al-cerrar-sesion-design.md`.
+
+- **PWA:** `src/pushNotifications.ts` suma `releasePushOnSignOut` (borra la suscripción en la cuenta y desuscribe el navegador en paralelo; nunca lanza; tope de 3 s) y `signOutDevice`. `App.tsx` (único punto de salida, cliente y Panel Admin) la usa antes de `signOut`.
+- Como `signOut()` es global, los otros dispositivos de la cuenta reciben `SIGNED_OUT` sin pasar por el botón: `App.tsx` llama entonces a `unsubscribeBrowserPush()` (solo el navegador; ya no hay sesión para el RPC).
+- Si falla la baja en la cuenta, el navegador igual queda desuscripto y la fila se limpia sola en el próximo envío (404/410). Quien vuelva a entrar reactiva las notificaciones en Ajustes.
+- **Publicación:** solo PWA. Sin SQL ni webhook.
+- **Pruebas:** `tests/push-notifications-ui.test.ts` (bloque SEC-07) y `tests/push-signed-out.test.ts`.
+
 ## SEC-05: con una foto solo se cargan gastos — publicado el 25/11/2026
 
 **Estado:** **publicado.** PR #123 (9ebf5e9), webhook **v80** con smoke 401; sin SQL ni PWA. Tarea 2.1 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-25-sec-05-fotos-solo-gastos-design.md`.
