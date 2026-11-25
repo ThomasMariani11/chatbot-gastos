@@ -10,6 +10,19 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## SEC-04: cupo de IA por cliente — 25/11/2026 (en rama)
+
+**Estado:** rama `feat/sec-04-cupo-ia-por-cliente`, sin integrar a `main` ni publicar. Diseño en `docs/superpowers/specs/2026-11-25-sec-04-cupo-ia-por-cliente-design.md`.
+
+**Decisiones del propietario:** un solo plan; límites editables desde el panel; iniciales 25 (audios) y 15 (fotos y mensajes largos); administrador exento; mensaje propio al llegar al límite.
+
+**Cambios:**
+- **Migración 055:** límite diario por cliente y carril, razón `user_exhausted` en la reserva de cupo, RPC `admin_update_ai_quota_policy` (aal2) y top 5 de uso.
+- **Webhook:** `ai-quota.ts`, `processor.ts`, `bot-messages.ts` (mensaje por carril) y `gemini.ts` (motivos `user_quota_audio` / `user_quota_text`).
+- **PWA:** `src/AiQuotaUsage.tsx` muestra y edita los límites por cliente y el top 5.
+- **Contrato:** mínimo 055, rollback 2a4fe60 (mínimo 054). Orden: merge/PWA, webhook con smoke 401, `db push`. No volver el webhook a v77 con la 055 aplicada sin subir antes el límite por cliente a 10000 (detalle en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`).
+- **Pruebas:** `tests/ai-quota-per-user-sql.test.ts`, `tests/ai-quota.test.ts`, `tests/ai-quota-ui.test.ts`. Pendiente: concurrencia real con `npm run test:concurrency` (Docker).
+
 ## SEC-01: vinculación de WhatsApp robusta — publicado el 18/11/2026
 
 **Estado:** **publicado.** PWA **8406a9e** (PR #107), SQL **001–054**, webhook **v76**. Orden: merge (PWA) → webhook v76 con smoke 401 → `db push` de la 054 (18/11/2026 00:42 UTC). Detalle y verificación en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`. Diseño en `docs/superpowers/specs/2026-11-17-sec-01-vinculacion-whatsapp-design.md`.

@@ -44,6 +44,26 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
+## Contrato candidato 055 (SEC-04, cupo de IA por cliente) — 25/11/2026
+
+Rama `feat/sec-04-cupo-ia-por-cliente`: mínimo **055**, rollback fijado en **2a4fe60559fe7560d120c42e270d3731c2de45ca** (`main` publicado, verificado con `version.json`; mínimo **054**). Diseño en `docs/superpowers/specs/2026-11-25-sec-04-cupo-ia-por-cliente-design.md`.
+
+**Qué cambia:**
+- Límite diario de IA por cliente, además del global: Qwen (fotos y mensajes largos) 15 y Whisper (audios) 25. El administrador está exento. El global no cambia.
+- RPC `admin_update_ai_quota_policy` para editar los límites (exige aal2, o sea MFA del administrador).
+- El panel muestra los límites por cliente y el top 5 de uso del día.
+- El bot responde un mensaje propio por carril (audios, o fotos y mensajes largos) cuando el cliente llega a su límite; el resto de las reglas locales sigue disponible.
+
+**Orden de publicación** (cada paso con autorización del propietario):
+1. Merge a `main`: Pages publica la PWA. Es compatible con el SQL anterior: sin la 055 el panel avisa que la edición de límites no está disponible.
+2. Deploy del webhook (entiende `user_exhausted`), con smoke 401 sin firma en `/`, `worker` y `client-push`.
+3. `db push --linked --dry-run` (debe proponer solo la 055) y luego `db push --linked`.
+4. Verificar: límites iniciales 15/25, permisos de la RPC (no ejecutable por `anon`), y editar un límite desde el panel con MFA y volver a dejarlo.
+
+**Rollback:** conservar la 055. **No volver el webhook a v77 mientras la 055 esté aplicada** sin antes subir el límite por cliente a 10000 en ambos carriles desde el panel: v77 trataría `user_exhausted` como error de configuración. La PWA anterior (2a4fe60) no muestra los límites por cliente pero funciona. Nunca hacer un down.
+
+**Pendiente:** probar la concurrencia real del último lugar del cupo con `npm run test:concurrency` (Docker); las pruebas PGlite son secuenciales.
+
 ## Contrato candidato 054 (SEC-01, vinculación de WhatsApp) — 17/11/2026
 
 Rama `feat/sec-01-vinculacion-robusta`: mínimo **054**, rollback fijado en **7d07b1791eb17d8c3b8d089f30ccdd32b6282d6f** (`main` con SQL 053 y la PWA de #106; mínimo **053**).

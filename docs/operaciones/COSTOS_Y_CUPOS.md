@@ -8,6 +8,18 @@ El propietario aprobó 100 solicitudes complejas/fotos y 200 transcripciones por
 
 La descripción de enfriamiento en memoria que sigue corresponde al control del proveedor. v59 añade además el gate SQL global 035 antes de cada solicitud, sin modificar los límites de la cuenta. Para contrato, pruebas, publicación ordenada y rollback que mantiene el corte, ver [validación actual](../planes/VALIDACION_INF_15.md). El contador propio quedó verificado con las pruebas reales del propietario.
 
+## Límite por cliente (SEC-04)
+
+Además del cupo global, cada cliente tiene un límite diario propio por carril: Qwen (fotos y mensajes largos) **15** y Whisper (audios) **25** por día. El administrador está exento. Reinicia a medianoche de Argentina, igual que el global. Un cliente puede agotar un carril y seguir usando el otro, y las reglas locales siguen disponibles.
+
+**Editarlos:** desde el panel de administración (requiere MFA), un envío por carril con el límite global y el de cada cliente. Ambos deben estar entre 1 y 10000 y el de cada cliente no puede superar el global.
+
+**Recalcular al pasar a IA paga:**
+1. Tomar el costo promedio por uso de cada carril según el panel y el precio vigente del proveedor en su consola (no copiar precios de este documento).
+2. Límite por cliente = presupuesto mensual por cliente ÷ días del mes ÷ costo promedio por uso.
+3. Mantener el global como techo de gasto diario total.
+4. Antes de cambiar proveedor o plan, seguir el punto 6 de "Operación con costo objetivo cero".
+
 ## Estado comprobado
 
 | Servicio | Comprobación | Alcance |
