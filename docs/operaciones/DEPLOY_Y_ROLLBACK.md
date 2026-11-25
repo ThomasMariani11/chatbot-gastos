@@ -12,7 +12,7 @@ PWA **136810f77858a0aa09b3b13cc4b3c867fb10aa89** (PR #119), SQL **001–055**, w
 
 ## Candidato SEC-07 (baja de notificaciones al cerrar sesión) — 25/11/2026
 
-Rama `fix/sec-07-push-al-cerrar-sesion`. **Solo PWA:** sin migración ni webhook; el contrato de release no cambia (mínimo 055). Al confirmar "Cerrar sesión", la PWA borra la suscripción push del dispositivo en la cuenta y desuscribe el navegador antes del `signOut`, sin trabar el cierre (tope de 3 s). **Publicación:** merge a `main` (Pages). **Rollback:** PWA anterior; no hay cambios de datos.
+Rama `fix/sec-07-push-al-cerrar-sesion`. **Solo PWA:** sin migración ni webhook; el contrato de release no cambia (mínimo 055). Al confirmar "Cerrar sesión", la PWA borra la suscripción push del dispositivo en la cuenta y desuscribe el navegador antes del `signOut`, sin trabar el cierre (tope de 3 s). Los otros dispositivos de la cuenta, que el cierre global desloguea, desuscriben su navegador al recibir `SIGNED_OUT`. **Publicación:** merge a `main` (Pages). **Rollback:** PWA anterior; no hay cambios de datos.
 
 ## SEC-05 (con una foto solo se cargan gastos) — publicado el 25/11/2026 (webhook v80)
 

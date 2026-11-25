@@ -3,7 +3,7 @@ import { act, createElement as h } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PushNotificationsRow } from '../src/PushNotificationsRow';
-import { disablePush, enablePush, getPushState, releasePushOnSignOut, signOutDevice } from '../src/pushNotifications';
+import { disablePush, enablePush, getPushState, releasePushOnSignOut, signOutDevice, unsubscribeBrowserPush } from '../src/pushNotifications';
 
 vi.mock('../src/supabase', () => ({ supabase: {} }));
 
@@ -99,6 +99,16 @@ describe('SEC-07 · baja de notificaciones al cerrar sesión', () => {
     expect(t.rpc).not.toHaveBeenCalled();
     const noWorker = { ...t.env, navigator: {} as Navigator };
     await expect(releasePushOnSignOut(noWorker)).resolves.toBeUndefined();
+  });
+
+  it('sesión cerrada desde otro dispositivo: desuscribe solo el navegador, sin llamar a la cuenta', async () => {
+    const t = environment({ permission: 'granted', subscribed: true });
+    await unsubscribeBrowserPush(t.env);
+    expect(t.subscription.unsubscribe).toHaveBeenCalled();
+    expect(t.rpc).not.toHaveBeenCalled();
+    const broken = environment({ permission: 'granted', subscribed: true });
+    broken.pushManager.getSubscription.mockRejectedValue(new Error('roto'));
+    await expect(unsubscribeBrowserPush(broken.env)).resolves.toBeUndefined();
   });
 
   it('cierra la sesión después de la baja, y la cierra aunque la baja falle', async () => {

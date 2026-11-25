@@ -126,6 +126,21 @@ export async function releasePushOnSignOut(env: PushEnvironment = defaultEnviron
   }
 }
 
+/**
+ * SEC-07: la sesión se cerró sin pasar por el botón (cierre global desde otro
+ * dispositivo, token revocado o vencido). Ya no hay sesión para borrar la fila en
+ * la cuenta: se desuscribe solo el navegador y la fila se limpia sola en el próximo
+ * envío (404/410). Nunca lanza.
+ */
+export async function unsubscribeBrowserPush(env: PushEnvironment = defaultEnvironment()): Promise<void> {
+  try {
+    const reg = await registration(env);
+    await (await reg?.pushManager.getSubscription())?.unsubscribe();
+  } catch {
+    // Sin soporte de push o sin conexión: no hay nada más que hacer.
+  }
+}
+
 /** Cierra la sesión después de dar de baja las notificaciones de este dispositivo. */
 export async function signOutDevice(signOut: () => PromiseLike<unknown>, env?: PushEnvironment, timeoutMs?: number): Promise<void> {
   await releasePushOnSignOut(env, timeoutMs);

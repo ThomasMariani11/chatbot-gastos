@@ -14,7 +14,7 @@ Hoy cerrar sesión solo llama a `signOut`: el navegador sigue suscripto y `push_
 
 ## No objetivos
 
-- Sesiones que vencen o se revocan sin pasar por "Cerrar sesión".
+- Borrar en el servidor las suscripciones de una sesión revocada (no hay sesión para el RPC; se limpian con 404/410).
 - Sin migración ni cambios en el bot.
 
 ## Enfoques
@@ -27,6 +27,7 @@ Hoy cerrar sesión solo llama a `signOut`: el navegador sigue suscripto y `push_
 
 - `src/pushNotifications.ts`: `releasePushOnSignOut(env?, timeoutMs = 3000): Promise<void>` (nunca lanza; borra en servidor y desuscribe en paralelo) y `signOutDevice(signOut, env?, timeoutMs?)` que llama a la baja y después a `signOut`.
 - `src/App.tsx`: `handleConfirmSignOut` usa `signOutDevice(() => supabase.auth.signOut())`. Es el único punto de salida (cliente y Panel Admin).
+- **Agregado tras la revisión final:** `signOut()` es global, así que los otros dispositivos de la cuenta quedan deslogueados por `onAuthStateChange` sin pasar por el botón. Al recibir `SIGNED_OUT`, `App.tsx` llama a `unsubscribeBrowserPush()` (desuscribe solo el navegador; nunca lanza). Cubre también tokens revocados o vencidos.
 - Consecuencia: quien vuelva a entrar en ese dispositivo reactiva las notificaciones en Ajustes.
 
 ## Publicación

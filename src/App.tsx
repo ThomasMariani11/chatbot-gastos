@@ -8,7 +8,7 @@ import type { UserProfile } from './Settings';
 import { supabase } from './supabase';
 import { hasActiveSubscription } from './subscription';
 import { readAdminAal, type AdminAal } from './adminMfa';
-import { signOutDevice } from './pushNotifications';
+import { signOutDevice, unsubscribeBrowserPush } from './pushNotifications';
 
 const Dashboard = lazyWithRetry(
   () => import('./Dashboard').then((m) => ({ default: m.Dashboard })),
@@ -47,7 +47,12 @@ export function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // SEC-07: el cierre de sesión es global; en los otros dispositivos llega como
+      // SIGNED_OUT sin pasar por el botón, y también ahí se dan de baja los avisos.
+      if (event === 'SIGNED_OUT') void unsubscribeBrowserPush();
+      setSession(nextSession);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
