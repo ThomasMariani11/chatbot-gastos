@@ -3,7 +3,7 @@ import { act, createElement as h } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PushNotificationsRow } from '../src/PushNotificationsRow';
-import { disablePush, enablePush, getPushState } from '../src/pushNotifications';
+import { disablePush, enablePush, getPushState, releasePushOnSignOut, signOutDevice } from '../src/pushNotifications';
 
 vi.mock('../src/supabase', () => ({ supabase: {} }));
 
@@ -62,6 +62,57 @@ describe('FE-25 · suscripción push', () => {
     const t = environment({ rpcError: true });
     await expect(enablePush(t.env)).rejects.toThrow('PUSH_SAVE_FAILED');
     expect(t.subscription.unsubscribe).toHaveBeenCalled();
+  });
+});
+
+describe('SEC-07 · baja de notificaciones al cerrar sesión', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('borra la suscripción en la cuenta y desuscribe el navegador', async () => {
+    const t = environment({ permission: 'granted', subscribed: true });
+    await releasePushOnSignOut(t.env);
+    expect(t.rpc).toHaveBeenCalledWith('delete_push_subscription', { p_endpoint: 'https://push.example.test/1' });
+    expect(t.subscription.unsubscribe).toHaveBeenCalled();
+  });
+
+  it('si la cuenta no responde con éxito, igual desuscribe el navegador y no lanza', async () => {
+    const t = environment({ permission: 'granted', subscribed: true, rpcError: true });
+    await expect(releasePushOnSignOut(t.env)).resolves.toBeUndefined();
+    expect(t.subscription.unsubscribe).toHaveBeenCalled();
+  });
+
+  it('sin conexión no traba: resuelve al vencer el tope y el navegador quedó desuscripto', async () => {
+    vi.useFakeTimers();
+    const t = environment({ permission: 'granted', subscribed: true });
+    t.rpc.mockImplementation(() => new Promise(() => {}));
+    let done = false;
+    const pending = releasePushOnSignOut(t.env, 50).then(() => { done = true; });
+    await vi.advanceTimersByTimeAsync(60);
+    await pending;
+    expect(done).toBe(true);
+    expect(t.subscription.unsubscribe).toHaveBeenCalled();
+  });
+
+  it('sin suscripción no llama a la cuenta; sin service worker resuelve igual', async () => {
+    const t = environment();
+    await releasePushOnSignOut(t.env);
+    expect(t.rpc).not.toHaveBeenCalled();
+    const noWorker = { ...t.env, navigator: {} as Navigator };
+    await expect(releasePushOnSignOut(noWorker)).resolves.toBeUndefined();
+  });
+
+  it('cierra la sesión después de la baja, y la cierra aunque la baja falle', async () => {
+    const order: string[] = [];
+    const t = environment({ permission: 'granted', subscribed: true });
+    t.subscription.unsubscribe.mockImplementation(async () => { order.push('baja'); return true; });
+    await signOutDevice(async () => { order.push('signOut'); }, t.env);
+    expect(order).toEqual(['baja', 'signOut']);
+
+    const broken = environment({ permission: 'granted', subscribed: true });
+    broken.pushManager.getSubscription.mockRejectedValue(new Error('roto'));
+    const signOut = vi.fn(async () => undefined);
+    await signOutDevice(signOut, broken.env);
+    expect(signOut).toHaveBeenCalledTimes(1);
   });
 });
 

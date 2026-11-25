@@ -8,6 +8,7 @@ import type { UserProfile } from './Settings';
 import { supabase } from './supabase';
 import { hasActiveSubscription } from './subscription';
 import { readAdminAal, type AdminAal } from './adminMfa';
+import { signOutDevice } from './pushNotifications';
 
 const Dashboard = lazyWithRetry(
   () => import('./Dashboard').then((m) => ({ default: m.Dashboard })),
@@ -155,7 +156,8 @@ function AuthenticatedApp({ session }: { session: Session }) {
 
   const handleConfirmSignOut = async () => {
     setShowSignOutConfirm(false);
-    await supabase.auth.signOut();
+    // SEC-07: dar de baja las notificaciones de este dispositivo antes de salir.
+    await signOutDevice(() => supabase.auth.signOut());
   };
 
   const loadProfile = useCallback(async () => {
