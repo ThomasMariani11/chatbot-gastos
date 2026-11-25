@@ -117,7 +117,7 @@ begin
 end;
 $$;
 
-revoke all on function public.admin_update_ai_quota_policy(text, integer, integer) from public, anon;
+revoke all on function public.admin_update_ai_quota_policy(text, integer, integer) from public, anon, service_role;
 grant execute on function public.admin_update_ai_quota_policy(text, integer, integer) to authenticated;
 
 -- Verificación.
@@ -140,7 +140,8 @@ begin
      or not has_function_privilege('service_role', 'public.reserve_whatsapp_ai_quota(uuid,uuid,integer,text)', 'execute')
      or not has_function_privilege('authenticated', 'public.whatsapp_ai_quota_dashboard()', 'execute')
      or has_function_privilege('service_role', 'public.whatsapp_ai_quota_dashboard()', 'execute')
-     or not has_function_privilege('authenticated', 'public.admin_update_ai_quota_policy(text,integer,integer)', 'execute') then
+     or not has_function_privilege('authenticated', 'public.admin_update_ai_quota_policy(text,integer,integer)', 'execute')
+     or has_function_privilege('service_role', 'public.admin_update_ai_quota_policy(text,integer,integer)', 'execute') then
     raise exception 'SEC04_PERMISOS_FUNCION';
   end if;
   if position('user_exhausted' in pg_get_functiondef('public.reserve_whatsapp_ai_quota(uuid,uuid,integer,text)'::regprocedure)) = 0

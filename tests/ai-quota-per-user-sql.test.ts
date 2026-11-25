@@ -86,6 +86,8 @@ describe('SEC-04: cupo de IA por cliente (migración 055)', { timeout: 120_000 }
         on conflict(user_id) do update set wa_id = excluded.wa_id, status = 'active'`, [user, wa]);
     }
     propertiesBefore = (await db.query(propertiesSql, [FUNCTIONS])).rows;
+    // Emula los privilegios por defecto de Supabase: las funciones nuevas de public quedan ejecutables por anon, authenticated y service_role.
+    await db.exec('alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;');
     await db.exec(await readFile(new URL('055_ai_quota_per_user.sql', migrationUrl)));
   }, 120_000);
 
@@ -315,11 +317,11 @@ describe('SEC-04: cupo de IA por cliente (migración 055)', { timeout: 120_000 }
     const fn = 'public.admin_update_ai_quota_policy(text,integer,integer)';
     const props = (await db.query<{ prosecdef: boolean; proconfig: string[] }>(`select prosecdef, proconfig from pg_proc where oid = '${fn}'::regprocedure`)).rows[0];
     expect(props).toEqual({ prosecdef: true, proconfig: ['search_path=pg_catalog, public'] });
-    const priv = (await db.query(`select has_function_privilege('anon', $1, 'execute') as anon, has_function_privilege('authenticated', $1, 'execute') as authenticated,
+    const priv = (await db.query(`select has_function_privilege('anon', $1, 'execute') as anon, has_function_privilege('authenticated', $1, 'execute') as authenticated, has_function_privilege('service_role', $1, 'execute') as backend_admin_update,
       has_function_privilege('anon', 'public.reserve_whatsapp_ai_quota(uuid,uuid,integer,text)', 'execute') as anon_reserve,
       has_function_privilege('authenticated', 'public.reserve_whatsapp_ai_quota(uuid,uuid,integer,text)', 'execute') as client_reserve,
       has_function_privilege('service_role', 'public.reserve_whatsapp_ai_quota(uuid,uuid,integer,text)', 'execute') as backend_reserve`, [fn])).rows[0];
-    expect(priv).toEqual({ anon: false, authenticated: true, anon_reserve: false, client_reserve: false, backend_reserve: true });
+    expect(priv).toEqual({ anon: false, authenticated: true, backend_admin_update: false, anon_reserve: false, client_reserve: false, backend_reserve: true });
     for (const role of ['anon', 'authenticated', 'service_role']) {
       expect((await db.query(`select has_table_privilege($1, 'public.ai_quota_user_days', 'select') as s, has_table_privilege($1, 'public.ai_quota_user_days', 'insert') as i,
         has_table_privilege($1, 'public.ai_quota_user_days', 'update') as u, has_table_privilege($1, 'public.ai_quota_policy', 'update') as p`, [role])).rows[0])

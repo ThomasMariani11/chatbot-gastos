@@ -39,7 +39,7 @@ ${EXAMPLE}
 
 Mañana se renueva.`,
   aiUserQuotaText:
-    `Por hoy llegaste al límite de fotos y mensajes largos 📷
+    `Por hoy llegaste al límite para interpretar fotos, audios largos y mensajes largos 📷
 Escribime el gasto, por ejemplo:
 ${EXAMPLE}
 

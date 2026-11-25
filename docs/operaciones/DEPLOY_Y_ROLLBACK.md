@@ -60,7 +60,7 @@ Rama `feat/sec-04-cupo-ia-por-cliente`: mínimo **055**, rollback fijado en **2a
 3. `db push --linked --dry-run` (debe proponer solo la 055) y luego `db push --linked`.
 4. Verificar: límites iniciales 15/25, permisos de la RPC (no ejecutable por `anon`), y editar un límite desde el panel con MFA y volver a dejarlo.
 
-**Rollback:** conservar la 055. **No volver el webhook a v77 mientras la 055 esté aplicada** sin antes subir el límite por cliente a 10000 en ambos carriles desde el panel: v77 trataría `user_exhausted` como error de configuración. La PWA anterior (2a4fe60) no muestra los límites por cliente pero funciona. Nunca hacer un down.
+**Rollback:** conservar la 055. **No volver el webhook a v77 mientras la 055 esté aplicada** sin antes igualar el límite por cliente al límite global en ambos carriles desde el panel (así el global se agota antes y nunca se devuelve `user_exhausted`): v77 trataría `user_exhausted` como error de configuración. La PWA anterior (2a4fe60) no muestra los límites por cliente pero funciona. Nunca hacer un down.
 
 **Pendiente:** probar la concurrencia real del último lugar del cupo con `npm run test:concurrency` (Docker); las pruebas PGlite son secuenciales.
 

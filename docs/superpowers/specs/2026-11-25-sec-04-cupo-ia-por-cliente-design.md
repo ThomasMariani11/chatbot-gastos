@@ -87,7 +87,7 @@ Hay una sola forma razonable, apoyada en el cupo existente: extender la polític
 2. Deploy del webhook (entiende `user_exhausted`), smoke 401.
 3. `db push --dry-run` (solo 055) y `db push`.
 
-Rollback: conservar la 055. **No volver el webhook a v77 mientras la 055 esté aplicada** sin antes subir el límite por cliente a 10000 (así nunca se devuelve `user_exhausted`).
+Rollback: conservar la 055. **No volver el webhook a v77 mientras la 055 esté aplicada** sin antes igualar el límite por cliente al límite global en ambos carriles desde el panel (así el global se agota antes y nunca se devuelve `user_exhausted`).
 
 ### Pruebas
 

@@ -88,6 +88,6 @@ describe('SEC-04 · límite por cliente', () => {
       expect(msg).toContain('Mañana se renueva');
     }
     expect(BOT_MESSAGES.aiUserQuotaAudio).toContain('audios');
-    expect(BOT_MESSAGES.aiUserQuotaText).toContain('fotos y mensajes largos');
+    expect(BOT_MESSAGES.aiUserQuotaText).toContain('fotos, audios largos y mensajes largos');
   });
 });
