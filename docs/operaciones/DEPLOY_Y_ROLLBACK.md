@@ -4,6 +4,17 @@
 
 PWA **136810f77858a0aa09b3b13cc4b3c867fb10aa89** (PR #119), SQL **001–055**, webhook **v79 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR #119 → CI de `main` en verde (Frontend, PostgreSQL, Webhook, ensayo de release y Publicar) y Pages con `version.json` = 136810f → deploy del webhook desde 136810f (v79) → smoke 401 en `/`, `worker` y `client-push` → `db push --linked --dry-run` (solo 055) → `db push --linked` → verificación de solo lectura por `db query --linked`: historial 055; política qwen 100/15 y whisper 200/25, ambas habilitadas; `admin_update_ai_quota_policy` SECURITY DEFINER, dueño postgres, `search_path=pg_catalog, public`, EXECUTE solo para authenticated (no anon, no service_role, no PUBLIC); `reserve_whatsapp_ai_quota` SECURITY DEFINER, mismo `search_path`, EXECUTE solo para service_role; `whatsapp_ai_quota_dashboard` SECURITY DEFINER, EXECUTE para authenticated y no para anon; `ai_quota_user_days` con RLS, sin privilegios para anon, authenticated ni service_role y 0 filas; crons `pesito-client-push`, `pesito-whatsapp-observability`, `pesito-whatsapp-queue-recovery` y `pesito-whatsapp-retention` activos. Prueba previa en PGlite, Supabase local aislado (navegador) y el ensayo de release del CI. **Discrepancia:** el último registro anterior era v77 y este deploy quedó como v79; no hay registro de qué fue la v78. Rollback: conservar la 055; PWA a 2a4fe60; antes de volver el webhook a una versión anterior, igualar el límite por cliente al global en ambos carriles desde el panel. **Pendiente:** editar un límite desde el panel en producción con MFA y volver a dejarlo; concurrencia real con `npm run test:concurrency`.
 
+**Después (25/11/2026, solo PWA):** PR #121 (2dd1ca7, aviso de límites guardados junto al formulario) y PR #122 (a985aae, panel de cupo de IA ordenado en el celular). Sin cambios de SQL ni de webhook; Pages publica a985aae.
+
+## Candidato SEC-05 (con una foto solo se cargan gastos) — 25/11/2026
+
+Rama `feat/sec-05-fotos-solo-gastos`. **Solo webhook:** sin migración ni cambios de PWA, así que el contrato de release no cambia (mínimo 055). Diseño en `docs/superpowers/specs/2026-11-25-sec-05-fotos-solo-gastos-design.md`.
+
+- Con una foto, el procesador solo acepta `add_movements`, `request_text` o `unknown`; cualquier otra intención (confirmar, cancelar, borrar, corregir, resumen) no se aplica y el bot responde que esas órdenes se escriben. El control corre después del checkpoint, así que también cubre reintentos de resultados guardados antes del deploy.
+- El prompt marca el contenido de la imagen como dato no confiable. Los audios no cambian.
+
+**Publicación** (con autorización del propietario): merge a `main` → deploy del webhook desde ese commit → smoke 401 sin firma en `/`, `worker` y `client-push`. **Rollback:** volver el webhook a v79 (sin cambios de esquema).
+
 ## Registro histórico — 18/11/2026 (seguimiento de SEC-01: sin formato de 6 dígitos)
 
 PWA **c9d87611e06541ea6bf58d183f20c153876c9100** (PR #111), SQL **001–054** (sin cambios), webhook **v77 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR #111 → CI de `main` en verde (incluido el ensayo de release) y Pages con `version.json` = c9d8761 → deploy del webhook desde c9d8761 (v77) → smoke 401 en `/`, `worker` y `client-push`. Desde esta versión el webhook y la PWA aceptan solo `XXXX-XXXX-XXXX` (o sin separadores, alfabeto de la 054). Rollback: PWA 8406a9e y webhook v76, compatibles con la 054.

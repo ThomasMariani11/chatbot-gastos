@@ -356,6 +356,14 @@ export async function prepareMessage(
         ? BOT_MESSAGES.imageUnclear
         : BOT_MESSAGES.textUnclear),
     );
+  // SEC-05: el contenido de una imagen es un dato no confiable. Con foto solo se
+  // cargan gastos; se controla después del checkpoint para cubrir reintentos.
+  if (
+    message.image?.id &&
+    !["add_movements", "request_text", "unknown"].includes(result.intent)
+  ) {
+    return reply(BOT_MESSAGES.imageControlBlocked);
+  }
   switch (result.intent) {
     case "edit_pending":
       return result.pendingEdit ??
