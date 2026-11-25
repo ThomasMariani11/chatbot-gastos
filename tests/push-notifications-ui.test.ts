@@ -101,6 +101,21 @@ describe('SEC-07 · baja de notificaciones al cerrar sesión', () => {
     await expect(releasePushOnSignOut(noWorker)).resolves.toBeUndefined();
   });
 
+  it('con service worker pero sin push en el navegador resuelve sin llamar a la cuenta', async () => {
+    const t = environment();
+    const noPush = { ...t.env, navigator: { serviceWorker: { getRegistration: async () => ({}) } } as unknown as Navigator };
+    await expect(releasePushOnSignOut(noPush)).resolves.toBeUndefined();
+    await expect(unsubscribeBrowserPush(noPush)).resolves.toBeUndefined();
+    expect(t.rpc).not.toHaveBeenCalled();
+  });
+
+  it('si la llamada a la cuenta falla en el acto, igual desuscribe el navegador', async () => {
+    const t = environment({ permission: 'granted', subscribed: true });
+    t.rpc.mockImplementation(() => { throw new Error('falla inmediata'); });
+    await expect(releasePushOnSignOut(t.env)).resolves.toBeUndefined();
+    expect(t.subscription.unsubscribe).toHaveBeenCalled();
+  });
+
   it('sesión cerrada desde otro dispositivo: desuscribe solo el navegador, sin llamar a la cuenta', async () => {
     const t = environment({ permission: 'granted', subscribed: true });
     await unsubscribeBrowserPush(t.env);

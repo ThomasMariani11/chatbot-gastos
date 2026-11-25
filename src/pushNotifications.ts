@@ -113,7 +113,8 @@ export async function releasePushOnSignOut(env: PushEnvironment = defaultEnviron
     const subscription = await reg?.pushManager.getSubscription();
     if (!subscription) return;
     await Promise.allSettled([
-      Promise.resolve(env.rpc('delete_push_subscription', { p_endpoint: subscription.endpoint })),
+      // Si la llamada fallara en el acto, el navegador igual se desuscribe.
+      Promise.resolve().then(() => env.rpc('delete_push_subscription', { p_endpoint: subscription.endpoint })),
       subscription.unsubscribe(),
     ]);
   })().catch(() => undefined);
