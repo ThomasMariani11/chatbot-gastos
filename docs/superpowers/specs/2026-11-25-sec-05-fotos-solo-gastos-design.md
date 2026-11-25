@@ -9,11 +9,12 @@ Una imagen no debe poder darle órdenes al bot. Hoy la IA puede devolver `confir
 ## Objetivos
 
 - Con una foto, solo se aceptan `add_movements` o la respuesta de "no entendí" (`request_text` / `unknown`).
-- Cualquier otra intención con foto no se aplica y el bot responde: "Con una foto solo puedo cargar gastos 📷 Para confirmar, cancelar o cambiar algo, escribímelo."
+- Cualquier otra intención con foto no se aplica y el bot responde: "No cargué esa foto 📷 Mandala sola para cargar el gasto, y para confirmar, cancelar o cambiar algo escribímelo." (texto ajustado por el propietario tras la revisión, para que no parezca que el ticket se cargó)
 - El prompt marca el contenido de la imagen como dato no confiable.
 
 ## No objetivos
 
+- Borrador vencido: una foto (como cualquier mensaje) sigue devolviendo el resumen antes de interpretarse. Es el comportamiento previo y no depende del contenido de la imagen; excepción aceptada.
 - Audios: siguen admitiendo intenciones de control (es la voz del propio cliente).
 - Sin cambios de SQL ni de PWA; sin aumento del consumo de IA.
 

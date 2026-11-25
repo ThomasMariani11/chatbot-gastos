@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Intenciones permitidas con imagen: `add_movements`, `request_text`, `unknown`. Bloqueadas: `confirm`, `cancel`, `remove_item`, `edit_item`, `edit_pending`, `complete_item`, `clarify_completion`, `summary`.
-- Mensaje exacto: `Con una foto solo puedo cargar gastos 📷\nPara confirmar, cancelar o cambiar algo, escribímelo.`
+- Mensaje exacto: `No cargué esa foto 📷\nMandala sola para cargar el gasto, y para confirmar, cancelar o cambiar algo escribímelo.` (ajustado tras la revisión final)
 - Audios sin cambios. Sin SQL ni PWA. Sin llamadas de IA adicionales. Solo datos ficticios en tests.
 
 ## Review Focus

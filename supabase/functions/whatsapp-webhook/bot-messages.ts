@@ -30,7 +30,7 @@ export const BOT_MESSAGES = {
   audioUnclear: `No logré entender el audio 🎧\n¿Me lo escribís? Por ejemplo:\n${EXAMPLE}`,
   // SEC-05: una foto no puede confirmar, cancelar ni cambiar el borrador.
   imageControlBlocked:
-    `Con una foto solo puedo cargar gastos 📷\nPara confirmar, cancelar o cambiar algo, escribímelo.`,
+    `No cargué esa foto 📷\nMandala sola para cargar el gasto, y para confirmar, cancelar o cambiar algo escribímelo.`,
   imageUnclear: `No logré leer la foto 📷\n¿Me escribís el gasto? Por ejemplo:\n${EXAMPLE}`,
   textUnclear: `No terminé de entender el mensaje 🤔\nEscribime el concepto y el monto, por ejemplo:\n${EXAMPLE}`,
   aiQuota:

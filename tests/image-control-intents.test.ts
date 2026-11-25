@@ -50,7 +50,7 @@ const blocked = { kind: 'reply', text: BOT_MESSAGES.imageControlBlocked };
 
 describe('SEC-05: con una foto solo se cargan gastos', () => {
   it('el mensaje pide escribir las órdenes', () => {
-    expect(BOT_MESSAGES.imageControlBlocked).toBe('Con una foto solo puedo cargar gastos 📷\nPara confirmar, cancelar o cambiar algo, escribímelo.');
+    expect(BOT_MESSAGES.imageControlBlocked).toBe('No cargué esa foto 📷\nMandala sola para cargar el gasto, y para confirmar, cancelar o cambiar algo escribímelo.');
   });
 
   it.each([
@@ -74,8 +74,7 @@ describe('SEC-05: con una foto solo se cargan gastos', () => {
   it('una foto de ticket sigue cargando el gasto', async () => {
     const ticket = { intent: 'add_movements', movements: [{ kind: 'expense', description: 'Súper', totalAmountArs: 12500, occurredOn: '2026-11-25', category: 'Supermercado', installments: 1, confidence: 0.95, missingFields: [] }] };
     const result = await prepareMessage(db(), job(photo, ticket), async () => {});
-    expect(result).not.toEqual(blocked);
-    expect(result.kind).not.toBe('reply');
+    expect(result).toMatchObject({ kind: 'add', items: [expect.objectContaining({ description: 'Súper' })] });
   });
 
   it('un audio "confirmar" sigue confirmando', async () => {
