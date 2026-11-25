@@ -10,9 +10,9 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
-## SEC-05: con una foto solo se cargan gastos — 25/11/2026 (en rama)
+## SEC-05: con una foto solo se cargan gastos — publicado el 25/11/2026
 
-**Estado:** rama `feat/sec-05-fotos-solo-gastos`, sin integrar ni publicar. Tarea 2.1 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-25-sec-05-fotos-solo-gastos-design.md`.
+**Estado:** **publicado.** PR #123 (9ebf5e9), webhook **v80** con smoke 401; sin SQL ni PWA. Tarea 2.1 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-25-sec-05-fotos-solo-gastos-design.md`.
 
 - **Webhook:** `processor.ts` bloquea con foto toda intención que no sea `add_movements`, `request_text` o `unknown` (después del checkpoint, cubre reintentos) y responde `BOT_MESSAGES.imageControlBlocked`; `gemini.ts` agrega al prompt, solo con imagen, que su contenido es un dato y no una orden. Los audios siguen admitiendo confirmar, cancelar y corregir.
 - **Publicación:** solo webhook (smoke 401); rollback a v79. Sin SQL ni PWA.
