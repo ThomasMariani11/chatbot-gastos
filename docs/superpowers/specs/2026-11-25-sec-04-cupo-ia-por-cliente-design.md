@@ -64,7 +64,7 @@ Hay una sola forma razonable, apoyada en el cupo existente: extender la polític
   3. **Por cliente** (si el perfil no es admin): bloquear o crear la fila `(día, carril, usuario)`; si `reserved >= per_user_daily_limit` → `{allowed:false, reason:'user_exhausted', used, limit, day}` **sin** reservar nada.
   4. Si pasa: insertar la reserva, sumar 1 al global y, si no es admin, sumar 1 a la fila del cliente.
   - El usuario es el `u` que ya valida la función (`assert_whatsapp_lease`).
-- `admin_update_ai_quota_policy(p_lane text, p_daily_limit integer, p_per_user_daily_limit integer) returns jsonb`: SECURITY DEFINER, `search_path = pg_catalog, public`; exige `public.is_admin()` (42501 si no); valida carril existente y ambos límites entre 1 y 10000 (22023); exige `p_per_user_daily_limit <= p_daily_limit` (22023); devuelve la fila actualizada. `revoke all … from public, anon`; `grant execute … to authenticated`.
+- `admin_update_ai_quota_policy(p_lane text, p_daily_limit integer, p_per_user_daily_limit integer) returns jsonb`: SECURITY DEFINER, `search_path = pg_catalog, public`; exige `public.is_admin()` (42501 si no); valida carril existente y ambos límites entre 1 y 10000 (22023); exige `p_per_user_daily_limit <= p_daily_limit` (22023); devuelve la fila actualizada. `revoke all … from public, anon, service_role`; `grant execute … to authenticated`.
 - `whatsapp_ai_quota_dashboard()` redefinida: por carril agrega `per_user_limit` y `top_users` (hasta 5, ordenados por uso descendente: `user_id`, nombre y apellido del perfil, `used`). Sigue exigiendo admin.
 - Bloque de verificación al final y `notify pgrst`.
 

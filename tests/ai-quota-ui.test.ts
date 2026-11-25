@@ -111,6 +111,54 @@ it('un error de la RPC se muestra sin romper la vista ni filtrar detalles SQL', 
   await save('whisper');
   expect(node.querySelector('form[data-lane="whisper"] [role="alert"]')?.textContent).toContain('No pude guardar');
 });
+it('un fallo al actualizar oculta los números pero conserva lo tipeado en el formulario', async () => {
+  api.read.mockResolvedValue({ data: withUsers(), error: null });
+  await act(async () => root.render(h(AiQuotaUsage)));
+  await act(async () => { setValue(field('qwen-daily'), '150'); });
+  api.read.mockResolvedValueOnce({ data: null, error: { message: 'PRIVATE_SQL_DETAIL' } });
+  await act(async () => vi.advanceTimersByTime(30000));
+  expect(node.textContent).toContain('No pude actualizar'); expect(node.textContent).not.toContain('0 / 100');
+  expect(node.textContent).not.toContain('Ana Pérez'); expect(node.textContent).not.toContain('PRIVATE_SQL_DETAIL');
+  expect(field('qwen-daily').value).toBe('150');
+  await act(async () => node.querySelector('button')!.click());
+  expect(node.textContent).toContain('0 / 100'); expect(field('qwen-daily').value).toBe('150');
+});
+it('confirma el guardado y el aviso se va solo', async () => {
+  api.read.mockResolvedValue({ data: withUsers(), error: null });
+  api.update.mockResolvedValue({ data: { lane: 'whisper', daily_limit: 200, per_user_daily_limit: 25, enabled: true }, error: null });
+  await act(async () => root.render(h(AiQuotaUsage)));
+  await save('whisper');
+  expect(node.querySelector('[role="status"]')?.textContent).toContain('Límites de audios a texto guardados.');
+  await act(async () => vi.advanceTimersByTime(5000));
+  expect(node.textContent).not.toContain('guardados.');
+});
+it('el error de un intento anterior se borra al volver a editar', async () => {
+  await act(async () => root.render(h(AiQuotaView, { snapshot: withUsers(), onSave: async () => null })));
+  await act(async () => { setValue(field('qwen-per-user'), '0'); });
+  await save('qwen');
+  expect(node.querySelector('form[data-lane="qwen"] [role="alert"]')).not.toBeNull();
+  await act(async () => { setValue(field('qwen-per-user'), '10'); });
+  expect(node.querySelector('form[data-lane="qwen"] [role="alert"]')).toBeNull();
+});
+it('cada edición dice de qué tipo es y el error queda asociado a los campos', async () => {
+  await act(async () => root.render(h(AiQuotaView, { snapshot: withUsers(), onSave: async () => null })));
+  const summaries = [...node.querySelectorAll('summary')].map(s => s.textContent);
+  expect(summaries).toContain('Editar límites: textos complejos y fotos');
+  expect(summaries).toContain('Editar límites: audios a texto');
+  expect(node.querySelector('form[data-lane="whisper"]')?.getAttribute('aria-label')).toBe('Límites de audios a texto');
+  await act(async () => { setValue(field('whisper-daily'), '0'); });
+  await save('whisper');
+  const alert = node.querySelector('form[data-lane="whisper"] [role="alert"]')!;
+  expect(alert.id).not.toBe('');
+  for (const name of ['whisper-daily', 'whisper-per-user']) {
+    expect(field(name).getAttribute('aria-invalid')).toBe('true');
+    expect(field(name).getAttribute('aria-describedby')).toBe(alert.id);
+  }
+});
+it('el título aclara que el uso mostrado es el global compartido', async () => {
+  await act(async () => root.render(h(AiQuotaView, { snapshot: withUsers() })));
+  expect(node.textContent).toContain('Global compartido');
+});
 it('con el SQL anterior (sin per_user_limit) no hay formulario y avisa que la edición no está disponible', async () => {
   await act(async () => root.render(h(AiQuotaView, { snapshot: snapshot(), onSave: async () => null })));
   expect(node.querySelector('form')).toBeNull(); expect(node.querySelector('input')).toBeNull();

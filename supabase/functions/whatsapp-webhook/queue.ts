@@ -235,12 +235,18 @@ async function processJob(
           const diagnostic =
             (result as { operationalFailure?: Record<string, unknown> })
               .operationalFailure;
-          await recordIssue(job, token, deps, {
-            ...diagnostic,
-            kind: "clarification",
-            stage: "interpret",
-            reason: diagnostic?.reason ?? "invalid_response",
-          });
+          // SEC-04: el límite diario del cliente es el límite funcionando, no una falla operativa.
+          const userQuota = String(
+            (result as { requestTextReason?: unknown }).requestTextReason ?? "",
+          ).startsWith("user_quota");
+          if (!userQuota) {
+            await recordIssue(job, token, deps, {
+              ...diagnostic,
+              kind: "clarification",
+              stage: "interpret",
+              reason: diagnostic?.reason ?? "invalid_response",
+            });
+          }
           const source = job.payload.type;
           deps.metric("queue_clarification", {
             source_kind: source === "audio" || source === "image"
