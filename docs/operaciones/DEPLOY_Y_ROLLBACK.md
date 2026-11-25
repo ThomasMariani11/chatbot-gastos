@@ -2,7 +2,7 @@
 
 ## Última publicación observada — 25/11/2026 (SEC-05: con una foto solo se cargan gastos)
 
-PWA **9ebf5e9** (PR #123; sin cambios de PWA respecto de a985aae), SQL **001–055** (sin cambios), webhook **v80 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR #123 → CI de `main` en verde (Frontend, PostgreSQL, Webhook con `deno check`/`lint`/`test`, ensayo de release y Publicar) → deploy del webhook desde 9ebf5e9 (v80) → smoke 401 en `/`, `worker` y `client-push`. Rollback: webhook v79 (sin cambios de esquema). **Pendiente:** probar con una foto real de prueba que una imagen con la palabra "confirmar" no confirme el borrador.
+PWA **9ebf5e9** (PR #123; sin cambios de PWA respecto de a985aae), SQL **001–055** (sin cambios), webhook **v80 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR #123 → CI de `main` en verde (Frontend, PostgreSQL, Webhook con `deno check`/`lint`/`test`, ensayo de release y Publicar) → deploy del webhook desde 9ebf5e9 (v80) → smoke 401 en `/`, `worker` y `client-push`. Rollback: webhook v79 (sin cambios de esquema). **Prueba del propietario (25/11/2026):** con un borrador pendiente, una foto con la palabra "confirmar" no lo confirmó y una foto de ticket sola cargó el gasto.
 
 ## Registro histórico — 25/11/2026 (SEC-04: cupo de IA por cliente)
 
