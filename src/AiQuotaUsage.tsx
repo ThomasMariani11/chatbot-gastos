@@ -73,7 +73,7 @@ export function AiQuotaView({ snapshot, onSave, stale = false, notice = null }: 
       {!stale && row.top_users && row.top_users.length > 0 && <ol className="bot-ops-top" aria-label={`Clientes con más uso: ${LANE_LABEL[row.lane]}`}>{row.top_users.map(u => <li key={u.user_id}>{u.name} — {u.used}</li>)}</ol>}
       {onSave && row.per_user_limit === undefined && <p className="bot-ops-meta">La edición de límites todavía no está disponible.</p>}
       {onSave && row.per_user_limit !== undefined && <details><summary>{`Editar límites: ${LANE_TEXT[row.lane]}`}</summary><LaneLimitsForm key={`${row.lane}-${row.limit}-${row.per_user_limit}`} row={row} onSave={onSave} /></details>}
-      {notice?.lane === row.lane && <p className="bot-ops-meta" role="status">{notice.text}</p>}
+      {notice?.lane === row.lane && <p className="bot-ops-meta bot-ops-saved" role="status">{notice.text}</p>}
     </li>)}</ul>
     {warnings.length > 0 && <p className="bot-ops-warning" role={critical ? 'alert' : 'status'}>
       {warnings.some(r => !r.enabled) ? 'La interpretación automática está pausada.'
