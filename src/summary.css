@@ -1482,6 +1482,16 @@ details[open] > summary .admin-summary-chevron {
 .bot-ops-quota li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; font-size: 13px; }
 .bot-ops-quota progress { grid-column: 1 / -1; width: 100%; height: 8px; accent-color: var(--mint-dark); }
 .bot-ops-quota summary { cursor: pointer; font-size: 12px; }
+/* SEC-04: nombre y uso en la primera fila; límites, top 5, edición y aviso ocupan el ancho completo. */
+.bot-ops-quota li > .bot-ops-meta, .bot-ops-quota li > .bot-ops-top, .bot-ops-quota li > details { grid-column: 1 / -1; margin: 0; }
+.bot-ops-quota .bot-ops-top li { display: list-item; }
+.bot-ops-quota li > details > summary { padding: 4px 0; color: var(--mint-dark); font-weight: 600; }
+.bot-ops-quota li > .bot-ops-saved { color: var(--mint-dark); font-weight: 600; }
+@media (max-width: 480px) {
+  .bot-ops-limits label { flex: 1 1 0; min-width: 0; }
+  .bot-ops-limits input { width: 100%; box-sizing: border-box; }
+  .bot-ops-limits .bot-ops-button { flex: 1 1 100%; }
+}
 
 /* FE-25: fila de interruptor como único contenido del panel */
 .settings-bot-switch-row.settings-switch-row-standalone { margin-top: 0; padding-top: 0; border-top: 0; }
