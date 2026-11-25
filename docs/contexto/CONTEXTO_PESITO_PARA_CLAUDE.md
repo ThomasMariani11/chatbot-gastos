@@ -10,9 +10,9 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
-## SEC-07: baja de notificaciones al cerrar sesión — 25/11/2026 (en rama)
+## SEC-07: baja de notificaciones al cerrar sesión — publicado el 25/11/2026
 
-**Estado:** rama `fix/sec-07-push-al-cerrar-sesion`, sin integrar ni publicar. Tarea 2.3 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-25-sec-07-push-al-cerrar-sesion-design.md`.
+**Estado:** **publicado.** PR #125 (y #126, texto del cartel de cierre), PWA **ed9e4d7**; sin SQL ni webhook. Mientras se cierra, la app muestra "Cerrando sesión…" y bloquea la actualización. Tarea 2.3 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-25-sec-07-push-al-cerrar-sesion-design.md`.
 
 - **PWA:** `src/pushNotifications.ts` suma `releasePushOnSignOut` (borra la suscripción en la cuenta y desuscribe el navegador en paralelo; nunca lanza; tope de 3 s) y `signOutDevice`. `App.tsx` (único punto de salida, cliente y Panel Admin) la usa antes de `signOut`.
 - Como `signOut()` es global, los otros dispositivos de la cuenta reciben `SIGNED_OUT` sin pasar por el botón: `App.tsx` llama entonces a `unsubscribeBrowserPush()` (solo el navegador; ya no hay sesión para el RPC).

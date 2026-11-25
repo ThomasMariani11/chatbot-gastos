@@ -1,6 +1,10 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
-## Última publicación observada — 25/11/2026 (SEC-05: con una foto solo se cargan gastos)
+## Última publicación observada — 25/11/2026 (SEC-07: baja de notificaciones al cerrar sesión)
+
+PWA **ed9e4d7c61ce6014fdca4c7afd75ed71d4dbc403** (PR #125, SEC-07, y PR #126, texto del cartel de cierre), SQL **001–055** y webhook **v80** sin cambios. CI de `main` en verde; el "Ensayo de release" falló una vez en la fase `candidato_webhook_y_pwa` (arranque del worker en Supabase local, sin código de salida; el mismo código había pasado en `main` 2c4170c y en el CI de la PR) y pasó al reintentar solo ese job. Pages con `version.json` = ed9e4d7. Rollback: PWA 6f8bab1 (sin cambios de datos).
+
+## Registro histórico — 25/11/2026 (SEC-05: con una foto solo se cargan gastos)
 
 PWA **9ebf5e9** (PR #123; sin cambios de PWA respecto de a985aae), SQL **001–055** (sin cambios), webhook **v80 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR #123 → CI de `main` en verde (Frontend, PostgreSQL, Webhook con `deno check`/`lint`/`test`, ensayo de release y Publicar) → deploy del webhook desde 9ebf5e9 (v80) → smoke 401 en `/`, `worker` y `client-push`. Rollback: webhook v79 (sin cambios de esquema). **Pendiente:** probar con una foto real de prueba que una imagen con la palabra "confirmar" no confirme el borrador.
 
@@ -10,7 +14,7 @@ PWA **136810f77858a0aa09b3b13cc4b3c867fb10aa89** (PR #119), SQL **001–055**, w
 
 **Después (25/11/2026, solo PWA):** PR #121 (2dd1ca7, aviso de límites guardados junto al formulario) y PR #122 (a985aae, panel de cupo de IA ordenado en el celular). Sin cambios de SQL ni de webhook; Pages publica a985aae.
 
-## Candidato SEC-07 (baja de notificaciones al cerrar sesión) — 25/11/2026
+## SEC-07 (baja de notificaciones al cerrar sesión) — publicado el 25/11/2026 (PWA ed9e4d7)
 
 Rama `fix/sec-07-push-al-cerrar-sesion`. **Solo PWA:** sin migración ni webhook; el contrato de release no cambia (mínimo 055). Al confirmar "Cerrar sesión", la PWA borra la suscripción push del dispositivo en la cuenta y desuscribe el navegador antes del `signOut`, sin trabar el cierre (tope de 3 s). Los otros dispositivos de la cuenta, que el cierre global desloguea, desuscriben su navegador al recibir `SIGNED_OUT`. **Publicación:** merge a `main` (Pages). **Rollback:** PWA anterior; no hay cambios de datos.
 
