@@ -43,7 +43,12 @@ export type GeminiParsedOutput = {
   completion?: CompletionAction;
   pendingEdit?: PendingEdit;
   completionReply?: string;
-  requestTextReason?: "size" | "type" | "quota";
+  requestTextReason?:
+    | "size"
+    | "type"
+    | "quota"
+    | "user_quota_audio"
+    | "user_quota_text";
   operationalFailure?: FailureMetadata; // Solo diagnóstico interno controlado por el procesador.
   edit?: {
     targetPosition?: number | null;

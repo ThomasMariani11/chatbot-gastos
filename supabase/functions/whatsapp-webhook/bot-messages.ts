@@ -32,6 +32,18 @@ export const BOT_MESSAGES = {
   textUnclear: `No terminé de entender el mensaje 🤔\nEscribime el concepto y el monto, por ejemplo:\n${EXAMPLE}`,
   aiQuota:
     `Por hoy llegué a mi límite para leer audios, fotos y mensajes largos 🙏\nEscribime el gasto simple, por ejemplo:\n${EXAMPLE}\n\nTus pendientes siguen ahí.`,
+  aiUserQuotaAudio:
+    `Por hoy llegaste al límite de audios 🎧
+Escribime el gasto, por ejemplo:
+${EXAMPLE}
+
+Mañana se renueva.`,
+  aiUserQuotaText:
+    `Por hoy llegaste al límite de fotos y mensajes largos 📷
+Escribime el gasto, por ejemplo:
+${EXAMPLE}
+
+Mañana se renueva.`,
   // También en SQL.
   manualReview:
     "No pude procesar este mensaje 😕 Lo guardé para revisarlo.\nMientras tanto, escribime el gasto con el concepto y el monto.\n\nTu lista sigue igual.",
