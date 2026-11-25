@@ -225,7 +225,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
             <p className="eyebrow" style={{ color: '#e24b4b', marginBottom: '4px' }}>CERRAR SESIÓN</p>
             <h2 id="logout-confirm-title" style={{ margin: 0, fontSize: '19px', fontWeight: 800 }}>¿Cerrar sesión en Pesito?</h2>
             <p style={{ margin: '8px 0 0', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.45 }}>
-              Vas a salir de tu cuenta. Para volver a ingresar vas a necesitar solicitar un enlace de acceso con tu correo.
+              Vas a salir de tu cuenta. Para volver a entrar vas a necesitar tu correo y tu contraseña.
             </p>
           </div>
           <div className="modal-actions-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
