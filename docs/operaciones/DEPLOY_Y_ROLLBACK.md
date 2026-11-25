@@ -10,6 +10,10 @@ PWA **136810f77858a0aa09b3b13cc4b3c867fb10aa89** (PR #119), SQL **001–055**, w
 
 **Después (25/11/2026, solo PWA):** PR #121 (2dd1ca7, aviso de límites guardados junto al formulario) y PR #122 (a985aae, panel de cupo de IA ordenado en el celular). Sin cambios de SQL ni de webhook; Pages publica a985aae.
 
+## Candidato SEC-07 (baja de notificaciones al cerrar sesión) — 25/11/2026
+
+Rama `fix/sec-07-push-al-cerrar-sesion`. **Solo PWA:** sin migración ni webhook; el contrato de release no cambia (mínimo 055). Al confirmar "Cerrar sesión", la PWA borra la suscripción push del dispositivo en la cuenta y desuscribe el navegador antes del `signOut`, sin trabar el cierre (tope de 3 s). Los otros dispositivos de la cuenta, que el cierre global desloguea, desuscriben su navegador al recibir `SIGNED_OUT`. **Publicación:** merge a `main` (Pages). **Rollback:** PWA anterior; no hay cambios de datos.
+
 ## SEC-05 (con una foto solo se cargan gastos) — publicado el 25/11/2026 (webhook v80)
 
 Rama `feat/sec-05-fotos-solo-gastos`. **Solo webhook:** sin migración ni cambios de PWA, así que el contrato de release no cambia (mínimo 055). Diseño en `docs/superpowers/specs/2026-11-25-sec-05-fotos-solo-gastos-design.md`.
