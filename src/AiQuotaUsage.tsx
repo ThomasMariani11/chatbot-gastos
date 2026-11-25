@@ -64,7 +64,8 @@ export function AiQuotaView({ snapshot, onSave }: { snapshot: AiQuotaSnapshot; o
       <progress value={Math.min(row.used, row.limit)} max={row.limit} aria-label={row.lane === 'qwen' ? 'Uso de consultas complejas' : 'Uso de transcripciones'} />
       {row.per_user_limit !== undefined && <span className="bot-ops-meta">Por cliente: {row.per_user_limit} por día</span>}
       {row.top_users && row.top_users.length > 0 && <ol className="bot-ops-top" aria-label={`Clientes con más uso: ${LANE_LABEL[row.lane]}`}>{row.top_users.map(u => <li key={u.user_id}>{u.name} — {u.used}</li>)}</ol>}
-      {onSave && <details><summary>Editar límites</summary><LaneLimitsForm key={`${row.lane}-${row.limit}-${row.per_user_limit}`} row={row} onSave={onSave} /></details>}
+      {onSave && row.per_user_limit === undefined && <p className="bot-ops-meta">La edición de límites todavía no está disponible.</p>}
+      {onSave && row.per_user_limit !== undefined && <details><summary>Editar límites</summary><LaneLimitsForm key={`${row.lane}-${row.limit}-${row.per_user_limit}`} row={row} onSave={onSave} /></details>}
     </li>)}</ul>
     {warnings.length > 0 && <p className="bot-ops-warning" role={critical ? 'alert' : 'status'}>
       {warnings.some(r => !r.enabled) ? 'La interpretación automática está pausada.'

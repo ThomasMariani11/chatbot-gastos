@@ -111,3 +111,8 @@ it('un error de la RPC se muestra sin romper la vista ni filtrar detalles SQL', 
   await save('whisper');
   expect(node.querySelector('form[data-lane="whisper"] [role="alert"]')?.textContent).toContain('No pude guardar');
 });
+it('con el SQL anterior (sin per_user_limit) no hay formulario y avisa que la edición no está disponible', async () => {
+  await act(async () => root.render(h(AiQuotaView, { snapshot: snapshot(), onSave: async () => null })));
+  expect(node.querySelector('form')).toBeNull(); expect(node.querySelector('input')).toBeNull();
+  expect(node.textContent).toContain('La edición de límites todavía no está disponible.');
+});
