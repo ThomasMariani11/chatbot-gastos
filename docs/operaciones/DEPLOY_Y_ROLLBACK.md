@@ -1,12 +1,16 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
-## Última publicación observada — 25/11/2026 (SEC-04: cupo de IA por cliente)
+## Última publicación observada — 25/11/2026 (SEC-05: con una foto solo se cargan gastos)
+
+PWA **9ebf5e9** (PR #123; sin cambios de PWA respecto de a985aae), SQL **001–055** (sin cambios), webhook **v80 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR #123 → CI de `main` en verde (Frontend, PostgreSQL, Webhook con `deno check`/`lint`/`test`, ensayo de release y Publicar) → deploy del webhook desde 9ebf5e9 (v80) → smoke 401 en `/`, `worker` y `client-push`. Rollback: webhook v79 (sin cambios de esquema). **Pendiente:** probar con una foto real de prueba que una imagen con la palabra "confirmar" no confirme el borrador.
+
+## Registro histórico — 25/11/2026 (SEC-04: cupo de IA por cliente)
 
 PWA **136810f77858a0aa09b3b13cc4b3c867fb10aa89** (PR #119), SQL **001–055**, webhook **v79 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR #119 → CI de `main` en verde (Frontend, PostgreSQL, Webhook, ensayo de release y Publicar) y Pages con `version.json` = 136810f → deploy del webhook desde 136810f (v79) → smoke 401 en `/`, `worker` y `client-push` → `db push --linked --dry-run` (solo 055) → `db push --linked` → verificación de solo lectura por `db query --linked`: historial 055; política qwen 100/15 y whisper 200/25, ambas habilitadas; `admin_update_ai_quota_policy` SECURITY DEFINER, dueño postgres, `search_path=pg_catalog, public`, EXECUTE solo para authenticated (no anon, no service_role, no PUBLIC); `reserve_whatsapp_ai_quota` SECURITY DEFINER, mismo `search_path`, EXECUTE solo para service_role; `whatsapp_ai_quota_dashboard` SECURITY DEFINER, EXECUTE para authenticated y no para anon; `ai_quota_user_days` con RLS, sin privilegios para anon, authenticated ni service_role y 0 filas; crons `pesito-client-push`, `pesito-whatsapp-observability`, `pesito-whatsapp-queue-recovery` y `pesito-whatsapp-retention` activos. Prueba previa en PGlite, Supabase local aislado (navegador) y el ensayo de release del CI. **Discrepancia:** el último registro anterior era v77 y este deploy quedó como v79; no hay registro de qué fue la v78. Rollback: conservar la 055; PWA a 2a4fe60; antes de volver el webhook a una versión anterior, igualar el límite por cliente al global en ambos carriles desde el panel. **Pendiente:** editar un límite desde el panel en producción con MFA y volver a dejarlo; concurrencia real con `npm run test:concurrency`.
 
 **Después (25/11/2026, solo PWA):** PR #121 (2dd1ca7, aviso de límites guardados junto al formulario) y PR #122 (a985aae, panel de cupo de IA ordenado en el celular). Sin cambios de SQL ni de webhook; Pages publica a985aae.
 
-## Candidato SEC-05 (con una foto solo se cargan gastos) — 25/11/2026
+## SEC-05 (con una foto solo se cargan gastos) — publicado el 25/11/2026 (webhook v80)
 
 Rama `feat/sec-05-fotos-solo-gastos`. **Solo webhook:** sin migración ni cambios de PWA, así que el contrato de release no cambia (mínimo 055). Diseño en `docs/superpowers/specs/2026-11-25-sec-05-fotos-solo-gastos-design.md`.
 
