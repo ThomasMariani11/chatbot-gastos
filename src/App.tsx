@@ -10,6 +10,7 @@ import type { UserProfile } from './Settings';
 import { supabase } from './supabase';
 import { hasActiveSubscription } from './subscription';
 import { readAdminAal, type AdminAal } from './adminMfa';
+import { signOutDevice, unsubscribeBrowserPush } from './pushNotifications';
 
 const Dashboard = lazyWithRetry(
   () => import('./Dashboard').then((m) => ({ default: m.Dashboard })),
@@ -48,7 +49,12 @@ export function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // SEC-07: el cierre de sesión es global; en los otros dispositivos llega como
+      // SIGNED_OUT sin pasar por el botón, y también ahí se dan de baja los avisos.
+      if (event === 'SIGNED_OUT') void unsubscribeBrowserPush();
+      setSession(nextSession);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -159,7 +165,9 @@ function AuthenticatedApp({ session }: { session: Session }) {
   }, [isAdmin, session.access_token]);
   const nameDraft = useProfileDraft(session.user.id, profile);
   useUpdateBlocker(nameDraft.state.dirty || nameDraft.state.saving, 'Guardá o descartá tus cambios en Ajustes para actualizar.');
-  useUpdateBlocker(showSignOutConfirm);
+  // SEC-07: mientras se cierra la sesión no se puede tocar la app ni actualizarla.
+  const [signingOut, setSigningOut] = useState(false);
+  useUpdateBlocker(showSignOutConfirm || signingOut);
 
   const handleRequestSignOut = () => {
     setShowSignOutConfirm(true);
@@ -167,7 +175,13 @@ function AuthenticatedApp({ session }: { session: Session }) {
 
   const handleConfirmSignOut = async () => {
     setShowSignOutConfirm(false);
-    await supabase.auth.signOut();
+    setSigningOut(true);
+    try {
+      // SEC-07: dar de baja las notificaciones de este dispositivo antes de salir.
+      await signOutDevice(() => supabase.auth.signOut());
+    } finally {
+      setSigningOut(false);
+    }
   };
 
   const loadProfile = useCallback(async () => {
@@ -223,7 +237,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
             <p className="eyebrow" style={{ color: '#e24b4b', marginBottom: '4px' }}>CERRAR SESIÓN</p>
             <h2 id="logout-confirm-title" style={{ margin: 0, fontSize: '19px', fontWeight: 800 }}>¿Cerrar sesión en Pesito?</h2>
             <p style={{ margin: '8px 0 0', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.45 }}>
-              Vas a salir de tu cuenta. Para volver a ingresar vas a necesitar solicitar un enlace de acceso con tu correo.
+              Vas a salir de tu cuenta. Para volver a entrar vas a necesitar tu correo y tu contraseña.
             </p>
           </div>
           <div className="modal-actions-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
@@ -257,6 +271,14 @@ function AuthenticatedApp({ session }: { session: Session }) {
       </div>
     );
   };
+
+  if (signingOut) {
+    return (
+      <main className="auth-page">
+        <p className="loading-copy" role="status">Cerrando sesión…</p>
+      </main>
+    );
+  }
 
   if (session === undefined || (session && loadingProfile)) {
     return <Splash />;

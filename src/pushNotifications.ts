@@ -99,3 +99,51 @@ export async function disablePush(env: PushEnvironment = defaultEnvironment()): 
   }
   return 'off';
 }
+
+/**
+ * SEC-07: al cerrar sesión, da de baja las notificaciones de este dispositivo para
+ * que no le lleguen a quien entre después. Borra la suscripción en la cuenta (antes
+ * del signOut, porque exige sesión) y desuscribe el navegador aunque eso falle; una
+ * fila que quede se limpia sola en el próximo envío (404/410). Nunca lanza ni traba
+ * el cierre: con errores o sin conexión resuelve al vencer el tope.
+ */
+export async function releasePushOnSignOut(env: PushEnvironment = defaultEnvironment(), timeoutMs = 3000): Promise<void> {
+  const release = (async () => {
+    const reg = await registration(env);
+    const subscription = await reg?.pushManager.getSubscription();
+    if (!subscription) return;
+    await Promise.allSettled([
+      // Si la llamada fallara en el acto, el navegador igual se desuscribe.
+      Promise.resolve().then(() => env.rpc('delete_push_subscription', { p_endpoint: subscription.endpoint })),
+      subscription.unsubscribe(),
+    ]);
+  })().catch(() => undefined);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limit = new Promise<void>((resolve) => { timer = setTimeout(resolve, timeoutMs); });
+  try {
+    await Promise.race([release, limit]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * SEC-07: la sesión se cerró sin pasar por el botón (cierre global desde otro
+ * dispositivo, token revocado o vencido). Ya no hay sesión para borrar la fila en
+ * la cuenta: se desuscribe solo el navegador y la fila se limpia sola en el próximo
+ * envío (404/410). Nunca lanza.
+ */
+export async function unsubscribeBrowserPush(env: PushEnvironment = defaultEnvironment()): Promise<void> {
+  try {
+    const reg = await registration(env);
+    await (await reg?.pushManager.getSubscription())?.unsubscribe();
+  } catch {
+    // Sin soporte de push o sin conexión: no hay nada más que hacer.
+  }
+}
+
+/** Cierra la sesión después de dar de baja las notificaciones de este dispositivo. */
+export async function signOutDevice(signOut: () => PromiseLike<unknown>, env?: PushEnvironment, timeoutMs?: number): Promise<void> {
+  await releasePushOnSignOut(env, timeoutMs);
+  await signOut();
+}

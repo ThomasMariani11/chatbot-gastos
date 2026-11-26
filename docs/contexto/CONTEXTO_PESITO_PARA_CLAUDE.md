@@ -18,6 +18,16 @@
 - **Tiempo mínimo (pedido del propietario):** `src/useSplashHold.ts` mantiene la pantalla arriba al menos `SPLASH_MIN_MS` = 2000 ms desde que se abrió la página, mientras la app carga por detrás; al terminar, la barra se completa y se desvanece (`SPLASH_LEAVE_MS` = 450 ms). La barra llega a ~92 % en 3 s.
 - **Pruebas:** `tests/splash.test.ts` (marcado, sin scripts en línea, movimiento reducido), `tests/splash-component.test.ts` (accesibilidad, continuidad de la barra, salida, mismo marcado que `index.html`) y `tests/splash-hold.test.ts` (tiempo mínimo).
 
+## SEC-07: baja de notificaciones al cerrar sesión — publicado el 25/11/2026
+
+**Estado:** **publicado.** PR #125 (y #126, texto del cartel de cierre), PWA **ed9e4d7**; sin SQL ni webhook. Mientras se cierra, la app muestra "Cerrando sesión…" y bloquea la actualización. Tarea 2.3 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-25-sec-07-push-al-cerrar-sesion-design.md`.
+
+- **PWA:** `src/pushNotifications.ts` suma `releasePushOnSignOut` (borra la suscripción en la cuenta y desuscribe el navegador en paralelo; nunca lanza; tope de 3 s) y `signOutDevice`. `App.tsx` (único punto de salida, cliente y Panel Admin) la usa antes de `signOut`.
+- Como `signOut()` es global, los otros dispositivos de la cuenta reciben `SIGNED_OUT` sin pasar por el botón: `App.tsx` llama entonces a `unsubscribeBrowserPush()` (solo el navegador; ya no hay sesión para el RPC).
+- Si falla la baja en la cuenta, el navegador igual queda desuscripto y la fila se limpia sola en el próximo envío (404/410). Quien vuelva a entrar reactiva las notificaciones en Ajustes.
+- **Publicación:** solo PWA. Sin SQL ni webhook.
+- **Pruebas:** `tests/push-notifications-ui.test.ts` (bloque SEC-07) y `tests/push-signed-out.test.ts`.
+
 ## SEC-05: con una foto solo se cargan gastos — publicado el 25/11/2026
 
 **Estado:** **publicado.** PR #123 (9ebf5e9), webhook **v80** con smoke 401; sin SQL ni PWA. Tarea 2.1 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-25-sec-05-fotos-solo-gastos-design.md`.
