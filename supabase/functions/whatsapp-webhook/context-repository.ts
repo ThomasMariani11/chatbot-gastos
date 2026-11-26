@@ -130,6 +130,11 @@ export async function resolveActorAccess(
 ): Promise<ActorAccessOutcome> {
   const message = job.payload;
   const reply = (body: string) => ({ kind: "reply", text: body });
+  // SEC-06: la recepción marca el mensaje cuando ya se avisó en las últimas 24 horas.
+  const notLinked = () =>
+    message.pesito_quiet_not_linked === true
+      ? { kind: "reply", text: null }
+      : reply(BOT_MESSAGES.notLinked);
   const blocked = (body: string | null) => ({
     kind: "reply",
     text: body,
@@ -202,9 +207,7 @@ export async function resolveActorAccess(
     if (!link) {
       return {
         allowed: false,
-        action: reply(
-          BOT_MESSAGES.notLinked,
-        ),
+        action: notLinked(),
       };
     }
     if (job.user_id !== link.user_id) {
@@ -231,9 +234,7 @@ export async function resolveActorAccess(
     if (!link) {
       return {
         allowed: false,
-        action: reply(
-          BOT_MESSAGES.notLinked,
-        ),
+        action: notLinked(),
       };
     }
     const [profileRes, configRes, settingsRes] = await Promise.all([

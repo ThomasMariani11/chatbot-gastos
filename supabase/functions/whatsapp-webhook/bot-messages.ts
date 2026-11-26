@@ -28,6 +28,9 @@ export const BOT_MESSAGES = {
     "El archivo es muy pesado 📎\nMandame una foto de hasta 5 MB, un audio de hasta 10 MB o escribime el gasto.",
   fileFormat: `No puedo abrir ese archivo 📎\nMandame una foto JPG o PNG, o escribime el gasto:\n${EXAMPLE}`,
   audioUnclear: `No logré entender el audio 🎧\n¿Me lo escribís? Por ejemplo:\n${EXAMPLE}`,
+  // SEC-06: el número pasó el límite de mensajes por minuto (se avisa una vez por hora).
+  rateLimited:
+    `Recibí muchos mensajes seguidos 🙏\nEsperá un minuto y mandame de nuevo los que falten.`,
   // SEC-05: una foto no puede confirmar, cancelar ni cambiar el borrador.
   imageControlBlocked:
     `No cargué esa foto 📷\nMandala sola para cargar el gasto, y para confirmar, cancelar o cambiar algo escribímelo.`,
