@@ -18,6 +18,10 @@
 - **Tiempo mínimo (pedido del propietario):** `src/useSplashHold.ts` mantiene la pantalla arriba al menos `SPLASH_MIN_MS` = 2000 ms desde que se abrió la página, mientras la app carga por detrás; al terminar, la barra se completa y se desvanece (`SPLASH_LEAVE_MS` = 450 ms). La barra llega a ~92 % en 3 s.
 - **Pruebas:** `tests/splash.test.ts` (marcado, sin scripts en línea, movimiento reducido), `tests/splash-component.test.ts` (accesibilidad, continuidad de la barra, salida, mismo marcado que `index.html`) y `tests/splash-hold.test.ts` (tiempo mínimo).
 
+## Guía de incidentes — 26/11/2026 (tarea 2.5, OPS-05)
+
+`docs/operaciones/INCIDENTES.md`: primeros pasos de diagnóstico (solo lectura), interruptores de menor a mayor (pausar un carril de IA, bajar límites, "Respuestas a clientes" en pausa, apagar la recepción), escenarios (bot caído, costo de IA, spam, filtración de credenciales con dónde vive y cómo rotar cada una, cuenta admin comprometida, rollback de PWA/bot/migración, pérdida o exposición de datos) y plantilla de registro. No autoriza acciones en producción.
+
 ## Retención del contenido de WhatsApp — activada el 26/11/2026 (tarea 2.7, LEG-06)
 
 Decisión del propietario: **90 días**. `whatsapp_ops_config.retention_enabled=true` y `retention_days=90` en producción (cambio de configuración autorizado, sin migración). El cron `pesito-whatsapp-retention` (minuto 17) redacta el payload, la interpretación, la respuesta y el error de los mensajes v2 terminados con más de 90 días, sin tocar movimientos, borradores ni pendientes. Al activarla había 0 mensajes elegibles (el más viejo es del 15/10/2026). Detalle en `docs/operaciones/MONITOREO_Y_RETENCION.md`.
