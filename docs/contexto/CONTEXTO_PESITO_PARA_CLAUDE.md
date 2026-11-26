@@ -27,7 +27,7 @@
 - **Migración 056:** `enqueue_whatsapp_messages` cuenta por número y agrega las marcas `pesito_rate_limited` / `pesito_quiet_not_linked` al payload (quita las que vengan de afuera); columnas `rate_notice_at` y `not_linked_notice_at` en `whatsapp_worker_state`; índice `inbound_events(wa_id, received_at)`. El aviso de exceso sale como máximo una vez por hora (decisión del constructor).
 - **Webhook:** `processor.ts` responde `rateLimited` a la marca de exceso después del control de acceso (respeta respuestas apagadas y mantenimiento); `context-repository.ts` no responde al no vinculado marcado, salvo que el mensaje parezca un intento de vinculación mal escrito (`looksLikeLinkAttempt`; decisión del propietario). Los intentos de VINCULAR se procesan siempre.
 - **Contrato:** mínimo 056, rollback a1cfd5c (mínimo 055). Orden: merge, webhook con smoke 401, `db push`. Rollback: conservar la 056; el webhook v80 ignora las marcas.
-- **Pruebas:** `tests/whatsapp-rate-limit-sql.test.ts` (PGlite) y `tests/whatsapp-rate-limit-bot.test.ts`. Pendiente: concurrencia real; `tests/durable-queue-concurrency.mjs` aplica solo hasta la 044 y hay que extenderlo.
+- **Pruebas:** `tests/whatsapp-rate-limit-sql.test.ts` (PGlite) y `tests/whatsapp-rate-limit-bot.test.ts`. Concurrencia real: `tests/durable-queue-concurrency.mjs` (dos tandas simultáneas del mismo número, job PostgreSQL del CI).
 
 ## SEC-07: baja de notificaciones al cerrar sesión — publicado el 25/11/2026
 
