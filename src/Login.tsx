@@ -3,6 +3,7 @@ import { useUpdateBlocker } from './PwaUpdates';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import { registrationErrorMessage } from './registration';
+import { ACCOUNT_DELETED_MESSAGE, clearAccountDeletedNotice, hasAccountDeletedNotice } from './accountDeletedNotice';
 import { isStrongPassword, PASSWORD_RULE } from './passwordPolicy';
 
 type AuthMode = 'login' | 'register';
@@ -31,7 +32,8 @@ export function Login() {
     code: '',
   });
 
-  const [message, setMessage] = useState('');
+  // 3.2: después de borrar la cuenta, el ingreso lo confirma una vez.
+  const [message, setMessage] = useState(() => (hasAccountDeletedNotice() ? ACCOUNT_DELETED_MESSAGE : ''));
   const [isError, setIsError] = useState(false);
   const [sending, setSending] = useState(false);
   // Recuperación de contraseña con un código de un solo uso enviado por correo.
@@ -64,6 +66,8 @@ export function Login() {
       if (focusTarget) registerTabRef.current?.focus();
     }
   }
+
+  useEffect(() => { clearAccountDeletedNotice(); }, []);
 
   useEffect(() => () => {
     ++codeRequestRef.current;

@@ -8,6 +8,7 @@ import { usePwaInstall } from './usePwaInstall';
 import { InstallAppModal } from './InstallAppModal';
 import { useSwipeBack } from './useSwipeBack';
 import { PushNotificationsRow } from './PushNotificationsRow';
+import { AccountDataCard } from './AccountDataCard';
 
 export type UserProfile = {
   id: string;
@@ -454,6 +455,9 @@ export function Settings({
             </button>
           )}
         </article>
+
+        {/* TUS DATOS (3.2): exportar movimientos y borrar la cuenta */}
+        <AccountDataCard userId={userId} email={userEmail || userProfile?.email || ''} isAdmin={isAdmin} />
       </section>
 
       {/* GRUPO 2: INTEGRACIONES */}

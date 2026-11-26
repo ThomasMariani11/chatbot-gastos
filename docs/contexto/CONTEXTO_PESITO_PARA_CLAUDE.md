@@ -18,6 +18,18 @@
 - **Tiempo mínimo (pedido del propietario):** `src/useSplashHold.ts` mantiene la pantalla arriba al menos `SPLASH_MIN_MS` = 2000 ms desde que se abrió la página, mientras la app carga por detrás; al terminar, la barra se completa y se desvanece (`SPLASH_LEAVE_MS` = 450 ms). La barra llega a ~92 % en 3 s.
 - **Pruebas:** `tests/splash.test.ts` (marcado, sin scripts en línea, movimiento reducido), `tests/splash-component.test.ts` (accesibilidad, continuidad de la barra, salida, mismo marcado que `index.html`) y `tests/splash-hold.test.ts` (tiempo mínimo).
 
+## 3.2 (LEG-01): borrado de cuenta y exportación de datos — 26/11/2026 (en rama)
+
+**Estado:** rama `feat/leg-01-borrado-exportacion`, sin integrar ni publicar. Diseño en `docs/superpowers/specs/2026-11-26-leg-01-borrado-y-exportacion-design.md`.
+
+**Decisiones del propietario:** borrado inmediato; los registros de pago se conservan anonimizados.
+
+- **Migración 057:** `delete_my_account()` (authenticated, rechaza admin, exige sesión creada hace menos de 5 minutos) borra en un solo paso, incluida la auditoría de Auth, y anula los códigos de pago sin canjear; `payment_archive` guarda tipo, fecha (sin hora), días y estado de los pagos (disociados, no anónimos); `guard_renewal_code` admite solo anonimizar el código de pago de la cuenta que se borra (marca local `pesito.account_deletion`).
+- **PWA:** `src/AccountDataCard.tsx` en Ajustes ("Tus datos"), `src/accountData.ts` (CSV con punto y coma, coma decimal, monedas separadas y fórmulas neutralizadas; flujo contraseña → RPC → desuscribir push → `signOut({ scope: 'local' })`), `src/accountDeletedNotice.ts` (aviso en el ingreso).
+- **Fuera de alcance:** lo ya enviado a Groq/Gemini o que pasó por Meta (va en la política de privacidad, 3.1).
+- **Contrato:** mínimo 057, rollback 388730d (mínimo 056). Orden: merge (PWA) → `db push` de la 057.
+- **Pruebas:** `tests/account-deletion-sql.test.ts` (PGlite), `tests/account-data.test.ts`, `tests/account-data-ui.test.ts`, `tests/account-deleted-login.test.ts`.
+
 ## Guía de incidentes — 26/11/2026 (tarea 2.5, OPS-05)
 
 `docs/operaciones/INCIDENTES.md`: primeros pasos de diagnóstico (solo lectura), interruptores de menor a mayor (pausar un carril de IA, bajar límites, "Respuestas a clientes" en pausa, apagar la recepción), escenarios (bot caído, costo de IA, spam, filtración de credenciales con dónde vive y cómo rotar cada una, cuenta admin comprometida, rollback de PWA/bot/migración, pérdida o exposición de datos) y plantilla de registro. No autoriza acciones en producción.
