@@ -1,6 +1,16 @@
 # Monitoreo del bot y conservación de contenido (INF-14 / BE-16)
 
-## Estado vigente — 27/10/2026
+## Estado vigente — 26/11/2026: retención activada a 90 días (tarea 2.7, LEG-06)
+
+**Decisión del propietario (26/11/2026):** retirar el contenido de los mensajes v2 terminados después de **90 días** (no 30, como decía la propuesta original). Métricas y avisos enviados/cancelados siguen con 90 días, fijos en la función.
+
+- **Antes (solo lectura):** `retention_enabled=false`, `retention_days=30`, nunca ejecutada; 351 mensajes procesados sin redactar, el más viejo del 15/10/2026; **0 elegibles a 90 días** (la primera redacción real será desde mediados de enero de 2027). 186 movimientos.
+- **Cambio en producción, con autorización del propietario:** `update public.whatsapp_ops_config set retention_enabled=true, retention_days=90 where singleton` por `db query --linked`. No se usó `ops/sql/whatsapp-retention-enable.sql` porque ese script exige y deja 30 días; sus controles se corrieron aparte en solo lectura y dieron bien: fuente de `prune_whatsapp_ops_content` con el md5 revisado, cron `pesito-whatsapp-retention` activo a minuto 17 y base con `ai_quota_reservations`.
+- **Después:** `retention_enabled=true`, `retention_days=90`. La limpieza la ejecuta el cron existente; no se llamó a prune a mano.
+- **Primera corrida (26/11/2026 15:17 UTC):** `succeeded`, `last_retention_at` registrado, **0 mensajes redactados** (como se esperaba); cola 389 y movimientos 186, sin cambios.
+- **Para pararla:** `update public.whatsapp_ops_config set retention_enabled=false where singleton`. No restaura lo ya redactado.
+
+## Estado anterior — 27/10/2026
 
 Panel y avisos publicados y aceptados. Retención **desactivada**; propuesta 30/90 revalidada sobre 035/v59, con pruebas aisladas y estimación productiva de solo lectura. Hoy: 0 mensajes, 0 métricas y 0 avisos elegibles. Preparar/subir pruebas o documentación no autoriza borrar datos ni habilitar la limpieza. [Validación INF-14](../planes/VALIDACION_INF_14_RETENCION.md).
 
@@ -41,7 +51,7 @@ Se agregan por minuto tiempos de cola, interpretación, envío y trabajador; ope
 
 Las tablas internas tienen RLS y no admiten acceso directo de clientes ni service_role. Solo el backend ejecuta las RPC de métricas/entregas. Las RPC de panel/configuración/revisión requieren sesión y rol admin; los clientes no acceden al monitoreo global. Mantenimiento y limpieza son privados para el dueño SQL/cron. Los logs propios usan una lista de campos permitidos, sin cuerpos, comprobantes, teléfonos, tokens ni errores crudos. La retención de logs administrados por Supabase/GitHub es independiente (ver INF-09).
 
-## Conservación propuesta: preparada, desactivada
+## Conservación: preparada en 027, activada a 90 días el 26/11/2026
 
 **No activar sin aprobación expresa del propietario.** La migración instala el mecanismo con retention_enabled=false. Ejecutarlo así devuelve cero y no borra nada.
 
