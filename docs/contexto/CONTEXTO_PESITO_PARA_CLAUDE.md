@@ -18,9 +18,9 @@
 - **Tiempo mínimo (pedido del propietario):** `src/useSplashHold.ts` mantiene la pantalla arriba al menos `SPLASH_MIN_MS` = 2000 ms desde que se abrió la página, mientras la app carga por detrás; al terminar, la barra se completa y se desvanece (`SPLASH_LEAVE_MS` = 450 ms). La barra llega a ~92 % en 3 s.
 - **Pruebas:** `tests/splash.test.ts` (marcado, sin scripts en línea, movimiento reducido), `tests/splash-component.test.ts` (accesibilidad, continuidad de la barra, salida, mismo marcado que `index.html`) y `tests/splash-hold.test.ts` (tiempo mínimo).
 
-## SEC-06: límite de mensajes por número — 26/11/2026 (en rama)
+## SEC-06: límite de mensajes por número — publicado el 26/11/2026
 
-**Estado:** rama `feat/sec-06-limite-mensajes`, sin integrar ni publicar. Tarea 2.2 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-26-sec-06-limite-mensajes-por-numero-design.md`.
+**Estado:** **publicado.** PR #129 (66bc348), webhook **v81** con smoke 401, SQL **001–056** (`db push` del 26/11/2026). Detalle y verificación en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`. Tarea 2.2 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-26-sec-06-limite-mensajes-por-numero-design.md`.
 
 **Decisiones del propietario:** no vinculados 5 por minuto y 30 en 24 horas; aviso de no vinculado una vez cada 24 horas; vinculados 20 por minuto con aviso "Recibí muchos mensajes seguidos 🙏 Esperá un minuto y mandame de nuevo los que falten."
 
