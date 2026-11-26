@@ -13,6 +13,8 @@ describe('3.2: borrado de cuenta (migración 057)', { timeout: 120_000 }, () => 
   const clientA = '57000000-0000-4000-8000-000000000002';
   const clientB = '57000000-0000-4000-8000-000000000003';
   const [waA, waB, waMoved] = ['synthetic-del-a', 'synthetic-del-b', 'synthetic-del-moved'];
+  const [sessionA, sessionB, sessionAdmin] = ['57100000-0000-4000-8000-000000000001', '57100000-0000-4000-8000-000000000002', '57100000-0000-4000-8000-000000000003'];
+  const sessions: Record<string, string> = { [clientA]: sessionA, [clientB]: sessionB, [admin]: sessionAdmin };
   // Funciones existentes que la 057 no debe alterar.
   const propertiesSql = `select p.proname, pg_get_userbyid(p.proowner) as owner, p.proacl::text as proacl, p.prosecdef, p.proconfig
     from pg_proc p where p.pronamespace = 'public'::regnamespace
@@ -74,6 +76,8 @@ describe('3.2: borrado de cuenta (migración 057)', { timeout: 120_000 }, () => 
       await db.query('insert into auth.users(id, email, raw_user_meta_data) values($1, $2, $3)',
         [id, `d${i}@example.invalid`, JSON.stringify({ invitation_code: `PESO-D${i}-2026`, first_name: `Cliente${i}`, last_name: 'Prueba' })]);
     }
+    await db.exec(`create table auth.sessions(id uuid primary key, user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now());
+      create table auth.audit_log_entries(instance_id uuid, id uuid primary key default gen_random_uuid(), payload json, created_at timestamptz default now(), ip_address varchar(64) not null default '');`);
     propertiesBefore = (await db.query(propertiesSql)).rows;
     // Emula los privilegios por defecto de Supabase sobre funciones nuevas de public.
     await db.exec('alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;');
@@ -116,13 +120,21 @@ describe('3.2: borrado de cuenta (migración 057)', { timeout: 120_000 }, () => 
       values($1, $2, 'redeemed', now(), $3, 30, $4, now())`, [clientA, waA, admin, code]);
     await db.query(`insert into public.admin_subscription_requests(admin_id, request_id, client_id, request_hash, days_added)
       values($1, gen_random_uuid(), $2, 'hash-ficticio', 15)`, [admin, clientA]);
+    // Código de pago confirmado y todavía sin canjear (I1).
+    await db.query(`insert into public.invitation_codes(code, duration_days, created_by, renewal_user_id, expires_at)
+      values('PESO-R2-2026', 30, $1, $2, now() + interval '7 days')`, [admin, clientA]);
+    for (const [user, session] of [[clientA, sessionA], [clientB, sessionB], [admin, sessionAdmin]]) {
+      await db.query('insert into auth.sessions(id, user_id) values($1, $2)', [session, user]);
+      await db.query("insert into auth.audit_log_entries(payload) values(json_build_object('actor_id', $1::text, 'actor_username', 'ficticio@example.invalid'))", [user]);
+    }
   }
 
   // Ejecuta como usuario de la PWA.
-  async function as<T>(role: 'authenticated' | 'anon', actor: string, sql: string): Promise<T> {
+  async function as<T>(role: 'authenticated' | 'anon', actor: string, sql: string, session: string | null = sessions[actor] ?? null): Promise<T> {
     await db.exec('savepoint caller');
     try {
-      await db.query("select set_config('request.jwt.claim.sub', $1, true)", [actor]);
+      await db.query("select set_config('request.jwt.claim.sub', $1, true), set_config('request.jwt.claims', $2, true)",
+        [actor, JSON.stringify({ sub: actor, session_id: session })]);
       await db.exec(`set local role ${role}`);
       const result = await db.query<{ r: T }>(sql);
       await db.exec('reset role; release savepoint caller');
@@ -132,8 +144,8 @@ describe('3.2: borrado de cuenta (migración 057)', { timeout: 120_000 }, () => 
       throw error;
     }
   }
-  const deleteAs = (actor: string, role: 'authenticated' | 'anon' = 'authenticated') =>
-    as<{ deleted: boolean }>(role, actor, 'select public.delete_my_account() as r');
+  const deleteAs = (actor: string, role: 'authenticated' | 'anon' = 'authenticated', session?: string | null) =>
+    as<{ deleted: boolean }>(role, actor, 'select public.delete_my_account() as r', session === undefined ? sessions[actor] ?? null : session);
   const count = async (sql: string, args: unknown[] = []) => (await db.query<{ n: number }>(`select (${sql})::int as n`, args)).rows[0].n;
   const footprint = async (user: string, wa: string) => ({
     user: await count('select count(*) from auth.users where id = $1', [user]),
@@ -175,7 +187,7 @@ describe('3.2: borrado de cuenta (migración 057)', { timeout: 120_000 }, () => 
 
   it('guarda los pagos anonimizados, sin identificadores de la cuenta', async () => {
     await deleteAs(clientA);
-    const rows = (await db.query<Record<string, unknown>>('select kind, duration_days, state from public.payment_archive order by kind')).rows;
+    const rows = (await db.query<Record<string, unknown>>('select kind, duration_days, state from public.payment_archive order by kind, state')).rows;
     expect(rows).toEqual([
       { kind: 'admin_renewal', duration_days: 15, state: 'applied' },
       { kind: 'invitation_redeemed', duration_days: 30, state: 'redeemed' },
@@ -183,7 +195,8 @@ describe('3.2: borrado de cuenta (migración 057)', { timeout: 120_000 }, () => 
     ]);
     const columns = (await db.query<{ column_name: string }>(
       "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'payment_archive' order by 1")).rows.map((r) => r.column_name);
-    expect(columns).toEqual(['archived_at', 'duration_days', 'id', 'kind', 'occurred_at', 'state']);
+    // Solo fechas, sin hora: no permite agrupar por persona ni cruzar con el momento exacto del pago.
+    expect(columns).toEqual(['archived_on', 'duration_days', 'id', 'kind', 'occurred_on', 'state']);
     expect(await count("select count(*) from public.invitation_codes where code = 'PESO-R1-2026' and renewal_user_id is null and used_by is null")).toBe(1);
   });
 
@@ -215,6 +228,29 @@ describe('3.2: borrado de cuenta (migración 057)', { timeout: 120_000 }, () => 
     expect(await count('select count(*) from auth.users where id = $1', [admin])).toBe(1);
     await expect(deleteAs(clientA, 'anon')).rejects.toMatchObject({ code: '42501' });
     expect(await count('select count(*) from auth.users where id = $1', [clientA])).toBe(1);
+  });
+
+  it('un código de pago sin canjear queda anulado: no sirve como invitación ni para renovar (I1)', async () => {
+    await deleteAs(clientA);
+    const code = (await db.query<{ renewal_user_id: string | null; is_used: boolean; expired: boolean }>(
+      "select renewal_user_id, is_used, expires_at <= now() as expired from public.invitation_codes where code = 'PESO-R2-2026'")).rows[0];
+    expect(code).toEqual({ renewal_user_id: null, is_used: false, expired: true });
+    const redeem = await as<{ success: boolean }>('authenticated', clientB, "select public.redeem_invitation_code('PESO-R2-2026', '57000000-0000-4000-8000-000000000003') as r");
+    expect(redeem?.success).not.toBe(true);
+  });
+
+  it('exige una sesión recién creada con la contraseña (I2)', async () => {
+    await db.query("update auth.sessions set created_at = now() - interval '10 minutes' where id = $1", [sessionA]);
+    await expect(deleteAs(clientA)).rejects.toMatchObject({ code: '28000' });
+    await expect(deleteAs(clientA, 'authenticated', null)).rejects.toMatchObject({ code: '28000' });
+    await expect(deleteAs(clientA, 'authenticated', sessionB)).rejects.toMatchObject({ code: '28000' });
+    expect(await count('select count(*) from auth.users where id = $1', [clientA])).toBe(1);
+  });
+
+  it('borra las entradas de auditoría de Auth de la cuenta y no las de otras (I3)', async () => {
+    await deleteAs(clientA);
+    expect(await count("select count(*) from auth.audit_log_entries where payload->>'actor_id' = $1", [clientA])).toBe(0);
+    expect(await count("select count(*) from auth.audit_log_entries where payload->>'actor_id' = $1", [clientB])).toBe(1);
   });
 
   it('sin sesión no borra nada', async () => {

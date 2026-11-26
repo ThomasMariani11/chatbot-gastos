@@ -81,11 +81,12 @@ export async function downloadMovements(client: Client, userId: string, today: s
   }
 }
 
-export type DeleteResult = 'deleted' | 'wrong_password' | 'denied' | 'failed';
+export type DeleteResult = 'deleted' | 'wrong_password' | 'auth_failed' | 'reauth' | 'denied' | 'failed';
 
 /**
  * Verifica la contraseña, borra la cuenta en la base (delete_my_account, 057), desuscribe este
  * navegador de las notificaciones y cierra la sesión local. Si la base no borra, no se cierra nada.
+ * La base exige la sesión recién creada por la verificación (REAUTH_REQUIRED, 28000).
  */
 export async function deleteAccount(input: {
   client: Client;
@@ -95,9 +96,17 @@ export async function deleteAccount(input: {
 }): Promise<DeleteResult> {
   const { client, email, password, unsubscribe } = input;
   const check = await client.auth.signInWithPassword({ email, password });
-  if (check.error) return 'wrong_password';
+  if (check.error) {
+    const auth = check.error as { code?: string; status?: number };
+    return auth.code === 'invalid_credentials' || auth.status === 400 ? 'wrong_password' : 'auth_failed';
+  }
   const { error } = await client.rpc('delete_my_account');
-  if (error) return (error as { code?: string }).code === '42501' ? 'denied' : 'failed';
+  if (error) {
+    const db = error as { code?: string; message?: string };
+    if (db.code === '28000') return 'reauth';
+    // La cuenta ya no existe (otra pestaña o un reintento tras perder la respuesta): queda como borrada.
+    if (!String(db.message ?? '').includes('ACCOUNT_NOT_FOUND')) return db.code === '42501' ? 'denied' : 'failed';
+  }
   await unsubscribe().catch(() => undefined);
   await client.auth.signOut({ scope: 'local' }).catch(() => undefined);
   return 'deleted';

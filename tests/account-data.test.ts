@@ -66,14 +66,20 @@ describe('fetchMovements', () => {
 });
 
 describe('deleteAccount', () => {
-  function deps(over: { password?: boolean; rpcError?: string } = {}) {
+  function deps(over: { password?: boolean; authError?: { code?: string; status?: number }; rpcError?: string; rpcMessage?: string } = {}) {
     const order: string[] = [];
     const client = {
       auth: {
-        signInWithPassword: vi.fn(async () => { order.push('password'); return { error: over.password === false ? { message: 'x' } : null }; }),
+        signInWithPassword: vi.fn(async () => {
+          order.push('password');
+          return { error: over.authError ?? (over.password === false ? { code: 'invalid_credentials', status: 400 } : null) };
+        }),
         signOut: vi.fn(async () => { order.push('signOut'); return { error: null }; }),
       },
-      rpc: vi.fn(async () => { order.push('rpc'); return { data: over.rpcError ? null : { deleted: true }, error: over.rpcError ? { code: over.rpcError } : null }; }),
+      rpc: vi.fn(async () => {
+        order.push('rpc');
+        return { data: over.rpcError ? null : { deleted: true }, error: over.rpcError ? { code: over.rpcError, message: over.rpcMessage ?? '' } : null };
+      }),
     };
     const unsubscribe = vi.fn(async () => { order.push('push'); });
     return { client, unsubscribe, order };
@@ -95,8 +101,26 @@ describe('deleteAccount', () => {
     expect(d.order).toEqual(['password']);
   });
 
+  it('un error de Auth que no es la contraseña (red, límite de intentos) no se informa como contraseña equivocada', async () => {
+    expect(await run(deps({ authError: { status: 429 } }))).toBe('auth_failed');
+    expect(await run(deps({ authError: { status: 0 } }))).toBe('auth_failed');
+    expect(await run(deps({ authError: { code: 'invalid_credentials', status: 400 } }))).toBe('wrong_password');
+  });
+
+  it('si la sesión no es reciente, pide la contraseña de nuevo sin cerrar la sesión', async () => {
+    const d = deps({ rpcError: '28000', rpcMessage: 'REAUTH_REQUIRED' });
+    expect(await run(d)).toBe('reauth');
+    expect(d.order).toEqual(['password', 'rpc']);
+  });
+
+  it('si la cuenta ya no existe (otra pestaña o un reintento), cierra la sesión local como si se hubiera borrado', async () => {
+    const d = deps({ rpcError: '42501', rpcMessage: 'ACCOUNT_NOT_FOUND' });
+    expect(await run(d)).toBe('deleted');
+    expect(d.order).toEqual(['password', 'rpc', 'push', 'signOut']);
+  });
+
   it('si la base rechaza el borrado, no cierra la sesión', async () => {
-    const denied = deps({ rpcError: '42501' });
+    const denied = deps({ rpcError: '42501', rpcMessage: 'ACCOUNT_DELETION_ADMIN' });
     expect(await run(denied)).toBe('denied');
     const failed = deps({ rpcError: 'XX000' });
     expect(await run(failed)).toBe('failed');

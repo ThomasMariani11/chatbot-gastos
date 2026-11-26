@@ -56,7 +56,17 @@ Que un cliente pueda, desde la PWA y sin pedírselo al administrador, bajarse un
 
 ### Publicación
 
-Contrato: mínimo 057; rollback a la PWA publicada (mínimo 056). Orden: `db push` de la 057 → merge (PWA). La PWA nueva sin la 057 mostraría un error al borrar; por eso la migración va primero. El webhook no cambia.
+Contrato: mínimo 057; rollback a la PWA publicada (mínimo 056). Orden: merge (PWA) → `db push` de la 057 (ver "Cambios tras la revisión final"). El webhook no cambia.
+
+## Cambios tras la revisión final (26/11/2026)
+
+- **Código de pago sin canjear:** al borrar, se anula (vence en el pasado) además de quedar sin dueño; si no, servía como invitación para cualquiera. La excepción de `guard_renewal_code` admite solo eso: canjeado conserva su vencimiento, sin canjear queda vencido.
+- **Sesión reciente:** la RPC exige que el token sea de una sesión de la cuenta creada hace menos de 5 minutos (`auth.sessions`, claim `session_id`); la PWA la crea al verificar la contraseña. Si no, `REAUTH_REQUIRED` (28000). Un token robado o una pestaña abierta no alcanzan.
+- **Auditoría de Auth:** se borran las entradas de `auth.audit_log_entries` de la cuenta (guardan el correo). En producción la tabla estaba vacía (verificado en solo lectura).
+- **Pagos disociados, no anónimos:** `payment_archive` guarda solo fechas (`occurred_on`, `archived_on`), sin hora. En la política describirlos como "sin datos personales", no como anónimos.
+- **Mensajes:** contraseña equivocada, otros errores de Auth (red, límite de intentos), sesión no reciente, cuenta ya borrada (cierra la sesión local) y fallo sin confirmación ("No pude confirmar el borrado") se distinguen.
+- **Orden de publicación:** merge (PWA) → `db push` de la 057, como en `DEPLOY_Y_ROLLBACK.md`. Hasta aplicar la 057, "Borrar mi cuenta" responde "No pude confirmar el borrado" y no borra nada; la descarga funciona.
+- **Queda fuera** (anotado para la política 3.1 o mejoras): backups/PITR de Supabase y logs de Auth/Edge conservan datos hasta que vencen; `category_reclass_log` conserva el id de la cuenta sin contenido; notas del admin en `invitation_codes.notes`; los tokens de otros dispositivos siguen válidos hasta su vencimiento (~1 h) aunque no pueden escribir.
 
 ## Pruebas
 

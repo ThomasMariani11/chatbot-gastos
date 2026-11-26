@@ -21,8 +21,10 @@ const realRemove = (email: string, password: string) =>
 
 const ERRORS: Record<Exclude<DeleteResult, 'deleted'>, string> = {
   wrong_password: 'La contraseña no es correcta.',
+  auth_failed: 'No pude verificar tu contraseña. Revisá tu conexión y probá de nuevo.',
+  reauth: 'Por seguridad, volvé a escribir tu contraseña y probá de nuevo.',
   denied: 'Esta cuenta no se puede borrar desde la app.',
-  failed: 'No pude borrar la cuenta. No se borró nada; probá de nuevo más tarde.',
+  failed: 'No pude confirmar el borrado. Probá de nuevo en un rato.',
 };
 
 export function AccountDataCard({ userId, email, isAdmin, download = realDownload, remove = realRemove }: Props) {

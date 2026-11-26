@@ -13,10 +13,10 @@ set local lock_timeout = '5s';
 create table public.payment_archive(
   id uuid primary key default gen_random_uuid(),
   kind text not null check (kind in ('renewal_request', 'admin_renewal', 'invitation_redeemed')),
-  occurred_at timestamptz,
+  occurred_on date,
   duration_days integer,
   state text not null,
-  archived_at timestamptz not null default clock_timestamp()
+  archived_on date not null default current_date
 );
 alter table public.payment_archive enable row level security;
 revoke all on public.payment_archive from public, anon, authenticated, service_role;
@@ -24,7 +24,8 @@ revoke all on public.payment_archive from public, anon, authenticated, service_r
 -- guard_renewal_code (043, única definición) protege los códigos de pago: no deja cambiar su dueño ni su canje.
 -- Se redefine idéntica salvo una excepción acotada: durante delete_my_account (marca local de la transacción
 -- con el id de la cuenta), el código de esa misma cuenta puede pasar a dueño y canje nulos, sin tocar código,
--- días ni vencimiento. Fuera de esa función la marca no habilita nada útil: solo anonimiza un código propio.
+-- días ni canje; uno ya canjeado conserva su vencimiento y uno sin canjear queda vencido (anulado), para que no
+-- sirva como invitación. Fuera de esa función la marca no habilita nada útil: solo anula un código propio.
 create or replace function public.guard_renewal_code() returns trigger
 language plpgsql security definer set search_path=pg_catalog,public as $$
 begin
@@ -36,7 +37,9 @@ begin
     and current_setting('pesito.account_deletion', true) = old.renewal_user_id::text
     and new.renewal_user_id is null and new.used_by is null
     and new.code is not distinct from old.code and new.duration_days is not distinct from old.duration_days
-    and new.expires_at is not distinct from old.expires_at and new.is_used is not distinct from old.is_used then
+    and new.is_used is not distinct from old.is_used
+    and ((old.is_used and new.expires_at is not distinct from old.expires_at)
+         or (not old.is_used and new.expires_at is not null and new.expires_at <= clock_timestamp())) then
   return new;
  end if;
  if old.renewal_user_id is not null then
@@ -69,22 +72,35 @@ begin
   if account_role = 'admin' then
     raise exception 'ACCOUNT_DELETION_ADMIN' using errcode = '42501';
   end if;
+  -- Irreversible: exige que el token sea de una sesión de esta cuenta creada hace menos de 5 minutos
+  -- (la PWA la crea al verificar la contraseña). Un token robado o una pestaña abierta no alcanza.
+  if not exists (
+    select 1 from auth.sessions s
+     where s.id::text = nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'session_id'
+       and s.user_id = uid and s.created_at > clock_timestamp() - interval '5 minutes'
+  ) then
+    raise exception 'REAUTH_REQUIRED' using errcode = '28000';
+  end if;
 
   -- Pagos anonimizados: nada que identifique a la cuenta ni al número.
-  insert into public.payment_archive(kind, occurred_at, duration_days, state)
-    select 'renewal_request', r.paid_at, r.duration_days, r.state
+  insert into public.payment_archive(kind, occurred_on, duration_days, state)
+    select 'renewal_request', r.paid_at::date, r.duration_days, r.state
       from public.subscription_renewal_requests r where r.user_id = uid and r.state in ('paid', 'redeemed');
-  insert into public.payment_archive(kind, occurred_at, duration_days, state)
-    select 'admin_renewal', a.created_at, a.days_added, 'applied'
+  insert into public.payment_archive(kind, occurred_on, duration_days, state)
+    select 'admin_renewal', a.created_at::date, a.days_added, 'applied'
       from public.admin_subscription_requests a where a.client_id = uid;
-  insert into public.payment_archive(kind, occurred_at, duration_days, state)
-    select 'invitation_redeemed', c.used_at, c.duration_days, 'redeemed'
+  insert into public.payment_archive(kind, occurred_on, duration_days, state)
+    select 'invitation_redeemed', c.used_at::date, c.duration_days, 'redeemed'
       from public.invitation_codes c where c.used_by = uid
        and not exists (select 1 from public.subscription_renewal_requests r where r.code_id = c.id and r.user_id = uid);
 
   -- Sin esto, el borrado de quien renovó con un código nominativo falla (NO ACTION y guard_renewal_code).
   perform set_config('pesito.account_deletion', uid::text, true);
-  update public.invitation_codes set renewal_user_id = null, used_by = null where renewal_user_id = uid;
+  -- Uno sin canjear se anula (vence ahora): si no, quedaría como invitación válida para cualquiera.
+  update public.invitation_codes
+     set renewal_user_id = null, used_by = null,
+         expires_at = case when is_used then expires_at else now() - interval '1 second' end
+   where renewal_user_id = uid;
   perform set_config('pesito.account_deletion', '', true);
 
   -- Números de la cuenta que no estén vinculados hoy a otra cuenta.
@@ -96,6 +112,9 @@ begin
   delete from public.whatsapp_message_queue where wa_id = any(phones);
   delete from public.inbound_events where wa_id = any(phones);
   delete from public.whatsapp_worker_state where wa_id = any(phones);
+
+  -- El registro de auditoría de Auth guarda el correo y no tiene FK a la cuenta.
+  delete from auth.audit_log_entries where payload ->> 'actor_id' = uid::text;
 
   -- El resto (perfil, movimientos, borradores, vínculo, notificaciones, push, cupos, renovaciones) cae en cascada.
   delete from auth.users where id = uid;

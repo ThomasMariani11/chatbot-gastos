@@ -24,7 +24,7 @@
 
 **Decisiones del propietario:** borrado inmediato; los registros de pago se conservan anonimizados.
 
-- **Migración 057:** `delete_my_account()` (authenticated, rechaza admin) borra en un solo paso; `payment_archive` guarda tipo, fecha, días y estado de los pagos; `guard_renewal_code` admite solo anonimizar el código de pago de la cuenta que se borra (marca local `pesito.account_deletion`).
+- **Migración 057:** `delete_my_account()` (authenticated, rechaza admin, exige sesión creada hace menos de 5 minutos) borra en un solo paso, incluida la auditoría de Auth, y anula los códigos de pago sin canjear; `payment_archive` guarda tipo, fecha (sin hora), días y estado de los pagos (disociados, no anónimos); `guard_renewal_code` admite solo anonimizar el código de pago de la cuenta que se borra (marca local `pesito.account_deletion`).
 - **PWA:** `src/AccountDataCard.tsx` en Ajustes ("Tus datos"), `src/accountData.ts` (CSV con punto y coma, coma decimal, monedas separadas y fórmulas neutralizadas; flujo contraseña → RPC → desuscribir push → `signOut({ scope: 'local' })`), `src/accountDeletedNotice.ts` (aviso en el ingreso).
 - **Fuera de alcance:** lo ya enviado a Groq/Gemini o que pasó por Meta (va en la política de privacidad, 3.1).
 - **Contrato:** mínimo 057, rollback 388730d (mínimo 056). Orden: merge (PWA) → `db push` de la 057.

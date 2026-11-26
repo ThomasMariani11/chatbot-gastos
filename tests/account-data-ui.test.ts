@@ -72,13 +72,15 @@ describe('Tus datos', () => {
     expect(sessionStorage.getItem(ACCOUNT_DELETED_FLAG)).toBeNull();
   });
 
-  it('un fallo de la base avisa que no se borró nada', async () => {
+  it('un fallo sin confirmación no afirma que no se borró nada', async () => {
     remove.mockResolvedValueOnce('failed');
     await render();
     await click('Borrar mi cuenta');
     await type('Clave1234');
     await click('Borrar definitivamente');
-    expect(node.querySelector('[role="dialog"] [role="alert"]')?.textContent).toContain('No se borró nada');
+    const alert = node.querySelector('[role="dialog"] [role="alert"]')?.textContent;
+    expect(alert).toContain('No pude confirmar el borrado');
+    expect(alert).not.toContain('No se borró nada');
   });
 
   it('al borrar deja el aviso para la pantalla de ingreso', async () => {

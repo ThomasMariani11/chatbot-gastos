@@ -80,12 +80,12 @@ PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múlti
 Rama `feat/leg-01-borrado-exportacion`: mínimo **057**, rollback fijado en **388730d57531d7edfe506860e6c509c6f1c2255d** (PWA publicada, verificada con `version.json` el 26/11/2026; mínimo **056**). Diseño en `docs/superpowers/specs/2026-11-26-leg-01-borrado-y-exportacion-design.md`.
 
 **Qué cambia:**
-- Migración 057: tabla `payment_archive` (pagos anonimizados: tipo, fecha, días y estado; RLS y sin privilegios para ningún rol) y RPC `delete_my_account()` (solo authenticated; rechaza al administrador) que borra la cuenta en un solo paso, incluidos los restos guardados solo por teléfono salvo los de un número vinculado hoy a otra cuenta. `guard_renewal_code` (043) se redefine con una única excepción: anonimizar el código de pago de la cuenta que se está borrando, que antes bloqueaba el borrado.
+- Migración 057: tabla `payment_archive` (pagos sin datos personales: tipo, fecha sin hora, días y estado; RLS y sin privilegios para ningún rol) y RPC `delete_my_account()` (solo authenticated; rechaza al administrador; exige una sesión creada hace menos de 5 minutos) que borra la cuenta en un solo paso, incluidas sus entradas de `auth.audit_log_entries`, anula los códigos de pago sin canjear y borra incluidos los restos guardados solo por teléfono salvo los de un número vinculado hoy a otra cuenta. `guard_renewal_code` (043) se redefine con una única excepción: anonimizar el código de pago de la cuenta que se está borrando, que antes bloqueaba el borrado.
 - PWA: en Ajustes, tarjeta "Tus datos" con "Descargar mis movimientos" (CSV armado en el navegador) y "Borrar mi cuenta" (aviso y contraseña). Tras borrar, desuscribe el navegador, cierra la sesión local y el ingreso muestra "Tu cuenta fue borrada".
 - El webhook no cambia.
 
 **Orden de publicación** (cada paso con autorización del propietario):
-1. Merge a `main`: Pages publica la PWA. Compatible con la 056: hasta aplicar la 057, "Borrar mi cuenta" responde "No pude borrar la cuenta. No se borró nada" y la descarga funciona.
+1. Merge a `main`: Pages publica la PWA. Compatible con la 056: hasta aplicar la 057, "Borrar mi cuenta" responde "No pude confirmar el borrado" sin borrar nada, y la descarga funciona. Aplicar la 057 enseguida.
 2. `db push --linked --dry-run` (solo la 057) y `db push --linked`.
 3. Verificar en solo lectura: historial 057; `delete_my_account` SECURITY DEFINER, `search_path=pg_catalog, public`, EXECUTE solo para authenticated; `payment_archive` con RLS y sin privilegios; `guard_renewal_code` con la excepción.
 4. Prueba del propietario con una cuenta de prueba creada para eso (nunca con la cuenta de un cliente).
