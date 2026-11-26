@@ -18,6 +18,17 @@
 - **Tiempo mínimo (pedido del propietario):** `src/useSplashHold.ts` mantiene la pantalla arriba al menos `SPLASH_MIN_MS` = 2000 ms desde que se abrió la página, mientras la app carga por detrás; al terminar, la barra se completa y se desvanece (`SPLASH_LEAVE_MS` = 450 ms). La barra llega a ~92 % en 3 s.
 - **Pruebas:** `tests/splash.test.ts` (marcado, sin scripts en línea, movimiento reducido), `tests/splash-component.test.ts` (accesibilidad, continuidad de la barra, salida, mismo marcado que `index.html`) y `tests/splash-hold.test.ts` (tiempo mínimo).
 
+## SEC-06: límite de mensajes por número — 26/11/2026 (en rama)
+
+**Estado:** rama `feat/sec-06-limite-mensajes`, sin integrar ni publicar. Tarea 2.2 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-26-sec-06-limite-mensajes-por-numero-design.md`.
+
+**Decisiones del propietario:** no vinculados 5 por minuto y 30 en 24 horas; aviso de no vinculado una vez cada 24 horas; vinculados 20 por minuto con aviso "Recibí muchos mensajes seguidos 🙏 Esperá un minuto y mandame de nuevo los que falten."
+
+- **Migración 056:** `enqueue_whatsapp_messages` cuenta por número y agrega las marcas `pesito_rate_limited` / `pesito_quiet_not_linked` al payload (quita las que vengan de afuera); columnas `rate_notice_at` y `not_linked_notice_at` en `whatsapp_worker_state`; índice `inbound_events(wa_id, received_at)`. El aviso de exceso sale como máximo una vez por hora (decisión del constructor).
+- **Webhook:** `processor.ts` responde `rateLimited` a la marca de exceso después del control de acceso (respeta respuestas apagadas y mantenimiento); `context-repository.ts` no responde al no vinculado marcado, salvo que el mensaje parezca un intento de vinculación mal escrito (`looksLikeLinkAttempt`; decisión del propietario). Los intentos de VINCULAR se procesan siempre.
+- **Contrato:** mínimo 056, rollback a1cfd5c (mínimo 055). Orden: merge, webhook con smoke 401, `db push`. Rollback: conservar la 056; el webhook v80 ignora las marcas.
+- **Pruebas:** `tests/whatsapp-rate-limit-sql.test.ts` (PGlite) y `tests/whatsapp-rate-limit-bot.test.ts`. Pendiente: concurrencia real; `tests/durable-queue-concurrency.mjs` aplica solo hasta la 044 y hay que extenderlo.
+
 ## SEC-07: baja de notificaciones al cerrar sesión — publicado el 25/11/2026
 
 **Estado:** **publicado.** PR #125 (y #126, texto del cartel de cierre), PWA **ed9e4d7**; sin SQL ni webhook. Mientras se cierra, la app muestra "Cerrando sesión…" y bloquea la actualización. Tarea 2.3 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-25-sec-07-push-al-cerrar-sesion-design.md`.

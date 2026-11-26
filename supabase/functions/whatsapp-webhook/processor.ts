@@ -115,6 +115,9 @@ export async function prepareMessage(
 
   const access = await resolveActorAccess(db, job);
   if (!access.allowed) return access.action;
+  // SEC-06: la recepción marcó el mensaje por pasar el límite por minuto: solo se
+  // avisa, después del control de acceso (respeta respuestas apagadas y mantenimiento).
+  if (message.pesito_rate_limited === true) return reply(BOT_MESSAGES.rateLimited);
 
   const correctionIntent = !message.image?.id && !message.audio?.id &&
     looksLikeDraftCorrection(text);

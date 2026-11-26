@@ -16,6 +16,9 @@ export type IncomingMessage = {
   text?: { body?: string };
   image?: { id?: string; mime_type?: string; caption?: string };
   audio?: { id?: string; mime_type?: string };
+  // SEC-06: marcas internas que agrega la recepción (migración 056); nunca vienen de Meta.
+  pesito_rate_limited?: boolean;
+  pesito_quiet_not_linked?: boolean;
 };
 
 export function readMessages(payload: unknown): IncomingMessage[] {
