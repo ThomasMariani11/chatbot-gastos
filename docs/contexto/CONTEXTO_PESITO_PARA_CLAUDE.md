@@ -15,7 +15,8 @@
 **Estado:** **en rama** `feat/pantalla-inicio-animada`; sin integrar ni publicar. Solo PWA; sin SQL ni webhook. Diseño en `docs/superpowers/specs/2026-11-25-pantalla-inicio-animada-design.md`.
 
 - **PWA:** `index.html` trae dentro de `#root` la pantalla de inicio (fondo `#20b984`, chanchito flotando, moneda que entra en la ranura, barra que avanza y se frena en ~92 %) con su CSS en un `<style>` en línea, sin scripts; se ve antes de que cargue el bundle. `src/Splash.tsx` repite el marcado (sin CSS propio) y reemplaza los cuatro "Abriendo Pesito…" de arranque en `App.tsx`; la barra continúa con `animation-delay` negativo desde `performance.now()`. Con movimiento reducido: logo quieto y texto visible. Las cargas internas (`ScreenFallback`) no cambian.
-- **Pruebas:** `tests/splash.test.ts` (marcado, sin scripts en línea, movimiento reducido) y `tests/splash-component.test.ts` (accesibilidad, continuidad de la barra, mismo marcado que `index.html`).
+- **Tiempo mínimo (pedido del propietario):** `src/useSplashHold.ts` mantiene la pantalla arriba al menos `SPLASH_MIN_MS` = 2000 ms desde que se abrió la página, mientras la app carga por detrás; al terminar, la barra se completa y se desvanece (`SPLASH_LEAVE_MS` = 450 ms). La barra llega a ~92 % en 3 s.
+- **Pruebas:** `tests/splash.test.ts` (marcado, sin scripts en línea, movimiento reducido), `tests/splash-component.test.ts` (accesibilidad, continuidad de la barra, salida, mismo marcado que `index.html`) y `tests/splash-hold.test.ts` (tiempo mínimo).
 
 ## SEC-05: con una foto solo se cargan gastos — publicado el 25/11/2026
 

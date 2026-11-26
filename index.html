@@ -24,13 +24,16 @@
       .pesito-splash__coin { animation: pesito-splash-drop 1.8s ease-in infinite; }
       .pesito-splash__name { color: #fff; font-size: 24px; font-weight: 800; letter-spacing: .2px; }
       .pesito-splash__track { display: block; width: 120px; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, .3); overflow: hidden; }
-      .pesito-splash__bar { display: block; width: 0; height: 100%; border-radius: 4px; background: #fff; animation: pesito-splash-fill 6s cubic-bezier(.2, .7, .3, 1) forwards; }
+      .pesito-splash__bar { display: block; width: 0; height: 100%; border-radius: 4px; background: #fff; animation: pesito-splash-fill 3s cubic-bezier(.2, .7, .3, 1) forwards; }
+      .pesito-splash--leaving { opacity: 0; transition: opacity .25s ease .2s; }
+      .pesito-splash--leaving .pesito-splash__bar { width: 100%; animation: none; transition: width .2s ease-out; }
       .pesito-splash__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
       @keyframes pesito-splash-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
       @keyframes pesito-splash-drop { 0% { transform: translateY(-34px); opacity: 0; } 20% { opacity: 1; } 60% { transform: translateY(24px); opacity: 1; } 68%, 100% { transform: translateY(32px); opacity: 0; } }
       @keyframes pesito-splash-fill { from { width: 0; } to { width: 92%; } }
       @media (prefers-reduced-motion: reduce) {
         .pesito-splash__pig, .pesito-splash__coin, .pesito-splash__bar { animation: none; }
+        .pesito-splash--leaving { transition: none; }
         .pesito-splash__coin, .pesito-splash__track { display: none; }
         .pesito-splash__label { position: static; width: auto; height: auto; clip-path: none; color: #e6fbf2; font-size: 14px; font-weight: 600; }
       }

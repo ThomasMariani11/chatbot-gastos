@@ -5,6 +5,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { lazyWithRetry, ScreenErrorBoundary, ScreenFallback } from './lazyWithRetry';
 import { Splash } from './Splash';
+import { useSplashHold } from './useSplashHold';
 import type { UserProfile } from './Settings';
 import { supabase } from './supabase';
 import { hasActiveSubscription } from './subscription';
@@ -51,20 +52,30 @@ export function App() {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  // La pantalla de inicio queda arriba un mínimo mientras la app carga por detrás.
+  const splashPhase = useSplashHold();
+  const splashOverlay = splashPhase === 'done' ? null : <Splash leaving={splashPhase === 'leaving'} />;
+
   if (session === undefined) return <Splash />;
   if (!session) {
     return (
-      <ScreenErrorBoundary fallbackTitle="No pudimos cargar el ingreso">
-        <Suspense fallback={<Splash />}>
-          <Login />
-        </Suspense>
-      </ScreenErrorBoundary>
+      <>
+        <ScreenErrorBoundary fallbackTitle="No pudimos cargar el ingreso">
+          <Suspense fallback={<Splash />}>
+            <Login />
+          </Suspense>
+        </ScreenErrorBoundary>
+        {splashOverlay}
+      </>
     );
   }
   return (
-    <ScreenErrorBoundary>
-      <AuthenticatedApp key={session.user.id} session={session} />
-    </ScreenErrorBoundary>
+    <>
+      <ScreenErrorBoundary>
+        <AuthenticatedApp key={session.user.id} session={session} />
+      </ScreenErrorBoundary>
+      {splashOverlay}
+    </>
   );
 }
 

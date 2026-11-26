@@ -26,6 +26,14 @@ describe('Splash', () => {
     vi.restoreAllMocks();
   });
 
+  it('al salir marca la clase que completa la barra y desvanece', async () => {
+    await act(async () => root.render(h(Splash, { leaving: true })));
+    expect(container.querySelector('.pesito-splash')?.classList.contains('pesito-splash--leaving')).toBe(true);
+    const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
+    expect(html).toMatch(/\.pesito-splash--leaving\s*\{[^}]*opacity:\s*0/);
+    expect(html).toMatch(/\.pesito-splash--leaving \.pesito-splash__bar\s*\{[^}]*width:\s*100%/);
+  });
+
   it('anuncia la carga a lectores de pantalla', async () => {
     await act(async () => root.render(h(Splash)));
     const status = container.querySelector('[role="status"]');

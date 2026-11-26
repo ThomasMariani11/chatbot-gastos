@@ -2,11 +2,11 @@ import { useState } from 'react';
 
 // Pantalla de inicio. El CSS vive en index.html (se pinta antes de que cargue el bundle);
 // este marcado debe coincidir con el de #root allí (lo verifica tests/splash-component.test.ts).
-export function Splash() {
+export function Splash({ leaving = false }: { leaving?: boolean }) {
   // Continúa la barra desde donde iba la de index.html en lugar de volver a cero.
   const [barDelay] = useState(() => `-${Math.round(performance.now())}ms`);
   return (
-    <div className="pesito-splash" role="status">
+    <div className={leaving ? 'pesito-splash pesito-splash--leaving' : 'pesito-splash'} role="status">
       <svg className="pesito-splash__pig" viewBox="0 0 170 170" aria-hidden="true" focusable="false">
         <defs>
           <clipPath id="pesito-splash-above"><rect width="170" height="54" /></clipPath>
