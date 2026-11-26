@@ -10,6 +10,7 @@ Hoy `enqueue_whatsapp_messages` (020, única definición) guarda en la cola todo
 
 - **Números no vinculados:** hasta **5 mensajes por minuto** y **30 en 24 horas**. Lo que pasa el límite se descarta sin responder.
 - **Aviso de no vinculado:** como máximo **una vez cada 24 horas** por número. Las respuestas a un intento de vinculación ("vinculado", "código inválido") se siguen mandando siempre.
+- **Agregado tras la revisión final (decisión del propietario, 26/11/2026):** si el mensaje parece un intento de vinculación mal escrito (dice "vincul…" o trae un bloque de 12 caracteres con letras y números, con o sin espacios o guiones), recibe la guía aunque el aviso ya se haya mandado (`looksLikeLinkAttempt` en `link-code.ts`).
 - **Clientes vinculados:** hasta **20 mensajes por minuto**. Al pasarlo, esos mensajes no se procesan y el bot avisa una vez: "Recibí muchos mensajes seguidos 🙏 Esperá un minuto y mandame de nuevo los que falten." Sin límite diario (el cupo de IA de SEC-04 frena el consumo caro).
 
 ## No objetivos

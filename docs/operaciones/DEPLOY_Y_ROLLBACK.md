@@ -77,7 +77,7 @@ Rama `feat/sec-06-limite-mensajes`: mínimo **056**, rollback fijado en **a1cfd5
 
 **Qué cambia:**
 - `enqueue_whatsapp_messages` (redefinida desde la 020) cuenta los mensajes aceptados por número en `inbound_events` (índice nuevo por `wa_id, received_at`). Número no vinculado: 5 por minuto y 30 en 24 horas; lo que pasa se descarta sin guardarse. Cliente vinculado: 20 por minuto; el mensaje que pasa el límite se guarda con la marca `pesito_rate_limited` (como máximo una vez por hora, `whatsapp_worker_state.rate_notice_at`) y el resto se descarta.
-- Aviso de no vinculado como máximo una vez cada 24 horas: los siguientes mensajes llevan `pesito_quiet_not_linked` (`whatsapp_worker_state.not_linked_notice_at`). Los intentos de VINCULAR se responden siempre.
+- Aviso de no vinculado como máximo una vez cada 24 horas: los siguientes mensajes llevan `pesito_quiet_not_linked` (`whatsapp_worker_state.not_linked_notice_at`). Los intentos de VINCULAR se responden siempre, y un mensaje que parece un intento mal escrito recibe la guía aunque esté marcado.
 - El webhook responde `BOT_MESSAGES.rateLimited` a la marca de exceso (sin IA) y no responde a la de silencio.
 
 **Orden de publicación** (cada paso con autorización del propietario):

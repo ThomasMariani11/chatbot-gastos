@@ -25,7 +25,7 @@
 **Decisiones del propietario:** no vinculados 5 por minuto y 30 en 24 horas; aviso de no vinculado una vez cada 24 horas; vinculados 20 por minuto con aviso "Recibí muchos mensajes seguidos 🙏 Esperá un minuto y mandame de nuevo los que falten."
 
 - **Migración 056:** `enqueue_whatsapp_messages` cuenta por número y agrega las marcas `pesito_rate_limited` / `pesito_quiet_not_linked` al payload (quita las que vengan de afuera); columnas `rate_notice_at` y `not_linked_notice_at` en `whatsapp_worker_state`; índice `inbound_events(wa_id, received_at)`. El aviso de exceso sale como máximo una vez por hora (decisión del constructor).
-- **Webhook:** `processor.ts` responde `rateLimited` a la marca de exceso después del control de acceso (respeta respuestas apagadas y mantenimiento); `context-repository.ts` no responde al no vinculado marcado. Los intentos de VINCULAR se procesan siempre.
+- **Webhook:** `processor.ts` responde `rateLimited` a la marca de exceso después del control de acceso (respeta respuestas apagadas y mantenimiento); `context-repository.ts` no responde al no vinculado marcado, salvo que el mensaje parezca un intento de vinculación mal escrito (`looksLikeLinkAttempt`; decisión del propietario). Los intentos de VINCULAR se procesan siempre.
 - **Contrato:** mínimo 056, rollback a1cfd5c (mínimo 055). Orden: merge, webhook con smoke 401, `db push`. Rollback: conservar la 056; el webhook v80 ignora las marcas.
 - **Pruebas:** `tests/whatsapp-rate-limit-sql.test.ts` (PGlite) y `tests/whatsapp-rate-limit-bot.test.ts`. Pendiente: concurrencia real; `tests/durable-queue-concurrency.mjs` aplica solo hasta la 044 y hay que extenderlo.
 

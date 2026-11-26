@@ -71,6 +71,18 @@ describe('SEC-06: respuestas del bot según las marcas de la recepción', () => 
     expect(await run(job('hola', { pesito_quiet_not_linked: true }, null), null).result).toEqual({ kind: 'reply', text: null });
   });
 
+  it('un intento de vinculación mal escrito recibe la guía aunque esté marcado como silencioso', async () => {
+    for (const body of ['K7QM-X3RT-9PZD', 'k7qm x3rt 9pzd', 'VINCULAR K7QM X3RT 9PZD', 'vincular 0O0O-1111-2222', 'quiero vincular mi número', 'K7QMX3RT9PZD']) {
+      expect(await run(job(body, { pesito_quiet_not_linked: true }, null), null).result, body).toEqual({ kind: 'reply', text: BOT_MESSAGES.notLinked });
+    }
+  });
+
+  it('un mensaje común marcado como silencioso no recibe la guía (tampoco palabras largas sin números)', async () => {
+    for (const body of ['hola', 'Gasté 1500 en supermercado', 'supermercados', 'transferencia recibida']) {
+      expect(await run(job(body, { pesito_quiet_not_linked: true }, null), null).result, body).toEqual({ kind: 'reply', text: null });
+    }
+  });
+
   it('un intento de vinculación se procesa aunque esté marcado como silencioso', async () => {
     const hash = createHash('sha256').update('K7QMX3RT9PZD', 'utf8').digest('hex');
     expect(await run(job('vincular K7QM-X3RT-9PZD', { pesito_quiet_not_linked: true }, null), null).result).toEqual({ kind: 'link', hash });
