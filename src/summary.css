@@ -1508,3 +1508,11 @@ details[open] > summary .admin-summary-chevron {
 .month-close-grid dd { margin: 0; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .month-close-grid .month-close-change { display: block; font-size: 12px; font-weight: 600; }
 .month-close-budget { margin: 8px 0 0; font-size: 13px; font-weight: 600; }
+
+/* 3.2 (LEG-01): Tus datos — descargar movimientos y borrar la cuenta */
+.account-data-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
+.account-data-actions .settings-muted { margin: 0; font-size: 13px; color: var(--muted); }
+.account-delete-dialog h2 { margin: 0; font-size: 19px; }
+.account-delete-dialog ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; line-height: 1.45; }
+.account-delete-dialog label { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+.account-delete-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
