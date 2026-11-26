@@ -10,6 +10,14 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## Pantalla de inicio animada — 25/11/2026 (en rama)
+
+**Estado:** **en rama** `feat/pantalla-inicio-animada`; sin integrar ni publicar. Solo PWA; sin SQL ni webhook. Diseño en `docs/superpowers/specs/2026-11-25-pantalla-inicio-animada-design.md`.
+
+- **PWA:** `index.html` trae dentro de `#root` la pantalla de inicio (fondo `#20b984`, chanchito flotando, moneda que entra en la ranura, barra que avanza y se frena en ~92 %) con su CSS en un `<style>` en línea, sin scripts; se ve antes de que cargue el bundle. `src/Splash.tsx` repite el marcado (sin CSS propio) y reemplaza los cuatro "Abriendo Pesito…" de arranque en `App.tsx`; la barra continúa con `animation-delay` negativo desde `performance.now()`. Con movimiento reducido: logo quieto y texto visible. Las cargas internas (`ScreenFallback`) no cambian.
+- **Tiempo mínimo (pedido del propietario):** `src/useSplashHold.ts` mantiene la pantalla arriba al menos `SPLASH_MIN_MS` = 2000 ms desde que se abrió la página, mientras la app carga por detrás; al terminar, la barra se completa y se desvanece (`SPLASH_LEAVE_MS` = 450 ms). La barra llega a ~92 % en 3 s.
+- **Pruebas:** `tests/splash.test.ts` (marcado, sin scripts en línea, movimiento reducido), `tests/splash-component.test.ts` (accesibilidad, continuidad de la barra, salida, mismo marcado que `index.html`) y `tests/splash-hold.test.ts` (tiempo mínimo).
+
 ## SEC-07: baja de notificaciones al cerrar sesión — publicado el 25/11/2026
 
 **Estado:** **publicado.** PR #125 (y #126, texto del cartel de cierre), PWA **ed9e4d7**; sin SQL ni webhook. Mientras se cierra, la app muestra "Cerrando sesión…" y bloquea la actualización. Tarea 2.3 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-25-sec-07-push-al-cerrar-sesion-design.md`.
