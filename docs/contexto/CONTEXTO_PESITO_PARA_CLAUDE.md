@@ -18,9 +18,9 @@
 - **Tiempo mínimo (pedido del propietario):** `src/useSplashHold.ts` mantiene la pantalla arriba al menos `SPLASH_MIN_MS` = 2000 ms desde que se abrió la página, mientras la app carga por detrás; al terminar, la barra se completa y se desvanece (`SPLASH_LEAVE_MS` = 450 ms). La barra llega a ~92 % en 3 s.
 - **Pruebas:** `tests/splash.test.ts` (marcado, sin scripts en línea, movimiento reducido), `tests/splash-component.test.ts` (accesibilidad, continuidad de la barra, salida, mismo marcado que `index.html`) y `tests/splash-hold.test.ts` (tiempo mínimo).
 
-## 3.2 (LEG-01): borrado de cuenta y exportación de datos — 26/11/2026 (en rama)
+## 3.2 (LEG-01): borrado de cuenta y exportación de datos — publicado el 26/11/2026
 
-**Estado:** rama `feat/leg-01-borrado-exportacion`, sin integrar ni publicar. Diseño en `docs/superpowers/specs/2026-11-26-leg-01-borrado-y-exportacion-design.md`.
+**Estado:** **publicado.** PR #134, PWA **edf1cda**, SQL **001–057** (`db push` del 26/11/2026). Detalle y verificación en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`. Diseño en `docs/superpowers/specs/2026-11-26-leg-01-borrado-y-exportacion-design.md`.
 
 **Decisiones del propietario:** borrado inmediato; los registros de pago se conservan anonimizados.
 
