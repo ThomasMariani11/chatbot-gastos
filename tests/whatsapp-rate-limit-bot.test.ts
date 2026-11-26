@@ -6,7 +6,7 @@ import type { IncomingMessage, Job } from '../supabase/functions/whatsapp-webhoo
 
 // SEC-06: la recepción (migración 056) marca el payload; el bot responde según la marca.
 // Datos ficticios; sin red ni IA.
-function db(linkedUser: string | null) {
+function db(linkedUser: string | null, opts: { responses?: boolean; botActive?: string } = {}) {
   return {
     from: (table: string) => {
       const chain = {
@@ -15,10 +15,10 @@ function db(linkedUser: string | null) {
         maybeSingle: () => {
           if (table === 'whatsapp_links') return Promise.resolve({ data: linkedUser ? { user_id: linkedUser } : null, error: null });
           if (table === 'profiles') return Promise.resolve({ data: { role: 'client', subscription_status: 'active', subscription_until: null }, error: null });
-          if (table === 'app_settings') return Promise.resolve({ data: { whatsapp_responses_enabled: true }, error: null });
+          if (table === 'app_settings') return Promise.resolve({ data: { whatsapp_responses_enabled: opts.responses ?? true }, error: null });
           return Promise.resolve({ data: null, error: null });
         },
-        in: () => Promise.resolve({ data: table === 'system_config' ? [{ key: 'bot_active', value: 'true' }] : [], error: null }),
+        in: () => Promise.resolve({ data: table === 'system_config' ? [{ key: 'bot_active', value: opts.botActive ?? 'true' }] : [], error: null }),
       };
       return chain;
     },
@@ -39,9 +39,9 @@ function job(body: string, marks: Partial<IncomingMessage>, userId: string | nul
   };
 }
 
-const run = (j: Job, linkedUser: string | null) => {
+const run = (j: Job, linkedUser: string | null, opts: { responses?: boolean; botActive?: string } = {}) => {
   const gate = vi.fn();
-  return { result: prepareMessage(db(linkedUser), j, async () => {}, undefined, gate), gate };
+  return { result: prepareMessage(db(linkedUser, opts), j, async () => {}, undefined, gate), gate };
 };
 
 describe('SEC-06: respuestas del bot según las marcas de la recepción', () => {
@@ -49,10 +49,18 @@ describe('SEC-06: respuestas del bot según las marcas de la recepción', () => 
     expect(BOT_MESSAGES.rateLimited).toBe('Recibí muchos mensajes seguidos 🙏\nEsperá un minuto y mandame de nuevo los que falten.');
   });
 
-  it('un mensaje marcado por exceso responde el aviso, sin IA ni lecturas de la base', async () => {
+  it('un mensaje marcado por exceso responde el aviso, sin IA', async () => {
     const r = run(job('Gasté 100 en súper', { pesito_rate_limited: true }, 'user-ficticio'), 'user-ficticio');
     expect(await r.result).toEqual({ kind: 'reply', text: BOT_MESSAGES.rateLimited });
     expect(r.gate).not.toHaveBeenCalled();
+  });
+
+  it('el aviso por exceso respeta las respuestas apagadas por el cliente y el bot en mantenimiento', async () => {
+    const marked = () => job('Gasté 100 en súper', { pesito_rate_limited: true }, 'user-ficticio');
+    expect(await run(marked(), 'user-ficticio', { responses: false }).result).toMatchObject({ kind: 'reply', text: null });
+    const maintenance = await run(marked(), 'user-ficticio', { botActive: 'false' }).result;
+    expect(maintenance.kind).toBe('reply');
+    expect(maintenance.text).not.toBe(BOT_MESSAGES.rateLimited);
   });
 
   it('sin vínculo y sin marca responde que el número no está vinculado', async () => {

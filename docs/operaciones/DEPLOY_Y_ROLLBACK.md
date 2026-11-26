@@ -73,7 +73,7 @@ PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múlti
 
 ## Contrato candidato 056 (SEC-06, límite de mensajes por número) — 26/11/2026
 
-Rama `feat/sec-06-limite-mensajes`: mínimo **056**, rollback fijado en **a1cfd5ce57ea272a026c5fc42b615b76999f3dd4** (PWA publicada; mínimo **055**). Diseño en `docs/superpowers/specs/2026-11-26-sec-06-limite-mensajes-por-numero-design.md`.
+Rama `feat/sec-06-limite-mensajes`: mínimo **056**, rollback fijado en **a1cfd5ce57ea272a026c5fc42b615b76999f3dd4** (PWA publicada, verificada con `version.json` el 26/11/2026; mínimo **055**). Diseño en `docs/superpowers/specs/2026-11-26-sec-06-limite-mensajes-por-numero-design.md`.
 
 **Qué cambia:**
 - `enqueue_whatsapp_messages` (redefinida desde la 020) cuenta los mensajes aceptados por número en `inbound_events` (índice nuevo por `wa_id, received_at`). Número no vinculado: 5 por minuto y 30 en 24 horas; lo que pasa se descarta sin guardarse. Cliente vinculado: 20 por minuto; el mensaje que pasa el límite se guarda con la marca `pesito_rate_limited` (como máximo una vez por hora, `whatsapp_worker_state.rate_notice_at`) y el resto se descarta.
@@ -88,7 +88,7 @@ Rama `feat/sec-06-limite-mensajes`: mínimo **056**, rollback fijado en **a1cfd5
 
 **Rollback:** conservar la 056. El webhook v80 ignora las marcas: procesa el mensaje marcado como uno normal y manda el aviso de no vinculado como antes; los límites de recepción siguen activos. Nunca hacer un down.
 
-**Pendiente:** concurrencia real de dos payloads del mismo número con `npm run test:concurrency` (Docker); las pruebas PGlite son secuenciales.
+**Pendiente:** concurrencia real de dos payloads del mismo número. `npm run test:concurrency` (Docker) hoy aplica solo hasta la 044: hay que extender `tests/durable-queue-concurrency.mjs` hasta la 056 para cubrirlo. Las pruebas PGlite son secuenciales; incluyen la regresión de CONFIRMAR (grupo y versión) y de mensajes repetidos de la 020.
 
 ## Contrato 055 (SEC-04, cupo de IA por cliente) — publicado el 25/11/2026
 

@@ -105,8 +105,6 @@ export async function prepareMessage(
   const text = message.text?.body?.trim() ?? message.image?.caption?.trim() ??
     "";
   const reply = (body: string) => ({ kind: "reply", text: body });
-  // SEC-06: la recepción marcó el mensaje por pasar el límite por minuto: solo se avisa.
-  if (message.pesito_rate_limited === true) return reply(BOT_MESSAGES.rateLimited);
   const linkCode = parseLinkCommand(text);
   if (linkCode) return { kind: "link", hash: await sha256(linkCode) };
   // La SQL de la cola valida identidad, vínculo, preferencias y bloqueos.
@@ -117,6 +115,9 @@ export async function prepareMessage(
 
   const access = await resolveActorAccess(db, job);
   if (!access.allowed) return access.action;
+  // SEC-06: la recepción marcó el mensaje por pasar el límite por minuto: solo se
+  // avisa, después del control de acceso (respeta respuestas apagadas y mantenimiento).
+  if (message.pesito_rate_limited === true) return reply(BOT_MESSAGES.rateLimited);
 
   const correctionIntent = !message.image?.id && !message.audio?.id &&
     looksLikeDraftCorrection(text);

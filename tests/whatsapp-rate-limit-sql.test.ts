@@ -165,6 +165,27 @@ describe('SEC-06: límite de mensajes por número (migración 056)', { timeout: 
     expect(row.payload).not.toHaveProperty('pesito_quiet_not_linked');
   });
 
+  // Regresión de la 020: lo que la función hacía antes se conserva.
+  it('un CONFIRMAR posterior al resumen mostrado guarda el grupo y la versión, como en la 020', async () => {
+    const group = (await db.query<{ id: string }>(
+      "insert into public.draft_groups(user_id, status, version) values($1, 'open', 3) returning id", [client])).rows[0].id;
+    await db.query(`insert into public.whatsapp_worker_state(wa_id, summary_pending, shown_group_id, shown_version, shown_at)
+      values($1, false, $2, 3, now() - interval '1 minute')
+      on conflict(wa_id) do update set summary_pending = false, shown_group_id = $2, shown_version = 3, shown_at = now() - interval '1 minute'`,
+      [linked, group]);
+    await enqueue([message(linked, { text: { body: 'CONFIRMAR' }, timestamp: String(Math.floor(Date.now() / 1000)) })]);
+    const row = (await db.query<{ confirmation_group_id: string; confirmation_version: number }>(
+      'select confirmation_group_id, confirmation_version from public.whatsapp_message_queue where wa_id = $1', [linked])).rows[0];
+    expect(row).toEqual({ confirmation_group_id: group, confirmation_version: 3 });
+  });
+
+  it('un mensaje repetido dentro del mismo payload se guarda una vez y el actor se devuelve una vez', async () => {
+    const same = message('synthetic-u-7');
+    const result = await enqueue([same, same, message('synthetic-u-8')]);
+    expect(await accepted('synthetic-u-7')).toBe(1);
+    expect(result.actors).toEqual(['synthetic-u-7', 'synthetic-u-8']);
+  });
+
   it('dos números no se afectan entre sí', async () => {
     await burst('synthetic-u-5', 6);
     await burst('synthetic-u-6', 2);
