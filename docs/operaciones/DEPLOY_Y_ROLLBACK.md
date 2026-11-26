@@ -1,6 +1,10 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
-## Última publicación observada — 25/11/2026 (SEC-07: baja de notificaciones al cerrar sesión)
+## Última publicación observada — 26/11/2026 (SEC-06: límite de mensajes por número)
+
+PWA **66bc3482040adada368dfba50e08004e6cb7027f** (PR #129; la PWA no cambia respecto de a1cfd5c), SQL **001–056**, webhook **v81 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR #129 → CI de `main` en verde (Frontend, PostgreSQL, Webhook con `deno check`/`lint`/`test`, ensayo de release con la 056 y Publicar) y Pages con `version.json` = 66bc348 → deploy del webhook desde 66bc348 (v81) → smoke 401 en `/`, `worker` y `client-push` → `inbound_events` con 464 filas (índice instantáneo) → `db push --linked --dry-run` (solo 056) → `db push --linked` → verificación de solo lectura por `db query --linked`: historial 056; `enqueue_whatsapp_messages` SECURITY DEFINER, dueño postgres, `search_path=pg_catalog, public`, EXECUTE solo para service_role, con las marcas `pesito_rate_limited` y `pesito_quiet_not_linked`; columnas `rate_notice_at` y `not_linked_notice_at`; índice `inbound_events_wa_received_idx`; cola habilitada; los cuatro crons activos. Rollback: conservar la 056; webhook v80 compatible (ignora las marcas); PWA a1cfd5c. **Pendiente:** prueba del propietario con un número de prueba; concurrencia real (extender `tests/durable-queue-concurrency.mjs` hasta la 056).
+
+## Registro histórico — 25/11/2026 (SEC-07: baja de notificaciones al cerrar sesión)
 
 PWA **ed9e4d7c61ce6014fdca4c7afd75ed71d4dbc403** (PR #125, SEC-07, y PR #126, texto del cartel de cierre), SQL **001–055** y webhook **v80** sin cambios. CI de `main` en verde; el "Ensayo de release" falló una vez en la fase `candidato_webhook_y_pwa` (arranque del worker en Supabase local, sin código de salida; el mismo código había pasado en `main` 2c4170c y en el CI de la PR) y pasó al reintentar solo ese job. Pages con `version.json` = ed9e4d7. Rollback: PWA 6f8bab1 (sin cambios de datos).
 
@@ -71,7 +75,7 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
-## Contrato candidato 056 (SEC-06, límite de mensajes por número) — 26/11/2026
+## Contrato 056 (SEC-06, límite de mensajes por número) — publicado el 26/11/2026 (webhook v81)
 
 Rama `feat/sec-06-limite-mensajes`: mínimo **056**, rollback fijado en **a1cfd5ce57ea272a026c5fc42b615b76999f3dd4** (PWA publicada, verificada con `version.json` el 26/11/2026; mínimo **055**). Diseño en `docs/superpowers/specs/2026-11-26-sec-06-limite-mensajes-por-numero-design.md`.
 
