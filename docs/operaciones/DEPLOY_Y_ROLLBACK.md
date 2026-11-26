@@ -92,7 +92,7 @@ Rama `feat/sec-06-limite-mensajes`: mínimo **056**, rollback fijado en **a1cfd5
 
 **Rollback:** conservar la 056. El webhook v80 ignora las marcas: procesa el mensaje marcado como uno normal y manda el aviso de no vinculado como antes; los límites de recepción siguen activos. Nunca hacer un down.
 
-**Pendiente:** concurrencia real de dos payloads del mismo número. `npm run test:concurrency` (Docker) hoy aplica solo hasta la 044: hay que extender `tests/durable-queue-concurrency.mjs` hasta la 056 para cubrirlo. Las pruebas PGlite son secuenciales; incluyen la regresión de CONFIRMAR (grupo y versión) y de mensajes repetidos de la 020.
+**Concurrencia real (26/11/2026):** `tests/durable-queue-concurrency.mjs` (job PostgreSQL del CI, `npm run test:concurrency`) aplica la 056 sobre la 044 y lanza dos tandas simultáneas del mismo número: no vinculado 2×3 → 5 aceptados y un solo aviso; vinculado 2×15 → 21 con una sola marca de exceso. Las pruebas PGlite son secuenciales; incluyen la regresión de CONFIRMAR (grupo y versión) y de mensajes repetidos de la 020.
 
 ## Contrato 055 (SEC-04, cupo de IA por cliente) — publicado el 25/11/2026
 
