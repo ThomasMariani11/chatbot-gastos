@@ -22,6 +22,7 @@ import {
 } from "./helpers.ts";
 import type { DraftListItem } from "./helpers.ts";
 import { readMessages, runActor } from "./queue.ts";
+import { sameSecret } from "./secrets.ts";
 import { prepareMessage } from "./processor.ts";
 import type { WebhookDatabaseClient } from "./context-repository.ts";
 import { writeOperationalLog } from "./logging.ts";
@@ -33,7 +34,7 @@ async function routeRequest(request: Request): Promise<Response> {
   if (request.method === "GET") {
     const verify = Deno.env.get("WHATSAPP_VERIFY_TOKEN");
     return verify && url.searchParams.get("hub.mode") === "subscribe" &&
-        url.searchParams.get("hub.verify_token") === verify
+        await sameSecret(url.searchParams.get("hub.verify_token"), verify)
       ? new Response(url.searchParams.get("hub.challenge") ?? "")
       : json({ error: "Verificación rechazada." }, 403);
   }
@@ -113,7 +114,7 @@ async function routeRequest(request: Request): Promise<Response> {
   };
   if (url.searchParams.get("action") === "worker") {
     const secret = Deno.env.get("WHATSAPP_WORKER_SECRET");
-    if (!secret || request.headers.get("x-worker-secret") !== secret) {
+    if (!await sameSecret(request.headers.get("x-worker-secret"), secret)) {
       return json({ error: "No autorizado." }, 401);
     }
     try {
@@ -136,7 +137,7 @@ async function routeRequest(request: Request): Promise<Response> {
   }
   if (url.searchParams.get("action") === "client-push") {
     const secret = Deno.env.get("WHATSAPP_WORKER_SECRET");
-    if (!secret || request.headers.get("x-worker-secret") !== secret) {
+    if (!await sameSecret(request.headers.get("x-worker-secret"), secret)) {
       return json({ error: "No autorizado." }, 401);
     }
     const vapid = readVapidConfig((name) => Deno.env.get(name));
@@ -160,7 +161,7 @@ async function routeRequest(request: Request): Promise<Response> {
   }
   let messages;
   try {
-    messages = readMessages(JSON.parse(raw));
+    messages = readMessages(JSON.parse(raw), Deno.env.get("WHATSAPP_PHONE_NUMBER_ID"));
   } catch {
     return json({ error: "Payload inválido." }, 400);
   }

@@ -31,7 +31,8 @@ type Event =
   | "local_rule"
   | "ai_attempt"
   | "interpretation_fallback"
-  | "ops_error";
+  | "ops_error"
+  | "foreign_number_dropped";
 type Validator = (value: unknown) => boolean;
 const numeric = (maximum: number, integer = false): Validator => (value) =>
   typeof value === "number" && Number.isFinite(value) && value >= 0 &&
@@ -113,6 +114,8 @@ const schemas: Record<Event, Record<string, Validator>> = {
     route: oneOf("webhook", "worker", "client_push", "test_send", "verification"),
   },
   worker_interrupted: { workers: numeric(100, true) },
+  // SEC-24: mensajes descartados por venir dirigidos a otro número de Meta (solo la cantidad).
+  foreign_number_dropped: { dropped: numeric(100000, true) },
 };
 
 export function createLogWriter(write: (line: string) => void) {

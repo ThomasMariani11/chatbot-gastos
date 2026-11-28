@@ -119,7 +119,7 @@ Deno.test("endpoint real acusa recibo solo después de persistir y devuelve 503 
               id: "synthetic-2",
               from: "synthetic-b",
               type: "audio",
-              audio: { id: "synthetic-media" },
+              audio: { id: "990000000000003" },
             }],
           },
         }],

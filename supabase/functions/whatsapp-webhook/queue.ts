@@ -21,15 +21,33 @@ export type IncomingMessage = {
   pesito_quiet_not_linked?: boolean;
 };
 
-export function readMessages(payload: unknown): IncomingMessage[] {
+// SEC-24: con expectedPhoneNumberId, solo los mensajes dirigidos al número de Pesito.
+export function readMessages(payload: unknown, expectedPhoneNumberId?: string): IncomingMessage[] {
   const data = payload as {
     entry?: Array<
-      { changes?: Array<{ value?: { messages?: IncomingMessage[] } }> }
+      {
+        changes?: Array<
+          { value?: { metadata?: { phone_number_id?: unknown }; messages?: IncomingMessage[] } }
+        >;
+      }
     >;
   };
+  let dropped = 0;
   const messages = (data?.entry ?? []).flatMap((entry) =>
-    (entry.changes ?? []).flatMap((change) => change.value?.messages ?? [])
+    (entry.changes ?? []).flatMap((change) => {
+      const own = change.value?.messages ?? [];
+      if (
+        expectedPhoneNumberId &&
+        change.value?.metadata?.phone_number_id !== expectedPhoneNumberId
+      ) {
+        dropped += own.length;
+        return [];
+      }
+      return own;
+    })
   );
+  // Un número mal configurado descartaría todo en silencio: queda la cantidad, sin identificadores.
+  if (dropped) writeOperationalLog("foreign_number_dropped", { dropped });
   if (
     !messages.every((m) =>
       m && typeof m.id === "string" && m.id && typeof m.from === "string" &&

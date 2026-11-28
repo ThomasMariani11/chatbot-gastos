@@ -253,7 +253,7 @@ Deno.test("audio: descarga fallida pide texto con checkpoint, sin interpretació
       id: "synthetic-audio",
       from: "synthetic-route",
       type: "audio",
-      audio: { id: "PRIVATE_MEDIA_ID" },
+      audio: { id: "990000000000001" },
     };
     const result = await prepareMessage(database().db, fixture, (value) => {
       checkpoints.push(value);
@@ -435,12 +435,12 @@ Deno.test("audio: 503 en ambos modelos conserva checkpoint y pide texto sin rein
       if (url.includes("graph.facebook.com")) {
         return Promise.resolve(
           Response.json({
-            url: "https://media.example.invalid/audio",
+            url: "https://lookaside.fbsbx.com/audio",
             mime_type: "audio/ogg",
           }),
         );
       }
-      if (url.includes("media.example.invalid")) {
+      if (url.includes("lookaside.fbsbx.com")) {
         return Promise.resolve(new Response(new Uint8Array([1, 2, 3])));
       }
       models.push(url.split("/models/")[1].split(":")[0]);
@@ -451,7 +451,7 @@ Deno.test("audio: 503 en ambos modelos conserva checkpoint y pide texto sin rein
       id: "synthetic-audio",
       from: "synthetic-route",
       type: "audio",
-      audio: { id: "PRIVATE_MEDIA" },
+      audio: { id: "990000000000002" },
     };
     let checkpoint: unknown;
     const result = await prepareMessage(database().db, fixture, (value) => {
@@ -541,10 +541,10 @@ Deno.test("audio: ruido pide texto y operaciones incompletas se conservan junto 
         Promise.resolve(
           String(url).includes("graph.facebook.com")
             ? Response.json({
-              url: "https://media.example.invalid",
+              url: "https://lookaside.fbsbx.com",
               mime_type: "audio/ogg",
             })
-            : String(url).includes("media.example.invalid")
+            : String(url).includes("lookaside.fbsbx.com")
             ? new Response(new Uint8Array([1]))
             : Response.json({
               candidates: [{
@@ -557,7 +557,7 @@ Deno.test("audio: ruido pide texto y operaciones incompletas se conservan junto 
         id: "audio",
         from: "synthetic-route",
         type: "audio",
-        audio: { id: "media" },
+        audio: { id: "990000000000004" },
       };
       let saved: unknown;
       const result = await prepareMessage(database().db, fixture, (v) => {
@@ -630,10 +630,10 @@ Deno.test("audio válido sigue creando propuesta y no se convierte en pedido de 
       Promise.resolve(
         String(url).includes("graph.facebook.com")
           ? Response.json({
-            url: "https://media.example.invalid",
+            url: "https://lookaside.fbsbx.com",
             mime_type: "audio/ogg",
           })
-          : String(url).includes("media.example.invalid")
+          : String(url).includes("lookaside.fbsbx.com")
           ? new Response(new Uint8Array([1]))
           : Response.json({
             candidates: [{
@@ -646,7 +646,7 @@ Deno.test("audio válido sigue creando propuesta y no se convierte en pedido de 
       id: "audio-valid",
       from: "synthetic-route",
       type: "audio",
-      audio: { id: "media" },
+      audio: { id: "990000000000004" },
     };
     let saved: unknown;
     const result = await prepareMessage(database().db, fixture, (v) => {
@@ -683,7 +683,7 @@ Deno.test("un fallo del checkpoint no se oculta como error de IA", async () => {
       id: "audio",
       from: "synthetic-route",
       type: "audio",
-      audio: { id: "media" },
+      audio: { id: "990000000000004" },
     };
     let error: unknown;
     try {
@@ -731,7 +731,7 @@ Deno.test("multimedia: tamaño declarado excesivo pide texto sin descargar ni in
       calls++;
       return Promise.resolve(
         Response.json({
-          url: "https://media.example.invalid",
+          url: "https://lookaside.fbsbx.com",
           mime_type: "image/jpeg",
           file_size: LIMITS.imageBytes + 1,
         }),
@@ -742,7 +742,7 @@ Deno.test("multimedia: tamaño declarado excesivo pide texto sin descargar ni in
       id: "synthetic-image",
       from: "synthetic-route",
       type: "image",
-      image: { id: "media" },
+      image: { id: "990000000000004" },
     };
     let checkpoint: unknown;
     const action = await prepareMessage(database().db, fixture, (v) => {
@@ -772,7 +772,7 @@ Deno.test("multimedia: tamaño declarado falso no evade límite de bytes ni deja
       return Promise.resolve(
         calls === 1
           ? Response.json({
-            url: "https://media.example.invalid",
+            url: "https://lookaside.fbsbx.com",
             mime_type: "image/jpeg",
             file_size: 1,
           })
@@ -797,7 +797,7 @@ Deno.test("multimedia: tamaño declarado falso no evade límite de bytes ni deja
       id: "synthetic-image",
       from: "synthetic-route",
       type: "image",
-      image: { id: "media" },
+      image: { id: "990000000000004" },
     };
     let checkpoint: unknown;
     const action = await prepareMessage(database().db, fixture, (v) => {
@@ -821,14 +821,14 @@ Deno.test("multimedia: tipo incorrecto se rechaza antes de descargar", () =>
       calls++;
       return Promise.resolve(
         Response.json({
-          url: "https://media.example.invalid",
+          url: "https://lookaside.fbsbx.com",
           mime_type: "image/jpeg",
         }),
       );
     }) as typeof fetch;
     let failure: unknown;
     try {
-      await downloadWhatsAppMedia("synthetic-media", "audio");
+      await downloadWhatsAppMedia("990000000000003", "audio");
     } catch (e) {
       failure = e;
     }
@@ -845,7 +845,7 @@ Deno.test("multimedia: descarga válida comparte presupuesto y mantiene contenid
       return Promise.resolve(
         signals.length === 1
           ? Response.json({
-            url: "https://media.example.invalid",
+            url: "https://lookaside.fbsbx.com",
             mime_type: "audio/ogg; codecs=opus",
             file_size: 3,
           })
@@ -854,7 +854,7 @@ Deno.test("multimedia: descarga válida comparte presupuesto y mantiene contenid
           }),
       );
     }) as typeof fetch;
-    const media = await downloadWhatsAppMedia("synthetic-media", "audio");
+    const media = await downloadWhatsAppMedia("990000000000003", "audio");
     assert(
       media.base64 === "AQID" && media.mimeType === "audio/ogg",
       "Alteró el audio",
@@ -873,7 +873,7 @@ Deno.test("multimedia: aborta cuerpo lento y cancela su lectura", () =>
       return Promise.resolve(
         calls === 1
           ? Response.json({
-            url: "https://media.example.invalid",
+            url: "https://lookaside.fbsbx.com",
             mime_type: "audio/ogg",
           })
           : new Response(
@@ -897,7 +897,7 @@ Deno.test("multimedia: aborta cuerpo lento y cancela su lectura", () =>
     }) as typeof fetch;
     let failure: unknown;
     try {
-      await downloadWhatsAppMedia("media", "audio", controller.signal);
+      await downloadWhatsAppMedia("990000000000004", "audio", controller.signal);
     } catch (e) {
       failure = e;
     }
@@ -914,12 +914,12 @@ Deno.test("interpretación: presupuesto agotado evita segundo modelo y conserva 
       if (String(url).includes("graph.facebook.com")) {
         return Promise.resolve(
           Response.json({
-            url: "https://media.example.invalid",
+            url: "https://lookaside.fbsbx.com",
             mime_type: "audio/ogg",
           }),
         );
       }
-      if (String(url).includes("media.example.invalid")) {
+      if (String(url).includes("lookaside.fbsbx.com")) {
         return Promise.resolve(new Response(new Uint8Array([1])));
       }
       calls++;
@@ -932,7 +932,7 @@ Deno.test("interpretación: presupuesto agotado evita segundo modelo y conserva 
       id: "audio",
       from: "synthetic-route",
       type: "audio",
-      audio: { id: "media" },
+      audio: { id: "990000000000004" },
     };
     let checkpoints = 0, failure: unknown;
     try {
@@ -1005,12 +1005,12 @@ Deno.test("interpretación: límite propio de 30 s conserva pedido de texto con 
         if (String(url).includes("graph.facebook.com")) {
           return Promise.resolve(
             Response.json({
-              url: "https://media.example.invalid",
+              url: "https://lookaside.fbsbx.com",
               mime_type: "audio/ogg",
             }),
           );
         }
-        if (String(url).includes("media.example.invalid")) {
+        if (String(url).includes("lookaside.fbsbx.com")) {
           return Promise.resolve(new Response(new Uint8Array([1])));
         }
         calls++;
@@ -1024,7 +1024,7 @@ Deno.test("interpretación: límite propio de 30 s conserva pedido de texto con 
         id: "audio",
         from: "synthetic-route",
         type: "audio",
-        audio: { id: "media" },
+        audio: { id: "990000000000004" },
       };
       let checkpoint: unknown;
       const result = await prepareMessage(database().db, fixture, (v) => {
@@ -1169,7 +1169,7 @@ Deno.test("caption de imagen no ejecuta un comando local ni omite el comprobante
         id: "synthetic-image",
         from: "synthetic-route",
         type: "image",
-        image: { id: "synthetic-media", caption: "confirmar" },
+        image: { id: "990000000000003", caption: "confirmar" },
       };
       const action = await prepareMessage(
         database().db,
@@ -1243,12 +1243,12 @@ Deno.test("Groq audio: Whisper transcribe y reglas locales resuelven sin invocar
       if (target.includes("graph.facebook.com")) {
         return Promise.resolve(
           Response.json({
-            url: "https://media.example.invalid/audio",
+            url: "https://lookaside.fbsbx.com/audio",
             mime_type: "audio/ogg",
           }),
         );
       }
-      if (target.includes("media.example.invalid")) {
+      if (target.includes("lookaside.fbsbx.com")) {
         return Promise.resolve(new Response(new Uint8Array([1, 2, 3])));
       }
       if (target.includes("audio/transcriptions")) {
@@ -1275,7 +1275,7 @@ Deno.test("Groq audio: Whisper transcribe y reglas locales resuelven sin invocar
       id: "audio-groq-local",
       from: "synthetic-route",
       type: "audio",
-      audio: { id: "media" },
+      audio: { id: "990000000000004" },
     };
     const result = await prepareMessage(
       database().db,
@@ -1553,12 +1553,12 @@ Deno.test("audio: importes exactos y residuos ambiguos sin propuestas parciales"
         if (target.includes("graph.facebook.com")) {
           return Promise.resolve(
             Response.json({
-              url: "https://media.example.invalid/audio",
+              url: "https://lookaside.fbsbx.com/audio",
               mime_type: "audio/ogg",
             }),
           );
         }
-        if (target.includes("media.example.invalid")) {
+        if (target.includes("lookaside.fbsbx.com")) {
           return Promise.resolve(new Response(new Uint8Array([1, 2, 3])));
         }
         if (target.includes("audio/transcriptions")) {
@@ -1580,7 +1580,7 @@ Deno.test("audio: importes exactos y residuos ambiguos sin propuestas parciales"
         id: "synthetic-audio",
         from: "synthetic-route",
         type: "audio",
-        audio: { id: "synthetic-media" },
+        audio: { id: "990000000000003" },
       };
       let saved: unknown;
       const action = await prepareMessage(database().db, fixture, (value) => {
@@ -2120,11 +2120,11 @@ Deno.test("BE-05: caption de foto y audio conservan interpretación multimedia",
           return Promise.resolve(
             String(url).includes("graph.facebook.com")
               ? Response.json({
-                url: "https://media.example.invalid",
+                url: "https://lookaside.fbsbx.com",
                 mime_type: type === "image" ? "image/jpeg" : "audio/ogg",
               })
-              : String(url).includes("media.example.invalid")
-              ? new Response(new Uint8Array([1]))
+              : String(url).includes("lookaside.fbsbx.com")
+              ? new Response(new Uint8Array(type === "image" ? [0xff, 0xd8, 0xff, 1] : [1]))
               : Response.json({
                 candidates: [{
                   content: { parts: [{ text: JSON.stringify(parsed) }] },
@@ -2140,11 +2140,11 @@ Deno.test("BE-05: caption de foto y audio conservan interpretación multimedia",
           ...(type === "image"
             ? {
               image: {
-                id: "media",
+                id: "990000000000004",
                 caption: "Pasame el alias; saldo disponible",
               },
             }
-            : { audio: { id: "media" } }),
+            : { audio: { id: "990000000000004" } }),
         };
         let checkpoints = 0;
         const result = await prepareMessage(database().db, input, () => {
@@ -2396,10 +2396,10 @@ Deno.test("BE-08: Whisper completa un importe pendiente sin Qwen ni otro gasto",
         return Promise.resolve(
           u.includes("graph.facebook.com")
             ? Response.json({
-              url: "https://media.example.invalid",
+              url: "https://lookaside.fbsbx.com",
               mime_type: "audio/ogg",
             })
-            : u.includes("media.example.invalid")
+            : u.includes("lookaside.fbsbx.com")
             ? new Response(new Uint8Array([1]))
             : u.includes("/audio/transcriptions")
             ? Response.json({ text: "El 2 fue de 5000" })
@@ -2428,7 +2428,7 @@ Deno.test("BE-08: Whisper completa un importe pendiente sin Qwen ni otro gasto",
         id: "synthetic-audio",
         from: "synthetic-route",
         type: "audio",
-        audio: { id: "media" },
+        audio: { id: "990000000000004" },
       };
       let saved: unknown;
       const result = await prepareMessage(fixture.db, input, (v) => {
@@ -3156,10 +3156,10 @@ Deno.test("BE-12: Whisper corrige localmente y checkpoint conserva versión sin 
         return Promise.resolve(
           u.includes("graph.facebook.com")
             ? Response.json({
-              url: "https://media.example.invalid",
+              url: "https://lookaside.fbsbx.com",
               mime_type: "audio/ogg",
             })
-            : u.includes("media.example.invalid")
+            : u.includes("lookaside.fbsbx.com")
             ? new Response(new Uint8Array([1]))
             : u.includes("/audio/transcriptions")
             ? (whisper++, Response.json({ text: "El 2 moneda USD" }))
@@ -3171,7 +3171,7 @@ Deno.test("BE-12: Whisper corrige localmente y checkpoint conserva versión sin 
         id: "be12-audio",
         from: input.wa_id,
         type: "audio",
-        audio: { id: "synthetic-media" },
+        audio: { id: "990000000000003" },
       };
       let saved: unknown;
       const result = await prepareMessage(database().db, input, (r) => {

@@ -77,9 +77,9 @@ export async function sendWhatsAppText(
   }
   // Un solo presupuesto para envío, respuesta y variante argentina, sin reiniciarlo.
   const signal = timeoutSignal(LIMITS.sendMs, parent);
+  // SEC-23: solo 549… → 54… (el mismo abonado). 54… → 549… podría ser otra persona.
   const recipients = [to];
   if (to.startsWith("549")) recipients.push(to.replace(/^549/, "54"));
-  else if (to.startsWith("54")) recipients.push(to.replace(/^54/, "549"));
   let status = 502;
   try {
     for (const recipient of recipients) {
@@ -121,6 +121,18 @@ export async function sendWhatsAppText(
   }
 }
 
+// SEC-21: la descarga solo va a dominios de Meta; nunca se manda el token a otro host.
+const META_MEDIA_HOST = /(^|\.)(fbsbx\.com|fbcdn\.net|whatsapp\.net|facebook\.com)$/i;
+const JPEG_MAGIC = [0xff, 0xd8, 0xff];
+const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+// SEC-22: el contenido de una imagen tiene que coincidir con su tipo declarado.
+function imageMatches(bytes: Uint8Array, mimeType: string): boolean {
+  const magic = mimeType === "image/jpeg" ? JPEG_MAGIC : mimeType === "image/png" ? PNG_MAGIC : null;
+  if (!magic) return true;
+  return bytes.length >= magic.length && magic.every((value, i) => bytes[i] === value);
+}
+
 export async function downloadWhatsAppMedia(
   mediaId: string,
   kind?: "audio" | "image",
@@ -130,6 +142,9 @@ export async function downloadWhatsAppMedia(
   try {
     const token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
     if (!token) throw new OperationalFailure("configuration", "meta_media");
+    if (!/^\d{1,32}$/.test(mediaId)) {
+      throw new OperationalFailure("invalid_response", "meta_media");
+    }
     const metadata = await withinSignal(() =>
       fetch(`${graphBase}/${mediaId}`, {
         headers: { authorization: `Bearer ${token}` },
@@ -159,8 +174,8 @@ export async function downloadWhatsAppMedia(
       throw new OperationalFailure("invalid_response", "meta_media");
     }
     const url = new URL(info.url);
-    if (url.protocol !== "https:" || url.username || url.password) {
-      throw new OperationalFailure("invalid_response", "meta_media");
+    if (url.protocol !== "https:" || url.username || url.password || url.port || !META_MEDIA_HOST.test(url.hostname)) {
+      throw new OperationalFailure("unsupported_media", "meta_media");
     }
     const file = await withinSignal(() =>
       fetch(url, {
@@ -190,6 +205,9 @@ export async function downloadWhatsAppMedia(
     );
     if (!bytes.length) {
       throw new OperationalFailure("invalid_response", "meta_media");
+    }
+    if (!imageMatches(bytes, mimeType)) {
+      throw new OperationalFailure("unsupported_media", "meta_media");
     }
     const base64 = bytesToBase64(bytes);
     signal.throwIfAborted();
