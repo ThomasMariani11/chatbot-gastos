@@ -91,7 +91,7 @@ Rama `feat/fase4-bot`. **Solo webhook:** sin migración ni PWA; el contrato no c
 - SEC-21: `mediaId` solo dígitos; la descarga de multimedia solo va a `https` de `fbsbx.com`, `fbcdn.net`, `whatsapp.net` o `facebook.com` (y subdominios). Si Meta usara otro dominio, las fotos y audios pedirían texto y aparecerían incidencias `unsupported_media` en el panel.
 - SEC-22: las imágenes tienen que empezar con la firma JPEG o PNG de su tipo.
 - SEC-23: el reintento solo va de `549…` a `54…`.
-- SEC-24: se descartan los mensajes cuyo `phone_number_id` no es `WHATSAPP_PHONE_NUMBER_ID`.
+- SEC-24: se descartan los mensajes cuyo `phone_number_id` no es `WHATSAPP_PHONE_NUMBER_ID`, dejando en el log `foreign_number_dropped` con la cantidad (sin identificadores). Si aparece después del deploy con mensajes propios, `WHATSAPP_PHONE_NUMBER_ID` está mal configurado: volver a v81 y corregirlo.
 - SEC-27 (avisos en la pantalla bloqueada): sin cambios por decisión del propietario; se declara en la política de privacidad.
 
 **Publicación:** merge → deploy del webhook con smoke 401 en `/`, `worker` y `client-push` → prueba del propietario con una foto de ticket y un audio. **Rollback:** volver a v81.

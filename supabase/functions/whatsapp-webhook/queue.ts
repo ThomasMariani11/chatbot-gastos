@@ -32,14 +32,22 @@ export function readMessages(payload: unknown, expectedPhoneNumberId?: string): 
       }
     >;
   };
+  let dropped = 0;
   const messages = (data?.entry ?? []).flatMap((entry) =>
-    (entry.changes ?? []).flatMap((change) =>
-      expectedPhoneNumberId &&
+    (entry.changes ?? []).flatMap((change) => {
+      const own = change.value?.messages ?? [];
+      if (
+        expectedPhoneNumberId &&
         change.value?.metadata?.phone_number_id !== expectedPhoneNumberId
-        ? []
-        : change.value?.messages ?? []
-    )
+      ) {
+        dropped += own.length;
+        return [];
+      }
+      return own;
+    })
   );
+  // Un número mal configurado descartaría todo en silencio: queda la cantidad, sin identificadores.
+  if (dropped) writeOperationalLog("foreign_number_dropped", { dropped });
   if (
     !messages.every((m) =>
       m && typeof m.id === "string" && m.id && typeof m.from === "string" &&

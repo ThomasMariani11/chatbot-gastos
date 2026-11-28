@@ -59,7 +59,8 @@ describe('SEC-21 y SEC-22: descarga de multimedia', () => {
   });
 
   it('una URL de descarga fuera de Meta se rechaza sin mandarle el token', async () => {
-    for (const evil of ['https://evil.example/file', 'https://fbsbx.com.evil.example/file', 'http://lookaside.fbsbx.com/file']) {
+    for (const evil of ['https://evil.example/file', 'https://fbsbx.com.evil.example/file', 'http://lookaside.fbsbx.com/file',
+      'https://evilfbsbx.com/file', 'https://lookaside.fbsbx.com:8443/file', 'https://user:pass@lookaside.fbsbx.com/file']) {
       calls = [];
       stubFetch(media(evil, 'image/jpeg', JPEG));
       expect(await reasonOf(downloadWhatsAppMedia('1234567890', 'image')), evil).toBe('unsupported_media');
@@ -90,6 +91,21 @@ describe('SEC-24: número de Meta del evento', () => {
   it('descarta los mensajes dirigidos a otro número', () => {
     const both = { entry: [...payload('111111111111111', 'propio').entry, ...payload('999999999999999', 'ajeno').entry] };
     expect(readMessages(both, '111111111111111').map((m) => m.id)).toEqual(['propio']);
+  });
+
+  it('deja registro (sin identificadores) cuando descarta mensajes de otro número', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      readMessages(payload('999999999999999', 'ajeno'), '111111111111111');
+      const lines = log.mock.calls.map((c) => String(c[0]));
+      expect(lines.some((l) => l.includes('foreign_number_dropped') && l.includes('"dropped":1'))).toBe(true);
+      expect(lines.join('')).not.toContain('999999999999999');
+      log.mockClear();
+      readMessages(payload('111111111111111', 'propio'), '111111111111111');
+      expect(log.mock.calls.some((c) => String(c[0]).includes('foreign_number_dropped'))).toBe(false);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it('sin número configurado no filtra, como antes', () => {
