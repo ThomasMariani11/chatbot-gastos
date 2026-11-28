@@ -39,8 +39,9 @@ const KIND: Record<string, string> = { expense: 'Gasto', income: 'Ingreso' };
 const STATUS: Record<string, string> = { confirmed: 'Confirmado', pending: 'Pendiente', cancelled: 'Cancelado' };
 
 // Comillas siempre; un texto que empieza como fórmula se neutraliza para que Excel no lo ejecute.
-function cell(value: string): string {
-  const safe = /^[=+\-@]/.test(value) ? `'${value}` : value;
+function cell(value: string, numeric = false): string {
+  // Tabulación y retorno de carro también inician fórmulas en algunas planillas (OWASP).
+  const safe = !numeric && /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
   return `"${safe.replaceAll('"', '""')}"`;
 }
 
@@ -61,8 +62,8 @@ export function movementsCsv(rows: MovementRow[]): string {
     r.currency,
     r.installment_number && (r.installment_count ?? 1) > 1 ? `${r.installment_number} de ${r.installment_count}` : '',
     STATUS[r.status] ?? r.status,
-  ].map(cell).join(';'));
-  return '﻿' + [header.map(cell).join(';'), ...lines].join('\r\n');
+  ].map((value, column) => cell(value, column === 4)).join(';'));
+  return '﻿' + [header.map((value) => cell(value)).join(';'), ...lines].join('\r\n');
 }
 
 /** Descarga el CSV en el navegador; no pasa por ningún servidor. */

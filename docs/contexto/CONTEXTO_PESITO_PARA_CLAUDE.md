@@ -80,7 +80,7 @@ Decisión del propietario: **90 días**. `whatsapp_ops_config.retention_enabled=
 - **Webhook:** `ai-quota.ts`, `processor.ts`, `bot-messages.ts` (mensaje por carril) y `gemini.ts` (motivos `user_quota_audio` / `user_quota_text`).
 - **PWA:** `src/AiQuotaUsage.tsx` muestra y edita los límites por cliente y el top 5.
 - **Contrato:** mínimo 055, rollback 2a4fe60 (mínimo 054). Orden: merge/PWA, webhook con smoke 401, `db push`. No volver el webhook a una versión anterior a v79 con la 055 aplicada sin antes igualar el límite por cliente al límite global en ambos carriles desde el panel (así el global se agota antes y nunca se devuelve `user_exhausted`) (detalle en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`).
-- **Pruebas:** `tests/ai-quota-per-user-sql.test.ts`, `tests/ai-quota.test.ts`, `tests/ai-quota-ui.test.ts`. Pendiente: concurrencia real con `npm run test:concurrency` (Docker).
+- **Pruebas:** `tests/ai-quota-per-user-sql.test.ts`, `tests/ai-quota.test.ts`, `tests/ai-quota-ui.test.ts`. Concurrencia real: `tests/durable-queue-concurrency.mjs` (dos mensajes del mismo cliente en su último lugar; job PostgreSQL del CI).
 
 ## SEC-01: vinculación de WhatsApp robusta — publicado el 18/11/2026
 

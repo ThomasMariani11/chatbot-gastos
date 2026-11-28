@@ -91,6 +91,25 @@ describe('Tus datos', () => {
     expect(sessionStorage.getItem(ACCOUNT_DELETED_FLAG)).toBe('1');
   });
 
+  it('el aviso lleva el foco a la contraseña y se cierra con Escape', async () => {
+    await render();
+    await click('Borrar mi cuenta');
+    expect(document.activeElement).toBe(node.querySelector('input[type="password"]'));
+    await act(async () => { document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    expect(node.querySelector('[role="dialog"]')).toBeNull();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('al borrar quita #settings de la dirección para que el próximo ingreso no abra Ajustes', async () => {
+    window.history.replaceState(null, '', '/chatbot-gastos/#settings');
+    await render();
+    await click('Borrar mi cuenta');
+    await type('Clave1234');
+    await click('Borrar definitivamente');
+    expect(window.location.hash).toBe('');
+    expect(window.location.pathname).toBe('/chatbot-gastos/');
+  });
+
   it('cancelar cierra el aviso sin borrar', async () => {
     await render();
     await click('Borrar mi cuenta');

@@ -133,7 +133,7 @@ Rama `feat/sec-04-cupo-ia-por-cliente`: mínimo **055**, rollback fijado en **2a
 
 **Rollback:** conservar la 055. **No volver el webhook a una versión anterior a v79 (v77 o la v78 sin registro) mientras la 055 esté aplicada** sin antes igualar el límite por cliente al límite global en ambos carriles desde el panel (así el global se agota antes y nunca se devuelve `user_exhausted`): v77 trataría `user_exhausted` como error de configuración. La PWA anterior (2a4fe60) no muestra los límites por cliente pero funciona. Nunca hacer un down.
 
-**Pendiente:** probar la concurrencia real del último lugar del cupo con `npm run test:concurrency` (Docker); las pruebas PGlite son secuenciales.
+**Concurrencia real (28/11/2026):** `tests/durable-queue-concurrency.mjs` (job PostgreSQL del CI) aplica la 055 y lanza dos reservas simultáneas de dos mensajes del mismo cliente con límite 1: pasa una y la otra recibe `user_exhausted`; la misma reserva repetida en paralelo no suma dos veces.
 
 ## Contrato candidato 054 (SEC-01, vinculación de WhatsApp) — 17/11/2026
 

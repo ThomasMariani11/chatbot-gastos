@@ -31,6 +31,13 @@ describe('movementsCsv', () => {
     for (const start of ['+', '-', '@']) expect(movementsCsv([row({ description: `${start}1` })])).toContain(`"'${start}1"`);
   });
 
+  it('también neutraliza tabulación y retorno de carro al inicio, y un monto negativo sale como número', () => {
+    expect(movementsCsv([row({ description: '\t=1' })])).toContain(`"'\t=1"`);
+    expect(movementsCsv([row({ description: '\r=1' })])).toContain(`"'\r=1"`);
+    const [, line] = movementsCsv([row({ amount_ars: -50 })]).slice(1).split('\r\n');
+    expect(line).toContain('"-50,00"');
+  });
+
   it('sin movimientos deja solo el encabezado', () => {
     expect(movementsCsv([]).slice(1).split('\r\n')).toHaveLength(1);
   });
