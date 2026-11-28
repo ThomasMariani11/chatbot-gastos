@@ -79,6 +79,25 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
+## Contrato candidato 058 (Fase 4, grupo de base de datos) — 28/11/2026
+
+Rama `feat/fase4-sql`: mínimo **058**, rollback fijado en **0032135fd6fcb82916b77b764147bde3b4ad2c42** (PWA publicada, verificada con `version.json` el 28/11/2026; mínimo **057**). Diseño en `docs/superpowers/specs/2026-11-28-fase4-sql-design.md`.
+
+**Qué cambia** (sin cambios de PWA ni webhook):
+- SEC-12: `authenticated` solo actualiza `first_name`, `last_name`, `updated_at` y `subscription_status` de `profiles` (este último para que el panel pause y reactive; el trigger de 031 solo se lo permite a un admin con MFA).
+- SEC-13: sin INSERT directo en `transactions`; UPDATE solo de las columnas que edita la PWA; `app_settings` solo sus tres interruptores; `categories` sin escritura directa. `budgets` y el borrado de movimientos siguen.
+- SEC-14: `system_config` se lee solo con sesión.
+- SEC-15: `supabase_realtime` publica solo insert y update (los borrados se ven con el refresco de 30 s de la PWA).
+- SEC-16: `get_my_role` y `get_distinct_transaction_months` sin EXECUTE para `anon`; `search_path=pg_catalog, public` en cuatro funciones (`next_gemini_model_slot` existe solo en producción, sin migración: deriva histórica; se endurece si está).
+- SEC-18: `admin_audit_log` (lectura solo admin) con cambios de rol, de `system_config` y códigos borrados; el último administrador no puede perder el rol ni borrarse (`LAST_ADMIN`).
+- SEC-19: `save_push_subscription` no reasigna un endpoint de otra cuenta (`PUSH_ENDPOINT_IN_USE`) y solo acepta Apple, Google FCM, Mozilla y Microsoft (`PUSH_ENDPOINT_HOST`, más un CHECK en la tabla). Las 6 suscripciones de producción son de Apple.
+- 3.2: `delete_my_account` suma números de la cola y de renovaciones, bloquea en el orden del bot y borra `category_reclass_log` y las notas de sus códigos.
+- SEC-17 queda para cuando exista staging.
+
+**Orden de publicación** (con autorización del propietario): merge (no publica código nuevo) → `db push --linked --dry-run` (solo la 058) → `db push --linked` → verificación de solo lectura (privilegios por columna, política de `system_config`, publicación sin delete, auditoría, CHECK de push, crons). Antes del `db push`, repetir en solo lectura los hosts de `push_subscriptions` (el CHECK se valida al aplicar) y el dueño de `next_gemini_model_slot()`. Probar después en la PWA: editar nombre, editar y borrar un movimiento, presupuestos, los tres interruptores, activar notificaciones y, en el panel, pausar y reactivar un cliente de prueba.
+
+**Rollback:** conservar la 058. Si algo de la PWA fallara por un privilegio, una migración correctiva lo vuelve a otorgar. Nunca hacer un down.
+
 ## Contrato 057 (3.2 / LEG-01, borrado de cuenta y exportación) — publicado el 26/11/2026
 
 Rama `feat/leg-01-borrado-exportacion`: mínimo **057**, rollback fijado en **388730d57531d7edfe506860e6c509c6f1c2255d** (PWA publicada, verificada con `version.json` el 26/11/2026; mínimo **056**). Diseño en `docs/superpowers/specs/2026-11-26-leg-01-borrado-y-exportacion-design.md`.
