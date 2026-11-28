@@ -22,8 +22,8 @@
 
 **Estado:** rama `feat/fase4-sql`, sin integrar ni aplicar. Diseño en `docs/superpowers/specs/2026-11-28-fase4-sql-design.md`. Decisiones del propietario: no publicar borrados en tiempo real; SEC-17 para staging.
 
-- Privilegios por columna: perfil (nombre y apellido), movimientos (sin alta directa; solo concepto, monto, moneda, tipo, categoría y fecha), ajustes (tres interruptores), categorías sin escritura.
-- `system_config` solo con sesión; tiempo real sin borrados; funciones sin EXECUTE innecesario para `anon` (`is_admin` y `has_active_subscription` lo conservan porque las usan las políticas RLS).
+- Privilegios por columna: perfil (nombre y apellido; `subscription_status` para que el panel pause y reactive, solo admin por el trigger de 031), movimientos (sin alta directa; solo concepto, monto, moneda, tipo, categoría y fecha), ajustes (tres interruptores), categorías sin escritura.
+- `system_config` solo con sesión; tiempo real sin borrados; funciones sin EXECUTE innecesario para `anon` (`is_admin` lo conserva porque la usan políticas RLS `to public`; `has_active_subscription` también, sin riesgo).
 - `admin_audit_log` y protección del último administrador; push sin reasignación y solo de servicios conocidos; pendientes del borrado de cuenta.
 - Deriva: `next_gemini_model_slot()` existe en producción sin migración en el repo.
 - **Pruebas:** `tests/fase4-sql.test.ts` (PGlite con los privilegios por defecto de Supabase emulados).

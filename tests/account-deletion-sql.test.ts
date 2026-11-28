@@ -3,7 +3,8 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFile as readSqlFile, readdir } from 'node:fs/promises';
 
 // 3.2 (LEG-01): borrado de cuenta por el propio cliente (migración 057).
-// Datos ficticios. Esquema con las migraciones reales 001–056; la 057 se aplica al final.
+// Datos ficticios. Esquema con las migraciones reales 001–056; la 057 y la 058 (que redefine el borrado) al final,
+// así todas estas pruebas corren contra la definición vigente de delete_my_account.
 const readFile = async (path: URL | string) => (await readSqlFile(path, 'utf8')).replace(/\r\n/g, '\n');
 
 describe('3.2: borrado de cuenta (migración 057)', { timeout: 120_000 }, () => {
@@ -82,6 +83,7 @@ describe('3.2: borrado de cuenta (migración 057)', { timeout: 120_000 }, () => 
     // Emula los privilegios por defecto de Supabase sobre funciones nuevas de public.
     await db.exec('alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;');
     await db.exec(await readFile(new URL('057_account_deletion.sql', migrationUrl)));
+    await db.exec(await readFile(new URL('058_fase4_sql_hardening.sql', migrationUrl)));
   }, 120_000);
 
   afterAll(async () => { await db.close(); });
@@ -106,7 +108,7 @@ describe('3.2: borrado de cuenta (migración 057)', { timeout: 120_000 }, () => 
       await db.query(`insert into public.transactions(user_id, kind, description, amount_ars, occurred_on, status, source)
         values($1, 'expense', 'Súper ficticio', 1000, '2026-11-20', 'confirmed', 'pwa')`, [user]);
       await db.query(`insert into public.push_subscriptions(user_id, endpoint, p256dh, auth) values($1, $2, $3, $4)`,
-        [user, `https://push.example.test/${user}`, 'p'.repeat(87), 'a'.repeat(22)]);
+        [user, `https://web.push.apple.com/${user}`, 'p'.repeat(87), 'a'.repeat(22)]);
     }
     // Número que A usó antes y hoy está vinculado a otra cuenta (el admin): sus restos no se tocan.
     await link(admin, waMoved);

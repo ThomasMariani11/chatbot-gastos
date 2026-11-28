@@ -4,13 +4,15 @@
 --
 -- Compatible con la PWA y el webhook publicados: cada escritura directa que hace hoy la PWA sigue permitida
 -- (nombre y apellido, edición y borrado de movimientos, presupuestos, tres interruptores de Ajustes y, el admin,
--- configuración y borrado de códigos). Las funciones del bot son SECURITY DEFINER y no dependen de estos privilegios.
+-- pausar y reactivar clientes, configuración y borrado de códigos). Las funciones del bot son SECURITY DEFINER y no dependen de estos privilegios.
 begin;
 set local lock_timeout = '5s';
 
--- SEC-12: el cliente solo edita nombre y apellido de su perfil.
+-- SEC-12: el cliente solo edita nombre y apellido de su perfil. subscription_status queda otorgado porque el
+-- panel de administración pausa y reactiva clientes con un UPDATE directo (AdminPanel.tsx); el trigger
+-- protect_profile_system_fields (031) solo se lo permite a un admin con MFA.
 revoke insert, update, delete on public.profiles from anon, authenticated;
-grant update (first_name, last_name, updated_at) on public.profiles to authenticated;
+grant update (first_name, last_name, updated_at, subscription_status) on public.profiles to authenticated;
 
 -- SEC-13: movimientos y ajustes solo por las columnas que la PWA edita; categorías sin escritura directa.
 revoke insert, update on public.transactions from anon, authenticated;
@@ -34,8 +36,9 @@ begin
 end
 $realtime$;
 
--- SEC-16: sin sesión no hacen falta. is_admin() y has_active_subscription() siguen ejecutables por anon
--- porque las políticas RLS las llaman (sin sesión devuelven falso); quitárselas haría fallar consultas vacías.
+-- SEC-16: sin sesión no hacen falta. is_admin() sigue ejecutable por anon porque la llaman políticas RLS "to public"
+-- (sin sesión devuelve falso; quitársela haría fallar consultas vacías). has_active_subscription() también se
+-- conserva: sin sesión devuelve falso y no expone nada.
 revoke execute on function public.get_my_role() from public, anon;
 revoke execute on function public.get_distinct_transaction_months() from public, anon;
 grant execute on function public.get_my_role() to authenticated, service_role;
@@ -48,7 +51,11 @@ alter function public.has_active_subscription() set search_path = pg_catalog, pu
 do $legacy$
 begin
   if to_regprocedure('public.next_gemini_model_slot()') is not null then
-    alter function public.next_gemini_model_slot() set search_path = pg_catalog, public;
+    begin
+      alter function public.next_gemini_model_slot() set search_path = pg_catalog, public;
+    exception when insufficient_privilege then
+      raise notice 'next_gemini_model_slot() no es de este rol: queda sin cambios';
+    end;
   end if;
 end
 $legacy$;
@@ -136,7 +143,7 @@ begin
 end $$;
 
 -- 3.2: borrado de cuenta (redefinido desde 057) con más fuentes de números, bloqueos en el orden del bot
--- (estado por número → cola → perfil), registro de reclasificación y notas de sus códigos.
+-- (estado por número → cola → vínculo → perfil), registro de reclasificación y notas de sus códigos.
 create or replace function public.delete_my_account() returns jsonb
 language plpgsql security definer set search_path = pg_catalog, public as $$
 declare
@@ -176,6 +183,7 @@ begin
   -- Mismo orden de bloqueos que la recepción y el bot: evita esperas cruzadas y mensajes que se cuelen.
   perform 1 from public.whatsapp_worker_state where wa_id = any(phones) order by wa_id for update;
   perform 1 from public.whatsapp_message_queue where user_id = uid or wa_id = any(phones) order by id for update;
+  perform 1 from public.whatsapp_links where user_id = uid for update;
   perform 1 from public.profiles where id = uid for update;
   if not found then
     raise exception 'ACCOUNT_NOT_FOUND' using errcode = '42501';
@@ -239,6 +247,8 @@ begin
   if has_column_privilege('authenticated', 'public.profiles', 'email', 'update')
      or has_column_privilege('authenticated', 'public.profiles', 'role', 'update')
      or not has_column_privilege('authenticated', 'public.profiles', 'first_name', 'update')
+     or not has_column_privilege('authenticated', 'public.profiles', 'subscription_status', 'update')
+     or has_column_privilege('authenticated', 'public.profiles', 'subscription_until', 'update')
      or has_table_privilege('authenticated', 'public.transactions', 'insert')
      or has_column_privilege('authenticated', 'public.transactions', 'status', 'update')
      or not has_column_privilege('authenticated', 'public.transactions', 'amount_ars', 'update')

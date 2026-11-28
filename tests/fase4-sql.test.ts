@@ -132,6 +132,17 @@ describe('Fase 4 SQL (migración 058)', { timeout: 120_000 }, () => {
     });
   });
 
+  describe('Compatibilidad con el panel de administración', () => {
+    it('el admin (con MFA) pausa y reactiva a un cliente como hace el panel; el cliente no puede cambiar su estado', async () => {
+      for (const status of ['suspended', 'active']) {
+        expect((await as('authenticated', admin, 'update public.profiles set subscription_status = $1, updated_at = now() where id = $2 returning id', [status, clientA])).error, status).toBeNull();
+        expect(await one('select subscription_status from public.profiles where id = $1', [clientA])).toEqual({ subscription_status: status });
+      }
+      expect((await as('authenticated', clientA, "update public.profiles set subscription_status = 'suspended' where id = $1", [clientA])).error?.code).toBe('42501');
+      expect((await as('authenticated', clientA, "update public.profiles set subscription_until = now() + interval '1 year' where id = $1", [clientA])).error?.code).toBe('42501');
+    });
+  });
+
   describe('SEC-13: escrituras directas', () => {
     it('movimientos: no se crean directo ni se cambia estado u origen; sí se edita lo que edita la app y se borra', async () => {
       const id = await movement(clientA);

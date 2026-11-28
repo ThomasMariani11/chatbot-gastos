@@ -84,7 +84,7 @@ PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múlti
 Rama `feat/fase4-sql`: mínimo **058**, rollback fijado en **0032135fd6fcb82916b77b764147bde3b4ad2c42** (PWA publicada, verificada con `version.json` el 28/11/2026; mínimo **057**). Diseño en `docs/superpowers/specs/2026-11-28-fase4-sql-design.md`.
 
 **Qué cambia** (sin cambios de PWA ni webhook):
-- SEC-12: `authenticated` solo actualiza `first_name`, `last_name` y `updated_at` de `profiles`.
+- SEC-12: `authenticated` solo actualiza `first_name`, `last_name`, `updated_at` y `subscription_status` de `profiles` (este último para que el panel pause y reactive; el trigger de 031 solo se lo permite a un admin con MFA).
 - SEC-13: sin INSERT directo en `transactions`; UPDATE solo de las columnas que edita la PWA; `app_settings` solo sus tres interruptores; `categories` sin escritura directa. `budgets` y el borrado de movimientos siguen.
 - SEC-14: `system_config` se lee solo con sesión.
 - SEC-15: `supabase_realtime` publica solo insert y update (los borrados se ven con el refresco de 30 s de la PWA).
@@ -94,7 +94,7 @@ Rama `feat/fase4-sql`: mínimo **058**, rollback fijado en **0032135fd6fcb82916b
 - 3.2: `delete_my_account` suma números de la cola y de renovaciones, bloquea en el orden del bot y borra `category_reclass_log` y las notas de sus códigos.
 - SEC-17 queda para cuando exista staging.
 
-**Orden de publicación** (con autorización del propietario): merge (no publica código nuevo) → `db push --linked --dry-run` (solo la 058) → `db push --linked` → verificación de solo lectura (privilegios por columna, política de `system_config`, publicación sin delete, auditoría, CHECK de push, crons). Probar después en la PWA: editar nombre, editar y borrar un movimiento, presupuestos, los tres interruptores y activar notificaciones.
+**Orden de publicación** (con autorización del propietario): merge (no publica código nuevo) → `db push --linked --dry-run` (solo la 058) → `db push --linked` → verificación de solo lectura (privilegios por columna, política de `system_config`, publicación sin delete, auditoría, CHECK de push, crons). Antes del `db push`, repetir en solo lectura los hosts de `push_subscriptions` (el CHECK se valida al aplicar) y el dueño de `next_gemini_model_slot()`. Probar después en la PWA: editar nombre, editar y borrar un movimiento, presupuestos, los tres interruptores, activar notificaciones y, en el panel, pausar y reactivar un cliente de prueba.
 
 **Rollback:** conservar la 058. Si algo de la PWA fallara por un privilegio, una migración correctiva lo vuelve a otorgar. Nunca hacer un down.
 
