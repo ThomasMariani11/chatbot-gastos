@@ -5,6 +5,7 @@ import { deleteAccount, downloadMovements, type DeleteResult } from './accountDa
 import { markAccountDeleted } from './accountDeletedNotice';
 import { unsubscribeBrowserPush } from './pushNotifications';
 import { useUpdateBlocker } from './PwaUpdates';
+import { ModalDialog } from './ModalDialog';
 
 type Props = {
   userId: string;
@@ -57,8 +58,10 @@ export function AccountDataCard({ userId, email, isAdmin, download = realDownloa
     let result: DeleteResult;
     try { result = await remove(email, password); } catch { result = 'failed'; }
     if (result === 'deleted') {
-      // La sesión ya se cerró: la app vuelve al ingreso, que muestra el aviso.
+      // La sesión ya se cerró: la app vuelve al ingreso, que muestra el aviso. Sin #settings en la
+      // dirección, el próximo ingreso en este navegador no abre Ajustes de entrada.
       markAccountDeleted();
+      try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch { /* sin historial */ }
       return;
     }
     setDeleting(false);
@@ -80,10 +83,20 @@ export function AccountDataCard({ userId, email, isAdmin, download = realDownloa
       {downloadError && <p className="form-message form-message-error" role="alert">No pude preparar el archivo. Probá de nuevo.</p>}
 
       {confirming && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="delete-account-title" onClick={close}>
-          <form className="movement-form account-delete-dialog" onSubmit={(e) => void handleDelete(e)} onClick={(e) => e.stopPropagation()}>
+        <ModalDialog
+          open={confirming}
+          busy={deleting}
+          onClose={close}
+          titleId="delete-account-title"
+          descriptionId="delete-account-desc"
+          backdropClassName="modal-backdrop"
+          className="movement-form account-delete-dialog"
+          as="form"
+          onSubmit={(e) => void handleDelete(e)}
+          initialFocusSelector='input[type="password"]'
+        >
             <h2 id="delete-account-title">¿Borrar tu cuenta de Pesito?</h2>
-            <ul>
+            <ul id="delete-account-desc">
               <li>Se borran tus movimientos, categorías, presupuestos, el vínculo con WhatsApp y tus avisos.</li>
               <li>Tus pagos quedan registrados sin tus datos personales.</li>
               <li>Perdés los días de suscripción que te queden.</li>
@@ -101,8 +114,7 @@ export function AccountDataCard({ userId, email, isAdmin, download = realDownloa
                 {deleting ? 'Borrando…' : 'Borrar definitivamente'}
               </button>
             </div>
-          </form>
-        </div>
+        </ModalDialog>
       )}
     </article>
   );
