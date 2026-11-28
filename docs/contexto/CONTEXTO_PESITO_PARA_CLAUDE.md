@@ -18,9 +18,9 @@
 - **Tiempo mínimo (pedido del propietario):** `src/useSplashHold.ts` mantiene la pantalla arriba al menos `SPLASH_MIN_MS` = 2000 ms desde que se abrió la página, mientras la app carga por detrás; al terminar, la barra se completa y se desvanece (`SPLASH_LEAVE_MS` = 450 ms). La barra llega a ~92 % en 3 s.
 - **Pruebas:** `tests/splash.test.ts` (marcado, sin scripts en línea, movimiento reducido), `tests/splash-component.test.ts` (accesibilidad, continuidad de la barra, salida, mismo marcado que `index.html`) y `tests/splash-hold.test.ts` (tiempo mínimo).
 
-## Fase 4, grupo de base de datos (058) — 28/11/2026 (en rama)
+## Fase 4, grupo de base de datos (058) — publicado el 28/11/2026
 
-**Estado:** rama `feat/fase4-sql`, sin integrar ni aplicar. Diseño en `docs/superpowers/specs/2026-11-28-fase4-sql-design.md`. Decisiones del propietario: no publicar borrados en tiempo real; SEC-17 para staging.
+**Estado:** **publicado.** PR #137, SQL **001–058** (`db push` del 28/11/2026). Detalle y verificación en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`. Diseño en `docs/superpowers/specs/2026-11-28-fase4-sql-design.md`. Decisiones del propietario: no publicar borrados en tiempo real; SEC-17 para staging.
 
 - Privilegios por columna: perfil (nombre y apellido; `subscription_status` para que el panel pause y reactive, solo admin por el trigger de 031), movimientos (sin alta directa; solo concepto, monto, moneda, tipo, categoría y fecha), ajustes (tres interruptores), categorías sin escritura.
 - `system_config` solo con sesión; tiempo real sin borrados; funciones sin EXECUTE innecesario para `anon` (`is_admin` lo conserva porque la usan políticas RLS `to public`; `has_active_subscription` también, sin riesgo).
