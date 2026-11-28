@@ -1,6 +1,10 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
-## Última publicación observada — 26/11/2026 (3.2: borrado de cuenta y exportación)
+## Última publicación observada — 28/11/2026 (Fase 4, grupo de base de datos)
+
+PWA **91d7ae7c9d429b9246daaf0202bd8fccdaec4b7d** (PR #137; sin cambios de PWA), SQL **001–058**, webhook **v81** sin cambios. Orden ejecutado con autorización del propietario: merge de la PR #137 → CI de `main` en verde (incluido el ensayo de release con la 058) y Pages con `version.json` = 91d7ae7 → lecturas previas: 6 suscripciones push, todas de `web.push.apple.com` y 0 fuera de la lista; `next_gemini_model_slot()` de `postgres`; 1 admin → `db push --linked --dry-run` (solo 058) → `db push --linked` → verificación de solo lectura: historial 058; `profiles` UPDATE solo `first_name`, `last_name`, `subscription_status` y `updated_at`; `transactions` sin INSERT ni UPDATE de `status`, con UPDATE de `amount_ars` y DELETE; `app_settings` solo los tres interruptores y `updated_at`; `categories` sin INSERT; `budgets` sin cambios; `system_config` leída solo por `authenticated`; publicación sin delete; ejecutables por `anon`: solo `check_invitation_code`, `has_active_subscription` e `is_admin`; ninguna función SECURITY DEFINER sin `pg_catalog`; `admin_audit_log` con RLS, sin INSERT para `authenticated` y 0 filas; los cuatro triggers; CHECK de push validado con las 6 filas; 4 cuentas; cuatro crons activos. Rollback: conservar la 058. **Pendiente:** prueba del propietario en la PWA (nombre, movimientos, presupuestos, interruptores, notificaciones y pausar/reactivar un cliente de prueba).
+
+## Registro histórico — 26/11/2026 (3.2: borrado de cuenta y exportación)
 
 PWA **edf1cdafd8d466a87f5c06a16d4d57f8bf0ae14c** (PR #134), SQL **001–057**, webhook **v81** sin cambios. Orden ejecutado con autorización del propietario: merge de la PR #134 → CI de `main` en verde (Frontend, PostgreSQL, Webhook, ensayo de release con la 057 y Publicar) y Pages con `version.json` = edf1cda → `db push --linked --dry-run` (solo 057) → `db push --linked` enseguida → verificación de solo lectura por `db query --linked`: historial 057; `delete_my_account` SECURITY DEFINER, dueño postgres, `search_path=pg_catalog, public`, EXECUTE solo para authenticated (no anon ni service_role), con la exigencia de sesión reciente y la limpieza de auditoría; `guard_renewal_code` SECURITY DEFINER con la excepción de borrado y su trigger activo; `payment_archive` con RLS, sin privilegios y 0 filas; 4 cuentas; cuatro crons activos. Rollback: conservar la 057; PWA 388730d (no muestra la tarjeta). **Pendiente:** prueba del propietario con una cuenta de prueba creada para eso.
 
@@ -79,7 +83,7 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
-## Contrato candidato 058 (Fase 4, grupo de base de datos) — 28/11/2026
+## Contrato 058 (Fase 4, grupo de base de datos) — publicado el 28/11/2026
 
 Rama `feat/fase4-sql`: mínimo **058**, rollback fijado en **0032135fd6fcb82916b77b764147bde3b4ad2c42** (PWA publicada, verificada con `version.json` el 28/11/2026; mínimo **057**). Diseño en `docs/superpowers/specs/2026-11-28-fase4-sql-design.md`.
 
