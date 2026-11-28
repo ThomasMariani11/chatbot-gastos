@@ -21,14 +21,24 @@ export type IncomingMessage = {
   pesito_quiet_not_linked?: boolean;
 };
 
-export function readMessages(payload: unknown): IncomingMessage[] {
+// SEC-24: con expectedPhoneNumberId, solo los mensajes dirigidos al número de Pesito.
+export function readMessages(payload: unknown, expectedPhoneNumberId?: string): IncomingMessage[] {
   const data = payload as {
     entry?: Array<
-      { changes?: Array<{ value?: { messages?: IncomingMessage[] } }> }
+      {
+        changes?: Array<
+          { value?: { metadata?: { phone_number_id?: unknown }; messages?: IncomingMessage[] } }
+        >;
+      }
     >;
   };
   const messages = (data?.entry ?? []).flatMap((entry) =>
-    (entry.changes ?? []).flatMap((change) => change.value?.messages ?? [])
+    (entry.changes ?? []).flatMap((change) =>
+      expectedPhoneNumberId &&
+        change.value?.metadata?.phone_number_id !== expectedPhoneNumberId
+        ? []
+        : change.value?.messages ?? []
+    )
   );
   if (
     !messages.every((m) =>

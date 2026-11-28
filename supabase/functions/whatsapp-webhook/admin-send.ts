@@ -1,25 +1,12 @@
 // Autenticación del envío administrativo; nunca usa claves públicas ni JWT
 // decodificados sin verificar. No registra credenciales ni contenido del aviso.
+import { sameSecret } from "./secrets.ts";
+
 export type AdminSendDependencies = {
   legacyServiceKey?: string;
   secretKeysJson?: string;
   send: (to: string, body: string) => Promise<void>;
 };
-
-async function sameSecret(actual: string | null, expected: unknown) {
-  if (!actual || typeof expected !== "string" || !expected) return false;
-  const encoder = new TextEncoder();
-  const [left, right] = await Promise.all(
-    [actual, expected].map(async (value) =>
-      new Uint8Array(
-        await crypto.subtle.digest("SHA-256", encoder.encode(value)),
-      )
-    ),
-  );
-  let difference = 0;
-  for (let i = 0; i < left.length; i++) difference |= left[i] ^ right[i];
-  return difference === 0;
-}
 
 function defaultBackendKey(raw: string | undefined): string | undefined {
   try {

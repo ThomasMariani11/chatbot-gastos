@@ -83,6 +83,19 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
+## Candidato Fase 4, grupo del bot — 28/11/2026
+
+Rama `feat/fase4-bot`. **Solo webhook:** sin migración ni PWA; el contrato no cambia (mínimo 058). Diseño en `docs/superpowers/specs/2026-11-28-fase4-bot-design.md`.
+
+- SEC-20: `x-worker-secret` y el verify token de Meta se comparan en tiempo constante (`secrets.ts`, compartido con el envío administrativo).
+- SEC-21: `mediaId` solo dígitos; la descarga de multimedia solo va a `https` de `fbsbx.com`, `fbcdn.net`, `whatsapp.net` o `facebook.com` (y subdominios). Si Meta usara otro dominio, las fotos y audios pedirían texto y aparecerían incidencias `unsupported_media` en el panel.
+- SEC-22: las imágenes tienen que empezar con la firma JPEG o PNG de su tipo.
+- SEC-23: el reintento solo va de `549…` a `54…`.
+- SEC-24: se descartan los mensajes cuyo `phone_number_id` no es `WHATSAPP_PHONE_NUMBER_ID`.
+- SEC-27 (avisos en la pantalla bloqueada): sin cambios por decisión del propietario; se declara en la política de privacidad.
+
+**Publicación:** merge → deploy del webhook con smoke 401 en `/`, `worker` y `client-push` → prueba del propietario con una foto de ticket y un audio. **Rollback:** volver a v81.
+
 ## Contrato 058 (Fase 4, grupo de base de datos) — publicado el 28/11/2026
 
 Rama `feat/fase4-sql`: mínimo **058**, rollback fijado en **0032135fd6fcb82916b77b764147bde3b4ad2c42** (PWA publicada, verificada con `version.json` el 28/11/2026; mínimo **057**). Diseño en `docs/superpowers/specs/2026-11-28-fase4-sql-design.md`.
